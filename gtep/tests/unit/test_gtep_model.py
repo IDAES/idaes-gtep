@@ -4,7 +4,6 @@ from pyomo.environ import ConcreteModel, Var, SolverFactory, value
 from pyomo.environ import units as u
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
-from trial_prescient import testing_data_processing
 from egret.data.model_data import ModelData
 from pyomo.core import TransformationFactory
 from prescient.data.providers import gmlc_data_provider
@@ -92,7 +91,9 @@ class TestGTEP(unittest.TestCase):
     # Assumes availability of gurobi
     def test_solve_bigm(self):
         md = read_debug_model()
-        modObject = ExpansionPlanningModel(data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1)
+        modObject = ExpansionPlanningModel(
+            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        )
         modObject.create_model()
         modObject.solve_model()
         modObject.report_model()

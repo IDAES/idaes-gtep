@@ -16,8 +16,6 @@ from pyomo.repn.linear import LinearRepnVisitor
 import json
 
 
-# TODO: what else do we actually NEED from egret?
-
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
 # based on automatic pyomo unit transformations
@@ -32,7 +30,6 @@ u.load_definitions_from_strings(["USD = [currency]"])
 
 # This is only used for reporting potentially bad (i.e., large magnitude) coefficients
 # and thus only when that argument is passed
-## I should import this from wherever I got it? but I think I simplified it to have minimum use
 class VisitorConfig(object):
     def __init__(self):
         self.subexpr = {}
