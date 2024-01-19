@@ -118,7 +118,6 @@ class ExpansionPlanningModel:
         m.dispatchPeriodLength = Param(within=PositiveReals, default=15, units=u.min)
 
         model_data_references(m)
-        # model_param_declaration(m)
         model_create_investment_stages(m, self.stages)
         create_objective_function(m)
 
