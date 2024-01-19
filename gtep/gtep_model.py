@@ -55,7 +55,7 @@ class ExpansionPlanningModel:
         num_dispatch=4,
     ):
         """
-        Create concrete Pyomo model.
+        Initialize generation & expansion planning model object
         Args:
             stages : integer number of investment periods
             formulation : Egret stuff, to be filled
@@ -78,20 +78,23 @@ class ExpansionPlanningModel:
         self.timer = TicTocTimer()
 
     def create_model(self):
+        """
+        Create concrete Pyomo model object associated with the ExpansionPlanningModel
+        """
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
-        ## TODO:
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
         if self.data is None:
             raise
         elif type(self.data) is list:
-            # Okay, so for now we are assuming that the list is for a list of
-            # representative periods, got it?
+            # If self.data is a list, it is a list of data for
+            # representative periods
             m.data_list = self.data
             m.md = scale_ModelData_to_pu(self.data[0])
         else:
+            # If self.data is an Egret model data object, representative periods will just copy it unchanged
             m.data_list = None
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
@@ -124,11 +127,26 @@ class ExpansionPlanningModel:
 
         self.model = m
 
+    ## TODO: this should handle string or i/o object for outfile
     def report_model(self, outfile="pretty_model_output.txt"):
+        """
+        Pretty prints Pyomo model to outfile.
+
+        Args:
+            outfile (str, optional): _description_. Defaults to "pretty_model_output.txt".
+        """
         with open(outfile, "w") as outf:
             self.model.pprint(ostream=outf)
 
+    ## TODO: probably don't have gurobi as default solver? Instead set as open source.
     def solve_model(self, solver="gurobi", solver_args=None):
+        """Solves the expansion planning model.  Solver_args are passed directly
+        to the chosen solver.  Assigns solution results to self.results.
+
+        Args:
+            solver (str, optional): _description_. Defaults to "gurobi".
+            solver_args (_type_, optional): _description_. Defaults to None.
+        """
         opt = SolverFactory(solver)
         TransformationFactory("gdp.bigm").apply_to(self.model)
         self.results = opt.solve(self.model, tee=False, load_solutions=True)
@@ -257,7 +275,7 @@ def add_investment_constraints(
     # Planning reserve requirement constraint
     ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
     ## NOTE: reserveMargin is a percentage of peakLoad
-    ## TODO: once Emma does the transform ...
+    ## TODO: check and re-enable with additional bounding transform before bigm
     ## TODO: renewableCapacityValue... should this be time iterated? is it tech based?
     ## is it site based? who can say?
     """@b.Constraint()
@@ -281,7 +299,10 @@ def add_investment_constraints(
         )"""
 
     # maximum investment stage installation
-    ## FIXME temporarily disabled maximum investment
+    ## NOTE: temporarily disabled maximum investment as default option
+    ## TODO: These capacities shouldn't be enabled by default since they can
+    ## easily cause absurd results/possibly even infeasibility.  Will need to add
+    ## user-defined handling for this.
     # @b.Constraint(m.regions)
     # def maximum_thermal_investment(b, region):
     #     return (
@@ -348,6 +369,8 @@ def add_investment_constraints(
         )
 
     # Investment costs for investment period
+    ## NOTE: investment cost definition needs to be revisited AND possibly depends on
+    ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
     @b.Constraint()
     def investment_cost(b):
         return b.expansionCost == m.investmentFactor[investment_stage] * (
@@ -413,8 +436,6 @@ def add_dispatch_variables(
     m = b.model()
     c_p = b.parent_block()
 
-    # print("new dispatch period ick", dispatch_period)
-
     # Define bounds on thermal generator active generation
     def thermal_generation_limits(b, thermalGen):
         return (0, m.thermalCapacity[thermalGen])
@@ -458,7 +479,7 @@ def add_dispatch_variables(
             m.transmissionCapacity[transmissionLine],
         )
 
-    # NOTE: this is an abuse of units
+    # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
         m.transmission,
         domain=Reals,
@@ -507,7 +528,9 @@ def add_dispatch_variables(
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
-    # TODO: adjacent bus angle difference constraints
+    # TODO: adjacent bus angle difference constraints should be added -- what should they be?
+    # TODO: likewise, what do we want angle boudns to actually be?
+
     def bus_angle_bounds(b, bus):
         return (-90, 90)
 
@@ -530,32 +553,23 @@ def add_dispatch_constraints(
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    # TODO: choose reactance that's not this garbage
-    fixed_reactance = 0.01
-    # print(m.md.data["elements"]["branch"])
-
-    ## FIXME: reactance should not be random!! but we don't always have this data
-    ## REVIEW: this set of constraints is the only cause of difference in solutions for egret/own code
+    ## TODO: what do we do when reactance isn't supplied in the dataset?
     @b.Constraint(m.transmission)
     def dc_power_flow(b, line):
         fb = m.transmission[line]["from_bus"]
         tb = m.transmission[line]["to_bus"]
         reactance = m.md.data["elements"]["branch"][line]["reactance"]
         if m.md.data["elements"]["branch"][line]["branch_type"] == "transformer":
-            reactance *= m.md.data["elements"]["branch"][line][
-                "transformer_tap_ratio"
-            ]
+            reactance *= m.md.data["elements"]["branch"][line]["transformer_tap_ratio"]
             shift = m.md.data["elements"]["branch"][line]["transformer_phase_shift"]
         else:
             shift = 0
-        return (
-            b.powerFlow[line]
-            == (-1 / reactance) * (b.busAngle[tb] - b.busAngle[fb] + shift)
+        return b.powerFlow[line] == (-1 / reactance) * (
+            b.busAngle[tb] - b.busAngle[fb] + shift
         )
 
     # Energy balance constraint
-    # TODO: Egret will eventually handle this constraint (or most of it)
-    ## FIXME: curtailment is problematic; see below
+    ## FIXME: curtailment handling is problematic; see below
     @b.Constraint(m.buses)
     def flow_balance(b, bus):
         balance = 0
@@ -591,11 +605,10 @@ def add_dispatch_constraints(
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == m.renewableCapacity[renewableGen]
-            # * m.capacityFactor[renewableGen][disp_per]
         )
 
     ## FIXME
-    # NOTE: this is going to make curtailment crazy expensive
+    # NOTE: I believe this makes curtailment crazy expensive
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
         return (
@@ -607,7 +620,9 @@ def add_dispatch_constraints(
     # RESERVE -- total operating (spinning + quickstart)
     # Total operating reserve constraint
     ## NOTE: min operating reserve is a percentage of load
-    ## FIXME
+    ## FIXME: Reserve enforcement causes infeasibility issues.  We should track
+    ## reserve shortage in some way and find a way to penalize it -- how is this
+    ## done in ISOs?  Is it an issue to assign this as a regional
     # @b.Constraint(m.regions)
     # def total_operating_reserve(b, region):
     #     return sum(
@@ -682,17 +697,11 @@ def add_commitment_variables(b, commitment_period):
     r_p = b.parent_block()
     i_p = r_p.parent_block()
 
-    ## TODO: return to this once Emma does the transform
-    # b.operatingCostCommitment = sum(
-    #        m.dispatchPeriodLength * b.dispatchPeriod[disp_per].operatingCostDispatch
-    #        for disp_per in b.dispatchPeriods)
-
     # Define disjunction on generator status: on/startup/shutdown/off
     @b.Disjunct(m.thermalGenerators)
     def genOn(disj, generator):
         # operating limits
         ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
-        # print("adding gen on disjunct for gen #", generator)
         b = disj.parent_block()
 
         # Minimum operating Limits
@@ -747,11 +756,6 @@ def add_commitment_variables(b, commitment_period):
                 <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
             )
 
-        ## TODO: return to this once Emma does the transform
-        # b.operatingCostCommitment += m.fixedOperatingCost[generator] * m.thermalCapacity[generator]
-
-    # print("made gen on disjunct!", commitment_period)
-
     @b.Disjunct(m.thermalGenerators)
     def genStartup(disj, generator):
         b = disj.parent_block()
@@ -787,13 +791,6 @@ def add_commitment_variables(b, commitment_period):
                 if dispatchPeriod != 1
                 else Constraint.Skip
             )
-
-        ## TODO: return to this once Emma does the transform
-        # b.operatingCostCommitment += m.commitmentPeriodLength * m.thermalCapacity[generator] * (
-        #        m.startFuel[generator] * m.fuelCost[generator]
-        #        + m.startFuel[generator] * b.carbonTax * m.emissionsFactor[generator]
-        #        + m.startupCost[generator]
-        #    )
 
     @b.Disjunct(m.thermalGenerators)
     def genShutdown(disj, generator):
@@ -873,10 +870,6 @@ def add_commitment_variables(b, commitment_period):
             )
         )
 
-    ## TODO: return to this once Emma does the transform
-    # for generator in m.renewableGenerators:
-    #    b.operatingCostCommitment += m.fixedOperatingCost[generator]* m.renewableCapacity[generator]
-
     # Track total renewable surplus/deficit for future expressions
     b.renewableSurplusCommitment = Var(within=Reals, initialize=0, units=u.MW)
 
@@ -913,8 +906,10 @@ def add_commitment_constraints(
         )
 
     # Define total operating costs for commitment block
-    ## TODO: Stop having this constraint once Emma does the transform
+    ## TODO: Replace this constraint with expressions using bounds transform
+    ## NOTE: expressions are stored in gtep_cleanup branch
     ## FIXME: costs blowing up by dispatch length?
+    ## costs considered need to be re-assessed and account for missing data
     @b.Expression()
     def operating_cost_commitment(b):
         b.dispatch_operating_cost = Expression(
@@ -1029,7 +1024,7 @@ def commitment_period_rule(b, commitment_period):
         for renewableGen in m.renewableGenerators
     }
 
-    ## TODO: Redesign load scaling and allow as argument
+    ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
     scale_loads = True
     if scale_loads:
@@ -1143,8 +1138,6 @@ def representative_period_rule(
     """
     m = b.model()
     i_s = b.parent_block()
-
-    # print("new rep period ahhhhh", representative_period)
 
     b.currentPeriod = representative_period
 
@@ -1396,7 +1389,6 @@ def model_data_references(m):
     }
 
     # Demand at each bus
-    # right this becomes a dictionary...
     m.loads = {
         m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
             load_n
@@ -1424,7 +1416,8 @@ def model_data_references(m):
     m.renewableQuota = Param(m.stages, default=0, units=u.MW)
     m.weights = Param(m.representativePeriods, default=1)
     m.investmentFactor = Param(m.stages, default=1, mutable=True)
-    ## NOTE: Lazy fixing for NPV
+    ## NOTE: Lazy approx for NPV
+    ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
     m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD)
@@ -1449,7 +1442,8 @@ def model_data_references(m):
         }
 
     # Cost per MW of curtailed renewable energy
-    # NOTE: what should this be vauled at?
+    # NOTE: what should this be vauled at?  This being both curtailment and load shed.
+    # TODO: update valuations
     m.curtailmentCost = 2 * max(m.fuelCost.values())
     m.loadShedCost = 1000 * m.curtailmentCost
 
@@ -1502,7 +1496,8 @@ def model_data_references(m):
 
     # Maximum operating reserve available for each generator; expressed as a fraction
     # maximum generator output
-    ## NOTE: This does not appear to exist elsewhere in the code currently (4/3/23)?
+    ## NOTE: This does not appear to exist elsewhere in the code currently (1/18/24)?
+    # I think this is very rarely defined in data? but should be checked
     m.maxOperatingReserve = {
         gen: m.md.data["elements"]["generator"][gen]["max_operating_reserve"]
         for gen in m.thermalGenerators
@@ -1545,33 +1540,6 @@ def model_data_references(m):
         ]
         == region
     }
-
-
-def model_param_declaration(m):
-    """
-    Declares model parameters regarding various periods and their corresponding lengths.
-    Commitment period length should be specified in units of hours; representative period
-    length should be specified in units of hours; dispatch period length should be specified
-    in units of minutes.
-    Args:
-        m: Pyomo model object
-    Returns:
-        None
-    """
-    # m.representativePeriodStage = Param(
-    #    m.representativePeriods, within=m.stages, default=1
-    # )
-    m.representativePeriodLength = Param(
-        m.representativePeriods, within=PositiveReals, default=1, units=u.hr
-    )
-    m.numCommitmentPeriods = Param(
-        m.representativePeriods, within=PositiveIntegers, default=2
-    )
-    m.numDispatchPeriods = Param(
-        m.representativePeriods, within=PositiveIntegers, default=2
-    )
-    m.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
-    # m.dispatchPeriodLength = Param(within=PositiveReals, default=1, units=u.min)
 
 
 def model_create_investment_stages(m, stages):
@@ -1662,7 +1630,6 @@ def model_create_investment_stages(m, stages):
         )
 
     # If a gen is online at time t, it must have been online or installed at time t-1
-    ## NOTE: first time using | for logical or on indicator vars here, so double check it functions
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
     def consistent_operation(m, stage, gen):
         return (
