@@ -1336,7 +1336,7 @@ def model_data_references(m):
     }
 
     # A fraction of renewableCapacity representing fraction of capacity
-    # that can be reliably counted toward planning reserve requriement
+    # that can be reliably counted toward planning reserve requirement
     # TODO: WHAT HAVE I DONE HERE I HATE IT
     m.renewableCapacityValue = {
         renewableGen: min(
@@ -1426,7 +1426,7 @@ def model_data_references(m):
         }
 
     # Cost per MW of curtailed renewable energy
-    # NOTE: what should this be vauled at?  This being both curtailment and load shed.
+    # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = 2 * max(m.fuelCost.values())
     m.loadShedCost = 1000 * m.curtailmentCost
