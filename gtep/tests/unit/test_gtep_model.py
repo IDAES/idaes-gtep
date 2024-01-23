@@ -87,20 +87,20 @@ class TestGTEP(unittest.TestCase):
             len(dispatch_block_1), len(commitment_block_q[1].dispatchPeriods)
         )
 
-    # Solve the debug model as is.  Objective value should be $466769.69
-    # Assumes availability of HiGHS
+    # Solve the debug model as is.  Objective value should be $1375.56
+    # assumes availability of scip
     def test_solve_bigm(self):
         md = read_debug_model()
         modObject = ExpansionPlanningModel(
             data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        opt = SolverFactory("highs")
+        opt = SolverFactory("scip")
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model, tee=False, load_solutions=True)
         modObject.report_model()
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 483519.2, places=1
+            value(modObject.model.total_cost_objective_rule), 1375.56, places=1
         )
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
