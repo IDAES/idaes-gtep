@@ -1,0 +1,83 @@
+name: GitHub CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Hash (Optional)
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # -l: login shell, needed when using Conda run:
+    shell: bash -l {0}
+
+jobs:
+  code-formatting:
+    name: Check code formatting (Black)
+    # OS and/or Python version don't make a difference, so we choose ubuntu and 3.10 for performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install Black
+        # unlike the other jobs, we don't need to install IDAES and/or all the dev dependencies,
+        # but we still want to specify the Black version to use in requirements-dev.txt for local development
+        # so we extract the relevant line and pass it to a simple `pip install`
+        run: |
+          pip install black
+      - name: Run Black to verify that the committed code is formatted
+        run: |
+          black --check .
+
+  spell-check:
+    name: Check Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Run Spell Checker
+        uses: crate-ci/typos@master
+        with: 
+          config: ./.github/workflows/typos.toml
+
+  build:
+    name: ${{ matrix.os }}/${{ matrix.python }}
+    needs: [code-formatting, spell-check]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: 
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.8, 3.9, '3.10', '3.11']
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Pyomo
+        run: |
+          pip install git+https://github.com/Pyomo/pyomo.git
+      - name: Install HiGHS
+        run: |
+          pip install highspy
+      - name: Install idaes-gtep
+        run: |
+          python setup.py develop
+      - name: Run Tests
+        run: |
+          echo "I DREAM OF RUNNING TESTS"
+          

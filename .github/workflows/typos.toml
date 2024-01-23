@@ -1,0 +1,7 @@
+[files]
+extend-exclude = ["*.eps"]
+
+[default.extend-words]
+# Ignore IDAES
+IDAES = "IDAES"
+idaes = "idaes"
