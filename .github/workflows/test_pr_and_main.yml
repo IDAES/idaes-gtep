@@ -71,9 +71,6 @@ jobs:
       - name: Install Pyomo
         run: |
           pip install git+https://github.com/Pyomo/pyomo.git
-      - name: Install HiGHS
-        run: |
-          pip install highspy
       - name: Install idaes-gtep
         run: |
           python setup.py develop
