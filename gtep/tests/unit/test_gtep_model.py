@@ -9,7 +9,7 @@ from pyomo.core import TransformationFactory
 from prescient.data.providers import gmlc_data_provider
 from prescient.simulator.options import Options
 from prescient.simulator.config import PrescientConfig
-import datetime
+
 
 import logging
 from io import StringIO
@@ -88,14 +88,16 @@ class TestGTEP(unittest.TestCase):
         )
 
     # Solve the debug model as is.  Objective value should be $466769.69
-    # Assumes availability of gurobi
+    # Assumes availability of HiGHS
     def test_solve_bigm(self):
         md = read_debug_model()
         modObject = ExpansionPlanningModel(
             data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        modObject.solve_model()
+        opt = SolverFactory("highs")
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+        modObject.results = opt.solve(modObject.model, tee=False, load_solutions=True)
         modObject.report_model()
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 483519.2, places=1

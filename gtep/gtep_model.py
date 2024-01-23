@@ -134,19 +134,6 @@ class ExpansionPlanningModel:
         with open(outfile, "w") as outf:
             self.model.pprint(ostream=outf)
 
-    ## TODO: probably don't have gurobi as default solver? Instead set as open source.
-    def solve_model(self, solver="gurobi", solver_args=None):
-        """Solves the expansion planning model.  Solver_args are passed directly
-        to the chosen solver.  Assigns solution results to self.results.
-
-        Args:
-            solver (str, optional): _description_. Defaults to "gurobi".
-            solver_args (_type_, optional): _description_. Defaults to None.
-        """
-        opt = SolverFactory(solver)
-        TransformationFactory("gdp.bigm").apply_to(self.model)
-        self.results = opt.solve(self.model, tee=False, load_solutions=True)
-
     def report_large_coefficients(self, outfile, magnitude_cutoff):
         """
         Dump very large magnitude (>= 1e5) coefficients to a json file.
@@ -270,6 +257,7 @@ def add_investment_constraints(
 
     # Planning reserve requirement constraint
     ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
+    ## TODO: renewableCapacityValue ==> renewableCapacityFactor
     ## NOTE: reserveMargin is a percentage of peakLoad
     ## TODO: check and re-enable with additional bounding transform before bigm
     ## TODO: renewableCapacityValue... should this be time iterated? is it tech based?
@@ -525,7 +513,7 @@ def add_dispatch_variables(
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
     # TODO: adjacent bus angle difference constraints should be added -- what should they be?
-    # TODO: likewise, what do we want angle boudns to actually be?
+    # TODO: likewise, what do we want angle bounds to actually be?
 
     def bus_angle_bounds(b, bus):
         return (-90, 90)
