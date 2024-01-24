@@ -76,5 +76,5 @@ jobs:
           python setup.py develop
       - name: Run Tests
         run: |
-          echo "I DREAM OF RUNNING TESTS"
+          python -m unittest ./gtep/tests
           
