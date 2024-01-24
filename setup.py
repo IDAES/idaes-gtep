@@ -2,9 +2,9 @@ import os
 from setuptools import setup, find_packages
 
 requires = [
-    'pyomo',
-    'numpy',
-    'egret',
+    "pyomo",
+    "numpy",
+    "egret",
 ]
 
 setup(
