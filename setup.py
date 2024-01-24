@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 requires = [
     "pyomo",
-    "scipy",
+    "scipy==1.11",
     "gridx-egret",
 ]
 
