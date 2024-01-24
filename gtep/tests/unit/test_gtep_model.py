@@ -9,6 +9,7 @@ from pyomo.core import TransformationFactory
 from prescient.data.providers import gmlc_data_provider
 from prescient.simulator.options import Options
 from prescient.simulator.config import PrescientConfig
+from pyomo.contrib.appsi.solvers.highs import Highs
 
 
 import logging
@@ -95,7 +96,7 @@ class TestGTEP(unittest.TestCase):
             data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        opt = SolverFactory("glpk")
+        opt = Highs()
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model, tee=False, load_solutions=True)
         modObject.report_model()
