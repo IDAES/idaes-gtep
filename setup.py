@@ -1,6 +1,12 @@
 import os
 from setuptools import setup, find_packages
 
+requires = [
+    'pyomo',
+    'numpy',
+    'egret',
+]
+
 setup(
     name="gtep",
     version="0.1.dev0",
