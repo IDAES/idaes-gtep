@@ -3,7 +3,6 @@ from setuptools import setup, find_packages
 
 requires = [
     "pyomo",
-    "numpy",
     "egret",
 ]
 
