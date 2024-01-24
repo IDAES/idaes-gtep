@@ -8,7 +8,6 @@ requires = [
     "gridx-prescient",
     "anyio==3.1",
     "pint",
-    "pyscipopt",
 ]
 
 setup(
