@@ -13,4 +13,5 @@ setup(
     python_requires=">=3.7",
     description="a python package",
     packages=find_packages(),
+    install_requires=requires,
 )
