@@ -95,7 +95,7 @@ class TestGTEP(unittest.TestCase):
             data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        opt = SolverFactory("scip")
+        opt = SolverFactory("glpk")
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model, tee=False, load_solutions=True)
         modObject.report_model()
