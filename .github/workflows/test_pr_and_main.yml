@@ -77,6 +77,6 @@ jobs:
       - name: Run Tests
         run: |
           pip install pytest
-          pip install glpk
+          pip install highspy
           pytest -v gtep
           
