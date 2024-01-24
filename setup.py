@@ -6,7 +6,7 @@ requires = [
     "scipy==1.11",
     "gridx-egret",
     "gridx-prescient",
-    "anyio<=4",
+    "anyio==3.1",
     "pint",
 ]
 
