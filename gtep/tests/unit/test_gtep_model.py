@@ -98,7 +98,7 @@ class TestGTEP(unittest.TestCase):
         modObject.create_model()
         opt = Highs()
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
-        modObject.results = opt.solve(modObject.model, tee=False, load_solutions=True)
+        modObject.results = opt.solve(modObject.model, load_solutions=True)
         modObject.report_model()
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 1375.56, places=1
