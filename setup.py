@@ -5,6 +5,7 @@ requires = [
     "pyomo",
     "scipy==1.11",
     "gridx-egret",
+    "gridx-prescient",
     "pint",
 ]
 
