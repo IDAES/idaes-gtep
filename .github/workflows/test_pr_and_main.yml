@@ -77,5 +77,6 @@ jobs:
       - name: Run Tests
         run: |
           pip install pytest
+          pip install glpk
           pytest -v gtep
           
