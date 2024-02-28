@@ -182,6 +182,7 @@ def add_investment_variables(
     m = b.model()
     b.investmentStage = investment_stage
 
+    # Thermal generator disjuncts (operational, installed, retired, disabled, extended)
     @b.Disjunct(m.thermalGenerators)
     def genOperational(disj, gen):
         return
@@ -212,6 +213,7 @@ def add_investment_variables(
             disj.genExtended[gen],
         ]
 
+    # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0
     )
@@ -225,6 +227,7 @@ def add_investment_variables(
         m.renewableGenerators, within=NonNegativeReals, initialize=0
     )
 
+    # Track and accumulate costs and penalties
     b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW)
     b.operatingCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
     b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
@@ -512,13 +515,19 @@ def add_dispatch_variables(
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
-    # TODO: adjacent bus angle difference constraints should be added -- what should they be?
-    # TODO: likewise, what do we want angle bounds to actually be?
-
+    # Voltage angle
     def bus_angle_bounds(b, bus):
-        return (-90, 90)
+        return (-30, 30)
 
-    b.busAngle = Var(m.buses, domain=Reals, initialize=0)
+    b.busAngle = Var(m.buses, domain=Reals, initialize=0, bounds=bus_angle_bounds)
+
+    # Voltage angle difference
+    def delta_bus_angle_bounds(b, line):
+        return (-60, 60)
+
+    b.deltaBusAngle = Var(
+        m.transmission, domain=Reals, initialize=0, bounds=delta_bus_angle_bounds
+    )
 
 
 def add_dispatch_constraints(
@@ -1264,26 +1273,6 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
     ## NOTE: will want to cover baseline generator types in IDAES
 
-    m.oldGenerators = Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["in_service"]
-        ),
-        doc="Existing generators; subset of all generators",
-    )
-
-    m.newGenerators = Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if not m.md.data["elements"]["generator"][gen]["in_service"]
-        ),
-        doc="Potential generators; subset of all generators",
-    )
-
     if m.md.data["elements"].get("storage"):
         m.storage = Set(
             initialize=(batt for batt in m.md.data["elements"]["storage"]),
@@ -1476,15 +1465,6 @@ def model_data_references(m):
     # Minimum spinning reserve, expressed as a fraction of load within a region
     m.minSpinningReserve = {
         region: m.md.data["system"]["min_spinning_reserve"] for region in m.regions
-    }
-
-    # Maximum operating reserve available for each generator; expressed as a fraction
-    # maximum generator output
-    ## NOTE: This does not appear to exist elsewhere in the code currently (1/18/24)?
-    # I think this is very rarely defined in data? but should be checked
-    m.maxOperatingReserve = {
-        gen: m.md.data["elements"]["generator"][gen]["max_operating_reserve"]
-        for gen in m.thermalGenerators
     }
 
     # Maximum spinning reserve available for each generator; expressed as a fraction
