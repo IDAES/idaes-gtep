@@ -182,6 +182,7 @@ def add_investment_variables(
     m = b.model()
     b.investmentStage = investment_stage
 
+    # Thermal generator disjuncts (operational, installed, retired, disabled, extended)
     @b.Disjunct(m.thermalGenerators)
     def genOperational(disj, gen):
         return
@@ -212,6 +213,7 @@ def add_investment_variables(
             disj.genExtended[gen],
         ]
 
+    # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0
     )
@@ -225,6 +227,7 @@ def add_investment_variables(
         m.renewableGenerators, within=NonNegativeReals, initialize=0
     )
 
+    # Track and accumulate costs and penalties
     b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW)
     b.operatingCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
     b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
