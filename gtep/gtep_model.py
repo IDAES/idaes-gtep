@@ -688,6 +688,7 @@ def add_commitment_variables(b, commitment_period):
         None
     Returns:
         None
+    
     """
     m = b.model()
     r_p = b.parent_block()
