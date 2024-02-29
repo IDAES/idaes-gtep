@@ -42,7 +42,6 @@ class VisitorConfig(object):
 
 class ExpansionPlanningModel:
     """A generalized generation and transmission expansion planning model.
-    
     """
     def __init__(
         self,
@@ -54,18 +53,16 @@ class ExpansionPlanningModel:
         num_commit=24,
         num_dispatch=4,
     ):
-        """
-        Initialize generation & expansion planning model object
-        Args:
-            stages : integer number of investment periods
-            formulation : Egret stuff, to be filled
-            data : full set of model data
-            num_reps : integer number of representative periods per investment period
-            len_reps : (for now integer) length of each representative period (in hours)
-            num_commit : integer number of commitment periods per representative period
-            num_dispatch : integer number of dispatch periods per commitment period
-        Returns:
-            m : Pyomo model for full GTEP
+        """Initialize generation & expansion planning model object.
+        
+        :stages: integer number of investment periods
+        :formulation: Egret stuff, to be filled
+        :data: full set of model data
+        :num_reps: integer number of representative periods per investment period
+        :len_reps: (for now integer) length of each representative period (in hours)
+        :num_commit: integer number of commitment periods per representative period
+        :num_dispatch: integer number of dispatch periods per commitment period
+        :return: Pyomo model for full GTEP
         """
 
         self.stages = stages
@@ -78,8 +75,7 @@ class ExpansionPlanningModel:
         self.timer = TicTocTimer()
 
     def create_model(self):
-        """
-        Create concrete Pyomo model object associated with the ExpansionPlanningModel
+        """Create concrete Pyomo model object associated with the ExpansionPlanningModel
         """
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
@@ -128,23 +124,18 @@ class ExpansionPlanningModel:
 
     ## TODO: this should handle string or i/o object for outfile
     def report_model(self, outfile="pretty_model_output.txt"):
-        """
-        Pretty prints Pyomo model to outfile.
+        """Pretty prints Pyomo model to outfile.
 
-        Args:
-            outfile (str, optional): _description_. Defaults to "pretty_model_output.txt".
+        :outfile: (str, optional) _description_. Defaults to "pretty_model_output.txt".
         """
         with open(outfile, "w") as outf:
             self.model.pprint(ostream=outf)
 
     def report_large_coefficients(self, outfile, magnitude_cutoff):
-        """
-        Dump very large magnitude (>= 1e5) coefficients to a json file.
-        Args:
-            outfile: should accept filename or open file and write there; see how we do this in pyomo elsewhere
-            magnitude_cutoff: magnitude above which to report coefficients
-        Returns:
-            None
+        """Dump very large magnitude (>= 1e5) coefficients to a json file.
+
+        :outfile: should accept filename or open file and write there; see how we do this in pyomo elsewhere
+        :magnitude_cutoff: magnitude above which to report coefficients
         """
         var_coef_dict = {}
         for e in self.model.component_data_objects(Constraint):
@@ -175,12 +166,7 @@ def add_investment_variables(
     b,
     investment_stage,
 ):
-    """
-    Add continuous variables to investment stage block.
-    Args:
-        None
-    Returns:
-        None
+    """Add continuous variables to investment stage block.
     """
     m = b.model()
     b.investmentStage = investment_stage
@@ -243,12 +229,7 @@ def add_investment_constraints(
     b,
     investment_stage,
 ):
-    """
-    Add standard inequalities (i.e., those not involving disjunctions) to investment stage block.
-    Args:
-        None
-    Returns:
-        None
+    """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block.
     """
 
     m = b.model()
@@ -415,12 +396,7 @@ def add_dispatch_variables(
     b,
     dispatch_period,
 ):
-    """
-    Add dispatch-associated variables to representative period block.
-    Args:
-        None
-    Returns:
-        None
+    """Add dispatch-associated variables to representative period block.
     """
 
     m = b.model()
@@ -537,12 +513,7 @@ def add_dispatch_constraints(
     b,
     disp_per,
 ):
-    """
-    Add dispatch-associated inequalities to representative period block.
-    Args:
-        None
-    Returns:
-        None
+    """Add dispatch-associated inequalities to representative period block.
     """
     m = b.model()
     c_p = b.parent_block()
@@ -682,13 +653,7 @@ def add_dispatch_constraints(
 
 
 def add_commitment_variables(b, commitment_period):
-    """
-    Add variables and disjuncts to commitment period block.
-    Args:
-        None
-    Returns:
-        None
-    
+    """Add variables and disjuncts to commitment period block.
     """
     m = b.model()
     r_p = b.parent_block()
@@ -883,12 +848,7 @@ def add_commitment_constraints(
     b,
     comm_per,
 ):
-    """
-    Add commitment-associated disjunctions and constraints to representative period block.
-    Args:
-        None
-    Returns:
-        None
+    """Add commitment-associated disjunctions and constraints to representative period block.
     """
     m = b.model()
     r_p = b.parent_block()
@@ -992,13 +952,10 @@ def add_commitment_constraints(
 
 
 def commitment_period_rule(b, commitment_period):
-    """
-    Create commitment period block.
-    Args:
-        b: commitment period block
-        commitment_period: corresponding commitment period label
-    Returns:
-        None
+    """Create commitment period block.
+
+    :b: commitment period block
+    :commitment_period: corresponding commitment period label
     """
     m = b.model()
     r_p = b.parent_block()
@@ -1125,13 +1082,10 @@ def representative_period_rule(
     b,
     representative_period,
 ):
-    """
-    Create representative period block.
-    Args:
-        b: Representative period block
-        representative_period: corresponding representative period label
-    Returns:
-        None
+    """Create representative period block.
+
+    :b: Representative period block
+    :representative_period: corresponding representative period label
     """
     m = b.model()
     i_s = b.parent_block()
@@ -1149,13 +1103,10 @@ def investment_stage_rule(
     b,
     investment_stage,
 ):
-    """
-    Creates investment stage block.
-    Args:
-        b: Investment block
-        investment_stage: ID for current investment stage
-    Returns:
-        None
+    """Creates investment stage block.
+
+    :b: Investment block
+    :investment_stage: ID for current investment stage
     """
     m = b.parent_block()
 
@@ -1175,14 +1126,10 @@ def investment_stage_rule(
 
 
 def create_objective_function(m):
-    """
-    Creates objective function.  Total cost is operating cost plus
+    """Creates objective function.  Total cost is operating cost plus
     expansion cost plus penalty cost (penalties include generation deficits,
     renewable quota deficits, and curtailment)
-    Args:
-        m: Pyomo GTEP model.
-    Returns:
-        None
+    :m: Pyomo GTEP model.
     """
     if len(m.stages) > 1:
         m.operatingCost = sum(
@@ -1217,11 +1164,9 @@ def create_objective_function(m):
 def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
-    Args:
-        m: Pyomo model object
-        stages: Number of stages in investment horizon
-    Returns:
-        None
+
+    :m: Pyomo model object
+    :stages: Number of stages in investment horizon
     """
 
     m.buses = Set(
@@ -1294,13 +1239,9 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
 
 def model_data_references(m):
-    """
-    Creates and labels data for GTEP model; ties input data
+    """Creates and labels data for GTEP model; ties input data
     to model directly.
-    Args:
-        m: Pyomo model object
-    Returns:
-        None
+    :m: Pyomo model object
     """
 
     # Maximum output of each thermal generator
@@ -1511,15 +1452,12 @@ def model_data_references(m):
 
 
 def model_create_investment_stages(m, stages):
-    """
-    Creates investment blocks and linking constraints for GTEP model.
+    """Creates investment blocks and linking constraints for GTEP model.
     Largely manages retirements and links operational units in a given investment stage
     to operational + installed - retired in the previous investment stage.
-    Args:
-        m: Pyomo model object
-        stages: Number of investment stages in planning horizon
-    Returns:
-        None
+
+    :m: Pyomo model object
+    :stages: Number of investment stages in planning horizon
     """
 
     m.investmentStage = Block(m.stages, rule=investment_stage_rule)
