@@ -10,9 +10,9 @@ Welcome to idaes-gtep's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   Modeling
-   Data
-   Solving
+   modeling
+   data
+   solving
 
 
 
