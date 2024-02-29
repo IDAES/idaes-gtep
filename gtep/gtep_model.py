@@ -54,14 +54,14 @@ class ExpansionPlanningModel:
         num_dispatch=4,
     ):
         """Initialize generation & expansion planning model object.
-        
-        :stages: integer number of investment periods
-        :formulation: Egret stuff, to be filled
-        :data: full set of model data
-        :num_reps: integer number of representative periods per investment period
-        :len_reps: (for now integer) length of each representative period (in hours)
-        :num_commit: integer number of commitment periods per representative period
-        :num_dispatch: integer number of dispatch periods per commitment period
+
+        :param stages: integer number of investment periods
+        :param formulation: Egret stuff, to be filled
+        :param data: full set of model data
+        :param num_reps: integer number of representative periods per investment period
+        :param len_reps: (for now integer) length of each representative period (in hours)
+        :param num_commit: integer number of commitment periods per representative period
+        :param num_dispatch: integer number of dispatch periods per commitment period
         :return: Pyomo model for full GTEP
         """
 

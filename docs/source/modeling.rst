@@ -1,9 +1,9 @@
-Wherein we test documentation
+Modeling 
 =============================
 
 .. automodule:: gtep
     :members:
 
 .. automodule:: gtep.gtep_model
-    :members:
+    :members: ExpansionPlanningModel
     
