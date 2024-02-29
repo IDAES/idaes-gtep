@@ -41,6 +41,9 @@ class VisitorConfig(object):
 
 
 class ExpansionPlanningModel:
+    """A generalized generation and transmission expansion planning model.
+    
+    """
     def __init__(
         self,
         stages=1,

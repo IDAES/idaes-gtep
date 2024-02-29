@@ -11,7 +11,7 @@ Welcome to idaes-gtep's documentation!
    :caption: Contents:
 
    Modeling
-   Data Structure
+   Data
    Solving
 
 
