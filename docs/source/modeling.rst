@@ -5,5 +5,5 @@ Modeling
     :members:
 
 .. automodule:: gtep.gtep_model
-    :members: ExpansionPlanningModel
+    :members: 
     
