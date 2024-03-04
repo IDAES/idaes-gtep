@@ -10,6 +10,10 @@ Welcome to idaes-gtep's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   modeling
+   data
+   solving
+
 
 
 Indices and tables
