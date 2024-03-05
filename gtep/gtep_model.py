@@ -41,8 +41,8 @@ class VisitorConfig(object):
 
 
 class ExpansionPlanningModel:
-    """A generalized generation and transmission expansion planning model.
-    """
+    """A generalized generation and transmission expansion planning model."""
+
     def __init__(
         self,
         stages=1,
@@ -75,8 +75,7 @@ class ExpansionPlanningModel:
         self.timer = TicTocTimer()
 
     def create_model(self):
-        """Create concrete Pyomo model object associated with the ExpansionPlanningModel
-        """
+        """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
 
@@ -166,8 +165,13 @@ def add_investment_variables(
     b,
     investment_stage,
 ):
-    """Add continuous variables to investment stage block.
+    """Add variables to investment stage block.
+
+    :param b: Investment block
+    :param investment_stage: Investment stage index or name
+    :return: None
     """
+
     m = b.model()
     b.investmentStage = investment_stage
 
@@ -229,8 +233,7 @@ def add_investment_constraints(
     b,
     investment_stage,
 ):
-    """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block.
-    """
+    """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
 
     m = b.model()
 
@@ -396,8 +399,7 @@ def add_dispatch_variables(
     b,
     dispatch_period,
 ):
-    """Add dispatch-associated variables to representative period block.
-    """
+    """Add dispatch-associated variables to representative period block."""
 
     m = b.model()
     c_p = b.parent_block()
@@ -513,8 +515,7 @@ def add_dispatch_constraints(
     b,
     disp_per,
 ):
-    """Add dispatch-associated inequalities to representative period block.
-    """
+    """Add dispatch-associated inequalities to representative period block."""
     m = b.model()
     c_p = b.parent_block()
     r_p = c_p.parent_block()
@@ -653,8 +654,7 @@ def add_dispatch_constraints(
 
 
 def add_commitment_variables(b, commitment_period):
-    """Add variables and disjuncts to commitment period block.
-    """
+    """Add variables and disjuncts to commitment period block."""
     m = b.model()
     r_p = b.parent_block()
     i_p = r_p.parent_block()
@@ -848,8 +848,7 @@ def add_commitment_constraints(
     b,
     comm_per,
 ):
-    """Add commitment-associated disjunctions and constraints to representative period block.
-    """
+    """Add commitment-associated disjunctions and constraints to representative period block."""
     m = b.model()
     r_p = b.parent_block()
     i_p = r_p.parent_block()
