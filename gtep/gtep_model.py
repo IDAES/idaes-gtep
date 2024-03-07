@@ -130,7 +130,7 @@ class ExpansionPlanningModel:
         with open(outfile, "w") as outf:
             self.model.pprint(ostream=outf)
 
-    def report_large_coefficients(self, outfile, magnitude_cutoff):
+    def report_large_coefficients(self, outfile, magnitude_cutoff=1e5):
         """Dump very large magnitude (>= 1e5) coefficients to a json file.
 
         :outfile: should accept filename or open file and write there; see how we do this in pyomo elsewhere
@@ -486,13 +486,6 @@ def add_dispatch_variables(
         units=u.MW,
     )
 
-    # Track total renewable surplus/deficit for other expressions
-    b.renewableSurplusDispatch = Var(domain=Reals, initialize=0, units=u.MW)
-    b.operatingCostDispatch = Var(domain=Reals, initialize=0, units=u.USD)
-    b.renewableCurtailmentDispatch = Var(
-        domain=NonNegativeReals, initialize=0, units=u.MW
-    )
-
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
@@ -508,6 +501,37 @@ def add_dispatch_variables(
 
     b.deltaBusAngle = Var(
         m.transmission, domain=Reals, initialize=0, bounds=delta_bus_angle_bounds
+    )
+
+    # Track total renewable surplus/deficit for other expressions
+    b.renewableSurplusDispatch = Expression(
+        expr=sum(
+            b.renewableGeneration[gen] - b.renewableCurtailment[gen]
+            for gen in m.renewableGenerators
+        )
+    )
+    b.generationCost = Expression(
+        expr=sum(
+            b.thermalGeneration[gen] * m.fuelCost[gen] for gen in m.thermalGenerators
+        )
+    )
+    b.loadshedwhatever = Expression(
+        expr=sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
+    )
+    b.operatingCostDispatch = Expression(
+        expr=sum(
+            b.thermalGeneration[gen] * m.fuelCost[gen] for gen in m.thermalGenerators
+        )
+        + sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
+    )
+
+    # ) + sum(
+    #     b.renewableCurtailment[gen] * m.curtailmentCost
+    #     for gen in m.renewableGenerators
+    # )
+
+    b.renewableCurtailmentDispatch = Expression(
+        expr=sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
     )
 
 
@@ -615,42 +639,6 @@ def add_dispatch_constraints(
     #         for bus in m.buses
     #         if m.md.data["elements"]["bus"][bus]["area"] == region
     #     )
-
-    # Define total renewable surplus/deficit for dispatch block
-    @b.Constraint()
-    def renewable_surplus_dispatch(b):
-        return b.renewableSurplusDispatch == sum(
-            b.renewableGeneration[gen] - b.renewableCurtailment[gen]
-            for gen in m.renewableGenerators
-        )
-
-    # Define total renewable curtailment for dispatch block
-    @b.Constraint()
-    def renewable_curtailment_dispatch(b):
-        return b.renewableCurtailmentDispatch == sum(
-            b.renewableCurtailment[gen] for gen in m.renewableGenerators
-        )
-
-    # Define total operating cost for dispatch block
-    @b.Constraint()
-    ## FIXME ... because of above mentioned curtailment issues?
-    def operating_cost_dispatch(b):
-        b.generationCost = Expression(
-            expr=sum(
-                b.thermalGeneration[gen] * m.fuelCost[gen]
-                for gen in m.thermalGenerators
-            )
-        )
-        b.loadshedwhatever = Expression(
-            expr=sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
-        )
-        return b.operatingCostDispatch == sum(
-            b.thermalGeneration[gen] * m.fuelCost[gen] for gen in m.thermalGenerators
-        ) + sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
-        # ) + sum(
-        #     b.renewableCurtailment[gen] * m.curtailmentCost
-        #     for gen in m.renewableGenerators
-        # )
 
 
 def add_commitment_variables(b, commitment_period):
@@ -953,8 +941,8 @@ def add_commitment_constraints(
 def commitment_period_rule(b, commitment_period):
     """Create commitment period block.
 
-    :b: commitment period block
-    :commitment_period: corresponding commitment period label
+    :param b: commitment period block
+    :param commitment_period: corresponding commitment period label
     """
     m = b.model()
     r_p = b.parent_block()
@@ -1128,7 +1116,7 @@ def create_objective_function(m):
     """Creates objective function.  Total cost is operating cost plus
     expansion cost plus penalty cost (penalties include generation deficits,
     renewable quota deficits, and curtailment)
-    :m: Pyomo GTEP model.
+    :param m: Pyomo GTEP model.
     """
     if len(m.stages) > 1:
         m.operatingCost = sum(
@@ -1240,7 +1228,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 def model_data_references(m):
     """Creates and labels data for GTEP model; ties input data
     to model directly.
-    :m: Pyomo model object
+    :param m: Pyomo model object
     """
 
     # Maximum output of each thermal generator

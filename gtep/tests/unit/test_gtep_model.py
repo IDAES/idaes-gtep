@@ -97,6 +97,7 @@ class TestGTEP(unittest.TestCase):
         )
         modObject.create_model()
         opt = Highs()
+        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model)
         modObject.model.pprint()
