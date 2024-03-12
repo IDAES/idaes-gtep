@@ -89,7 +89,8 @@ class TestGTEP(unittest.TestCase):
         )
 
     # Solve the debug model as is.  Objective value should be $1375.56
-    # assumes availability of scip
+    # assumes availability of Highs == 1.5.3
+    # NOTE: I don't know why Highs 1.7 breaks?
     def test_solve_bigm(self):
         md = read_debug_model()
         modObject = ExpansionPlanningModel(
@@ -97,6 +98,10 @@ class TestGTEP(unittest.TestCase):
         )
         modObject.create_model()
         opt = Highs()
+        if not opt.available():
+            print("Ack, no Highs?")
+            print(f"{opt.available() = }")
+            raise AssertionError 
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model)

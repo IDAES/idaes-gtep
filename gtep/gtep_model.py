@@ -113,6 +113,7 @@ class ExpansionPlanningModel:
             initialize=self.num_dispatch,
         )
         m.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
+        # TODO: index by dispatch period? Certainly index by commitment period
         m.dispatchPeriodLength = Param(within=PositiveReals, default=15, units=u.min)
 
         model_data_references(m)
@@ -325,8 +326,8 @@ def add_investment_constraints(
         )
 
     # Operating costs for investment period
-    @b.Constraint()
-    def operating_cost_investment(b):
+    @b.Expression()
+    def operatingCostInvestment(b):
         operatingCostRepresentative = 0
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
@@ -335,22 +336,18 @@ def add_investment_constraints(
                     * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
-                    .operating_cost_commitment
+                    .operatingCostCommitment
                 )
-        return (
-            b.operatingCostInvestment
-            == m.investmentFactor[investment_stage] * operatingCostRepresentative
-        )
+        return m.investmentFactor[investment_stage] * operatingCostRepresentative
 
     # Investment costs for investment period
-    ## NOTE: investment cost definition needs to be revisited AND possibly depends on
+    ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
     @b.Constraint()
     def investment_cost(b):
         return b.expansionCost == m.investmentFactor[investment_stage] * (
             sum(
                 m.generatorInvestmentCost[gen] * m.capitalMultiplier[gen]
-                # * m.thermalCapacity[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -363,7 +360,6 @@ def add_investment_constraints(
             )
             + sum(
                 m.generatorInvestmentCost[gen] * m.extensionMultiplier[gen]
-                # * m.thermalCapacity[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -440,6 +436,21 @@ def add_dispatch_variables(
         units=u.MW,
     )
 
+    #Per generator surplus
+    @b.Expression(m.renewableGenerators)
+    def renewableGenerationSurplus(b, renewableGen):
+        return b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
+    
+    #Per generator curtailment cost
+    @b.Expression(m.renewableGenerators)
+    def renewableCurtailmentCost(b, renewableGen):
+        return b.renewableCurtailment[renewableGen] * m.curtailmentCost
+    
+    #Per generator cost
+    @b.Expression(m.thermalGenerators)
+    def generatorCost(b, gen):
+        return b.thermalGeneration[gen] * m.fuelCost[gen]
+
     # Define bounds on transmission line capacity
     def power_flow_limits(b, transmissionLine):
         return (
@@ -489,6 +500,12 @@ def add_dispatch_variables(
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
+    #Per bus load shed cost
+    @b.Expression(m.buses)
+    def loadShedCost(b, bus):
+        return b.loadShed[bus] * m.loadShedCost
+
+
     # Voltage angle
     def bus_angle_bounds(b, bus):
         return (-30, 30)
@@ -503,36 +520,18 @@ def add_dispatch_variables(
         m.transmission, domain=Reals, initialize=0, bounds=delta_bus_angle_bounds
     )
 
-    # Track total renewable surplus/deficit for other expressions
-    b.renewableSurplusDispatch = Expression(
-        expr=sum(
-            b.renewableGeneration[gen] - b.renewableCurtailment[gen]
-            for gen in m.renewableGenerators
-        )
-    )
-    b.generationCost = Expression(
-        expr=sum(
-            b.thermalGeneration[gen] * m.fuelCost[gen] for gen in m.thermalGenerators
-        )
-    )
-    b.loadshedwhatever = Expression(
-        expr=sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
-    )
-    b.operatingCostDispatch = Expression(
-        expr=sum(
-            b.thermalGeneration[gen] * m.fuelCost[gen] for gen in m.thermalGenerators
-        )
-        + sum(b.loadShed[bus] * m.loadShedCost for bus in m.buses)
-    )
+    # Track total dispatch values and costs 
+    b.renewableSurplusDispatch = sum(b.renewableGenerationSurplus.values())
 
-    # ) + sum(
-    #     b.renewableCurtailment[gen] * m.curtailmentCost
-    #     for gen in m.renewableGenerators
-    # )
+    b.generationCostDispatch = sum(b.generatorCost.values())
 
-    b.renewableCurtailmentDispatch = Expression(
-        expr=sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
-    )
+    b.loadShedCostDispatch = sum(b.loadShedCost.values())
+
+    b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
+    
+    b.operatingCostDispatch = b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
+
+    b.renewableCurtailmentDispatch = sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
 
 
 def add_dispatch_constraints(
@@ -561,7 +560,6 @@ def add_dispatch_constraints(
         )
 
     # Energy balance constraint
-    ## FIXME: curtailment handling is problematic; see below
     @b.Constraint(m.buses)
     def flow_balance(b, bus):
         balance = 0
@@ -583,9 +581,6 @@ def add_dispatch_constraints(
         balance += sum(
             b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
         )
-        # balance -= sum(
-        #    b.renewableCurtailment[g] for g in gens if g in m.renewableGenerators
-        # )
         balance -= load
         balance += b.loadShed[bus]
         return balance == 0
@@ -599,8 +594,6 @@ def add_dispatch_constraints(
             == m.renewableCapacity[renewableGen]
         )
 
-    ## FIXME
-    # NOTE: I believe this makes curtailment crazy expensive
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
         return (
@@ -820,17 +813,6 @@ def add_commitment_variables(b, commitment_period):
             )
         )
 
-    # Track total renewable surplus/deficit for future expressions
-    b.renewableSurplusCommitment = Var(within=Reals, initialize=0, units=u.MW)
-
-    # Track total operating cost for commitment stage
-    b.operatingCostCommitmentzzz = Var(within=Reals, initialize=0, units=u.USD)
-
-    # Track total curtailment for objective function
-    b.renewableCurtailmentCommitment = Var(
-        within=NonNegativeReals, initialize=0, units=u.MW
-    )
-
 
 def add_commitment_constraints(
     b,
@@ -842,9 +824,9 @@ def add_commitment_constraints(
     i_p = r_p.parent_block()
 
     # Define total renewable surplus/deficit for commitment block
-    @b.Constraint()
-    def renewable_surplus_commitment(b):
-        return b.renewableSurplusCommitment == sum(
+    @b.Expression()
+    def renewableSurplusCommitment(b):
+        return sum(
             m.dispatchPeriodLength * b.dispatchPeriod[disp_per].renewableSurplusDispatch
             for disp_per in b.dispatchPeriods
         )
@@ -852,51 +834,13 @@ def add_commitment_constraints(
     # Define total operating costs for commitment block
     ## TODO: Replace this constraint with expressions using bounds transform
     ## NOTE: expressions are stored in gtep_cleanup branch
-    ## FIXME: costs blowing up by dispatch length?
     ## costs considered need to be re-assessed and account for missing data
     @b.Expression()
-    def operating_cost_commitment(b):
-        b.dispatch_operating_cost = Expression(
-            expr=sum(
-                # (60 / m.dispatchPeriodLength) *
-                b.dispatchPeriod[disp_per].operatingCostDispatch
-                for disp_per in b.dispatchPeriods
-            )
-        )
-        b.fixed_operating_cost = Expression(
-            expr=sum(
-                m.fixedOperatingCost[gen]
-                # * m.thermalCapacity[gen]
-                * (
-                    b.genOn[gen].indicator_var.get_associated_binary()
-                    + b.genShutdown[gen].indicator_var.get_associated_binary()
-                    + b.genStartup[gen].indicator_var.get_associated_binary()
-                )
-                for gen in m.thermalGenerators
-            )
-            + sum(
-                m.fixedOperatingCost[gen]
-                # * m.renewableCapacity[gen]
-                for gen in m.renewableGenerators
-            )
-        )
-        b.startup_operating_cost = Expression(
-            expr=sum(
-                # m.commitmentPeriodLength
-                # * m.thermalCapacity[gen]
-                # * (
-                # m.startFuel[gen] * m.fuelCost[gen]
-                # + m.startFuel[gen] * b.carbonTax * m.emissionsFactor[gen]
-                # +m.startupCost[gen]
-                # )
-                m.startupCost[gen]
-                * b.genStartup[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators
-            )
-        )
+    def operatingCostCommitment(b):
         return (
             sum(
-                # (60 / m.dispatchPeriodLength) *
+                ## FIXME: update test objective value when this changes; ready to uncomment
+                #(m.dispatchPeriodLength / 60) *
                 b.dispatchPeriod[disp_per].operatingCostDispatch
                 for disp_per in b.dispatchPeriods
             )
@@ -910,19 +854,14 @@ def add_commitment_constraints(
                 )
                 for gen in m.thermalGenerators
             )
+            ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
+            ## FIXME: @John
             + sum(
                 m.fixedOperatingCost[gen]
                 # * m.renewableCapacity[gen]
                 for gen in m.renewableGenerators
             )
             + sum(
-                # m.commitmentPeriodLength
-                # * m.thermalCapacity[gen]
-                # * (
-                # m.startFuel[gen] * m.fuelCost[gen]
-                # + m.startFuel[gen] * b.carbonTax * m.emissionsFactor[gen]
-                # +m.startupCost[gen]
-                # )
                 m.startupCost[gen]
                 * b.genStartup[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -930,9 +869,9 @@ def add_commitment_constraints(
         )
 
     # Define total curtailment for commitment block
-    @b.Constraint()
-    def renewable_curtailment_commitment(b):
-        return b.renewableCurtailmentCommitment == sum(
+    @b.Expression()
+    def renewableCurtailmentCommitment(b):
+        return sum(
             b.dispatchPeriod[disp_per].renewableCurtailmentDispatch
             for disp_per in b.dispatchPeriods
         )
