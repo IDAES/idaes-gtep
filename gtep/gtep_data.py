@@ -11,10 +11,17 @@ import datetime
 
 
 class ExpansionPlanningData:
+    """Standard data storage class for the IDAES GTEP model."""
+
     def __init__(self):
         pass
 
     def load_prescient(self, data_path, options_dict=None):
+        """Loads data structured via Prescient data loader.
+
+        :param data_path: Folder containing the data to be loaded
+        :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
+        """
         self.data_type = "prescient"
         options_dict = {
             "data_path": data_path,
@@ -25,6 +32,7 @@ class ExpansionPlanningData:
             "sced_frequency_minutes": 60,
             "ruc_horizon": 36,
         }
+
         prescient_options = PrescientConfig()
         prescient_options.set_value(options_dict)
         # Use prescient data provider to load in sequential data for representative periods
@@ -73,6 +81,8 @@ class ExpansionPlanningData:
         self.representative_data = data_list
 
     def load_default_data_settings(self):
+        ## TODO: too many of these are hard coded; everything should check if it exists too.
+        """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
             self.md.data["elements"]["generator"][gen]["lifetime"] = 3
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1

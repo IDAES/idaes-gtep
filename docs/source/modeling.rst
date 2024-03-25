@@ -1,5 +1,6 @@
 Modeling 
 =============================
+.. currentmodule:: gtep.gtep_model
 
 .. automodule:: gtep
     :members:

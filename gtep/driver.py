@@ -10,7 +10,7 @@ data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 mod_object = ExpansionPlanningModel(
-    data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+    data=data_object.md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
 )
 mod_object.create_model()
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
