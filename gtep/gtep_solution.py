@@ -6,7 +6,7 @@
 
 from pyomo.environ import *
 from pyomo.environ import units as u
-from gtep_model import ExpansionPlanningModel
+from gtep.gtep_model import ExpansionPlanningModel
 import logging
 
 logger = logging.getLogger(__name__)
