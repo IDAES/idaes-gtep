@@ -9,7 +9,7 @@ from pyomo.environ import units as u
 from gtep_model import ExpansionPlanningModel
 import logging
 
-logger = logging.getlogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ExpansionPlanningSolution:
