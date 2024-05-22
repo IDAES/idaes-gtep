@@ -7,7 +7,6 @@ from egret.data.model_data import ModelData
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 
-
 # data_path = "./gtep/data/5bus"
 # data_object = ExpansionPlanningData()
 # data_object.load_prescient(data_path)
@@ -30,4 +29,5 @@ sol_object = ExpansionPlanningSolution()
 # sol_object.read_json("./gtep_solution.json")
 sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
 sol_object.plot_levels(save_dir="./plots/")
+
 pass
