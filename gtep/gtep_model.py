@@ -347,7 +347,8 @@ def add_investment_constraints(
     def investment_cost(b):
         return b.expansionCost == m.investmentFactor[investment_stage] * (
             sum(
-                m.generatorInvestmentCost[gen] * m.capitalMultiplier[gen]
+                m.generatorInvestmentCost[gen]
+                * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -359,7 +360,8 @@ def add_investment_constraints(
                 for gen in m.renewableGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen] * m.extensionMultiplier[gen]
+                m.generatorInvestmentCost[gen]
+                * m.extensionMultiplier[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -436,17 +438,19 @@ def add_dispatch_variables(
         units=u.MW,
     )
 
-    #Per generator surplus
+    # Per generator surplus
     @b.Expression(m.renewableGenerators)
     def renewableGenerationSurplus(b, renewableGen):
-        return b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
-    
-    #Per generator curtailment cost
+        return (
+            b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
+        )
+
+    # Per generator curtailment cost
     @b.Expression(m.renewableGenerators)
     def renewableCurtailmentCost(b, renewableGen):
         return b.renewableCurtailment[renewableGen] * m.curtailmentCost
-    
-    #Per generator cost
+
+    # Per generator cost
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
         return b.thermalGeneration[gen] * m.fuelCost[gen]
@@ -500,27 +504,28 @@ def add_dispatch_variables(
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
-    #Per bus load shed cost
+    # Per bus load shed cost
     @b.Expression(m.buses)
     def loadShedCost(b, bus):
         return b.loadShed[bus] * m.loadShedCost
 
+    import math
 
     # Voltage angle
     def bus_angle_bounds(b, bus):
-        return (-30, 30)
+        return (-math.pi / 6, math.pi / 6)
 
     b.busAngle = Var(m.buses, domain=Reals, initialize=0, bounds=bus_angle_bounds)
 
     # Voltage angle difference
     def delta_bus_angle_bounds(b, line):
-        return (-60, 60)
+        return (-math.pi / 6, math.pi / 6)
 
     b.deltaBusAngle = Var(
         m.transmission, domain=Reals, initialize=0, bounds=delta_bus_angle_bounds
     )
 
-    # Track total dispatch values and costs 
+    # Track total dispatch values and costs
     b.renewableSurplusDispatch = sum(b.renewableGenerationSurplus.values())
 
     b.generationCostDispatch = sum(b.generatorCost.values())
@@ -528,10 +533,14 @@ def add_dispatch_variables(
     b.loadShedCostDispatch = sum(b.loadShedCost.values())
 
     b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
-    
-    b.operatingCostDispatch = b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
 
-    b.renewableCurtailmentDispatch = sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
+    b.operatingCostDispatch = (
+        b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
+    )
+
+    b.renewableCurtailmentDispatch = sum(
+        b.renewableCurtailment[gen] for gen in m.renewableGenerators
+    )
 
 
 def add_dispatch_constraints(
@@ -543,6 +552,12 @@ def add_dispatch_constraints(
     c_p = b.parent_block()
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
+
+    import numpy as np
+
+    rng = np.random.default_rng()
+    for key in m.loads.keys():
+        m.loads[key] *= max(0, rng.normal(1.0, 0.5))
 
     ## TODO: what do we do when reactance isn't supplied in the dataset?
     @b.Constraint(m.transmission)
@@ -840,7 +855,7 @@ def add_commitment_constraints(
         return (
             sum(
                 ## FIXME: update test objective value when this changes; ready to uncomment
-                #(m.dispatchPeriodLength / 60) *
+                # (m.dispatchPeriodLength / 60) *
                 b.dispatchPeriod[disp_per].operatingCostDispatch
                 for disp_per in b.dispatchPeriods
             )
@@ -906,11 +921,18 @@ def commitment_period_rule(b, commitment_period):
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
+    temp_scale = 3
+    temp_scale = 10
+
     scale_loads = True
     if scale_loads:
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: (
-                3 + (3 + i_p.investmentStage) / (3 + len(m.stages))
+                temp_scale
+                * (
+                    1
+                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
+                )
             )
             * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
                 commitment_period - 1

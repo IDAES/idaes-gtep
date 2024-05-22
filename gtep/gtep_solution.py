@@ -11,6 +11,7 @@ import logging
 
 import json
 from pathlib import Path
+import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -46,7 +47,7 @@ class ExpansionPlanningSolution:
         self.len_reps = gtep_model.len_reps  # int
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
-        # add in 
+        # add in
 
     def read_json(self, filepath):
         # read a json file and recover a solution primals
@@ -99,7 +100,7 @@ class ExpansionPlanningSolution:
             # split the name to figure out depth
             split_name = val[0].name.split(".")
 
-            if split_name[1] == 'expansionCost':
+            if split_name[1] == "expansionCost":
                 pass
 
             # start at the bottom and nest accordingly
@@ -200,8 +201,8 @@ class ExpansionPlanningSolution:
 
         # figure out how big the plot needs to be
         plot_height = len(keys)
-        if plot_height < 2*len(vars):
-            plot_height = 2*len(vars)
+        if plot_height < 2 * len(vars):
+            plot_height = 2 * len(vars)
         gs = fig.add_gridspec(plot_height, 2)
 
         # plot out the keys of interest
@@ -261,7 +262,10 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+        )
+        plt.close("all")
 
     def _dispatch_level_plot_workhorse(
         self,
@@ -273,7 +277,11 @@ class ExpansionPlanningSolution:
         # go through a commitment period and parse out the dispatch periods
         dispatch_timeseries = []
         # slice out all keys pertaining to dispatchPeriod
-        dispatchPeriod_keys = [this_key for this_key in commit_level_dict.keys() if ("dispatchPeriod" in this_key) ]
+        dispatchPeriod_keys = [
+            this_key
+            for this_key in commit_level_dict.keys()
+            if ("dispatchPeriod" in this_key)
+        ]
         for this_key in dispatchPeriod_keys:
             dispatch_period_dict = {}
             # cut out which dispatch period this is
@@ -296,9 +304,9 @@ class ExpansionPlanningSolution:
                 primals_by_category.setdefault(primal_category, {})
                 primals_by_name.setdefault(primal_name, {})
 
-                primals_by_category[primal_category][primal_name] = (
-                    commit_level_dict[this_key][this_primal]
-                )
+                primals_by_category[primal_category][primal_name] = commit_level_dict[
+                    this_key
+                ][this_primal]
                 primals_by_name[primal_name][primal_category] = commit_level_dict[
                     this_key
                 ][this_primal]
@@ -313,7 +321,9 @@ class ExpansionPlanningSolution:
 
         # discover the relationships at the dispatch level
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
-        dispatch_relationships = self.discover_dispatch_level_relationships(commit_level_dict[dispatchPeriod_keys[0]])
+        dispatch_relationships = self.discover_dispatch_level_relationships(
+            commit_level_dict[dispatchPeriod_keys[0]]
+        )
 
         for vars_of_interest, keys_of_interest in dispatch_relationships.items():
             # print(vars_of_interest)
@@ -335,14 +345,18 @@ class ExpansionPlanningSolution:
                 parent_key_string,
                 pretty_title=this_pretty_title,
                 save_dir=save_dir,
-                plot_bounds=plot_bounds)
+                plot_bounds=plot_bounds,
+            )
 
         pass
-
 
     def plot_dispatch_level(self, save_dir="."):
 
         # plot or represent some dispatch periods or something I don't know
+
+        # make sure save_dir exists
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
 
         # get all the dipatch period primals
         for this_key in self.primals_tree.keys():
