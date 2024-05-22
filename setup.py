@@ -1,15 +1,23 @@
 import os
 from setuptools import setup, find_packages
 
+# requires = [
+#     "pyomo",
+#     "scipy==1.11",
+#     "gridx-egret",
+#     "gridx-prescient",
+#     "anyio==3.1",
+#     "pint",
+# ]
+
 requires = [
     "pyomo",
-    "scipy==1.11",
+    "scipy",
     "gridx-egret",
     "gridx-prescient",
     "anyio==3.1",
     "pint",
 ]
-
 setup(
     name="gtep",
     version="0.1.dev0",
