@@ -31,9 +31,11 @@ mod_object.results = opt.solve(mod_object.model)
 
 sol_object = ExpansionPlanningSolution()
 
-sol_object.load_from_model(mod_object)
-sol_object.dump_json()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json()
 
-sol_object.read_json("./gtep_solution.json")
-sol_object.plot_dispatch_level(save_dir="./plots/")
+# sol_object.read_json("./gtep_solution.json")
+sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
+sol_object.plot_levels(save_dir="./plots/")
+
 pass
