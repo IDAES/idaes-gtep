@@ -12,14 +12,6 @@ import logging
 import json
 from pathlib import Path
 
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-
-logger = logging.getLogger(__name__)
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -121,7 +113,6 @@ class ExpansionPlanningSolution:
             # split the name to figure out depth
             split_name = val[0].name.split(".")
 
-
             # start at the bottom and nest accordingly
             tmp_dict = {
                 "name": val[0].name,
@@ -190,7 +181,6 @@ class ExpansionPlanningSolution:
             matching_groups_dict[this_primal_set].add(this_primal_name)
 
         return matching_groups_dict
-
 
     def _level_dict_to_df_workhorse(
         self, level_key, timeseries_dict, keys_of_interest, vars_of_interest
@@ -397,7 +387,7 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
         plt.close()
 
 
@@ -469,6 +459,7 @@ class ExpansionPlanningSolution:
                 # check if it has a bracketed relationship, and if it does go ahead, otherwise skip
                 try:
                     # print(this_primal)
+
                     primal_category = this_primal.split("[")[0]
                     primal_name = this_primal.split("[")[1].split("]")[0]
 
@@ -482,7 +473,7 @@ class ExpansionPlanningSolution:
                         this_key
                     ][this_primal]
                 except IndexError as iEx:
-                    print(f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_key}, failed with error {iEx}. Skipping.")
+                    print(f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_primal} from {this_key}, failed with error {iEx}. Skipping.")
             level_period_dict["primals_by_category"] = primals_by_category
             level_period_dict["primals_by_name"] = primals_by_name
             level_timeseries.append(level_period_dict)
@@ -608,3 +599,4 @@ class ExpansionPlanningSolution:
         #     "spinningReserve[4_STEAM]",
         # ]
 
+        pass
