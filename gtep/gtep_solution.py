@@ -338,7 +338,7 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
         plt.close()
         
     def _plot_workhose_binaries(self, 
@@ -397,7 +397,7 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
         plt.close()
 
 
