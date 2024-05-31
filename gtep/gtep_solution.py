@@ -49,7 +49,9 @@ class ExpansionPlanningSolution:
         self.len_reps = gtep_model.len_reps  # int
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
+        self.expressions = {expr.name: value(expr) for expr in gtep_model.model.component_data_objects(Expression) if ("Commitment" in expr.name) or ("Investment" in expr.name)}
         # add in 
+        pass
 
     def read_json(self, filepath):
         # read a json file and recover a solution primals
@@ -72,6 +74,7 @@ class ExpansionPlanningSolution:
             "best_feasible_objective": self.results.best_feasible_objective,
             "best_objective_bound": self.results.best_objective_bound,
             "wallclock_time": self.results.wallclock_time,
+            "expressions": self.expressions,
         }
 
         # "best_feasible_objective", "best_objective_bound", and "wallclock_time" are all numbers, dont need subhandlers
@@ -108,6 +111,7 @@ class ExpansionPlanningSolution:
         # things are either vars (which have some sort of signifier in [] brackets) or are an attribute, which dont
         # the name variable will give it away
         results_dict["primals_tree"] = {}
+        results_dict["expressions_tree"] = {}
 
         for key, val in self.results.solution_loader.get_primals()._dict.items():
             # split the name to figure out depth
@@ -143,16 +147,37 @@ class ExpansionPlanningSolution:
                     this_dict[key[0]] = val
 
             nested_set(results_dict["primals_tree"], split_name, tmp_dict)
+
+        pass
+
+        for key, val in self.expressions.items():
+            # split the name to figure out depth
+            split_name = key.split(".")
+
+            # start at the bottom and nest accordingly
+            tmp_dict = {
+                "value": val,
+            }
+
+            # allocate the nested dictionary
+            def nested_set(this_dict, key, val):
+                if len(key) > 1:
+                    # check if it's a binary var and pull up one layer
+                    this_dict.setdefault(key[0], {})
+                    nested_set(this_dict[key[0]], key[1:], val)
+                else:
+                    this_dict[key[0]] = val
+
+            nested_set(results_dict["expressions_tree"], split_name, tmp_dict)
+        # split out expressions
+        self.expressions_tree = results_dict["expressions_tree"]
+
+        # mint the final dictionary to save 
         out_dict = {"data": self.data.data, "results": results_dict}
 
         self.primals_tree = results_dict["primals_tree"]
 
         return out_dict
-
-    def plot_investment_level(self):
-
-        # can grab bus names from
-        pass
 
     def discover_level_relationships(self, dispatch_level_dict):
         list_of_keys = list(dispatch_level_dict.keys())
@@ -169,7 +194,8 @@ class ExpansionPlanningSolution:
                 relationships_dict[primal_name].add(primal_category)
 
             except IndexError as iEx:
-                print(f"[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: \"{iEx}\". Skipping.")
+                print(f"[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: \"{iEx}\". Assigning as axuilary.")
+
         # convert sets to frozensets to be hashable
         for this_key in relationships_dict:
             relationships_dict[this_key] = frozenset(relationships_dict[this_key])
@@ -182,7 +208,7 @@ class ExpansionPlanningSolution:
 
         return matching_groups_dict
 
-    def _level_dict_to_df_workhorse(
+    def _level_relationship_dict_to_df_workhorse(
         self, level_key, timeseries_dict, keys_of_interest, vars_of_interest
     ):
         df_data_dict = {}
@@ -229,7 +255,7 @@ class ExpansionPlanningSolution:
             data_df = data_df.fillna(value=np.nan)
             return data_df
         except ValueError as vEx:
-            print(f"[WARNING] _level_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}")
+            print(f"[WARNING] _level_relationship_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}")
             return pd.DataFrame()
 
     def _plot_workhorse_relational(self,
@@ -391,7 +417,8 @@ class ExpansionPlanningSolution:
         plt.close()
 
 
-    def _level_df_to_plot(
+
+    def _level_relationship_df_to_plot(
         self,
         level_key,
         df,
@@ -430,6 +457,110 @@ class ExpansionPlanningSolution:
                                             plot_bounds,
                                             save_dir)
 
+    def _expressions_plot_workhorse(
+        self,
+        level_key,
+        upper_level_dict,
+        parent_key_string,
+        save_dir="./",
+        plot_bounds=False,
+    ):
+        # go through a commitment period and parse out the dispatch periods
+        # slice out all keys pertaining to dispatchPeriod
+        level_period_keys = [this_key for this_key in upper_level_dict.keys() if (level_key in this_key) ]
+
+        # scan level period for keys that have values associated
+        keys_of_vals_of_interest = []
+        for this_key in upper_level_dict[level_period_keys[0]]:
+            if 'value' in upper_level_dict[level_period_keys[0]][this_key]:
+                keys_of_vals_of_interest.append(this_key)
+
+        print(keys_of_vals_of_interest)
+
+        # if we found things that have values, make a dictionary and then plot
+        # why do we need to do it by level first and then pivot the dict? Because we don't actually know what the "periods" numbers are, they might be arbitrary and in an arbitrary order
+        if len(keys_of_vals_of_interest) > 0:
+            # check all the periods and sort them out
+            vals_dict = {}
+            
+            for this_key in upper_level_dict:
+                level_period_number = int(re.split('\[|\]', this_key.split(level_key)[1])[1])
+                vals_dict.setdefault(level_period_number, {})
+                for this_val_key in keys_of_vals_of_interest:
+                    vals_dict[level_period_number][this_val_key] = upper_level_dict[this_key][this_val_key]['value']
+
+
+            print(vals_dict)
+
+            # now pivot the dictionary to make a dataframe
+            # make a dictionary where the keys are the top layer
+            df_dict = {key:[] for key in keys_of_vals_of_interest}
+            sorted_vals_period = sorted(vals_dict)
+            df_dict['period_number'] = sorted_vals_period
+            for this_val_period in sorted_vals_period:
+                for this_key in keys_of_vals_of_interest:
+                    df_dict[this_key].append(vals_dict[this_val_period][this_key])
+
+            print(df_dict)
+            expression_level_df = pd.DataFrame(df_dict)
+            print(expression_level_df)
+
+            # plot the DF
+            # figure out how big the plot needs to be
+            gridspec_height = 2*len(keys_of_vals_of_interest)
+            gridspec_width = 2
+            fig_width_padding = 0
+            fig_height_padding = 0
+            max_figheight = 48
+            total_periods = len(expression_level_df)
+            key_gridspec_div = floor(gridspec_height/len(keys_of_vals_of_interest)) # number of gridspec heights a key plot can be
+
+            # to make things look nice, we dont want height or width to be more than twice the other
+            fig_width = (total_periods*gridspec_width*4)+fig_width_padding
+            fig_width = min(max_figheight, fig_width)
+            fig_height = (2*gridspec_height)+fig_height_padding
+            if fig_width/fig_height > 2:
+                fig_height = floor(fig_width/2)
+            elif fig_height/fig_height > 2:
+                fig_height = floor(fig_height/2)
+
+            # set up plot
+            fig = plt.figure(figsize=(fig_width,
+                                    fig_height),
+                                    tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+            gs = fig.add_gridspec(gridspec_height, gridspec_width)
+            # plot out the keys of interest
+            
+            pretty_title = "Expression"
+            
+            
+            ax_koi_list = []
+            for ix_koi, this_koi in enumerate(keys_of_vals_of_interest):
+                ax_koi = fig.add_subplot(gs[(ix_koi*key_gridspec_div):((ix_koi+1)*key_gridspec_div), :])
+                ax_koi_list.append(ax_koi)
+
+                ax_koi.plot(
+                    expression_level_df['period_number'],
+                    expression_level_df[this_koi],
+                    label=f"{this_koi}",
+                    marker="o",
+                )
+                ax_koi.set_ylabel("Value $[n]$")
+                ax_koi.xaxis.set_major_locator(MaxNLocator(integer=True))
+                ax_koi.legend()
+
+            # label axes
+            ax_koi_list[-1].set_xlabel(f"{level_key} $[n]$")
+            ax_koi_list[0].set_title(f"{pretty_title} by Type")
+
+
+            fig.align_labels()
+            fig.suptitle(f"{parent_key_string}")
+            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+            plt.close()
+            
+
+        
     def _level_plot_workhorse(
         self,
         level_key,
@@ -442,6 +573,7 @@ class ExpansionPlanningSolution:
         level_timeseries = []
         # slice out all keys pertaining to dispatchPeriod
         level_period_keys = [this_key for this_key in upper_level_dict.keys() if (level_key in this_key) ]
+        # aux_var_dict = {}
         for this_key in level_period_keys:
             level_period_dict = {}
             # cut out which dispatch period this is
@@ -457,26 +589,38 @@ class ExpansionPlanningSolution:
             # split key on brackets to get title
             for this_primal in upper_level_dict[this_key]:
                 # check if it has a bracketed relationship, and if it does go ahead, otherwise skip
+                tmp_save_primal = upper_level_dict[this_key][this_primal]
                 try:
-                    # print(this_primal)
 
+                    # check if this_primal is splitable on brackets
+
+                    # based on the name of the primal, split out the "category" and the "name"
+                    # Example: commitmentPeriod[1]
+                    # - category: "commitmentPeriod"
+                    # -     name: "1"
                     primal_category = this_primal.split("[")[0]
-                    primal_name = this_primal.split("[")[1].split("]")[0]
-
+                    primal_name = this_primal.split("[")[1].split("]")[0] 
+                    
+                    # create one view that shares the categories, and one the shares the names
                     primals_by_category.setdefault(primal_category, {})
                     primals_by_name.setdefault(primal_name, {})
 
                     primals_by_category[primal_category][primal_name] = (
-                        upper_level_dict[this_key][this_primal]
+                        tmp_save_primal
                     )
-                    primals_by_name[primal_name][primal_category] = upper_level_dict[
-                        this_key
-                    ][this_primal]
+                    primals_by_name[primal_name][primal_category] = tmp_save_primal
+
                 except IndexError as iEx:
                     print(f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_primal} from {this_key}, failed with error {iEx}. Skipping.")
+                    # aux_var_dict.setdefault(this_primal, []) 
+                    # aux_var_dict[this_primal].append(this_key)
             level_period_dict["primals_by_category"] = primals_by_category
             level_period_dict["primals_by_name"] = primals_by_name
             level_timeseries.append(level_period_dict)
+
+        # # clean up the aux vars based on what we found
+        # for aux_var_primal_name, aux_var_category_name in aux_var_dict.items():
+        #     print(aux_var_primal_name, aux_var_category_name)
 
         # sort by the dispatch period number
         level_timeseries = sorted(
@@ -487,6 +631,7 @@ class ExpansionPlanningSolution:
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
         level_relationships = self.discover_level_relationships(upper_level_dict[level_period_keys[0]])
 
+        # plot relationships
         for vars_of_interest, keys_of_interest in level_relationships.items():
 
             # sort the vars and keys for consistency
@@ -494,7 +639,7 @@ class ExpansionPlanningSolution:
             tmp_koi = sorted(keys_of_interest)
 
             # make a df for debug and also easy tabularness for plots
-            this_df_of_interest = self._level_dict_to_df_workhorse(
+            this_df_of_interest = self._level_relationship_dict_to_df_workhorse(
                 level_key, level_timeseries, tmp_koi, tmp_voi
             )
         
@@ -505,7 +650,7 @@ class ExpansionPlanningSolution:
                 this_pretty_title = ", ".join(tmp_voi)
 
                 # plot it
-                self._level_df_to_plot(
+                self._level_relationship_df_to_plot(
                     level_key,
                     this_df_of_interest,
                     tmp_koi,
@@ -514,11 +659,11 @@ class ExpansionPlanningSolution:
                     pretty_title=this_pretty_title,
                     save_dir=save_dir,
                     plot_bounds=plot_bounds)
-
+        
 
     def plot_levels(self, save_dir="."):
 
-        # plot or represent some dispatch periods or something I don't know
+        # plot or represent primals trees
         for this_root_level_key in self.primals_tree:
             if "investmentStage" in this_root_level_key:
                 investment_level_cut = self.primals_tree[this_root_level_key]
@@ -548,55 +693,38 @@ class ExpansionPlanningSolution:
                                 self._level_plot_workhorse(
                                     "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
                                 )
-                            
-        pass
-        # things to cut on
-        # renewableGeneration
-        # renewableCurtailment
-        # powerFlow
-        # busAngle
-        # thermalGeneration
-        # spinningReserve
-        # quickstartReserve
 
-        # [
-        #     "renewableGeneration[10_PV]",
-        #     "renewableCurtailment[10_PV]",
-        #     "renewableGeneration[2_RTPV]",
-        #     "renewableCurtailment[2_RTPV]",
-        #     "renewableGeneration[1_HYDRO]",
-        #     "renewableCurtailment[1_HYDRO]",
-        #     "renewableGeneration[4_WIND]",
-        #     "renewableCurtailment[4_WIND]",
-        #     "powerFlow[branch_2_3]",
-        #     "busAngle[bus3]",
-        #     "busAngle[bus2]",
-        #     "powerFlow[branch_1_10]",
-        #     "busAngle[bus10]",
-        #     "busAngle[bus1]",
-        #     "powerFlow[branch_3_4_1]",
-        #     "busAngle[bus4]",
-        #     "powerFlow[branch_4_10]",
-        #     "powerFlow[branch_1_4]",
-        #     "powerFlow[branch_1_2]",
-        #     "powerFlow[branch_3_4_0]",
-        #     "loadShed[bus1]",
-        #     "thermalGeneration[4_CC]",
-        #     "thermalGeneration[4_STEAM]",
-        #     "loadShed[bus4]",
-        #     "thermalGeneration[10_STEAM]",
-        #     "loadShed[bus10]",
-        #     "loadShed[bus2]",
-        #     "thermalGeneration[3_CT]",
-        #     "loadShed[bus3]",
-        #     "quickstartReserve[3_CT]",
-        #     "quickstartReserve[10_STEAM]",
-        #     "quickstartReserve[4_CC]",
-        #     "quickstartReserve[4_STEAM]",
-        #     "spinningReserve[3_CT]",
-        #     "spinningReserve[10_STEAM]",
-        #     "spinningReserve[4_CC]",
-        #     "spinningReserve[4_STEAM]",
-        # ]
+        # plot or represent expressions
+        self._expressions_plot_workhorse(
+            "investmentStage", self.expressions_tree, 'investmentStage', save_dir
+        )
+        for this_root_level_key in self.expressions_tree:
+            if "investmentStage" in this_root_level_key:
+                investment_level_cut = self.expressions_tree[this_root_level_key]
+                parent_key_string = f"{this_root_level_key}"
+                self._expressions_plot_workhorse(
+                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
+                )
 
+                for this_inv_level_key in self.expressions_tree[this_root_level_key].keys():
+                    if "representativePeriod" in this_inv_level_key:
+                        representative_level_cut = self.expressions_tree[this_root_level_key][this_inv_level_key]
+                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+                        self._expressions_plot_workhorse(
+                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+                        )
+
+                        for this_rep_level_key in self.expressions_tree[
+                            this_root_level_key
+                        ][this_inv_level_key].keys():
+                            if "commitmentPeriod" in this_rep_level_key:
+                                commitment_level_cut = self.expressions_tree[
+                                    this_root_level_key
+                                ][this_inv_level_key][this_rep_level_key]
+
+                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+
+                                self._expressions_plot_workhorse(
+                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+                                )         
         pass
