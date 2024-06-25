@@ -29,6 +29,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
 # [TODO] inject units into plots
 class ExpansionPlanningSolution:
     def __init__(self):
@@ -105,12 +106,18 @@ class ExpansionPlanningSolution:
 
             # handle binary
             if val[0].is_binary():
-                results_dict["solution_loader"]["primals"][tmp_key]['is_binary'] = val[0].is_binary()
+                results_dict["solution_loader"]["primals"][tmp_key]["is_binary"] = val[
+                    0
+                ].is_binary()
             # handle units, sometimes they dont have anything
             if val[0].get_units() is not None:
-                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[0].get_units().name
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = (
+                    val[0].get_units().name
+                )
             else:
-                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[0].get_units()
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[
+                    0
+                ].get_units()
 
         # renest "termination_condition" as a json-friendly dictionary
         # things are either vars (which have some sort of signifier in [] brackets) or are an attribute, which dont
@@ -121,7 +128,6 @@ class ExpansionPlanningSolution:
             # split the name to figure out depth
             split_name = val[0].name.split(".")
 
-
             # start at the bottom and nest accordingly
             tmp_dict = {
                 "name": val[0].name,
@@ -131,19 +137,19 @@ class ExpansionPlanningSolution:
 
             # handle binary
             if val[0].is_binary():
-                tmp_dict['is_binary'] = val[0].is_binary()
-            
+                tmp_dict["is_binary"] = val[0].is_binary()
+
             # handle units, sometimes they dont have anything
             if val[0].get_units() is not None:
-                tmp_dict['units'] = val[0].get_units().name
+                tmp_dict["units"] = val[0].get_units().name
             else:
-                tmp_dict['units'] = val[0].get_units()
+                tmp_dict["units"] = val[0].get_units()
 
             # allocate the nested dictionary
             def nested_set(this_dict, key, val):
                 if len(key) > 1:
                     # check if it's a binary var and pull up one layer
-                    if key[1] == 'binary_indicator_var':
+                    if key[1] == "binary_indicator_var":
                         this_dict[key[0]] = val
                     else:
                         this_dict.setdefault(key[0], {})
@@ -178,7 +184,9 @@ class ExpansionPlanningSolution:
                 relationships_dict[primal_name].add(primal_category)
 
             except IndexError as iEx:
-                print(f"[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: \"{iEx}\". Skipping.")
+                print(
+                    f'[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: "{iEx}". Skipping.'
+                )
         # convert sets to frozensets to be hashable
         for this_key in relationships_dict:
             relationships_dict[this_key] = frozenset(relationships_dict[this_key])
@@ -190,7 +198,6 @@ class ExpansionPlanningSolution:
             matching_groups_dict[this_primal_set].add(this_primal_name)
 
         return matching_groups_dict
-
 
     def _level_dict_to_df_workhorse(
         self, level_key, timeseries_dict, keys_of_interest, vars_of_interest
@@ -212,24 +219,43 @@ class ExpansionPlanningSolution:
                     # check if this is a variable by checking if it has a "value"
                     if "value" in period_dict["primals_by_name"][this_koi][this_voi]:
                         # if its an integer, cast it as a boolean for now
-                        if 'is_binary' in period_dict["primals_by_name"][this_koi][this_voi]:
-                            if period_dict["primals_by_name"][this_koi][this_voi]['is_binary']:
+                        if (
+                            "is_binary"
+                            in period_dict["primals_by_name"][this_koi][this_voi]
+                        ):
+                            if period_dict["primals_by_name"][this_koi][this_voi][
+                                "is_binary"
+                            ]:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                                    bool(int(period_dict["primals_by_name"][this_koi][this_voi]["value"])) # have to cast to int because there are floating point errors
+                                    bool(
+                                        round(
+                                            period_dict["primals_by_name"][this_koi][
+                                                this_voi
+                                            ]["value"]
+                                        )
+                                    )  # have to cast to int because there are floating point errors
                                 )
                             else:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                                    period_dict["primals_by_name"][this_koi][this_voi]["value"]
+                                    period_dict["primals_by_name"][this_koi][this_voi][
+                                        "value"
+                                    ]
                                 )
                         else:
                             df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["value"]
-                        )
+                                period_dict["primals_by_name"][this_koi][this_voi][
+                                    "value"
+                                ]
+                            )
                         df_data_dict[f"{this_koi}_{this_voi}_lower_bound"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["bounds"][0]
+                            period_dict["primals_by_name"][this_koi][this_voi][
+                                "bounds"
+                            ][0]
                         )
                         df_data_dict[f"{this_koi}_{this_voi}_upper_bound"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["bounds"][1]
+                            period_dict["primals_by_name"][this_koi][this_voi][
+                                "bounds"
+                            ][1]
                         )
 
         # try to make a DF, and if not just pass back an empty
@@ -239,49 +265,57 @@ class ExpansionPlanningSolution:
             data_df = data_df.fillna(value=np.nan)
             return data_df
         except ValueError as vEx:
-            print(f"[WARNING] _level_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}")
+            print(
+                f"[WARNING] _level_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}"
+            )
             return pd.DataFrame()
 
-    def _plot_workhorse_relational(self,
-                                   level_key,
-                                   df,
-                                   keys,
-                                   vars,
-                                   parent_key_string,
-                                   pretty_title="Selected Data",
-                                   plot_bounds=False,
-                                   save_dir=".",):
-        
+    def _plot_workhorse_relational(
+        self,
+        level_key,
+        df,
+        keys,
+        vars,
+        parent_key_string,
+        pretty_title="Selected Data",
+        plot_bounds=False,
+        save_dir=".",
+    ):
 
-        
         # figure out how big the plot needs to be
-        gridspec_height = 2*max(len(keys), len(vars))
+        gridspec_height = 2 * max(len(keys), len(vars))
         gridspec_width = 2
         fig_width_padding = 0
         fig_height_padding = 0
         max_figheight = 48
         total_periods = len(df[level_key])
-        key_gridspec_div = floor(gridspec_height/len(keys)) # number of gridspec heights a key plot can be
-        var_gridspec_div = floor(gridspec_height/len(vars)) # number of gridspec heights a var plot can be
+        key_gridspec_div = floor(
+            gridspec_height / len(keys)
+        )  # number of gridspec heights a key plot can be
+        var_gridspec_div = floor(
+            gridspec_height / len(vars)
+        )  # number of gridspec heights a var plot can be
 
         # to make things look nice, we dont want height or width to be more than twice the other
-        fig_width = (total_periods*gridspec_width*4)+fig_width_padding
+        fig_width = (total_periods * gridspec_width * 4) + fig_width_padding
         fig_width = min(max_figheight, fig_width)
-        fig_height = (2*gridspec_height)+fig_height_padding
-        if fig_width/fig_height > 2:
-            fig_height = floor(fig_width/2)
-        elif fig_height/fig_height > 2:
-            fig_height = floor(fig_height/2)
+        fig_height = (2 * gridspec_height) + fig_height_padding
+        if fig_width / fig_height > 2:
+            fig_height = floor(fig_width / 2)
+        elif fig_height / fig_height > 2:
+            fig_height = floor(fig_height / 2)
 
         # set up plot
-        fig = plt.figure(figsize=(fig_width,
-                                  fig_height),
-                                  tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+        fig = plt.figure(
+            figsize=(fig_width, fig_height), tight_layout=False
+        )  # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
         gs = fig.add_gridspec(gridspec_height, gridspec_width)
         # plot out the keys of interest
         ax_koi_list = []
         for ix_koi, this_koi in enumerate(keys):
-            ax_koi = fig.add_subplot(gs[(ix_koi*key_gridspec_div):((ix_koi+1)*key_gridspec_div), 0])
+            ax_koi = fig.add_subplot(
+                gs[(ix_koi * key_gridspec_div) : ((ix_koi + 1) * key_gridspec_div), 0]
+            )
             ax_koi_list.append(ax_koi)
 
             for iy, this_voi in enumerate(vars):
@@ -311,7 +345,9 @@ class ExpansionPlanningSolution:
         ax_voi_list = []
         # plot generations and curtailmentsagainst each outher
         for ix_voi, this_voi in enumerate(vars):
-            ax_voi = fig.add_subplot(gs[(ix_voi*var_gridspec_div):((ix_voi+1)*var_gridspec_div), 1])
+            ax_voi = fig.add_subplot(
+                gs[(ix_voi * var_gridspec_div) : ((ix_voi + 1) * var_gridspec_div), 1]
+            )
             ax_voi_list.append(ax_voi)
             for this_koi in keys:
                 ax_voi.plot(
@@ -338,57 +374,75 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+        )
         plt.close()
-        
-    def _plot_workhose_binaries(self, 
-                                level_key,
-                                df,
-                                keys,
-                                vars,
-                                parent_key_string,
-                                pretty_title="Selected Data",
-                                save_dir=".",):
-        
+
+    def _plot_workhose_binaries(
+        self,
+        level_key,
+        df,
+        keys,
+        vars,
+        parent_key_string,
+        pretty_title="Selected Data",
+        save_dir=".",
+    ):
+
         fig = plt.figure(figsize=(32, 16), tight_layout=False)
-        gs = fig.add_gridspec(1, 1) # only need 1 plot for now
+        gs = fig.add_gridspec(1, 1)  # only need 1 plot for now
         # if all the variables are binaries, we can assume that the vars are all binaries and the keys are all categories
         total_height = len(vars)
-        interstate_height = 1./(len(keys)+2)
-        width = 1 
+        interstate_height = 1.0 / (len(keys) + 2)
+        width = 1
         width_padding = 0.05
         ax_bins = fig.add_subplot(gs[:, :])
-        ax_bins.set_ylim([-0.5, total_height-0.5]) # set ylims to support bools
-        ax_bins.set_xlim([0.5, len(df[level_key])+0.5]) # set xlims to support bools
-        ax_bins.set_yticklabels([None]+list(vars))
+        ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
+        ax_bins.set_xlim([0.5, len(df[level_key]) + 0.5])  # set xlims to support bools
+        ax_bins.set_yticklabels([None] + list(vars))
         ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
         for axline_ix in range(total_height):
-            ax_bins.axhline(axline_ix+0.5, color='grey', linewidth=3,) # draw a seperator line between each level
+            ax_bins.axhline(
+                axline_ix + 0.5,
+                color="grey",
+                linewidth=3,
+            )  # draw a seperator line between each level
         for axline_ix in range(len(df[level_key])):
-            ax_bins.axvline(axline_ix+0.5, color='grey', linewidth=3, linestyle='dotted', alpha=0.5) # draw a seperator line between each level
-
+            ax_bins.axvline(
+                axline_ix + 0.5,
+                color="grey",
+                linewidth=3,
+                linestyle="dotted",
+                alpha=0.5,
+            )  # draw a seperator line between each level
 
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
-            line, = ax_bins.plot(
+            (line,) = ax_bins.plot(
                 [None],
                 [None],
                 label=f"{this_koi}",
                 linewidth=5,
             )
             for ix_var, this_voi in enumerate(vars):
-                for tx, is_it_on in zip(df[level_key], df[f"{this_koi}_{this_voi}_value"]):
+                for tx, is_it_on in zip(
+                    df[level_key], df[f"{this_koi}_{this_voi}_value"]
+                ):
                     if is_it_on:
-                        tmp_rect = plt.Rectangle([tx-0.5+width_padding, ((ix_var)+(interstate_height*(ix_key+1)))-0.5],
-                                                width-(width_padding*2),
-                                                interstate_height,
-                                                alpha=0.9,
-                                                edgecolor='black',
-                                                color=line.get_color())
+                        tmp_rect = plt.Rectangle(
+                            [
+                                tx - 0.5 + width_padding,
+                                ((ix_var) + (interstate_height * (ix_key + 1))) - 0.5,
+                            ],
+                            width - (width_padding * 2),
+                            interstate_height,
+                            alpha=0.9,
+                            edgecolor="black",
+                            color=line.get_color(),
+                        )
                         ax_bins.add_patch(tmp_rect)
-
-
 
         ax_bins.set_xlabel(f"{level_key} $[n]$")
         ax_bins.set_title("State Variable Time History")
@@ -397,9 +451,10 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+        )
         plt.close()
-
 
     def _level_df_to_plot(
         self,
@@ -417,28 +472,32 @@ class ExpansionPlanningSolution:
         all_binaries = True
         for ix, this_voi in enumerate(vars):
             for iy, this_koi in enumerate(keys):
-                if not (df[f"{this_koi}_{this_voi}_value"].dtype == 'bool'):
+                if not (df[f"{this_koi}_{this_voi}_value"].dtype == "bool"):
                     all_binaries = False
                     break
         if all_binaries:
 
-            self._plot_workhose_binaries(level_key,
-                                         df,
-                                         keys,
-                                         vars,
-                                         parent_key_string,
-                                         pretty_title,
-                                         save_dir,)
-            
+            self._plot_workhose_binaries(
+                level_key,
+                df,
+                keys,
+                vars,
+                parent_key_string,
+                pretty_title,
+                save_dir,
+            )
+
         else:
-            self._plot_workhorse_relational(level_key,
-                                            df,
-                                            keys,
-                                            vars,
-                                            parent_key_string,
-                                            pretty_title,
-                                            plot_bounds,
-                                            save_dir)
+            self._plot_workhorse_relational(
+                level_key,
+                df,
+                keys,
+                vars,
+                parent_key_string,
+                pretty_title,
+                plot_bounds,
+                save_dir,
+            )
 
     def _level_plot_workhorse(
         self,
@@ -451,11 +510,15 @@ class ExpansionPlanningSolution:
         # go through a commitment period and parse out the dispatch periods
         level_timeseries = []
         # slice out all keys pertaining to dispatchPeriod
-        level_period_keys = [this_key for this_key in upper_level_dict.keys() if (level_key in this_key) ]
+        level_period_keys = [
+            this_key for this_key in upper_level_dict.keys() if (level_key in this_key)
+        ]
         for this_key in level_period_keys:
             level_period_dict = {}
             # cut out which dispatch period this is
-            level_period_number = int(re.split('\[|\]', this_key.split(level_key)[1])[1])
+            level_period_number = int(
+                re.split("\[|\]", this_key.split(level_key)[1])[1]
+            )
             # print(level_period_number)
 
             level_period_dict["period_number"] = level_period_number
@@ -482,19 +545,21 @@ class ExpansionPlanningSolution:
                         this_key
                     ][this_primal]
                 except IndexError as iEx:
-                    print(f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_key}, failed with error {iEx}. Skipping.")
+                    print(
+                        f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_key}, failed with error {iEx}. Skipping."
+                    )
             level_period_dict["primals_by_category"] = primals_by_category
             level_period_dict["primals_by_name"] = primals_by_name
             level_timeseries.append(level_period_dict)
 
         # sort by the dispatch period number
-        level_timeseries = sorted(
-            level_timeseries, key=lambda x: x["period_number"]
-        )
+        level_timeseries = sorted(level_timeseries, key=lambda x: x["period_number"])
 
         # discover the relationships at the dispatch level
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
-        level_relationships = self.discover_level_relationships(upper_level_dict[level_period_keys[0]])
+        level_relationships = self.discover_level_relationships(
+            upper_level_dict[level_period_keys[0]]
+        )
 
         for vars_of_interest, keys_of_interest in level_relationships.items():
 
@@ -506,7 +571,7 @@ class ExpansionPlanningSolution:
             this_df_of_interest = self._level_dict_to_df_workhorse(
                 level_key, level_timeseries, tmp_koi, tmp_voi
             )
-        
+
             # check if we got anything in the df
             if not this_df_of_interest.empty:
 
@@ -522,8 +587,8 @@ class ExpansionPlanningSolution:
                     parent_key_string,
                     pretty_title=this_pretty_title,
                     save_dir=save_dir,
-                    plot_bounds=plot_bounds)
-
+                    plot_bounds=plot_bounds,
+                )
 
     def plot_levels(self, save_dir="."):
 
@@ -533,15 +598,25 @@ class ExpansionPlanningSolution:
                 investment_level_cut = self.primals_tree[this_root_level_key]
                 parent_key_string = f"{this_root_level_key}"
                 self._level_plot_workhorse(
-                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
+                    "representativePeriod",
+                    investment_level_cut,
+                    parent_key_string,
+                    save_dir,
                 )
 
                 for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
                     if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
-                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+                        representative_level_cut = self.primals_tree[
+                            this_root_level_key
+                        ][this_inv_level_key]
+                        parent_key_string = (
+                            f"{this_root_level_key}_{this_inv_level_key}"
+                        )
                         self._level_plot_workhorse(
-                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+                            "commitmentPeriod",
+                            representative_level_cut,
+                            parent_key_string,
+                            save_dir,
                         )
 
                         for this_rep_level_key in self.primals_tree[
@@ -555,9 +630,12 @@ class ExpansionPlanningSolution:
                                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
                                 self._level_plot_workhorse(
-                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+                                    "dispatchPeriod",
+                                    commitment_level_cut,
+                                    parent_key_string,
+                                    save_dir,
                                 )
-                            
+
         pass
         # things to cut on
         # renewableGeneration
@@ -607,4 +685,3 @@ class ExpansionPlanningSolution:
         #     "spinningReserve[4_CC]",
         #     "spinningReserve[4_STEAM]",
         # ]
-
