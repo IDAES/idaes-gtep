@@ -216,7 +216,7 @@ class ExpansionPlanningSolution:
                         if 'is_binary' in period_dict["primals_by_name"][this_koi][this_voi]:
                             if period_dict["primals_by_name"][this_koi][this_voi]['is_binary']:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                                    bool(int(period_dict["primals_by_name"][this_koi][this_voi]["value"])) # have to cast to int because there are floating point errors
+                                    bool(round(period_dict["primals_by_name"][this_koi][this_voi]["value"])) # have to cast to int because there are floating point errors
                                 )
                             else:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
