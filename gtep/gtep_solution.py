@@ -384,7 +384,6 @@ class ExpansionPlanningSolution:
         for axline_ix in range(len(df[level_key])):
             ax_bins.axvline(axline_ix+0.5, color='grey', linewidth=3, linestyle='dotted', alpha=0.5) # draw a seperator line between each level
 
-
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
             line, = ax_bins.plot(
@@ -428,7 +427,11 @@ class ExpansionPlanningSolution:
         pretty_title="Selected Data",
         plot_bounds=False,
         save_dir=".",
+        config={},
     ):
+
+        # [HACK] hard coding the generator state order, to be fixed later
+        config['order_gen_state'] = ['genOff', 'genShutdown', 'genStartup', 'genOn']
 
         # check if ALL the possible things to look at are binaries
         all_binaries = True
@@ -438,6 +441,17 @@ class ExpansionPlanningSolution:
                     all_binaries = False
                     break
         if all_binaries:
+
+            # check the config to see if we have any overrides
+            if 'order_gen_state' in config:
+                # check that everything can be mapped over
+                matched_config_override = True
+                for item in vars:
+                    if not item in config['order_gen_state']:
+                        matched_config_override = False
+                        break
+                if matched_config_override:
+                    vars = config['order_gen_state']
 
             self._plot_workhose_binaries(level_key,
                                          df,
@@ -666,6 +680,13 @@ class ExpansionPlanningSolution:
         # plot or represent primals trees
         for this_root_level_key in self.primals_tree:
             if "investmentStage" in this_root_level_key:
+                # run the toplevel keys
+                parent_key_string = f"{this_root_level_key}"
+                self._level_plot_workhorse(
+                    "investmentStage", self.primals_tree, "", save_dir
+                )
+
+                # run the representative period subkeys
                 investment_level_cut = self.primals_tree[this_root_level_key]
                 parent_key_string = f"{this_root_level_key}"
                 self._level_plot_workhorse(
@@ -694,37 +715,37 @@ class ExpansionPlanningSolution:
                                     "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
                                 )
 
-        # plot or represent expressions
-        self._expressions_plot_workhorse(
-            "investmentStage", self.expressions_tree, 'investmentStage', save_dir
-        )
-        for this_root_level_key in self.expressions_tree:
-            if "investmentStage" in this_root_level_key:
-                investment_level_cut = self.expressions_tree[this_root_level_key]
-                parent_key_string = f"{this_root_level_key}"
-                self._expressions_plot_workhorse(
-                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
-                )
+        # # plot or represent expressions
+        # self._expressions_plot_workhorse(
+        #     "investmentStage", self.expressions_tree, 'investmentStage', save_dir
+        # )
+        # for this_root_level_key in self.expressions_tree:
+        #     if "investmentStage" in this_root_level_key:
+        #         investment_level_cut = self.expressions_tree[this_root_level_key]
+        #         parent_key_string = f"{this_root_level_key}"
+        #         self._expressions_plot_workhorse(
+        #             "representativePeriod", investment_level_cut, parent_key_string, save_dir
+        #         )
 
-                for this_inv_level_key in self.expressions_tree[this_root_level_key].keys():
-                    if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.expressions_tree[this_root_level_key][this_inv_level_key]
-                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
-                        self._expressions_plot_workhorse(
-                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
-                        )
+        #         for this_inv_level_key in self.expressions_tree[this_root_level_key].keys():
+        #             if "representativePeriod" in this_inv_level_key:
+        #                 representative_level_cut = self.expressions_tree[this_root_level_key][this_inv_level_key]
+        #                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+        #                 self._expressions_plot_workhorse(
+        #                     "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+        #                 )
 
-                        for this_rep_level_key in self.expressions_tree[
-                            this_root_level_key
-                        ][this_inv_level_key].keys():
-                            if "commitmentPeriod" in this_rep_level_key:
-                                commitment_level_cut = self.expressions_tree[
-                                    this_root_level_key
-                                ][this_inv_level_key][this_rep_level_key]
+        #                 for this_rep_level_key in self.expressions_tree[
+        #                     this_root_level_key
+        #                 ][this_inv_level_key].keys():
+        #                     if "commitmentPeriod" in this_rep_level_key:
+        #                         commitment_level_cut = self.expressions_tree[
+        #                             this_root_level_key
+        #                         ][this_inv_level_key][this_rep_level_key]
 
-                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+        #                         parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
-                                self._expressions_plot_workhorse(
-                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
-                                )         
-        pass
+        #                         self._expressions_plot_workhorse(
+        #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+        #                         )         
+        # pass
