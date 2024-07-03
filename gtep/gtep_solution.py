@@ -12,9 +12,9 @@ import logging
 import json
 from pathlib import Path
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import networkx as nx
 import pandas as pd
 import numpy as np
 import re
@@ -50,8 +50,9 @@ class ExpansionPlanningSolution:
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
         self.expressions = {expr.name: value(expr) for expr in gtep_model.model.component_data_objects(Expression) if ("Commitment" in expr.name) or ("Investment" in expr.name)}
-        # add in 
-        pass
+
+    def import_data_object(self, data_obj):
+        self.data = data_obj.md
 
     def read_json(self, filepath):
         # read a json file and recover a solution primals
@@ -673,47 +674,183 @@ class ExpansionPlanningSolution:
                     pretty_title=this_pretty_title,
                     save_dir=save_dir,
                     plot_bounds=plot_bounds)
-        
+    
+    def _plot_graph_workhorse(self):
+        # testing networkx plots
+
+        # construct graph object
+        G = nx.Graph()
+
+        for item in self.data.data['elements']['branch']:
+            print(self.data.data['elements']['branch'][item]['from_bus'], '--->', self.data.data['elements']['branch'][item]['to_bus'])
+
+
+
+        # fig = plt.figure(tight_layout=False)
+        # ax_graph = fig.add_subplot()
+        G = nx.Graph()
+        labels = {}
+        # add nodes
+        for item in self.data.data['elements']['bus']:
+            G.add_node(item)
+            labels[item] = item
+
+        # do edges manually later
+
+
+        # set up plot
+        fig = plt.figure(figsize=(16, 8), tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+        ax_graph = fig.add_subplot()
+        ax_graph.grid(False)
+
+        # # add edges
+        # for item in self.data.data['elements']['branch']:
+        #     G.add_edge(self.data.data['elements']['branch'][item]['from_bus'], self.data.data['elements']['branch'][item]['to_bus'])
+    
+
+
+        # G = nx.path_graph(5)
+        graph_node_position_dict = nx.kamada_kawai_layout(G)
+        nx.drawing.draw_networkx_nodes(G, graph_node_position_dict, ax=ax_graph)
+
+
+        # make some blocks
+        num_blocks = 4
+        rand_weights = (np.random.randn(4)+1)/2.
+        from matplotlib.patches import Rectangle, RegularPolygon
+        from matplotlib.collections import PatchCollection
+        import matplotlib.cm as cm
+        from matplotlib.transforms import Affine2D
+        flow_glyphs = []
+        spacing = 0.05 # take 10% of the rectangle and use it to create space between rectangles
+        kind = 'triangle'
+        # kind = 'rectangle'
+        for this_block_ix in range(num_blocks):
+            # normalizing this patch to 1
+
+            #### 
+            # rectangle version
+            ####
+            if kind == 'rectangle':
+                # anchor for rectangles are set to bottom left
+                glyph_anchor_coord = [this_block_ix/float(num_blocks), -.5]
+                # height is y, width is x
+                consistent_width = 1./float(num_blocks)            
+                # apply scaling
+                x_nudge = consistent_width*(1-spacing)
+                # nudge the start forward a bit (by the nudge factor)
+                glyph_anchor_coord[0]+=x_nudge
+                patch_width = consistent_width-x_nudge
+                patch_height = 1
+                flow_glyphs.append(Rectangle(glyph_anchor_coord,
+                                                patch_width,
+                                                patch_height,
+                                                color=cm.hot(rand_weights[this_block_ix])))
+
+            #### 
+            # triangle version
+            ####
+            if kind == 'triangle':
+                # triangles need to be in the center and then given a size
+                glyph_anchor_coord = [(this_block_ix+1)/float(num_blocks+1), 0]
+                glyph_verts = 3
+                glyph_radius = (1./float(num_blocks))/2
+                # apply nudges
+                glyph_radius *= (1-(spacing/2.))
+                flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                glyph_verts,
+                                                radius=glyph_radius,
+                                                orientation=-(np.pi/2.)))
+                
+
+
+        facecolors = cm.rainbow(rand_weights)
+        pc = PatchCollection(flow_glyphs, facecolors=facecolors)
+
+        # attempt to rotate
+        start_key = self.data.data['elements']['branch']['branch_2_3']['from_bus']
+        end_key = self.data.data['elements']['branch']['branch_2_3']['to_bus']
+        start_pos = graph_node_position_dict[start_key]
+        end_pos = graph_node_position_dict[end_key]
+        node_distance = np.linalg.norm(end_pos-start_pos)
+        rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
+
+        # set up transformations
+        # stretch to the distance between target nodes
+        length_transform = Affine2D().scale(sx=node_distance, sy=1)
+        # squish
+        scale_transform = Affine2D().scale(sx=1, sy=.5)
+        # rotate
+        rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad)) 
+        # translate to the node start 
+        translate_transform = Affine2D().translate(*start_pos)
+        length_transform = Affine2D().scale(sx=node_distance, sy=1)
+        t2 = length_transform + scale_transform + rot_transform + translate_transform + ax_graph.transData
+        pc.set_transform(t2)
+
+        # add collection
+        ax_graph.add_collection(pc)
+
+        # # add edges
+        # for item in self.data.data['elements']['branch']:
+        #     # grab the keys we care about
+        #     start_key = self.data.data['elements']['branch'][item]['from_bus']
+        #     end_key = self.data.data['elements']['branch'][item]['to_bus']
+        #     start_pos = graph_node_position_dict[start_key]
+        #     end_pos = graph_node_position_dict[end_key]
+
+        #     # forward arrow
+        #     ax_graph.arrow(start_pos[0], start_pos[1], (end_pos[0]-start_pos[0]), (end_pos[1]-start_pos[1]), color='black')
+        #     # backward arrow
+        #     ax_graph.arrow(end_pos[0], end_pos[1], (start_pos[0]-end_pos[0]), (start_pos[1]-end_pos[1]), color='black')
+    
+        # graph_plot_obj = nx.draw_kamada_kawai(G, labels=labels)
+        pass
+        fig.savefig('test.png')
+        pass
 
     def plot_levels(self, save_dir="."):
 
-        # plot or represent primals trees
-        for this_root_level_key in self.primals_tree:
-            if "investmentStage" in this_root_level_key:
-                # run the toplevel keys
-                parent_key_string = f"{this_root_level_key}"
-                self._level_plot_workhorse(
-                    "investmentStage", self.primals_tree, "", save_dir
-                )
+        self._plot_graph_workhorse()
 
-                # run the representative period subkeys
-                investment_level_cut = self.primals_tree[this_root_level_key]
-                parent_key_string = f"{this_root_level_key}"
-                self._level_plot_workhorse(
-                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
-                )
 
-                for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
-                    if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
-                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
-                        self._level_plot_workhorse(
-                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
-                        )
+        # # plot or represent primals trees
+        # for this_root_level_key in self.primals_tree:
+        #     if "investmentStage" in this_root_level_key:
+        #         # run the toplevel keys
+        #         parent_key_string = f"{this_root_level_key}"
+        #         self._level_plot_workhorse(
+        #             "investmentStage", self.primals_tree, "", save_dir
+        #         )
 
-                        for this_rep_level_key in self.primals_tree[
-                            this_root_level_key
-                        ][this_inv_level_key].keys():
-                            if "commitmentPeriod" in this_rep_level_key:
-                                commitment_level_cut = self.primals_tree[
-                                    this_root_level_key
-                                ][this_inv_level_key][this_rep_level_key]
+        #         # run the representative period subkeys
+        #         investment_level_cut = self.primals_tree[this_root_level_key]
+        #         parent_key_string = f"{this_root_level_key}"
+        #         self._level_plot_workhorse(
+        #             "representativePeriod", investment_level_cut, parent_key_string, save_dir
+        #         )
 
-                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+        #         for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
+        #             if "representativePeriod" in this_inv_level_key:
+        #                 representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
+        #                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+        #                 self._level_plot_workhorse(
+        #                     "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+        #                 )
 
-                                self._level_plot_workhorse(
-                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
-                                )
+        #                 for this_rep_level_key in self.primals_tree[
+        #                     this_root_level_key
+        #                 ][this_inv_level_key].keys():
+        #                     if "commitmentPeriod" in this_rep_level_key:
+        #                         commitment_level_cut = self.primals_tree[
+        #                             this_root_level_key
+        #                         ][this_inv_level_key][this_rep_level_key]
+
+        #                         parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+
+        #                         self._level_plot_workhorse(
+        #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+        #                         )
 
         # # plot or represent expressions
         # self._expressions_plot_workhorse(
