@@ -19,6 +19,14 @@ import pandas as pd
 import numpy as np
 import re
 
+
+from matplotlib.patches import Rectangle, RegularPolygon, PathPatch
+from matplotlib.collections import PatchCollection
+import matplotlib.cm as cm
+from matplotlib.transforms import Affine2D
+from matplotlib.colors import Normalize
+import matplotlib.path as mpath
+
 logger = logging.getLogger(__name__)
 
 # [TODO] inject units into plots
@@ -213,6 +221,7 @@ class ExpansionPlanningSolution:
         self, level_key, timeseries_dict, keys_of_interest, vars_of_interest
     ):
         df_data_dict = {}
+        units_dict = {}
         # set our defaults
         df_data_dict.setdefault(level_key, [])
         for this_koi in keys_of_interest:
@@ -234,30 +243,35 @@ class ExpansionPlanningSolution:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
                                     bool(round(period_dict["primals_by_name"][this_koi][this_voi]["value"])) # have to cast to int because there are floating point errors
                                 )
+                                units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
                             else:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
                                     period_dict["primals_by_name"][this_koi][this_voi]["value"]
                                 )
+                                units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
                         else:
                             df_data_dict[f"{this_koi}_{this_voi}_value"].append(
                             period_dict["primals_by_name"][this_koi][this_voi]["value"]
                         )
+                            units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
                         df_data_dict[f"{this_koi}_{this_voi}_lower_bound"].append(
                             period_dict["primals_by_name"][this_koi][this_voi]["bounds"][0]
                         )
+                        units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
                         df_data_dict[f"{this_koi}_{this_voi}_upper_bound"].append(
                             period_dict["primals_by_name"][this_koi][this_voi]["bounds"][1]
                         )
+                        units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
 
         # try to make a DF, and if not just pass back an empty
         try:
             data_df = pd.DataFrame(df_data_dict)
             # fix any Nones and make them NaNs
             data_df = data_df.fillna(value=np.nan)
-            return data_df
+            return data_df, units_dict
         except ValueError as vEx:
             print(f"[WARNING] _level_relationship_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}")
-            return pd.DataFrame()
+            return pd.DataFrame(), {}
 
     def _plot_workhorse_relational(self,
                                    level_key,
@@ -655,7 +669,7 @@ class ExpansionPlanningSolution:
             tmp_koi = sorted(keys_of_interest)
 
             # make a df for debug and also easy tabularness for plots
-            this_df_of_interest = self._level_relationship_dict_to_df_workhorse(
+            this_df_of_interest, this_df_units = self._level_relationship_dict_to_df_workhorse(
                 level_key, level_timeseries, tmp_koi, tmp_voi
             )
         
@@ -665,30 +679,50 @@ class ExpansionPlanningSolution:
                 # just ram the variable names together, that'll be fine, right?
                 this_pretty_title = ", ".join(tmp_voi)
 
-                # plot it
-                self._level_relationship_df_to_plot(
-                    level_key,
-                    this_df_of_interest,
-                    tmp_koi,
-                    tmp_voi,
-                    parent_key_string,
-                    pretty_title=this_pretty_title,
-                    save_dir=save_dir,
-                    plot_bounds=plot_bounds)
+                # [HACK]
+                # if we find powerflow, plot it as a network
+                if 'powerFlow' in tmp_voi:
+                    self._plot_graph_workhorse(this_df_of_interest,
+                                               'powerFlow',
+                                               parent_key_string,
+                                               units=this_df_units,
+                                               pretty_title=this_pretty_title,
+                                               save_dir=save_dir,)
     
-    def _plot_graph_workhorse(self, what_is_a_bus_called='dc_branch'):
+                    # [HACK] put this back one intent level when done
+                    # plot it
+                    self._level_relationship_df_to_plot(
+                        level_key,
+                        this_df_of_interest,
+                        tmp_koi,
+                        tmp_voi,
+                        parent_key_string,
+                        pretty_title=this_pretty_title,
+                        save_dir=save_dir,
+                        plot_bounds=plot_bounds)
+                
+    
+    def _plot_graph_workhorse(self,
+                              df,
+                              value_key,
+                              parent_key_string,
+                              what_is_a_bus_called='dc_branch',
+                              units=None,
+                              pretty_title="Selected Data",
+                              save_dir=".",):
         # testing networkx plots
 
+        # preslice out data of interest
+        cols_of_interest = [col for col in df.columns if f"{value_key}_value" in col]
+        df_of_interest = df[cols_of_interest]
+        df_max = df_of_interest.to_numpy().max()
+        df_min = df_of_interest.to_numpy().min()
+        # assume all the units are the same, and pull the first one
+        units_str = ""
+        if units[cols_of_interest[0]] is not None:
+            units_str = f" [{units[cols_of_interest[0]]}]"
+
         # construct graph object
-        G = nx.Graph()
-
-        for item in self.data.data['elements']['branch']:
-            print(self.data.data['elements']['branch'][item]['from_bus'], '--->', self.data.data['elements']['branch'][item]['to_bus'])
-
-
-
-        # fig = plt.figure(tight_layout=False)
-        # ax_graph = fig.add_subplot()
         G = nx.Graph()
         labels = {}
         # add nodes
@@ -697,7 +731,6 @@ class ExpansionPlanningSolution:
             labels[item] = item
 
         # do edges manually later
-
 
         # set up plot
         fig = plt.figure(figsize=(16, 8), tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
@@ -708,27 +741,26 @@ class ExpansionPlanningSolution:
         # for item in self.data.data['elements']['branch']:
         #     G.add_edge(self.data.data['elements']['branch'][item]['from_bus'], self.data.data['elements']['branch'][item]['to_bus'])
     
-
-
         # G = nx.path_graph(5)
         graph_node_position_dict = nx.kamada_kawai_layout(G)
         # graph_node_position_dict = nx.planar_layout(G)
         # graph_node_position_dict = nx.spectral_layout(G)
-        nx.drawing.draw_networkx_nodes(G, graph_node_position_dict, ax=ax_graph)
+        nx.drawing.draw_networkx_nodes(G, graph_node_position_dict, node_size=1000, ax=ax_graph)
+        nx.draw_networkx_labels(G, graph_node_position_dict, labels, font_size=18, font_color="whitesmoke", ax=ax_graph)
 
-        def draw_single_edge_flow(item, ax_graph, glyph_type='triangle'):
+        def draw_single_edge_flow(item,
+                                  glyph_values_slice,
+                                  ax_graph,
+                                  cmap=cm.rainbow,
+                                  norm=Normalize(vmin=None, vmax=None),
+                                  glyph_type='custom'):
 
-            from matplotlib.patches import Rectangle, RegularPolygon
-            from matplotlib.collections import PatchCollection
-            import matplotlib.cm as cm
-            from matplotlib.transforms import Affine2D
 
             def generate_flow_glyphs(num_glyphs,
                                      spacing=0.05,
                                      glyph_type='triangle',
-                                     glyph_rotation=-(np.pi/2.),
-                                     verts=3,
-                                     alpha=0.5):
+                                     glyph_rotation=0.,
+                                     verts=3):
                 
                 flow_glyphs = []
                 for this_block_ix in range(num_glyphs):
@@ -750,13 +782,11 @@ class ExpansionPlanningSolution:
                         patch_height = 1
                         flow_glyphs.append(Rectangle(glyph_anchor_coord,
                                                         patch_width,
-                                                        patch_height,
-                                                        alpha=alpha))
+                                                        patch_height))
 
                     #### 
                     # triangle version
                     ####
-
                     if glyph_type == 'triangle':
                         # triangles need to be in the center and then given a size
                         glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
@@ -767,13 +797,15 @@ class ExpansionPlanningSolution:
                         flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
                                                         glyph_verts,
                                                         radius=glyph_radius,
-                                                        orientation=glyph_rotation,
-                                                        alpha=alpha))
+                                                        orientation=glyph_rotation))
                         
                         yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(yscale_transform)
 
+                    #### 
+                    # n-gon version
+                    ####
                     if glyph_type == 'n-gon':
                         # triangles need to be in the center and then given a size
                         glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
@@ -784,29 +816,58 @@ class ExpansionPlanningSolution:
                         flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
                                                         glyph_verts,
                                                         radius=glyph_radius,
-                                                        orientation=glyph_rotation,
-                                                        alpha=alpha))
+                                                        orientation=glyph_rotation))
                         
                         yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(yscale_transform)
 
+                    #### 
+                    # custom_flow
+                    ####
+                    if glyph_type == 'custom':
+                        # anchor for rectangles are set to bottom left
+                        glyph_anchor_coord = [this_block_ix/float(num_glyphs), -.5]
+                        # height is y, width is x
+                        consistent_width = 1./float(num_glyphs)    
+                        # apply scaling
+                        x_nudge = consistent_width*(spacing)       
+                        patch_width = consistent_width-x_nudge
+                        patch_height = 1
+                        codes, verts = zip(*[
+                            (mpath.Path.MOVETO, glyph_anchor_coord),
+                            (mpath.Path.LINETO, [glyph_anchor_coord[0], glyph_anchor_coord[1]+patch_height]),
+                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width*.7, glyph_anchor_coord[1]+patch_height]), # go 70% of the width along the top
+                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width, glyph_anchor_coord[1]+patch_height*.5]), # go the rest of the width and meet in the center
+                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width*.7, glyph_anchor_coord[1]]), # go back a bit and to the bottom to finish the wedge
+                            (mpath.Path.LINETO, glyph_anchor_coord)]) # go to home
+
+                        flow_glyphs.append(PathPatch(mpath.Path(verts, codes), ec="none"),)
+
+                        rotation_transofrm = Affine2D().rotate_around(glyph_anchor_coord[0]+patch_width*.5,
+                                                                      glyph_anchor_coord[1]+patch_height*.5,
+                                                                      glyph_rotation)
+                        # rescale y to make it fit in a 1x1 box
+                        flow_glyphs[-1].set_transform(rotation_transofrm)
+
                 return flow_glyphs
 
             # make some blocks
-            num_blocks = 4
-            # rand_weights_top = (np.random.randn(4)+1)/2.
-            # rand_weights_bot = (np.random.randn(4)+1)/2.
-            rand_weights_top = np.array(range(num_blocks))/(num_blocks*2)
-            rand_weights_bot = (np.array(range(num_blocks))+num_blocks)/(num_blocks*2)
+            # weights_top = (np.random.randn(4)+1)/2.
+            # weights_bot = (np.random.randn(4)+1)/2.
+            # weights_top = np.array(range(num_blocks))/(num_blocks*2)
+            # weights_bot = (np.array(range(num_blocks))+num_blocks)/(num_blocks*2)
+            weights_top = glyph_values_slice
+            weights_bot = glyph_values_slice
 
-            top_flow_glyphs = generate_flow_glyphs(len(rand_weights_top), glyph_type=glyph_type)
-            top_facecolors = cm.rainbow(rand_weights_top)
-            top_flow_collection = PatchCollection(top_flow_glyphs, facecolors=top_facecolors, alpha=0.5)
-            bot_flow_glyphs = generate_flow_glyphs(len(rand_weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi/2.))
+            top_flow_glyphs = generate_flow_glyphs(len(weights_top), glyph_type=glyph_type)
+            top_facecolors = cmap(norm(weights_top))
+            top_flow_collection = PatchCollection(top_flow_glyphs, facecolors=top_facecolors, edgecolors='grey', alpha=0.5)
+            # bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi/2.)) # for squares
+            bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi)) # for custom
             bot_flow_glyphs = reversed(bot_flow_glyphs)
-            bot_facecolors = cm.rainbow(rand_weights_bot)
-            bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, alpha=0.5)
+            bot_facecolors = cmap(norm(weights_bot))
+            bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, edgecolors='grey', alpha=0.5)
 
             # scale and move top and bottom collections
             top_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, 0.5) #+ ax_graph.transData
@@ -814,7 +875,6 @@ class ExpansionPlanningSolution:
             bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5)# + ax_graph.transData
             # bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5) + ax_graph.transData
             bot_flow_collection.set_transform(bot_base_transform)
-
 
             # combine collections and move to edge between nodes
 
@@ -827,12 +887,12 @@ class ExpansionPlanningSolution:
             rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
 
             along_edge_scale = 0.5
-
+            away_from_edge_scale = 0.05
             # set up transformations
             # stretch to the distance between target nodes
             length_transform = Affine2D().scale(sx=node_distance*along_edge_scale, sy=1)
             # squish
-            scale_transform = Affine2D().scale(sx=1, sy=.1)
+            scale_transform = Affine2D().scale(sx=1, sy=away_from_edge_scale)
             # rotate
             rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad)) 
             # translate to the node start, then push it along the edge until it's apprximately centered and scaled nicely
@@ -848,30 +908,52 @@ class ExpansionPlanningSolution:
             ax_graph.add_collection(bot_flow_collection)
 
         # add edges
+        # define edge colorbar
+        cmap = cm.rainbow
+        normalize = Normalize(vmin=df_min, vmax=df_max)
+        cmappable = cm.ScalarMappable(norm=normalize, cmap=cmap)
+
         for item in self.data.data['elements'][what_is_a_bus_called]:
-            
-            kind = 'triangle'
-            kind = 'rectangle'
-            draw_single_edge_flow(item, ax_graph, glyph_type=kind)
 
             # grab the keys we care about
             start_key = self.data.data['elements'][what_is_a_bus_called][item]['from_bus']
             end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
             start_pos = graph_node_position_dict[start_key]
             end_pos = graph_node_position_dict[end_key]
+            edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
+            alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
+            
+            # kind = 'triangle'
+            # kind = 'rectangle'
+            kind = 'custom'
+            glyph_values_slice = None
+            try:
+                glyph_values_slice = df[edge_key].values
+            except KeyError as kex:
+                try:
+                    glyph_values_slice = df[alt_edge_key].values
+                except KeyError as kex_second_attempt:
+                    print(f"Attempted to slice DF in network twice using {edge_key} and {alt_edge_key}, failed both.")
+            draw_single_edge_flow(item, glyph_values_slice, ax_graph, cmap=cmap, norm=normalize, glyph_type=kind)
 
             # forward arrow
             ax_graph.arrow(start_pos[0], start_pos[1], (end_pos[0]-start_pos[0]), (end_pos[1]-start_pos[1]), color='black')
             # backward arrow
             ax_graph.arrow(end_pos[0], end_pos[1], (start_pos[0]-end_pos[0]), (start_pos[1]-end_pos[1]), color='black')
-    
-        pass
-        fig.savefig('test.png')
+
+
+        # insert colorbar
+        fig.colorbar(cmappable, ax=ax_graph, label=f"{value_key}{units_str}")
+        # make some titles
+        fig.suptitle(f"{parent_key_string}_{value_key}")
+
+        # save
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}_graph.png")
         pass
 
     def plot_levels(self, save_dir="."):
 
-        self._plot_graph_workhorse()
+        # self._plot_graph_workhorse()
 
 
         # plot or represent primals trees
