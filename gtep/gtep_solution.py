@@ -267,7 +267,8 @@ class ExpansionPlanningSolution:
                                    parent_key_string,
                                    pretty_title="Selected Data",
                                    plot_bounds=False,
-                                   save_dir=".",):
+                                   save_dir=".",
+                                   aspect_ratio=1):
         
 
         
@@ -285,10 +286,10 @@ class ExpansionPlanningSolution:
         fig_width = (total_periods*gridspec_width*4)+fig_width_padding
         fig_width = min(max_figheight, fig_width)
         fig_height = (2*gridspec_height)+fig_height_padding
-        if fig_width/fig_height > 2:
-            fig_height = floor(fig_width/2)
-        elif fig_height/fig_height > 2:
-            fig_height = floor(fig_height/2)
+        if fig_width/fig_height > aspect_ratio:
+            fig_height = floor(fig_width/aspect_ratio)
+        elif fig_height/fig_width > aspect_ratio:
+            fig_width = floor(fig_height/aspect_ratio)
 
         # set up plot
         fig = plt.figure(figsize=(fig_width,
@@ -536,8 +537,8 @@ class ExpansionPlanningSolution:
             fig_height = (2*gridspec_height)+fig_height_padding
             if fig_width/fig_height > 2:
                 fig_height = floor(fig_width/2)
-            elif fig_height/fig_height > 2:
-                fig_height = floor(fig_height/2)
+            elif fig_height/fig_width > 2:
+                fig_width = floor(fig_height/2)
 
             # set up plot
             fig = plt.figure(figsize=(fig_width,
@@ -675,7 +676,7 @@ class ExpansionPlanningSolution:
                     save_dir=save_dir,
                     plot_bounds=plot_bounds)
     
-    def _plot_graph_workhorse(self):
+    def _plot_graph_workhorse(self, what_is_a_bus_called='dc_branch'):
         # testing networkx plots
 
         # construct graph object
@@ -711,100 +712,159 @@ class ExpansionPlanningSolution:
 
         # G = nx.path_graph(5)
         graph_node_position_dict = nx.kamada_kawai_layout(G)
+        # graph_node_position_dict = nx.planar_layout(G)
+        # graph_node_position_dict = nx.spectral_layout(G)
         nx.drawing.draw_networkx_nodes(G, graph_node_position_dict, ax=ax_graph)
 
+        def draw_single_edge_flow(item, ax_graph, glyph_type='triangle'):
 
-        # make some blocks
-        num_blocks = 4
-        rand_weights = (np.random.randn(4)+1)/2.
-        from matplotlib.patches import Rectangle, RegularPolygon
-        from matplotlib.collections import PatchCollection
-        import matplotlib.cm as cm
-        from matplotlib.transforms import Affine2D
-        flow_glyphs = []
-        spacing = 0.05 # take 10% of the rectangle and use it to create space between rectangles
-        kind = 'triangle'
-        # kind = 'rectangle'
-        for this_block_ix in range(num_blocks):
-            # normalizing this patch to 1
+            from matplotlib.patches import Rectangle, RegularPolygon
+            from matplotlib.collections import PatchCollection
+            import matplotlib.cm as cm
+            from matplotlib.transforms import Affine2D
 
-            #### 
-            # rectangle version
-            ####
-            if kind == 'rectangle':
-                # anchor for rectangles are set to bottom left
-                glyph_anchor_coord = [this_block_ix/float(num_blocks), -.5]
-                # height is y, width is x
-                consistent_width = 1./float(num_blocks)            
-                # apply scaling
-                x_nudge = consistent_width*(1-spacing)
-                # nudge the start forward a bit (by the nudge factor)
-                glyph_anchor_coord[0]+=x_nudge
-                patch_width = consistent_width-x_nudge
-                patch_height = 1
-                flow_glyphs.append(Rectangle(glyph_anchor_coord,
-                                                patch_width,
-                                                patch_height,
-                                                color=cm.hot(rand_weights[this_block_ix])))
-
-            #### 
-            # triangle version
-            ####
-            if kind == 'triangle':
-                # triangles need to be in the center and then given a size
-                glyph_anchor_coord = [(this_block_ix+1)/float(num_blocks+1), 0]
-                glyph_verts = 3
-                glyph_radius = (1./float(num_blocks))/2
-                # apply nudges
-                glyph_radius *= (1-(spacing/2.))
-                flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
-                                                glyph_verts,
-                                                radius=glyph_radius,
-                                                orientation=-(np.pi/2.)))
+            def generate_flow_glyphs(num_glyphs,
+                                     spacing=0.05,
+                                     glyph_type='triangle',
+                                     glyph_rotation=-(np.pi/2.),
+                                     verts=3,
+                                     alpha=0.5):
                 
+                flow_glyphs = []
+                for this_block_ix in range(num_glyphs):
+                    # normalizing this patch to 1
+
+                    #### 
+                    # rectangle version
+                    ####
+                    if glyph_type == 'rectangle':
+                        # anchor for rectangles are set to bottom left
+                        glyph_anchor_coord = [this_block_ix/float(num_glyphs), -.5]
+                        # height is y, width is x
+                        consistent_width = 1./float(num_glyphs)            
+                        # apply scaling
+                        x_nudge = consistent_width*(spacing)
+                        # nudge the start forward a bit (by the nudge factor)
+                        glyph_anchor_coord[0]+=x_nudge
+                        patch_width = consistent_width-x_nudge
+                        patch_height = 1
+                        flow_glyphs.append(Rectangle(glyph_anchor_coord,
+                                                        patch_width,
+                                                        patch_height,
+                                                        alpha=alpha))
+
+                    #### 
+                    # triangle version
+                    ####
+
+                    if glyph_type == 'triangle':
+                        # triangles need to be in the center and then given a size
+                        glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
+                        glyph_verts = 3
+                        glyph_radius = (1./float(num_glyphs))/2.
+                        # apply nudges
+                        glyph_radius *= (1-(spacing/2.))
+                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                        glyph_verts,
+                                                        radius=glyph_radius,
+                                                        orientation=glyph_rotation,
+                                                        alpha=alpha))
+                        
+                        yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
+                        # rescale y to make it fit in a 1x1 box
+                        flow_glyphs[-1].set_transform(yscale_transform)
+
+                    if glyph_type == 'n-gon':
+                        # triangles need to be in the center and then given a size
+                        glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
+                        glyph_verts = verts
+                        glyph_radius = (1./float(num_glyphs))/2.
+                        # apply nudges
+                        glyph_radius *= (1-(spacing))
+                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                        glyph_verts,
+                                                        radius=glyph_radius,
+                                                        orientation=glyph_rotation,
+                                                        alpha=alpha))
+                        
+                        yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
+                        # rescale y to make it fit in a 1x1 box
+                        flow_glyphs[-1].set_transform(yscale_transform)
+
+                return flow_glyphs
+
+            # make some blocks
+            num_blocks = 4
+            # rand_weights_top = (np.random.randn(4)+1)/2.
+            # rand_weights_bot = (np.random.randn(4)+1)/2.
+            rand_weights_top = np.array(range(num_blocks))/(num_blocks*2)
+            rand_weights_bot = (np.array(range(num_blocks))+num_blocks)/(num_blocks*2)
+
+            top_flow_glyphs = generate_flow_glyphs(len(rand_weights_top), glyph_type=glyph_type)
+            top_facecolors = cm.rainbow(rand_weights_top)
+            top_flow_collection = PatchCollection(top_flow_glyphs, facecolors=top_facecolors, alpha=0.5)
+            bot_flow_glyphs = generate_flow_glyphs(len(rand_weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi/2.))
+            bot_flow_glyphs = reversed(bot_flow_glyphs)
+            bot_facecolors = cm.rainbow(rand_weights_bot)
+            bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, alpha=0.5)
+
+            # scale and move top and bottom collections
+            top_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, 0.5) #+ ax_graph.transData
+            top_flow_collection.set_transform(top_base_transform)
+            bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5)# + ax_graph.transData
+            # bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5) + ax_graph.transData
+            bot_flow_collection.set_transform(bot_base_transform)
 
 
-        facecolors = cm.rainbow(rand_weights)
-        pc = PatchCollection(flow_glyphs, facecolors=facecolors)
+            # combine collections and move to edge between nodes
 
-        # attempt to rotate
-        start_key = self.data.data['elements']['branch']['branch_2_3']['from_bus']
-        end_key = self.data.data['elements']['branch']['branch_2_3']['to_bus']
-        start_pos = graph_node_position_dict[start_key]
-        end_pos = graph_node_position_dict[end_key]
-        node_distance = np.linalg.norm(end_pos-start_pos)
-        rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
+            # attempt to rotate
+            start_key = self.data.data['elements'][what_is_a_bus_called][item]['from_bus']
+            end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
+            start_pos = graph_node_position_dict[start_key]
+            end_pos = graph_node_position_dict[end_key]
+            node_distance = np.linalg.norm(end_pos-start_pos)
+            rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
 
-        # set up transformations
-        # stretch to the distance between target nodes
-        length_transform = Affine2D().scale(sx=node_distance, sy=1)
-        # squish
-        scale_transform = Affine2D().scale(sx=1, sy=.5)
-        # rotate
-        rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad)) 
-        # translate to the node start 
-        translate_transform = Affine2D().translate(*start_pos)
-        length_transform = Affine2D().scale(sx=node_distance, sy=1)
-        t2 = length_transform + scale_transform + rot_transform + translate_transform + ax_graph.transData
-        pc.set_transform(t2)
+            along_edge_scale = 0.5
 
-        # add collection
-        ax_graph.add_collection(pc)
+            # set up transformations
+            # stretch to the distance between target nodes
+            length_transform = Affine2D().scale(sx=node_distance*along_edge_scale, sy=1)
+            # squish
+            scale_transform = Affine2D().scale(sx=1, sy=.1)
+            # rotate
+            rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad)) 
+            # translate to the node start, then push it along the edge until it's apprximately centered and scaled nicely
+            translate_transform = Affine2D().translate(start_pos[0]+(np.cos(rot_angle_rad)*node_distance*.5*(1-along_edge_scale)),
+                                                    start_pos[1]+(np.sin(rot_angle_rad)*node_distance*.5*(1-along_edge_scale)))
+            t2 = length_transform + scale_transform + rot_transform + translate_transform + ax_graph.transData
 
-        # # add edges
-        # for item in self.data.data['elements']['branch']:
-        #     # grab the keys we care about
-        #     start_key = self.data.data['elements']['branch'][item]['from_bus']
-        #     end_key = self.data.data['elements']['branch'][item]['to_bus']
-        #     start_pos = graph_node_position_dict[start_key]
-        #     end_pos = graph_node_position_dict[end_key]
+            top_flow_collection.set_transform(top_flow_collection.get_transform() + t2)
+            bot_flow_collection.set_transform(bot_flow_collection.get_transform() + t2)
 
-        #     # forward arrow
-        #     ax_graph.arrow(start_pos[0], start_pos[1], (end_pos[0]-start_pos[0]), (end_pos[1]-start_pos[1]), color='black')
-        #     # backward arrow
-        #     ax_graph.arrow(end_pos[0], end_pos[1], (start_pos[0]-end_pos[0]), (start_pos[1]-end_pos[1]), color='black')
+            # add collection
+            ax_graph.add_collection(top_flow_collection)
+            ax_graph.add_collection(bot_flow_collection)
+
+        # add edges
+        for item in self.data.data['elements'][what_is_a_bus_called]:
+            
+            kind = 'triangle'
+            kind = 'rectangle'
+            draw_single_edge_flow(item, ax_graph, glyph_type=kind)
+
+            # grab the keys we care about
+            start_key = self.data.data['elements'][what_is_a_bus_called][item]['from_bus']
+            end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
+            start_pos = graph_node_position_dict[start_key]
+            end_pos = graph_node_position_dict[end_key]
+
+            # forward arrow
+            ax_graph.arrow(start_pos[0], start_pos[1], (end_pos[0]-start_pos[0]), (end_pos[1]-start_pos[1]), color='black')
+            # backward arrow
+            ax_graph.arrow(end_pos[0], end_pos[1], (start_pos[0]-end_pos[0]), (start_pos[1]-end_pos[1]), color='black')
     
-        # graph_plot_obj = nx.draw_kamada_kawai(G, labels=labels)
         pass
         fig.savefig('test.png')
         pass
@@ -814,43 +874,43 @@ class ExpansionPlanningSolution:
         self._plot_graph_workhorse()
 
 
-        # # plot or represent primals trees
-        # for this_root_level_key in self.primals_tree:
-        #     if "investmentStage" in this_root_level_key:
-        #         # run the toplevel keys
-        #         parent_key_string = f"{this_root_level_key}"
-        #         self._level_plot_workhorse(
-        #             "investmentStage", self.primals_tree, "", save_dir
-        #         )
+        # plot or represent primals trees
+        for this_root_level_key in self.primals_tree:
+            if "investmentStage" in this_root_level_key:
+                # run the toplevel keys
+                parent_key_string = f"{this_root_level_key}"
+                self._level_plot_workhorse(
+                    "investmentStage", self.primals_tree, this_root_level_key, save_dir
+                )
 
-        #         # run the representative period subkeys
-        #         investment_level_cut = self.primals_tree[this_root_level_key]
-        #         parent_key_string = f"{this_root_level_key}"
-        #         self._level_plot_workhorse(
-        #             "representativePeriod", investment_level_cut, parent_key_string, save_dir
-        #         )
+                # run the representative period subkeys
+                investment_level_cut = self.primals_tree[this_root_level_key]
+                parent_key_string = f"{this_root_level_key}"
+                self._level_plot_workhorse(
+                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
+                )
 
-        #         for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
-        #             if "representativePeriod" in this_inv_level_key:
-        #                 representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
-        #                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
-        #                 self._level_plot_workhorse(
-        #                     "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
-        #                 )
+                for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
+                    if "representativePeriod" in this_inv_level_key:
+                        representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
+                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+                        self._level_plot_workhorse(
+                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+                        )
 
-        #                 for this_rep_level_key in self.primals_tree[
-        #                     this_root_level_key
-        #                 ][this_inv_level_key].keys():
-        #                     if "commitmentPeriod" in this_rep_level_key:
-        #                         commitment_level_cut = self.primals_tree[
-        #                             this_root_level_key
-        #                         ][this_inv_level_key][this_rep_level_key]
+                        for this_rep_level_key in self.primals_tree[
+                            this_root_level_key
+                        ][this_inv_level_key].keys():
+                            if "commitmentPeriod" in this_rep_level_key:
+                                commitment_level_cut = self.primals_tree[
+                                    this_root_level_key
+                                ][this_inv_level_key][this_rep_level_key]
 
-        #                         parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
-        #                         self._level_plot_workhorse(
-        #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
-        #                         )
+                                self._level_plot_workhorse(
+                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+                                )
 
         # # plot or represent expressions
         # self._expressions_plot_workhorse(
