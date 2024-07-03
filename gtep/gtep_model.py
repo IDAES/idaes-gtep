@@ -14,6 +14,7 @@ from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
 from pyomo.common.timing import TicTocTimer
 from pyomo.repn.linear import LinearRepnVisitor
 import json
+import numpy as np
 
 
 # Define what a USD is for pyomo units purposes
@@ -553,8 +554,6 @@ def add_dispatch_constraints(
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    import numpy as np
-
     rng = np.random.default_rng()
     for key in m.loads.keys():
         m.loads[key] *= max(0, rng.normal(1.0, 0.5))
@@ -564,8 +563,8 @@ def add_dispatch_constraints(
     def dc_power_flow(b, line):
         fb = m.transmission[line]["from_bus"]
         tb = m.transmission[line]["to_bus"]
-        reactance = m.md.data["elements"]["branch"][line]["reactance"]
-        if m.md.data["elements"]["branch"][line]["branch_type"] == "transformer":
+        reactance = m.reactance[line]
+        if m.md.data["elements"]["branch"][line].get("branch_type") == "transformer":
             reactance *= m.md.data["elements"]["branch"][line]["transformer_tap_ratio"]
             shift = m.md.data["elements"]["branch"][line]["transformer_phase_shift"]
         else:
@@ -1133,12 +1132,18 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     ## or as dc ... not mix-and-match
     if len(m.md.data["elements"]["branch"]) == 0:
         m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
+    rng = np.random.default_rng()
+    m.reactance = {
+        branch: m.md.data["elements"]["branch"][branch].get("reactance")
+        or max(0.0001, rng.normal(0.001, 0.0005))
+        for branch in m.md.data["elements"]["branch"]
+    }
 
     m.transmission = {
         branch: {
             "from_bus": m.md.data["elements"]["branch"][branch]["from_bus"],
             "to_bus": m.md.data["elements"]["branch"][branch]["to_bus"],
-            "reactance": m.md.data["elements"]["branch"][branch]["reactance"],
+            "reactance": m.reactance[branch],
         }
         for branch in m.md.data["elements"]["branch"]
     }
