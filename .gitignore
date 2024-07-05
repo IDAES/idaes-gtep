@@ -169,3 +169,7 @@ cython_debug/
 
 # ignore .DS_Store
 *.DS_Store
+
+# ignore "data"
+*.csv
+*.xlsx
