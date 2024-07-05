@@ -57,6 +57,7 @@ class ExpansionPlanningSolution:
         self.len_reps = gtep_model.len_reps  # int
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
+
         self.expressions = {expr.name: value(expr) for expr in gtep_model.model.component_data_objects(Expression) if ("Commitment" in expr.name) or ("Investment" in expr.name)}
 
     def import_data_object(self, data_obj):
@@ -69,7 +70,8 @@ class ExpansionPlanningSolution:
             json_read = json.loads(fobj.read())
         self.primals_tree = json_read["results"]["primals_tree"]
 
-    def dump_json(self, filename="./gtep_solution.json"):
+    def dump_json(self, filename="./gtep_solution_jscTest.json"):
+        # def dump_json(self, filename="./gtep_solution.json"):
 
         dump_filepath = Path(filename)
         with open(dump_filepath, "w") as fobj:
@@ -370,7 +372,7 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
         plt.close()
         
     def _plot_workhose_binaries(self, 

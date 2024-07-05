@@ -57,8 +57,13 @@ class ExpansionPlanningData:
         self.load_default_data_settings()
 
         for gen in self.md.data["elements"]["generator"]:
-            if "-c" in gen:
+            if "-c" in gen: # key/Gen UID in csv file; -c = candidate?
                 self.md.data["elements"]["generator"][gen]["in_service"] = False
+            
+        # JSC addn
+        for branch in self.md.data["elements"]["branch"]:
+            if "-c" in branch: # key/Branch UID
+                self.md.data["elements"]["branch"][branch]["in_service"] = False
 
         ## NOTE: Below is only for multiple representative periods and creates a list
         ## of modelData objects, not just a single modelData object
