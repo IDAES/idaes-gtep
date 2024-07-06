@@ -708,7 +708,7 @@ class ExpansionPlanningSolution:
                               df,
                               value_key,
                               parent_key_string,
-                              what_is_a_bus_called='dc_branch',
+                              what_is_a_bus_called='branch', #'dc_branch',
                               units=None,
                               pretty_title="Selected Data",
                               save_dir=".",):
@@ -869,14 +869,15 @@ class ExpansionPlanningSolution:
             bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi)) # for custom
             bot_flow_glyphs = reversed(bot_flow_glyphs)
             bot_facecolors = cmap(norm(weights_bot))
-            bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, edgecolors='grey', alpha=0.5)
+            # bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, edgecolors='grey', alpha=0.5) # [HACK]
 
             # scale and move top and bottom collections
-            top_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, 0.5) #+ ax_graph.transData
+            # top_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, 0.5) #+ ax_graph.transData  # [HACK]
+            top_base_transform = Affine2D().scale(sx=1, sy=1.0) + Affine2D().translate(0, 0.0) #+ ax_graph.transData
             top_flow_collection.set_transform(top_base_transform)
             bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5)# + ax_graph.transData
             # bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5) + ax_graph.transData
-            bot_flow_collection.set_transform(bot_base_transform)
+            # bot_flow_collection.set_transform(bot_base_transform) # [HACK]
 
             # combine collections and move to edge between nodes
 
@@ -888,8 +889,8 @@ class ExpansionPlanningSolution:
             node_distance = np.linalg.norm(end_pos-start_pos)
             rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
 
-            along_edge_scale = 0.5
-            away_from_edge_scale = 0.05
+            along_edge_scale = 0.4
+            away_from_edge_scale = 0.1
             # set up transformations
             # stretch to the distance between target nodes
             length_transform = Affine2D().scale(sx=node_distance*along_edge_scale, sy=1)
@@ -903,11 +904,11 @@ class ExpansionPlanningSolution:
             t2 = length_transform + scale_transform + rot_transform + translate_transform + ax_graph.transData
 
             top_flow_collection.set_transform(top_flow_collection.get_transform() + t2)
-            bot_flow_collection.set_transform(bot_flow_collection.get_transform() + t2)
+            # bot_flow_collection.set_transform(bot_flow_collection.get_transform() + t2) # [HACK]
 
             # add collection
             ax_graph.add_collection(top_flow_collection)
-            ax_graph.add_collection(bot_flow_collection)
+            # ax_graph.add_collection(bot_flow_collection)  # [HACK]
 
         # add edges
         # define edge colorbar
@@ -922,8 +923,10 @@ class ExpansionPlanningSolution:
             end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
             start_pos = graph_node_position_dict[start_key]
             end_pos = graph_node_position_dict[end_key]
-            edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
-            alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
+            # edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
+            # alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
+            edge_key = f"{item}_{value_key}_value"
+            alt_edge_key = f"{item}_{value_key}_value"
             
             # kind = 'triangle'
             # kind = 'rectangle'
