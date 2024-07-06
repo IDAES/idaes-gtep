@@ -14,6 +14,7 @@ from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
 from pyomo.common.timing import TicTocTimer
 from pyomo.repn.linear import LinearRepnVisitor
 import json
+import numpy as np
 
 from math import ceil
 
@@ -77,10 +78,9 @@ class ExpansionPlanningModel:
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
-        
+
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
-    
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
@@ -200,7 +200,6 @@ def add_investment_variables(
     def genExtended(disj, gen):
         return
 
-
     @b.Disjunction(m.thermalGenerators)
     def investStatus(disj, gen):
         return [
@@ -210,10 +209,9 @@ def add_investment_variables(
             disj.genDisabled[gen],
             disj.genExtended[gen],
         ]
-    
-    
+
     # JSC inprog - the gen and line investments should be separate disjunctions
-    # because the associated variables and constraints we'll disjunct on are 
+    # because the associated variables and constraints we'll disjunct on are
     # different.
     # @b.Disjunction(m.thermalGenerators, m.branches)
     # def investStatus(disj, gen, branch):
@@ -223,7 +221,7 @@ def add_investment_variables(
     #         disj.branchRetired[branch],
     #         disj.branchDisabled[branch],
     #         disj.branchExtended[branch]
-    #     ]    
+    #     ]
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
@@ -259,16 +257,14 @@ def add_investment_constraints(
     ## TODO: Fix var value rather than add constraint
     @b.LogicalConstraint(m.thermalGenerators)
     def thermal_uninvested(b, gen):
-        
-        
-        
+
         if m.md.data["elements"]["generator"][gen]["in_service"] == False:
             # JSC test - fix candidate generator to uninvested
             # return exactly(1, b.genDisabled[gen].indicator_var)
             return exactly(0, b.genOperational[gen].indicator_var)
         else:
             return LogicalConstraint.Skip
-    
+
     # JSC inprog
     # ## TODO: Fix var value rather than add constraint
     # @b.LogicalConstraint(m.branches)
@@ -404,8 +400,7 @@ def add_investment_constraints(
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
-            
-            #JSC inprog - add branch investment costs here
+            # JSC inprog - add branch investment costs here
         )
 
     # Curtailment penalties for investment period
@@ -493,22 +488,21 @@ def add_dispatch_variables(
 
     # Define bounds on transmission line capacity
     def power_flow_limits(b, transmissionLine):
-        
+
         return (
-                -m.transmissionCapacity[transmissionLine],
-                m.transmissionCapacity[transmissionLine],
-            )
-        
-        # JSC inprog - will swap to branchInUse once Transmission Switching is 
+            -m.transmissionCapacity[transmissionLine],
+            m.transmissionCapacity[transmissionLine],
+        )
+
+        # JSC inprog - will swap to branchInUse once Transmission Switching is
         # implemented
         # if i_p.branchDisabled | i_p.branchRetired:
         #     return (0,0)
-        # else: 
+        # else:
         #     return (
         #         -m.transmissionCapacity[transmissionLine],
         #         m.transmissionCapacity[transmissionLine],
         #     )
-    
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
@@ -589,13 +583,12 @@ def add_dispatch_variables(
     b.renewableCurtailmentDispatch = sum(
         b.renewableCurtailment[gen] for gen in m.renewableGenerators
     )
-    
-    
-    #disj.branchOperational[branch],
+
+    # disj.branchOperational[branch],
 
     # Branches cannot be used unless they are operational or just installed.
-    # Maybe we want to go ahead and set up the disjunct for transmission switching 
-    # because we'll have to delineate between lines installed but turned off and 
+    # Maybe we want to go ahead and set up the disjunct for transmission switching
+    # because we'll have to delineate between lines installed but turned off and
     # lines not installed or retired.
     # @b.LogicalConstraint(m.branches)
     # def use_active_branches_only(b, branch):
@@ -610,32 +603,27 @@ def add_dispatch_variables(
     #     )
 
 
-def add_dispatch_constraints(
-    b,
-    disp_per
-):
+def add_dispatch_constraints(b, disp_per):
     """Add dispatch-associated inequalities to representative period block."""
     m = b.model()
     c_p = b.parent_block()
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    import numpy as np
-    
     # JSC: how do we actually fix the seed as a sequence over all dispatch periods?
-    # Fixing a seed within the add_dispatch_constraints fxn doesn't work - it 
-    # repeats the load values for each period, which seems to always lead to 
+    # Fixing a seed within the add_dispatch_constraints fxn doesn't work - it
+    # repeats the load values for each period, which seems to always lead to
     # all generators always on (???)
-    
-    rng = np.random.default()
-    
-    for key in m.loads.keys():
-        m.loads[key] *= max(0,rng.normal(1.0, 0.5))
 
-    # JSC question: Will forcing uninvested lines to have no power flow (via 
-    # the flow limits) cause infeasibility? Driving idea is: do we need to 
-    # instead/additionally adjust the dc_power_flow and flow_balance 
-    # constraints based on the disjunction for line investment? Intuitively, 
+    rng = np.random.default_rng()
+
+    for key in m.loads.keys():
+        m.loads[key] *= max(0, rng.normal(1.0, 0.5))
+
+    # JSC question: Will forcing uninvested lines to have no power flow (via
+    # the flow limits) cause infeasibility? Driving idea is: do we need to
+    # instead/additionally adjust the dc_power_flow and flow_balance
+    # constraints based on the disjunction for line investment? Intuitively,
     # no, it should function identically as if the line didn't exist, but idk
     # if there's an interplay with the bus angle equation that could cause
     # issues. Maybe the thing to do is to make a disjunction here on the lines
@@ -992,22 +980,23 @@ def commitment_period_rule(b, commitment_period):
     if m.data_list:
         m.md = m.data_list[i_p.representativePeriods.index(r_p.currentPeriod)]
 
-    # JSC update - had to make an exception for cases where gens were candidates 
-    # bc their time series reduced to single values. Will probably need to fix 
+    # JSC update - had to make an exception for cases where gens were candidates
+    # bc their time series reduced to single values. Will probably need to fix
     # this and look at where that reduction is taking place because we need more
-    # than a single value if the generator is built. (Probably? Maybe there's a 
-    # different way to handle candidate renewable data because this assumes 
+    # than a single value if the generator is built. (Probably? Maybe there's a
+    # different way to handle candidate renewable data because this assumes
     # knowledge of the future outputs of a candidate... could be captured by scenarios?)
     # Maximum output of each renewable generator
     m.renewableCapacity = {
-        renewableGen: 0
-        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])==float
-        else m.md.data["elements"]["generator"][renewableGen]["p_max"][
-            "values"
-        ][commitment_period - 1]
+        renewableGen: (
+            0
+            if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
+            else m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
+                commitment_period - 1
+            ]
+        )
         for renewableGen in m.renewableGenerators
     }
-    
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
@@ -1061,32 +1050,56 @@ def add_representative_period_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
 
-    
     # JSC update: Done(?)
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
-        req_shutdown_periods = ceil(1/float(m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]))
+        req_shutdown_periods = ceil(
+            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"])
+        )
         return (
-            atmost(req_shutdown_periods-1,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genShutdown[thermalGen].indicator_var for j in 
-              range(min(req_shutdown_periods,commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genShutdown[thermalGen].indicator_var)
-                  #| b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
+            atmost(
+                req_shutdown_periods - 1,
+                [
+                    b.commitmentPeriod[commitmentPeriod - j - 1]
+                    .genShutdown[thermalGen]
+                    .indicator_var
+                    for j in range(min(req_shutdown_periods, commitmentPeriod - 1))
+                ],
+            ).land(
+                b.commitmentPeriod[commitmentPeriod - 1]
+                .genShutdown[thermalGen]
+                .indicator_var
+            )
+            # | b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
             .implies(
-                b.commitmentPeriod[commitmentPeriod].genShutdown[thermalGen].indicator_var
+                b.commitmentPeriod[commitmentPeriod]
+                .genShutdown[thermalGen]
+                .indicator_var
             )
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
-                  
+
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_off_after_shutdown(b, commitmentPeriod, thermalGen):
-        req_shutdown_periods = ceil(1/float(m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]))
+        req_shutdown_periods = ceil(
+            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"])
+        )
         return (
-            atleast(req_shutdown_periods,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genShutdown[thermalGen].indicator_var for j in 
-              range(min(req_shutdown_periods,commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genShutdown[thermalGen].indicator_var)
+            atleast(
+                req_shutdown_periods,
+                [
+                    b.commitmentPeriod[commitmentPeriod - j - 1]
+                    .genShutdown[thermalGen]
+                    .indicator_var
+                    for j in range(min(req_shutdown_periods, commitmentPeriod - 1))
+                ],
+            )
+            .land(
+                b.commitmentPeriod[commitmentPeriod - 1]
+                .genShutdown[thermalGen]
+                .indicator_var
+            )
             .implies(
                 b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
             )
@@ -1094,32 +1107,56 @@ def add_representative_period_constraints(b, rep_per):
             else LogicalConstraint.Skip
         )
 
-    
     # JSC update: Done(?)
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_startup(b, commitmentPeriod, thermalGen):
-        req_startup_periods = ceil(1/float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]))
+        req_startup_periods = ceil(
+            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
+        )
         return (
-            atmost(req_startup_periods-1,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genStartup[thermalGen].indicator_var for j in 
-              range(min(req_startup_periods,commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genStartup[thermalGen].indicator_var)
-                  #| b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
+            atmost(
+                req_startup_periods - 1,
+                [
+                    b.commitmentPeriod[commitmentPeriod - j - 1]
+                    .genStartup[thermalGen]
+                    .indicator_var
+                    for j in range(min(req_startup_periods, commitmentPeriod - 1))
+                ],
+            ).land(
+                b.commitmentPeriod[commitmentPeriod - 1]
+                .genStartup[thermalGen]
+                .indicator_var
+            )
+            # | b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
             .implies(
-                b.commitmentPeriod[commitmentPeriod].genStartup[thermalGen].indicator_var
+                b.commitmentPeriod[commitmentPeriod]
+                .genStartup[thermalGen]
+                .indicator_var
             )
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
-                  
+
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_on_after_startup(b, commitmentPeriod, thermalGen):
-        req_startup_periods = ceil(1/float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]))
+        req_startup_periods = ceil(
+            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
+        )
         return (
-            atleast(req_startup_periods,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genStartup[thermalGen].indicator_var for j in 
-              range(min(req_startup_periods,commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genStartup[thermalGen].indicator_var)
+            atleast(
+                req_startup_periods,
+                [
+                    b.commitmentPeriod[commitmentPeriod - j - 1]
+                    .genStartup[thermalGen]
+                    .indicator_var
+                    for j in range(min(req_startup_periods, commitmentPeriod - 1))
+                ],
+            )
+            .land(
+                b.commitmentPeriod[commitmentPeriod - 1]
+                .genStartup[thermalGen]
+                .indicator_var
+            )
             .implies(
                 b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
             )
@@ -1128,71 +1165,158 @@ def add_representative_period_constraints(b, rep_per):
         )
 
     # JSC update: Done(?)
-    @b.LogicalConstraint(b.commitmentPeriods,m.thermalGenerators)
+    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_uptime(b, commitmentPeriod, thermalGen):
         return (
-            atmost(int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"])-1,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genOn[thermalGen].indicator_var for j in 
-              range(min(int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"]),commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genOn[thermalGen].indicator_var).implies(
-                  b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
-              )
-              if commitmentPeriod != 1 #int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"])+1
-              else LogicalConstraint.Skip
+            atmost(
+                int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"]) - 1,
+                [
+                    b.commitmentPeriod[commitmentPeriod - j - 1]
+                    .genOn[thermalGen]
+                    .indicator_var
+                    for j in range(
+                        min(
+                            int(
+                                m.md.data["elements"]["generator"][thermalGen][
+                                    "min_up_time"
+                                ]
+                            ),
+                            commitmentPeriod - 1,
+                        )
+                    )
+                ],
+            )
+            .land(
+                b.commitmentPeriod[commitmentPeriod - 1].genOn[thermalGen].indicator_var
+            )
+            .implies(
+                b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
+            )
+            if commitmentPeriod
+            != 1  # int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"])+1
+            else LogicalConstraint.Skip
         )
-                  
-    @b.LogicalConstraint(b.commitmentPeriods,m.thermalGenerators)
+
+    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_shutdown_after_uptime(b, commitmentPeriod, thermalGen):
         return (
-            (atleast(int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"]),
-            [b.commitmentPeriod[commitmentPeriod-j-1].genOn[thermalGen].indicator_var for j in 
-              range(min(int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"]),commitmentPeriod-1))])
-              .land(b.commitmentPeriod[commitmentPeriod-1].genOn[thermalGen].indicator_var)).implies(
-                  b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var 
-                  | b.commitmentPeriod[commitmentPeriod].genShutdown[thermalGen].indicator_var
+            (
+                atleast(
+                    int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"]),
+                    [
+                        b.commitmentPeriod[commitmentPeriod - j - 1]
+                        .genOn[thermalGen]
+                        .indicator_var
+                        for j in range(
+                            min(
+                                int(
+                                    m.md.data["elements"]["generator"][thermalGen][
+                                        "min_up_time"
+                                    ]
+                                ),
+                                commitmentPeriod - 1,
+                            )
+                        )
+                    ],
+                ).land(
+                    b.commitmentPeriod[commitmentPeriod - 1]
+                    .genOn[thermalGen]
+                    .indicator_var
+                )
+            ).implies(
+                b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
+                | b.commitmentPeriod[commitmentPeriod]
+                .genShutdown[thermalGen]
+                .indicator_var
             )
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
 
     # JSC update: Done(?)
-    # If at most n-1 of the previous (not counting current) n periods were down, 
+    # If at most n-1 of the previous (not counting current) n periods were down,
     # and the previous period was down, then the current period must also be down.
     # (n is the minimum downtime)
-    @b.LogicalConstraint(b.commitmentPeriods,m.thermalGenerators)
+    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
         return (
-            (atmost(int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])-1,
-            [b.commitmentPeriod[commitmentPeriod-j-1].genOff[thermalGen].indicator_var for j in 
-              range(min(int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"]),commitmentPeriod-1))])
-            .land(b.commitmentPeriod[commitmentPeriod-1].genOff[thermalGen].indicator_var)).implies(
-                  b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
-              )
-              if commitmentPeriod != 1 #>= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
-              else LogicalConstraint.Skip
+            (
+                atmost(
+                    int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])
+                    - 1,
+                    [
+                        b.commitmentPeriod[commitmentPeriod - j - 1]
+                        .genOff[thermalGen]
+                        .indicator_var
+                        for j in range(
+                            min(
+                                int(
+                                    m.md.data["elements"]["generator"][thermalGen][
+                                        "min_down_time"
+                                    ]
+                                ),
+                                commitmentPeriod - 1,
+                            )
+                        )
+                    ],
+                ).land(
+                    b.commitmentPeriod[commitmentPeriod - 1]
+                    .genOff[thermalGen]
+                    .indicator_var
+                )
+            ).implies(
+                b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
+            )
+            if commitmentPeriod
+            != 1  # >= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
+            else LogicalConstraint.Skip
         )
-                  
-    #b.consistent_commitment_downtime.pprint() 
-    #quit() 
-    
+
+    # b.consistent_commitment_downtime.pprint()
+    # quit()
+
     # JSC update: Done(?)
     # Trying to make this and the previous constraint cover all logical possibilities for downtime... together they
-    # should make the original consistent_commitment_inactivity constraint redundant. We don't want just any behavior 
+    # should make the original consistent_commitment_inactivity constraint redundant. We don't want just any behavior
     # in the first n periods though - it shouldn't be able to violate the min_downtime constraint
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_start_after_downtime(b, commitmentPeriod, thermalGen):
         return (
-            (atleast(int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"]),
-            [b.commitmentPeriod[commitmentPeriod-j-1].genOff[thermalGen].indicator_var for j in 
-              range(min(int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"]),commitmentPeriod-1))])
-              .land(b.commitmentPeriod[commitmentPeriod-1].genOff[thermalGen].indicator_var)).implies(
-                  b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var 
-                  | b.commitmentPeriod[commitmentPeriod].genStartup[thermalGen].indicator_var
+            (
+                atleast(
+                    int(
+                        m.md.data["elements"]["generator"][thermalGen]["min_down_time"]
+                    ),
+                    [
+                        b.commitmentPeriod[commitmentPeriod - j - 1]
+                        .genOff[thermalGen]
+                        .indicator_var
+                        for j in range(
+                            min(
+                                int(
+                                    m.md.data["elements"]["generator"][thermalGen][
+                                        "min_down_time"
+                                    ]
+                                ),
+                                commitmentPeriod - 1,
+                            )
+                        )
+                    ],
+                ).land(
+                    b.commitmentPeriod[commitmentPeriod - 1]
+                    .genOff[thermalGen]
+                    .indicator_var
+                )
+            ).implies(
+                b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
+                | b.commitmentPeriod[commitmentPeriod]
+                .genStartup[thermalGen]
+                .indicator_var
             )
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
-                    
+
     # @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     # def consistent_commitment_inactivity(b, commitmentPeriod, thermalGen):
     #     return (
@@ -1229,8 +1353,9 @@ def representative_period_rule(
     add_representative_period_variables(b, representative_period)
     add_representative_period_constraints(b, representative_period)
 
-    #b.consistent_commitment_downtime.pprint() 
-    #quit() 
+    # b.consistent_commitment_downtime.pprint()
+    # quit()
+
 
 def investment_stage_rule(
     b,
@@ -1397,11 +1522,13 @@ def model_data_references(m):
     # JSC update: Done(?)
     # Maximum output of each renewable generator
     m.renewableCapacity = {
-        renewableGen: 0
-        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])==float
-        else max(
-            m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
-        ) 
+        renewableGen: (
+            0
+            if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
+            else max(
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
+            )
+        )
         for renewableGen in m.renewableGenerators
     }
 
@@ -1409,13 +1536,14 @@ def model_data_references(m):
     # that can be reliably counted toward planning reserve requirement
     # TODO: WHAT HAVE I DONE HERE I HATE IT and JSC made it worse...
     m.renewableCapacityValue = {
-        renewableGen: 0 
-        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])==float   
-        else
-            min(
-            m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
+        renewableGen: (
+            0
+            if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
+            else min(
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
+            )
+            / max(1, m.renewableCapacity[renewableGen])
         )
-        / max(1, m.renewableCapacity[renewableGen])
         for renewableGen in m.renewableGenerators
     }
 
