@@ -9,6 +9,7 @@ from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
+
 mod_object = ExpansionPlanningModel(
     stages=4,
     data=data_object.md,
@@ -29,6 +30,7 @@ mod_object.results = opt.solve(mod_object.model)
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)
 sol_object.dump_json()
+
 sol_object.import_data_object(data_object)
 
 # sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"

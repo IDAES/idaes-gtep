@@ -16,6 +16,8 @@ from pyomo.repn.linear import LinearRepnVisitor
 import json
 import numpy as np
 
+import numpy as np
+
 from math import ceil
 
 # Define what a USD is for pyomo units purposes
