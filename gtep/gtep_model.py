@@ -442,7 +442,7 @@ def add_investment_constraints(
                 for gen in m.renewableGenerators
             )
             
-            #JSC inprog - added branch investment costs here
+            #JSC inprog (done?) - added branch investment costs here
             + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchCapitalMultiplier[branch]

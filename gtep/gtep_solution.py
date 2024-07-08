@@ -585,10 +585,10 @@ class ExpansionPlanningSolution:
             ax_koi_list[-1].set_xlabel(f"{level_key} $[n]$")
             ax_koi_list[0].set_title(f"{pretty_title} by Type")
 
-
+            # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
             fig.align_labels()
             fig.suptitle(f"{parent_key_string}")
-            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
             plt.close()
             
 
@@ -662,6 +662,9 @@ class ExpansionPlanningSolution:
         # discover the relationships at the dispatch level
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
         level_relationships = self.discover_level_relationships(upper_level_dict[level_period_keys[0]])
+        # print("LEVEL RELATIONSHIPS DEBUG")
+        # print(level_relationships)
+        # print("END LEVEL RELATIONSHIPS DEBUG")
 
         # plot relationships
         for vars_of_interest, keys_of_interest in level_relationships.items():
@@ -703,12 +706,12 @@ class ExpansionPlanningSolution:
                         save_dir=save_dir,
                         plot_bounds=plot_bounds)
                 
-    
+    # JSC update - 'dc_branch' to 'branch'
     def _plot_graph_workhorse(self,
                               df,
                               value_key,
                               parent_key_string,
-                              what_is_a_bus_called='dc_branch',
+                              what_is_a_bus_called='branch',
                               units=None,
                               pretty_title="Selected Data",
                               save_dir=".",):
@@ -925,17 +928,58 @@ class ExpansionPlanningSolution:
             edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
             alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
             
+            # @KyleSkolfield is there a reason to not do this?
+            branch_name_edge_key = item + '_powerFlow_value'
+            
             # kind = 'triangle'
             # kind = 'rectangle'
             kind = 'custom'
-            glyph_values_slice = None
-            try:
-                glyph_values_slice = df[edge_key].values
-            except KeyError as kex:
-                try:
-                    glyph_values_slice = df[alt_edge_key].values
-                except KeyError as kex_second_attempt:
-                    print(f"Attempted to slice DF in network twice using {edge_key} and {alt_edge_key}, failed both.")
+            glyph_values_slice = df[branch_name_edge_key].values
+            # try:
+            #     glyph_values_slice = df[branch_name_edge_key].values
+            # except KeyError as kex_init:
+            #     try:
+            #         glyph_values_slice = df[edge_key].values
+            #     except KeyError as kex:
+            #         try:
+            #             glyph_values_slice = df[alt_edge_key].values
+            #         except KeyError as kex_second_attempt:
+            #             no_bus_edge_key = edge_key.replace('bus','')
+            #             try:
+            #                 glyph_values_slice = df[no_bus_edge_key].values
+            #             except KeyError as kex_third_attempt:
+            #                 no_bus_alt_edge_key = alt_edge_key.replace('bus','')
+            #                 try:
+            #                    glyph_values_slice = df[no_bus_alt_edge_key].values
+            #                 except KeyError as kex_fourth_attempt:
+            #                     edge_key_expansion = edge_key.replace('_powerFlow','-c_powerFlow')
+            #                     try:
+            #                         glyph_values_slice = df[edge_key_expansion].values
+            #                     except KeyError as kex_fifth_attempt:
+            #                         alt_edge_key_expansion = alt_edge_key.replace('_powerFlow','-c_powerFlow')
+            #                         try:
+            #                             glyph_values_slice = df[alt_edge_key_expansion].values
+            #                         except KeyError as kex_sixth_attempt:
+            #                             no_bus_edge_key_expansion = no_bus_edge_key.replace('_powerFlow','-c_powerFlow')
+            #                             try:
+            #                                 glyph_values_slice = df[no_bus_edge_key_expansion].values
+            #                             except KeyError as kex_seventh_attempt:
+            #                                 no_bus_alt_edge_key_expansion = no_bus_alt_edge_key.replace('_powerFlow','-c_powerFlow')
+            #                                 try:
+            #                                     glyph_values_slice = df[no_bus_alt_edge_key_expansion].values
+            #                                 except KeyError as kex_eigth_attempt:                                          
+            #                                     print(f"Attempted to slice DF in network eight times using {edge_key}, {alt_edge_key}, \
+            #                                           {no_bus_edge_key}, {no_bus_alt_edge_key}, {edge_key_expansion}, \
+            #                                               {alt_edge_key_expansion}, {no_bus_edge_key_expansion}, \
+            #                                                   and {no_bus_alt_edge_key_expansion}, failed all.")
+            # print(edge_key)
+            # print('DF COLUMNS')
+            # print(list(df.columns.values))
+            # print('END DF COLUMNS')
+            # print(df[edge_key].values) # this is the issue atm
+            # print(alt_edge_key)
+            # print(df[alt_edge_key].values)
+            # print(glyph_values_slice)
             draw_single_edge_flow(item, glyph_values_slice, ax_graph, cmap=cmap, norm=normalize, glyph_type=kind)
 
             # forward arrow
@@ -949,8 +993,9 @@ class ExpansionPlanningSolution:
         # make some titles
         fig.suptitle(f"{parent_key_string}_{value_key}")
 
+        # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
         # save
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}_graph.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}_graph.png")
         pass
 
     def plot_levels(self, save_dir="."):
