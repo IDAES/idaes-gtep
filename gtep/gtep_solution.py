@@ -691,17 +691,19 @@ class ExpansionPlanningSolution:
                                                pretty_title=this_pretty_title,
                                                save_dir=save_dir,)
     
-                    # [HACK] put this back one intent level when done
+                    # [HACK] put this back one indent level when done
+                    ## tab this back and forth to do the things
+                    
                     # plot it
-                    self._level_relationship_df_to_plot(
-                        level_key,
-                        this_df_of_interest,
-                        tmp_koi,
-                        tmp_voi,
-                        parent_key_string,
-                        pretty_title=this_pretty_title,
-                        save_dir=save_dir,
-                        plot_bounds=plot_bounds)
+                self._level_relationship_df_to_plot(
+                    level_key,
+                    this_df_of_interest,
+                    tmp_koi,
+                    tmp_voi,
+                    parent_key_string,
+                    pretty_title=this_pretty_title,
+                    save_dir=save_dir,
+                    plot_bounds=plot_bounds)
                 
     
     def _plot_graph_workhorse(self,

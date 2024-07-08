@@ -25,6 +25,8 @@ from math import ceil
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
+rng = np.random.default_rng(seed=164324)
+
 ####################################
 ########## New Work Here ###########
 ####################################
@@ -617,10 +619,10 @@ def add_dispatch_constraints(b, disp_per):
     # repeats the load values for each period, which seems to always lead to
     # all generators always on (???)
 
-    rng = np.random.default_rng()
+    
 
     for key in m.loads.keys():
-        m.loads[key] *= max(0, rng.normal(1.0, 0.5))
+        m.loads[key] *= max(0, rng.normal(1.0, 0.1))
 
     # JSC question: Will forcing uninvested lines to have no power flow (via
     # the flow limits) cause infeasibility? Driving idea is: do we need to
@@ -941,7 +943,6 @@ def add_commitment_constraints(
                 for gen in m.thermalGenerators
             )
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
-            ## FIXME: @John
             + sum(
                 m.fixedOperatingCost[gen]
                 # * m.renewableCapacity[gen]
