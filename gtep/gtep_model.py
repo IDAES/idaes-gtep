@@ -233,9 +233,7 @@ def add_investment_variables(
     def branchExtended(disj, branch):
         return
     
-    # JSC update (done?) - the gen and line investments should be separate disjunctions
-    # because the associated variables and constraints we'll disjunct on are 
-    # different.
+    # JSC update (done?)
     # @KyleSkolfield: do we differentiate between line and transformer investments?
     @b.Disjunction(m.transmission)
     def branchInvestStatus(disj,branch):
@@ -603,10 +601,25 @@ def add_dispatch_variables(
 
         disj.busAngle = Var(disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds)
 
+        # Voltage angle
+        def delta_bus_angle_bounds(disj, bus):
+            return (-math.pi / 6, math.pi / 6)
+
+        # Rule for maximum bus angle discrepancy
+        def delta_bus_angle_rule(disj):
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            return disj.busAngle[tb] - disj.busAngle[fb]
+    
         # @KyleSkolfield - I think this var is unused and commented it out, can we delete?
-        # disj.deltaBusAngle = Var(
-        #     m.transmission, domain=Reals, initialize=0, bounds=delta_bus_angle_bounds
-        # )
+        disj.deltaBusAngle = Var(domain=Reals, bounds=delta_bus_angle_bounds, 
+            rule=delta_bus_angle_rule
+        )
+        
+        ## FIXME
+        # @disj.Constraint()
+        # def max_delta_bus_angle(disj):
+        #     return abs(disj.deltaBusAngle) <= math.pi/6
         
         
         @disj.Constraint()

@@ -925,7 +925,7 @@ class ExpansionPlanningSolution:
             end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
             start_pos = graph_node_position_dict[start_key]
             end_pos = graph_node_position_dict[end_key]
-            edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
+            edge_key = f"{value}_{value_key}_value"
             alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
             
             # @KyleSkolfield is there a reason to not do this?
@@ -935,51 +935,12 @@ class ExpansionPlanningSolution:
             # kind = 'rectangle'
             kind = 'custom'
             glyph_values_slice = df[branch_name_edge_key].values
-            # try:
-            #     glyph_values_slice = df[branch_name_edge_key].values
-            # except KeyError as kex_init:
-            #     try:
-            #         glyph_values_slice = df[edge_key].values
-            #     except KeyError as kex:
-            #         try:
-            #             glyph_values_slice = df[alt_edge_key].values
-            #         except KeyError as kex_second_attempt:
-            #             no_bus_edge_key = edge_key.replace('bus','')
-            #             try:
-            #                 glyph_values_slice = df[no_bus_edge_key].values
-            #             except KeyError as kex_third_attempt:
-            #                 no_bus_alt_edge_key = alt_edge_key.replace('bus','')
-            #                 try:
-            #                    glyph_values_slice = df[no_bus_alt_edge_key].values
-            #                 except KeyError as kex_fourth_attempt:
-            #                     edge_key_expansion = edge_key.replace('_powerFlow','-c_powerFlow')
-            #                     try:
-            #                         glyph_values_slice = df[edge_key_expansion].values
-            #                     except KeyError as kex_fifth_attempt:
-            #                         alt_edge_key_expansion = alt_edge_key.replace('_powerFlow','-c_powerFlow')
-            #                         try:
-            #                             glyph_values_slice = df[alt_edge_key_expansion].values
-            #                         except KeyError as kex_sixth_attempt:
-            #                             no_bus_edge_key_expansion = no_bus_edge_key.replace('_powerFlow','-c_powerFlow')
-            #                             try:
-            #                                 glyph_values_slice = df[no_bus_edge_key_expansion].values
-            #                             except KeyError as kex_seventh_attempt:
-            #                                 no_bus_alt_edge_key_expansion = no_bus_alt_edge_key.replace('_powerFlow','-c_powerFlow')
-            #                                 try:
-            #                                     glyph_values_slice = df[no_bus_alt_edge_key_expansion].values
-            #                                 except KeyError as kex_eigth_attempt:                                          
-            #                                     print(f"Attempted to slice DF in network eight times using {edge_key}, {alt_edge_key}, \
-            #                                           {no_bus_edge_key}, {no_bus_alt_edge_key}, {edge_key_expansion}, \
-            #                                               {alt_edge_key_expansion}, {no_bus_edge_key_expansion}, \
-            #                                                   and {no_bus_alt_edge_key_expansion}, failed all.")
-            # print(edge_key)
-            # print('DF COLUMNS')
-            # print(list(df.columns.values))
-            # print('END DF COLUMNS')
-            # print(df[edge_key].values) # this is the issue atm
-            # print(alt_edge_key)
-            # print(df[alt_edge_key].values)
-            # print(glyph_values_slice)
+    
+            try:
+                glyph_values_slice = df[edge_key].values
+            except KeyError as kex:                                        
+                print(f"Attempted to slice DF in network using {edge_key}, failed.")
+
             draw_single_edge_flow(item, glyph_values_slice, ax_graph, cmap=cmap, norm=normalize, glyph_type=kind)
 
             # forward arrow
