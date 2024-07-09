@@ -585,7 +585,7 @@ class ExpansionPlanningSolution:
             ax_koi_list[-1].set_xlabel(f"{level_key} $[n]$")
             ax_koi_list[0].set_title(f"{pretty_title} by Type")
 
-
+            # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
             fig.align_labels()
             fig.suptitle(f"{parent_key_string}")
             fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
@@ -662,6 +662,9 @@ class ExpansionPlanningSolution:
         # discover the relationships at the dispatch level
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
         level_relationships = self.discover_level_relationships(upper_level_dict[level_period_keys[0]])
+        # print("LEVEL RELATIONSHIPS DEBUG")
+        # print(level_relationships)
+        # print("END LEVEL RELATIONSHIPS DEBUG")
 
         # plot relationships
         for vars_of_interest, keys_of_interest in level_relationships.items():
@@ -705,14 +708,12 @@ class ExpansionPlanningSolution:
                     save_dir=save_dir,
                     plot_bounds=plot_bounds)
                 
-    
+    # JSC update - 'dc_branch' to 'branch'
     def _plot_graph_workhorse(self,
                               df,
                               value_key,
                               parent_key_string,
-
                               what_is_a_bus_called='branch', #'dc_branch',
-
                               units=None,
                               pretty_title="Selected Data",
                               save_dir=".",):
@@ -932,17 +933,19 @@ class ExpansionPlanningSolution:
             edge_key = f"{item}_{value_key}_value"
             alt_edge_key = f"{item}_{value_key}_value"
             
+            # @KyleSkolfield is there a reason to not do this?
+            branch_name_edge_key = item + '_powerFlow_value'
+            
             # kind = 'triangle'
             # kind = 'rectangle'
             kind = 'custom'
-            glyph_values_slice = None
+            glyph_values_slice = df[branch_name_edge_key].values
+    
             try:
                 glyph_values_slice = df[edge_key].values
-            except KeyError as kex:
-                try:
-                    glyph_values_slice = df[alt_edge_key].values
-                except KeyError as kex_second_attempt:
-                    print(f"Attempted to slice DF in network twice using {edge_key} and {alt_edge_key}, failed both.")
+            except KeyError as kex:                                        
+                print(f"Attempted to slice DF in network using {edge_key}, failed.")
+
             draw_single_edge_flow(item, glyph_values_slice, ax_graph, cmap=cmap, norm=normalize, glyph_type=kind)
 
             # forward arrow
@@ -956,6 +959,7 @@ class ExpansionPlanningSolution:
         # make some titles
         fig.suptitle(f"{parent_key_string}_{value_key}")
 
+        # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
         # save
         fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}_graph.png")
         pass

@@ -25,7 +25,7 @@ data_object.load_prescient(data_path)
 #    data=data_object.md, num_reps=2, len_reps=1, stages=2, num_commit=24, num_dispatch=12
 # )
 mod_object = ExpansionPlanningModel(
-    data=data_object.md, num_reps=1, len_reps=1, stages=1, num_commit=24, num_dispatch=12
+    data=data_object.md, num_reps=1, len_reps=1, stages=1, num_commit=24, num_dispatch=2
 )
 mod_object.create_model()
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
