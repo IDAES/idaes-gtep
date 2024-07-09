@@ -25,7 +25,7 @@ from math import ceil
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
-rng = np.random.default_rng(seed=164324)
+rng = np.random.default_rng()
 
 ####################################
 ########## New Work Here ###########
@@ -218,7 +218,7 @@ def add_investment_variables(
     @b.Disjunct(m.transmission)
     def branchOperational(disj, branch):
         return
-    
+
     @b.Disjunct(m.transmission)
     def branchInstalled(disj, branch):
         return
@@ -231,23 +231,22 @@ def add_investment_variables(
     def branchDisabled(disj, branch):
         return
 
-
     @b.Disjunct(m.transmission)
     def branchExtended(disj, branch):
         return
-    
+
     # JSC update (done?)
     # @KyleSkolfield: do we differentiate between line and transformer investments?
     @b.Disjunction(m.transmission)
-    def branchInvestStatus(disj,branch):
+    def branchInvestStatus(disj, branch):
         return [
             disj.branchOperational[branch],
             disj.branchInstalled[branch],
             disj.branchRetired[branch],
             disj.branchDisabled[branch],
             disj.branchExtended[branch],
-            ]
-    
+        ]
+
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0
@@ -279,43 +278,33 @@ def add_investment_constraints(
 
     m = b.model()
 
-    ## TODO: Fix var value rather than add constraint
-    @b.LogicalConstraint(m.thermalGenerators)
-    def thermal_uninvested_not_operational(b, gen):
-        
-        if m.md.data["elements"]["generator"][gen]["in_service"] == False:
+    for gen in m.thermalGenerators:
+        if (
+            m.md.data["elements"]["generator"][gen]["in_service"] == False
+            and investment_stage == 1
+        ):
+            b.genDisabled[gen].indicator_var.fix(True)
+            # b.genDisabled[gen].binary_indicator_var.fix(1)
+        elif (
+            m.md.data["elements"]["generator"][gen]["in_service"] == True
+            and investment_stage == 1
+        ):
+            b.genInstalled[gen].indicator_var.fix(True)
+            # b.genInstalled[gen].binary_indicator_var.fix(1)
 
-            return exactly(0, b.genOperational[gen].indicator_var)
-        else:
-            return LogicalConstraint.Skip
-        
-    @b.LogicalConstraint(m.thermalGenerators)
-    def thermal_uninvested_not_extended(b, gen):
-        
-        if m.md.data["elements"]["generator"][gen]["in_service"] == False:
-
-            return exactly(0, b.genExtended[gen].indicator_var)
-        else:
-            return LogicalConstraint.Skip
-
-    # JSC update (done?)
-    ## TODO: Fix var value rather than add constraint
-    @b.LogicalConstraint(m.transmission)
-    def branch_uninvested_not_operational(b, branch):
-        
-        if m.md.data["elements"]["branch"][branch]["in_service"] == False:
-            return exactly(0, b.branchOperational[branch].indicator_var)
-        else:
-            return LogicalConstraint.Skip
-        
-    @b.LogicalConstraint(m.transmission)
-    def branch_uninvested_not_extended(b, branch):
-        
-        if m.md.data["elements"]["branch"][branch]["in_service"] == False:
-            return exactly(0, b.branchExtended[branch].indicator_var)
-        else:
-            return LogicalConstraint.Skip
-
+    for branch in m.transmission:
+        if (
+            m.md.data["elements"]["branch"][branch]["in_service"] == False
+            and investment_stage == 1
+        ):
+            b.branchDisabled[branch].indicator_var.fix(True)
+            # b.branchDisabled[branch].binary_indicator_var.fix(1)
+        elif (
+            m.md.data["elements"]["branch"][branch]["in_service"] == True
+            and investment_stage == 1
+        ):
+            b.branchInstalled[branch].indicator_var.fix(True)
+            # b.branchInstalled[branch].binary_indicator_var.fix(1)
 
     # Planning reserve requirement constraint
     ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
@@ -442,8 +431,8 @@ def add_investment_constraints(
                 * m.renewableCapacity[gen]
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
-            )          
-            #JSC inprog (done?) - added branch investment costs here
+            )
+            # JSC inprog (done?) - added branch investment costs here
             + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchCapitalMultiplier[branch]
@@ -540,7 +529,7 @@ def add_dispatch_variables(
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
         return b.thermalGeneration[gen] * m.fuelCost[gen]
-    
+
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
 
@@ -548,7 +537,6 @@ def add_dispatch_variables(
     @b.Expression(m.buses)
     def loadShedCost(b, bus):
         return b.loadShed[bus] * m.loadShedCost
-
 
     # Track total dispatch values and costs
     b.renewableSurplusDispatch = sum(b.renewableGenerationSurplus.values())
@@ -566,16 +554,14 @@ def add_dispatch_variables(
     b.renewableCurtailmentDispatch = sum(
         b.renewableCurtailment[gen] for gen in m.renewableGenerators
     )
-    
-    
-    # Define bounds on transmission line capacity - restrictions on flow over 
+
+    # Define bounds on transmission line capacity - restrictions on flow over
     # uninvested lines are enforced in a disjuction below
     def power_flow_limits(b, branch):
         return (
             -m.transmissionCapacity[branch],
             m.transmissionCapacity[branch],
         )
-
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
@@ -585,12 +571,11 @@ def add_dispatch_variables(
         initialize=0,
         units=u.MW,
     )
-    
-    
+
     @b.Disjunct(m.transmission)
     def branchInUse(disj, branch):
         b = disj.parent_block()
-        
+
         # JSC inprog (done?) Moved inside disjunction
         import math
 
@@ -598,12 +583,20 @@ def add_dispatch_variables(
         def bus_angle_bounds(disj, bus):
             return (-math.pi / 6, math.pi / 6)
 
-        # Only create bus angle variables for the buses associated with this 
+        # Only create bus angle variables for the buses associated with this
         # branch that is in use
-        disj.branch_buses = [bb for bb in m.buses if (m.transmission[branch]["from_bus"] == bb 
-                                                      or m.transmission[branch]["to_bus"] == bb)]
+        disj.branch_buses = [
+            bb
+            for bb in m.buses
+            if (
+                m.transmission[branch]["from_bus"] == bb
+                or m.transmission[branch]["to_bus"] == bb
+            )
+        ]
 
-        disj.busAngle = Var(disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds)
+        disj.busAngle = Var(
+            disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds
+        )
 
         # Voltage angle
         def delta_bus_angle_bounds(disj, bus):
@@ -614,42 +607,44 @@ def add_dispatch_variables(
             fb = m.transmission[branch]["from_bus"]
             tb = m.transmission[branch]["to_bus"]
             return disj.busAngle[tb] - disj.busAngle[fb]
-    
+
         # @KyleSkolfield - I think this var is unused and commented it out, can we delete?
-        disj.deltaBusAngle = Var(domain=Reals, bounds=delta_bus_angle_bounds, 
-            rule=delta_bus_angle_rule
+        disj.deltaBusAngle = Var(
+            domain=Reals, bounds=delta_bus_angle_bounds, rule=delta_bus_angle_rule
         )
-        
+
         ## FIXME
         # @disj.Constraint()
         # def max_delta_bus_angle(disj):
         #     return abs(disj.deltaBusAngle) <= math.pi/6
-        
-        
+
         @disj.Constraint()
         def dc_power_flow(disj):
             fb = m.transmission[branch]["from_bus"]
             tb = m.transmission[branch]["to_bus"]
             reactance = m.md.data["elements"]["branch"][branch]["reactance"]
             if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
-                reactance *= m.md.data["elements"]["branch"][branch]["transformer_tap_ratio"]
-                shift = m.md.data["elements"]["branch"][branch]["transformer_phase_shift"]
+                reactance *= m.md.data["elements"]["branch"][branch][
+                    "transformer_tap_ratio"
+                ]
+                shift = m.md.data["elements"]["branch"][branch][
+                    "transformer_phase_shift"
+                ]
             else:
                 shift = 0
             return b.powerFlow[branch] == (-1 / reactance) * (
                 disj.busAngle[tb] - disj.busAngle[fb] + shift
             )
 
-        
-    @b.Disjunct(m.transmission)   
+    @b.Disjunct(m.transmission)
     def branchNotInUse(disj, branch):
-              
-        # JSC update (done?) Fixing power flow to 0 and not creating bus angle 
+
+        # JSC update (done?) Fixing power flow to 0 and not creating bus angle
         # variables for branches that are not in use
         @disj.Constraint()
         def dc_power_flow(disj):
             return b.powerFlow[branch] == 0
-        
+
         return
 
     # JSC update - Branches are either in-use or not. This disjunction may
@@ -660,7 +655,6 @@ def add_dispatch_variables(
             disj.branchInUse[branch],
             disj.branchNotInUse[branch],
         ]
-
 
     # JSC update - If a branch is in use, it must be active
     # Update this when switching is implemented
@@ -673,17 +667,17 @@ def add_dispatch_variables(
                 i_p.branchExtended[branch].indicator_var,
             )
         )
-    
-    # JSC update - If a branch is not in use, it must be inactive. 
+
+    # JSC update - If a branch is not in use, it must be inactive.
     # Update this when switching is implemented
     @b.LogicalConstraint(m.transmission)
-    def cannot_use_inactive_branches(b,branch):
+    def cannot_use_inactive_branches(b, branch):
         return b.branchNotInUse[branch].indicator_var.implies(
-            lor(i_p.branchDisabled[branch].indicator_var,
-                   i_p.branchRetired[branch].indicator_var
-                   )
+            lor(
+                i_p.branchDisabled[branch].indicator_var,
+                i_p.branchRetired[branch].indicator_var,
             )
-
+        )
 
     # Define bounds on thermal generator spinning reserve supply
     def spinning_reserve_limits(b, thermalGen):
@@ -716,7 +710,6 @@ def add_dispatch_variables(
     )
 
 
-
 def add_dispatch_constraints(b, disp_per):
     """Add dispatch-associated inequalities to representative period block."""
     m = b.model()
@@ -729,13 +722,8 @@ def add_dispatch_constraints(b, disp_per):
     # repeats the load values for each period, which seems to always lead to
     # all generators always on (???)
 
-    
-
-    rng = np.random.default_rng()
-    
-
     for key in m.loads.keys():
-        m.loads[key] *= max(0, rng.normal(1.0, 0.1))
+        m.loads[key] *= max(0, rng.normal(1.0, 0.4))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
@@ -1073,9 +1061,8 @@ def commitment_period_rule(b, commitment_period):
     if m.data_list:
         m.md = m.data_list[i_p.representativePeriods.index(r_p.currentPeriod)]
 
-
-    # Making an exception for cases where gens were candidates 
-    # bc their time series reduced to single values. Will probably need to fix 
+    # Making an exception for cases where gens were candidates
+    # bc their time series reduced to single values. Will probably need to fix
     # this and look at where that reduction is taking place because we need more
     # than a single value if the generator is built. (Probably? Maybe there's a
     # different way to handle candidate renewable data because this assumes
@@ -1145,7 +1132,6 @@ def add_representative_period_variables(b, rep_per):
 def add_representative_period_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
-
 
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
@@ -1259,7 +1245,7 @@ def add_representative_period_constraints(b, rep_per):
             else LogicalConstraint.Skip
         )
 
-    @b.LogicalConstraint(b.commitmentPeriods,m.thermalGenerators)
+    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_uptime(b, commitmentPeriod, thermalGen):
         return (
             atmost(
@@ -1327,8 +1313,7 @@ def add_representative_period_constraints(b, rep_per):
             else LogicalConstraint.Skip
         )
 
-
-    @b.LogicalConstraint(b.commitmentPeriods,m.thermalGenerators)
+    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
         return (
             (
@@ -1400,6 +1385,7 @@ def add_representative_period_constraints(b, rep_per):
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
+
 
 def representative_period_rule(
     b,
@@ -1645,7 +1631,6 @@ def model_data_references(m):
         for load_n in m.md.data["elements"]["load"]
     }
 
-
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
     # Per-distance-unit multiplicative loss rate for each transmission line
     m.lossRate = {
@@ -1659,23 +1644,25 @@ def model_data_references(m):
         branch: (m.md.data["elements"]["branch"][branch].get("distance") or 0)
         for branch in m.transmission
     }
-    
-    # JSC TODO: Add cost of investment in each new branch to input data. Currently 
+
+    # JSC TODO: Add cost of investment in each new branch to input data. Currently
     # selected 0 to ensure investments will be selected if needed
     m.branchInvestmentCost = {
-        branch: (m.md.data["elements"]["branch"][branch].get("capital_cost") or 0) 
+        branch: (m.md.data["elements"]["branch"][branch].get("capital_cost") or 0)
         for branch in m.transmission
-        }
-    
-    # JSC TODO: Add branch capital multiplier to input data. 
+    }
+
+    # JSC TODO: Add branch capital multiplier to input data.
     m.branchCapitalMultiplier = {
         branch: (m.md.data["elements"]["branch"][branch].get("capital_multiplier") or 1)
         for branch in m.transmission
-        }
+    }
 
     # Cost of life extension for each generator, expressed as a fraction of initial investment cost
     m.branchExtensionMultiplier = {
-        branch: (m.md.data["elements"]["branch"][branch].get("extension_multiplier") or 1)
+        branch: (
+            m.md.data["elements"]["branch"][branch].get("extension_multiplier") or 1
+        )
         for branch in m.transmission
     }
 
@@ -1751,9 +1738,9 @@ def model_data_references(m):
     m.generatorInvestmentCost = {
         # gen: m.md.data["elements"]["generator"][gen]["investment_cost"]
         # for gen in m.generators]
-        gen: 0 for gen in m.generators
+        gen: 0
+        for gen in m.generators
     }
-    
 
     # Minimum operating reserve, expressed as a fraction of load within a region
     m.minOperatingReserve = {
@@ -1817,26 +1804,26 @@ def model_create_investment_stages(m, stages):
 
     # Retirement/extension relationships over investment periods -- C&P'd
     # from the paper.  These are okay.
-    if len(m.stages) > 1:
+    # if len(m.stages) > 1:
 
-        @m.Constraint(m.stages, m.thermalGenerators)
-        def gen_retirement(m, stage, gen):
-            return sum(
-                m.investmentStage[t_2]
-                .genInstalled[gen]
-                .indicator_var.get_associated_binary()
-                for t_2 in m.stages
-                if t_2 <= stage - m.lifetimes[gen]
-            ) <= sum(
-                m.investmentStage[t_1]
-                .genRetired[gen]
-                .indicator_var.get_associated_binary()
-                + m.investmentStage[t_1]
-                .genExtended[gen]
-                .indicator_var.get_associated_binary()
-                for t_1 in m.stages
-                if t_1 <= stage
-            )
+    #     @m.Constraint(m.stages, m.thermalGenerators)
+    #     def gen_retirement(m, stage, gen):
+    #         return sum(
+    #             m.investmentStage[t_2]
+    #             .genInstalled[gen]
+    #             .indicator_var.get_associated_binary()
+    #             for t_2 in m.stages
+    #             if t_2 <= stage - m.lifetimes[gen]
+    #         ) <= sum(
+    #             m.investmentStage[t_1]
+    #             .genRetired[gen]
+    #             .indicator_var.get_associated_binary()
+    #             + m.investmentStage[t_1]
+    #             .genExtended[gen]
+    #             .indicator_var.get_associated_binary()
+    #             for t_1 in m.stages
+    #             if t_1 <= stage
+    #         )
 
     # Linking generator investment status constraints
     @m.Constraint(m.stages, m.thermalGenerators)
@@ -1902,6 +1889,21 @@ def model_create_investment_stages(m, stages):
             else LogicalConstraint.Skip
         )
 
+    # If a gen is online at time t, it must be online, extended, or retired at time t+1
+    @m.LogicalConstraint(m.stages, m.thermalGenerators)
+    def consistent_operation_future(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genOperational[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genOperational[gen].indicator_var
+                | m.investmentStage[stage].genExtended[gen].indicator_var
+                | m.investmentStage[stage].genRetired[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
     # Retirement in period t-1 implies disabled in period t
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
     def full_retirement(m, stage, gen):
@@ -1915,7 +1917,7 @@ def model_create_investment_stages(m, stages):
             else LogicalConstraint.Skip
         )
 
-    # If a gen is disabled at time t-1, it must stay disabled or be installed at time t
+    # If a gen is disabled at time t-1, it must stay disabled  at time t
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
     def consistent_disabled(m, stage, gen):
         return (
@@ -1955,7 +1957,7 @@ def model_create_investment_stages(m, stages):
             if stage != 1
             else LogicalConstraint.Skip
         )
-    
+
     # If a branch is online at time t, it must have been online or installed at time t-1
     @m.LogicalConstraint(m.stages, m.transmission)
     def consistent_branch_operation(m, stage, branch):
@@ -1965,6 +1967,21 @@ def model_create_investment_stages(m, stages):
             .indicator_var.implies(
                 m.investmentStage[stage - 1].branchOperational[branch].indicator_var
                 | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a branch is online at time t, it must be online, extended, or retired at time t+1
+    @m.LogicalConstraint(m.stages, m.transmission)
+    def consistent_branch_operation_future(m, stage, branch):
+        return (
+            m.investmentStage[stage - 1]
+            .branchOperational[branch]
+            .indicator_var.implies(
+                m.investmentStage[stage].branchOperational[branch].indicator_var
+                | m.investmentStage[stage].branchExtended[branch].indicator_var
+                | m.investmentStage[stage].branchRetired[branch].indicator_var
             )
             if stage != 1
             else LogicalConstraint.Skip
@@ -2023,4 +2040,3 @@ def model_create_investment_stages(m, stages):
             if stage != 1
             else LogicalConstraint.Skip
         )
- 
