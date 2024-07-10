@@ -20,7 +20,7 @@ import numpy as np
 import re
 
 
-from matplotlib.patches import Rectangle, RegularPolygon, PathPatch
+from matplotlib.patches import Rectangle, RegularPolygon, PathPatch, Circle
 from matplotlib.collections import PatchCollection
 import matplotlib.cm as cm
 from matplotlib.transforms import Affine2D
@@ -382,7 +382,8 @@ class ExpansionPlanningSolution:
                                 vars,
                                 parent_key_string,
                                 pretty_title="Selected Data",
-                                save_dir=".",):
+                                save_dir=".",
+                                show_off_indicator=True):
         
         fig = plt.figure(figsize=(32, 16), tight_layout=False)
         gs = fig.add_gridspec(1, 1) # only need 1 plot for now
@@ -420,6 +421,16 @@ class ExpansionPlanningSolution:
                                                 edgecolor='black',
                                                 color=line.get_color())
                         ax_bins.add_patch(tmp_rect)
+                    elif show_off_indicator:
+
+                        tmp_rect = plt.Rectangle([tx-0.5+width_padding, ((ix_var)+(interstate_height*(ix_key+1)))-0.5],
+                                                width-(width_padding*2),
+                                                interstate_height,
+                                                alpha=0.25,
+                                                linewidth=5.,
+                                                edgecolor='black',
+                                                color='grey')
+                        ax_bins.add_patch(tmp_rect)
 
 
 
@@ -450,6 +461,7 @@ class ExpansionPlanningSolution:
 
         # [HACK] hard coding the generator state order, to be fixed later
         config['order_gen_state'] = ['genOff', 'genShutdown', 'genStartup', 'genOn']
+        config['order_gen_invest_state'] = ['genDisabled', 'genRetired', 'genExtended', 'genInstalled', 'genOperational']
 
         # check if ALL the possible things to look at are binaries
         all_binaries = True
@@ -470,6 +482,15 @@ class ExpansionPlanningSolution:
                         break
                 if matched_config_override:
                     vars = config['order_gen_state']
+            if 'order_gen_invest_state' in config:
+                # check that everything can be mapped over
+                matched_config_override = True
+                for item in vars:
+                    if not item in config['order_gen_invest_state']:
+                        matched_config_override = False
+                        break
+                if matched_config_override:
+                    vars = config['order_gen_invest_state']
 
             self._plot_workhose_binaries(level_key,
                                          df,
@@ -691,17 +712,17 @@ class ExpansionPlanningSolution:
                                                pretty_title=this_pretty_title,
                                                save_dir=save_dir,)
     
-                    # [HACK] put this back one intent level when done
-                    # plot it
-                    self._level_relationship_df_to_plot(
-                        level_key,
-                        this_df_of_interest,
-                        tmp_koi,
-                        tmp_voi,
-                        parent_key_string,
-                        pretty_title=this_pretty_title,
-                        save_dir=save_dir,
-                        plot_bounds=plot_bounds)
+                # [HACK] put this back one intent level when done
+                # plot it
+                self._level_relationship_df_to_plot(
+                    level_key,
+                    this_df_of_interest,
+                    tmp_koi,
+                    tmp_voi,
+                    parent_key_string,
+                    pretty_title=this_pretty_title,
+                    save_dir=save_dir,
+                    plot_bounds=plot_bounds)
                 
     
     def _plot_graph_workhorse(self,
@@ -758,14 +779,28 @@ class ExpansionPlanningSolution:
                                   glyph_type='custom'):
 
 
-            def generate_flow_glyphs(num_glyphs,
+            def generate_flow_glyphs(weights,
                                      spacing=0.05,
                                      glyph_type='triangle',
                                      glyph_rotation=0.,
                                      verts=3):
                 
+                num_glyphs = len(weights)
+
                 flow_glyphs = []
-                for this_block_ix in range(num_glyphs):
+                # put down a start marker
+                glyph_anchor_coord = [(.5)/float(num_glyphs), 0]
+                glyph_verts = 5
+                glyph_radius = (1./float(num_glyphs))/2.
+                # apply nudges
+                glyph_radius *= (1-(spacing/2.))
+                flow_glyphs.append(Circle(glyph_anchor_coord, radius=glyph_radius))
+                
+                yscale_transform = Affine2D().scale(sx=.25, sy=0.25/glyph_radius)
+                # rescale y to make it fit in a 1x1 box
+                flow_glyphs[-1].set_transform(yscale_transform)
+
+                for this_block_ix, this_block_weight in enumerate(weights):
                     # normalizing this patch to 1
 
                     #### 
@@ -796,11 +831,17 @@ class ExpansionPlanningSolution:
                         glyph_radius = (1./float(num_glyphs))/2.
                         # apply nudges
                         glyph_radius *= (1-(spacing/2.))
-                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
-                                                        glyph_verts,
-                                                        radius=glyph_radius,
-                                                        orientation=glyph_rotation))
-                        
+                        # flip direction if it's the other sign
+                        if this_block_weight >= 0:
+                            flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                            glyph_verts,
+                                                            radius=glyph_radius,
+                                                            orientation=glyph_rotation))
+                        else:
+                            flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                            glyph_verts,
+                                                            radius=glyph_radius,
+                                                            orientation=glyph_rotation+np.pi))
                         yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(yscale_transform)
@@ -815,10 +856,17 @@ class ExpansionPlanningSolution:
                         glyph_radius = (1./float(num_glyphs))/2.
                         # apply nudges
                         glyph_radius *= (1-(spacing))
-                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
-                                                        glyph_verts,
-                                                        radius=glyph_radius,
-                                                        orientation=glyph_rotation))
+                        # flip direction if it's the other sign
+                        if this_block_weight >= 0:
+                            flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                            glyph_verts,
+                                                            radius=glyph_radius,
+                                                            orientation=glyph_rotation))
+                        else:
+                            flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
+                                                            glyph_verts,
+                                                            radius=glyph_radius,
+                                                            orientation=glyph_rotation+np.pi))
                         
                         yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
                         # rescale y to make it fit in a 1x1 box
@@ -846,11 +894,20 @@ class ExpansionPlanningSolution:
 
                         flow_glyphs.append(PathPatch(mpath.Path(verts, codes), ec="none"),)
 
-                        rotation_transofrm = Affine2D().rotate_around(glyph_anchor_coord[0]+patch_width*.5,
-                                                                      glyph_anchor_coord[1]+patch_height*.5,
-                                                                      glyph_rotation)
+
+                        # flip direction if it's the other sign
+                        rotation_transform = None
+
+                        if this_block_weight >= 0:
+                            rotation_transform = Affine2D().rotate_around(glyph_anchor_coord[0]+patch_width*.5,
+                                                                        glyph_anchor_coord[1]+patch_height*.5,
+                                                                        glyph_rotation)
+                        else:
+                            rotation_transform = Affine2D().rotate_around(glyph_anchor_coord[0]+patch_width*.5,
+                                                                        glyph_anchor_coord[1]+patch_height*.5,
+                                                                        glyph_rotation+np.pi)
                         # rescale y to make it fit in a 1x1 box
-                        flow_glyphs[-1].set_transform(rotation_transofrm)
+                        flow_glyphs[-1].set_transform(rotation_transform)
 
                 return flow_glyphs
 
@@ -859,14 +916,18 @@ class ExpansionPlanningSolution:
             # weights_bot = (np.random.randn(4)+1)/2.
             # weights_top = np.array(range(num_blocks))/(num_blocks*2)
             # weights_bot = (np.array(range(num_blocks))+num_blocks)/(num_blocks*2)
+
             weights_top = glyph_values_slice
             weights_bot = glyph_values_slice
 
-            top_flow_glyphs = generate_flow_glyphs(len(weights_top), glyph_type=glyph_type)
-            top_facecolors = cmap(norm(weights_top))
+            top_flow_glyphs = generate_flow_glyphs(weights_top, glyph_type=glyph_type)
+            # first weight is the start marker. Make that the same every time
+            top_facecolors = np.zeros((len(weights_top)+1, 4))
+            top_facecolors[0] = [0.0, 0.0, 0.0, 1]
+            top_facecolors[1:] = cmap(norm(abs(weights_top)))
             top_flow_collection = PatchCollection(top_flow_glyphs, facecolors=top_facecolors, edgecolors='grey', alpha=0.5)
             # bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi/2.)) # for squares
-            bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi)) # for custom
+            bot_flow_glyphs = generate_flow_glyphs(weights_bot, glyph_type=glyph_type, glyph_rotation=(np.pi)) # for custom
             bot_flow_glyphs = reversed(bot_flow_glyphs)
             bot_facecolors = cmap(norm(weights_bot))
             # bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, edgecolors='grey', alpha=0.5) # [HACK]
@@ -913,7 +974,8 @@ class ExpansionPlanningSolution:
         # add edges
         # define edge colorbar
         cmap = cm.rainbow
-        normalize = Normalize(vmin=df_min, vmax=df_max)
+        # normalize = Normalize(vmin=df_min, vmax=df_max)
+        normalize = Normalize(vmin=0, vmax=df_max)
         cmappable = cm.ScalarMappable(norm=normalize, cmap=cmap)
 
         for item in self.data.data['elements'][what_is_a_bus_called]:
