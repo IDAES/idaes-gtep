@@ -609,7 +609,7 @@ class ExpansionPlanningSolution:
 
             fig.align_labels()
             fig.suptitle(f"{parent_key_string}")
-            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}.png")
+            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
             plt.close()
             
 
@@ -729,7 +729,9 @@ class ExpansionPlanningSolution:
                               df,
                               value_key,
                               parent_key_string,
+
                               what_is_a_bus_called='branch', #'dc_branch',
+
                               units=None,
                               pretty_title="Selected Data",
                               save_dir=".",):
@@ -1015,7 +1017,7 @@ class ExpansionPlanningSolution:
         fig.suptitle(f"{parent_key_string}_{value_key}")
 
         # save
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(" ", "_")}_graph.png")
+        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}_graph.png")
         pass
 
     def plot_levels(self, save_dir="."):
