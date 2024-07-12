@@ -7,7 +7,7 @@ from geopy.geocoders import Nominatim
 bus_data_df = pd.read_csv("Bus_data.csv")
 
 # if you need find the counties given the busses, run below, otherwise it is slow
-"""
+# run below only once vvvvvvvvvvvv
 geolocator = Nominatim(user_agent="GetLoc")
 county_lookup = []
 for this_lat, this_lon in zip(
@@ -20,7 +20,7 @@ for this_lat, this_lon in zip(
 
 bus_data_df["County"] = county_lookup
 bus_data_df.to_csv("Bus_data_extended.csv", index=False)
-"""
+# run above only once vvvvvvvvvvvv
 
 bus_data_df = pd.read_csv("Bus_data_extended.csv")
 
