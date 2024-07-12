@@ -975,7 +975,8 @@ class ExpansionPlanningSolution:
 
         # add edges
         # define edge colorbar
-        cmap = cm.rainbow
+        # cmap = cm.rainbow
+        cmap = cm.cool
         # normalize = Normalize(vmin=df_min, vmax=df_max)
         normalize = Normalize(vmin=0, vmax=df_max)
         cmappable = cm.ScalarMappable(norm=normalize, cmap=cmap)

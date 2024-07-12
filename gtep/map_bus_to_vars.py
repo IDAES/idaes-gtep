@@ -6,35 +6,249 @@ from geopy.geocoders import Nominatim
 # read bus data
 bus_data_df = pd.read_csv("Bus_data.csv")
 
-# read pricing data
-pricing_data_book_names = [
-    "Land-Based Wind",
-    "Solar - CSP",
-    "Natural Gas_FE",
-    "Coal_FE",
-    "Biopower",
-    "Nuclear",
-    "Geothermal",
-    "Solar - Utility PV",
-]
-pricing_data_sheet = "./gtep/2022 v3 Annual Technology Baseline Workbook Mid-year update 2-15-2023 Clean.xlsx"
-pricing_data_sheet_path = Path(pricing_data_sheet)
-pricing_dict = {}
-for this_book_name in pricing_data_book_names:
-    pricing_dict[this_book_name] = pd.read_excel(
-        pricing_data_sheet_path, this_book_name
-    )
-
+# if you need find the counties given the busses, run below, otherwise it is slow
+"""
 geolocator = Nominatim(user_agent="GetLoc")
 county_lookup = []
 for this_lat, this_lon in zip(
     bus_data_df["Bus latitude"], bus_data_df["Bus longitude"]
 ):
     tmp_county = geolocator.reverse([this_lat, this_lon])
-    county_lookup.append(tmp_county.raw["address"]["county"])
+    county_lookup.append(
+        tmp_county.raw["address"]["county"][:-7]
+    )  # shove in just the county name, not the "county" suffix
 
 bus_data_df["County"] = county_lookup
 bus_data_df.to_csv("Bus_data_extended.csv", index=False)
+"""
+
+bus_data_df = pd.read_csv("Bus_data_extended.csv")
+
+# read the mapping tables (C.1 and C.2)
+c1_data_sheet = (
+    "./gtep/LTSA_ResourceCitingMethodology_CountyRatingsBasedOnResourceType.xlsx"
+)
+c1_data_sheet_path = Path(c1_data_sheet)
+c2_data_sheet = (
+    "./gtep/LTSA_ResourceCitingMethodology_SuitabilityofCountyforTechnologyType.xlsx"
+)
+c2_data_sheet_path = Path(c2_data_sheet)
+
+c1_df = pd.read_excel(c1_data_sheet_path, keep_default_na=False, na_values=["_"])
+c2_df = pd.read_excel(c2_data_sheet_path, keep_default_na=False, na_values=["_"])
+
+# summary of mappings
+mappings_dict = {
+    "Land-Based Wind": {
+        "Table": "C.1",
+        "Column": "WindCond.",
+        1: "Land-Based Wind - Class 8",
+        2: "Land-Based Wind - Class 7",
+        3: "Land-Based Wind - Class 6",
+        4: "Land-Based Wind - Class 5",
+    },
+    "Solar - CSP": {
+        "Table": "C.1",
+        "Column": "SolarThermalCond.",
+        7: "CSP - Class 2",
+        6.75: "CSP - Class 2",
+        6.5: "CSP - Class 3",
+        6: "CSP - Class 7",
+        5.75: "CSP - Class 7",
+        5.5: None,
+    },
+    "Natural Gas_CT": {
+        "Table": "C.2",
+        "Column": "NatGasCT",
+        "Good": "NG F-Frame CT",
+        "Avg.": "NG F-Frame CT",
+        "NA": None,
+        "RO": "NG F-Frame CT",
+    },
+    "Natural Gas_FE": {
+        "Table": "C.2",
+        "Column": "NatGasCC",
+        "Good": "NG Combined Cycle (H-Frame) Max CCS",
+        "Avg.": "NG Combined Cycle (H-Frame) 95% CCS",
+        "NA": None,
+        "RO": None,
+    },
+    "Coal_FE": {
+        "Table": "C.2",
+        "Column": "Coal",
+        "Good": None,
+        "Avg.": None,
+        "NA": None,
+        "RO": None,
+    },
+    "Biopower": {
+        "Table": "C.2",
+        "Column": "Biomass",
+        "Good": "Biopower - Dedicated",
+        "Avg.": None,
+        "NA": None,
+        "RO": None,
+    },
+    "Nuclear": {
+        "Table": "C.2",
+        "Column": "Nuclear",
+        "Good": "Nuclear - Small Modular Reactor",
+        "Avg.": None,
+        "NA": None,
+        "RO": None,
+    },
+    "Geothermal": {
+        "Table": "C.1",
+        "Column": "Geothermal",
+        "H": "Geothermal - NF EGS / Binary",
+        "M": None,
+        "NA": None,
+    },
+    "Solar - Utility PV": {
+        "Table": "C.1",
+        "Column": "SolarPV",
+        "VH": "Utility PV - Class 1",
+        "H": "Utility PV - Class 2",
+        "M": "Utility PV - Class 4",
+    },
+}
+
+# allocate for the mappings
+allocation_dict = {
+    item: [
+        None for _ in range(bus_data_df["County"].shape[0])
+    ]  # preallocate a bunch of lists with Nones for some amount of safety
+    for item in mappings_dict
+}
+
+# allocate some debug stuff (mostly checking if we have all the counties)
+missing_counties = []
+
+# now run through and assign each bus the appropriate data
+for county_ix, this_county in enumerate(bus_data_df["County"]):
+    # clean up this county info by removing spaces
+    clean_this_county = this_county.replace(" ", "")
+
+    # check that the county is even in the tables
+    if (clean_this_county in c1_df["County"].values) and (
+        clean_this_county in c1_df["County"].values
+    ):
+        # cycle through the generation types
+        for this_gen, this_map in mappings_dict.items():
+            mapping_row = None
+            # pick the correct mapping dictionary
+            if this_map["Table"] == "C.1":
+                mapping_row = c1_df[c1_df["County"] == clean_this_county]
+            if this_map["Table"] == "C.2":
+                if clean_this_county in c1_df["County"].values:
+                    mapping_row = c2_df[c2_df["County"] == clean_this_county]
+
+            county_quality = mapping_row[this_map["Column"]].values[0]
+            workbook_map = this_map[county_quality]
+            allocation_dict[this_gen][county_ix] = workbook_map
+    else:
+        print(
+            f"[WARNING]: County {clean_this_county} not found in either C.1 or C.2. Skipping. Values will be 'None' in dataframe."
+        )
+        missing_counties.append(clean_this_county)
+
+# assign new data to the old df
+for gen_type, allocations in allocation_dict.items():
+    bus_data_df[gen_type] = allocations
+
+# save the new DF
+bus_data_df.to_csv("Bus_data_gen_mappings.csv", index=False)
+
+# print some diagnostic info
+print(f"Missing the following counties: {missing_counties}")
+
+pass
+
+# mappings template:
+# mappings_dict = {
+#     "Land-Based Wind": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Solar - CSP": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Natural Gas_FE": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Coal_FE": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Biopower": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Nuclear": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Geothermal": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+#     "Solar - Utility PV": {"Source": None, "Good": None, "Avg": None, "NA": None, "RO": None},
+# }
+
+# PopPop the Power Optimization Possum says ౿ᓕ ̤Ꜥ·> --- "when at first you don't succeed, scream."
+# --- Land-based Wind ---
+# ***************************************************************************************************************************************************
+# - C.1 Rating      Workbook Classification
+# - Condition 1     Class 8
+# - Condition 2     Class 7
+# - Condition 3     Class 6
+# - Condition 4     Class 5
+# ***************************************************************************************************************************************************
+
+# --- Solar-CSP ---
+# ***************************************************************************************************************************************************
+# - C.1 Rating              Workbook Classification
+# - Good (7)                Class 2
+# - Good (6.75)             Class 2
+# - Average (6.5)           Class 3
+# - Below Average (6)       Class 7
+# - Below Average (5.75)    Class 7
+# - Poor (5.5               None
+# ***************************************************************************************************************************************************
+
+# --- NatGasCT ---
+# ***************************************************************************************************************************************************
+# - C.2 Rating      Workbook Classification
+# - Good/Avg/RO     NG F-Frame CT
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- NatGasCC ---
+# ***************************************************************************************************************************************************
+# - C.2 Rating      Workbook Classification
+# - Good            NG Combined Cycle (H-Frame) Max CCS
+# - Avg             H-FrameCC95CCS
+# - RO              None
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- Coal_FE ---
+# ***************************************************************************************************************************************************
+# - C.2 Rating      Workbook Classification
+# - Good            None (ignore new, newTo2ndGen, newToTT, CCS95, CCS95To2ndGen, CCS95ToTT, MaxCCS, MaxCCSTo2ndGen, MaxCCSToTT, IGCC)
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- Biopower ---
+# ***************************************************************************************************************************************************
+# - C.2 Rating      Workbook Classification
+# - Good            Biopower - Dedicated
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- Nuclear ---
+# ***************************************************************************************************************************************************
+# - C.2 Rating      Workbook Classification
+# - Good            Nuclear - Small Modular Reactor (pretend AP1000 isn't a thing)
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- Geothermal ---
+# ***************************************************************************************************************************************************
+# - C.1 Rating      Workbook Classification
+# - High            Geothermal - NF EGS / Binary (Ignore HydroFlash, HydroBinary, NFEGSFlash)
+# - NA              None
+# ***************************************************************************************************************************************************
+
+# --- Solar - Utility PV ---
+# ***************************************************************************************************************************************************
+# - C.1 Rating      Workbook Classification
+# - Very High       Class 1
+# - High            Class 2
+# - Medium          Class 4
+# ***************************************************************************************************************************************************
+
 
 # tech_baseline_to_suitability_map
 
@@ -74,13 +288,13 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Generation Type (Workbook)    Generation Type (Table C.1)     Generation Type (Table C.2)     Resource Classification (Workbook)                                                                          Resource Rating (Table C.1)         Technology Rating (Table C.2)
 # Land-based Wind               Wind Cond.                      Wind                            Class 1-10 (lower is better)                                                                                Poor (1) - Very Good (7)            Good, Avg., NA
 # Solar-CSP                     Solar Thermal Condition         Solar Thermal                   Class 2, 3, or 7 (lower is better)                                                                          5.5, 5.75, 6, 6.5, 6.75, 7          Good, Avg., NA
-# Natural Gas_FE                Gas Pipeline Density/Capacity   NatGasCT                        F-FrameCT                                                                                                   H, M, L, VL                         Good, Avg., RO, NA
-# Natural Gas_FE                Gas Pipeline Density/Capacity   NatGasCC                        G-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, H-FrameCCMaxCCS                      H, M, L, VL                         Good, Avg., RO, NA
-# Natural Gas_FE                Surface Water                   NatGasCC                        G-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, H-FrameCCMaxCCS                      H, M, L, VL                         Good, Avg., RO, NA
+# Natural Gas_FE                Gas Pipeline Density/Capacity   NatGasCT                        NG F-Frame CT                                                                                                   H, M, L, VL                         Good, Avg., RO, NA
+# Natural Gas_FE                Gas Pipeline Density/Capacity   NatGasCC                        G-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, NG Combined Cycle (H-Frame) Max CCS                      H, M, L, VL                         Good, Avg., RO, NA
+# Natural Gas_FE                Surface Water                   NatGasCC                        G-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, NG Combined Cycle (H-Frame) Max CCS                      H, M, L, VL                         Good, Avg., RO, NA
 # Coal_FE                       Railroad Density                Coal                            new, newTo2ndGen, newToTT, CCS95, CCS95To2ndGen, CCS95ToTT, MaxCCS, MaxCCSTo2ndGen, MaxCCSToTT, IGCC        H, M, L, VL                         Good, NA
-# Biopower                      Biomass                         Biomass                         Dedicated                                                                                                   H, M, L                             Good, NA
-# Nuclear                       Surface Water                   Nuclear                         AP1000, SmallModularReactor                                                                                 H, M, L, VL                         Good, NA
-# Geothermal                    Geothermal                      GeoThermal                      HydroFlash, HydroBinary, NFEGSFlash, NFEGSBinary, DeepEGSFlash, DeepEGSBinary                               H, M, NA                            Good, NA
+# Biopower                      Biomass                         Biomass                         Biopower - Dedicated                                                                                                   H, M, L                             Good, NA
+# Nuclear                       Surface Water                   Nuclear                         AP1000, Nuclear - Small Modular Reactor                                                                                 H, M, L, VL                         Good, NA
+# Geothermal                    Geothermal                      GeoThermal                      HydroFlash, HydroBinary, NFEGSFlash, Geothermal - NF EGS / Binary, DeepEGSFlash, DeepEGSBinary                               H, M, NA                            Good, NA
 # Solar - Utility PV            Solar PV                        SolarPV                         Class 1-10 (lower is better)                                                                                VH, H, M                            Good, Avg.
 
 # need to combine ratings to say is the RESOURCE AVAILABLE and is the TECHNOLOGY SUITABLE and then map that to the PRICE of THINGS for that County
@@ -91,6 +305,24 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Resource Rating also has a class rating, BUT it's reversed: "zone 1" is the worst, "zone 7" is the best. Table C.1: Condition Rating (CR) 1-7
 # Mapping the counties together we can align the Condition Rating with the Technology Rating and get NA = 1, "Avg" == 2, "Good" == 3 or 4.
 # For sake of argument, Let's just assume that CR1 --> Class10, CR2 --> Class9, etc.
+# Finally found a wind map: https://www.nrel.gov/grid/assets/images/wtk-100-north-america-50-nm-with-data-extents-01.jpg
+# Of course the bins don't match anything else
+# East texas is 6-6.9 m/s. That's either Class 9 or Class 8. Should map to "Wind Condition 1".
+# 7-7.9 maps to Wind Condition 2 (ish), which maps to Class 7 or Class 6
+# darkest blue on the map is 8.0-8.9, which is clearly Wind Condition 4 (there's not higher level on the map really), which should be Class 5-2. OOF.
+# That leaves Wind Condition 3, which means we should put Class 6 here. Which means:
+# Condition 4 --> Good  --> Class 5
+# Condition 3 --> Good --> Class 6
+# Condition 2 --> Avg --> Class 7
+# Condition 1 --> NA --> Class 8
+# ***************************************************************************************************************************************************
+# - C.1 Rating      Workbook Classification
+# - Condition 1     Class 8
+# - Condition 2     Class 7
+# - Condition 3     Class 6
+# - Condition 4     Class 5
+# ***************************************************************************************************************************************************
+
 
 # --- Solar-CSP ---
 # The Resource Rating here is actually decent, and is measured in kWh/m^2/day. This is actually useful. Praise be.
@@ -123,7 +355,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # NatGasCT is easy: there is only one mapping you can do.
 # ***************************************************************************************************************************************************
 # - C.2 Rating      Workbook Classification
-# - Good/Avg/RO     F-FrameCT
+# - Good/Avg/RO     NG F-Frame CT
 # - NA              None
 # ***************************************************************************************************************************************************
 
@@ -134,10 +366,10 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # CCS evolves upwards, either it's "normal" or it's 95% or it's "Max" (97%).
 # How any of that maps to either Surface Water or to Pipeline Density is completely lost on me.
 # Not solving now. Placeholder mapping
-# F-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, H-FrameCCMaxCCS
+# F-FrameCC, H-FrameCC, F-FrameCC95CCS, H-FrameCC95CCS, F-FrameCCMaxCCS, NG Combined Cycle (H-Frame) Max CCS
 # ***************************************************************************************************************************************************
 # - C.2 Rating      Workbook Classification
-# - Good            H-FrameCCMaxCCS
+# - Good            NG Combined Cycle (H-Frame) Max CCS
 # - Avg             H-FrameCC95CCS
 # - RO              None
 # - NA              None
@@ -158,7 +390,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Biopower is also easy, there's only one mapping. Either it's there or not.
 # ***************************************************************************************************************************************************
 # - C.2 Rating      Workbook Classification
-# - Good            Dedicated
+# - Good            Biopower - Dedicated
 # - NA              None
 # ***************************************************************************************************************************************************
 
@@ -166,7 +398,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Nuclear also needs more information to be useful, but we can at least pick one.
 # ***************************************************************************************************************************************************
 # - C.2 Rating      Workbook Classification
-# - Good            SmallModularReactor (pretend AP1000 isn't a thing)
+# - Good            Nuclear - Small Modular Reactor (pretend AP1000 isn't a thing)
 # - NA              None
 # ***************************************************************************************************************************************************
 
@@ -186,7 +418,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # one. So let's just assign "Good" to something and NA to everything None
 # ***************************************************************************************************************************************************
 # - C.2 Rating      Workbook Classification
-# - High            NFEGSBinary (Ignore HydroFlash, HydroBinary, NFEGSFlash)
+# - High            Geothermal - NF EGS / Binary (Ignore HydroFlash, HydroBinary, NFEGSFlash)
 # - NA              None
 # ***************************************************************************************************************************************************
 
