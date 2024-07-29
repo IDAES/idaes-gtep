@@ -316,13 +316,11 @@ def add_investment_constraints(
             and investment_stage == 1
         ):
             b.genDisabled[gen].indicator_var.fix(True)
-            # b.genDisabled[gen].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
             b.genInstalled[gen].indicator_var.fix(True)
-            # b.genInstalled[gen].binary_indicator_var.fix(1)
     
     # JSC addn
     for bat in m.batteryStorageSystems:
@@ -331,13 +329,11 @@ def add_investment_constraints(
             and investment_stage == 1
         ):
             b.batDisabled[bat].indicator_var.fix(True)
-            # b.genDisabled[gen].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["storage"][bat]["in_service"] == True
             and investment_stage == 1
         ):
             b.batInstalled[bat].indicator_var.fix(True)
-            # b.genInstalled[gen].binary_indicator_var.fix(1)
 
     for branch in m.transmission:
         if (
@@ -345,13 +341,11 @@ def add_investment_constraints(
             and investment_stage == 1
         ):
             b.branchDisabled[branch].indicator_var.fix(True)
-            # b.branchDisabled[branch].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["branch"][branch]["in_service"] == True
             and investment_stage == 1
         ):
             b.branchInstalled[branch].indicator_var.fix(True)
-            # b.branchInstalled[branch].binary_indicator_var.fix(1)
 
     # Planning reserve requirement constraint
     ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
@@ -445,6 +439,8 @@ def add_investment_constraints(
                     .commitmentPeriod[com_per]
                     .operatingCostCommitment
                 )
+                
+        return m.investmentFactor[investment_stage] * operatingCostRepresentative
     
     # JSC addn            
     @b.Expression()
@@ -538,6 +534,44 @@ def add_investment_constraints(
             b.renewableCurtailmentInvestment
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
+    
+    
+    # # JSC Addn. Enforce identical storage level at beginning and end of representative periods
+    # @b.Constraint(b.representativePeriods, m.batteryStorageSystems)
+    # def consistent_battery_charge_level_commitment(b, rep_per, bat):
+
+    #     return (
+            
+    #             b.representativePeriod[rep_per]
+    #             .commitmentPeriod[
+    #                 b.representativePeriod[rep_per]
+    #                 .commitmentPeriods.first()
+    #                 ]
+    #                 .dispatchPeriod[
+    #                     b.representativePeriod[rep_per]
+    #                     .commitmentPeriod[
+    #                         b.representativePeriod[rep_per]
+    #                         .commitmentPeriods.first()
+    #                         ]
+    #                         .dispatchPeriods.first()
+    #                     ]
+    #                     .batteryChargeLevel[bat]
+    #              == 
+    #              b.representativePeriod[rep_per]
+    #              .commitmentPeriod[
+    #                  b.representativePeriod[rep_per]
+    #                  .commitmentPeriods.last()
+    #                  ]
+    #                  .dispatchPeriod[
+    #                      b.representativePeriod[rep_per]
+    #                      .commitmentPeriod[
+    #                          b.representativePeriod[rep_per]
+    #                          .commitmentPeriods.last()
+    #                          ]
+    #                          .dispatchPeriods.last()
+    #                      ]
+    #                      .batteryChargeLevel[bat]
+    #     )
 
 
 def add_dispatch_variables(
@@ -583,6 +617,9 @@ def add_dispatch_variables(
     # the charging or discharging state
     def battery_charge_limits(b, bat):
         return(0, m.batteryCapacity[bat])
+    
+    def battery_discharge_limits(b, bat):
+        return(0, m.batteryCapacity[bat])
 
     b.batteryCharged = Var(
         m.batteryStorageSystems,
@@ -595,7 +632,7 @@ def add_dispatch_variables(
     b.batteryDischarged = Var(
         m.batteryStorageSystems,
         domain=NonNegativeReals,
-        bounds=battery_charge_limits,
+        bounds=battery_discharge_limits,
         initialize=0,
         units=u.MW,
     )
@@ -652,12 +689,12 @@ def add_dispatch_variables(
     # JSC addn Per Battery Charging Cost
     @b.Expression(m.batteryStorageSystems)
     def batteryChargingCost(b, bat):
-        return b.batteryCharged[bat] * m.chargingCost[bat] # Verify charging cost exists
+        return b.batteryCharged[bat] * m.chargingCost[bat] 
 
     # JSC addn Per Battery Discharging Cost
     @b.Expression(m.batteryStorageSystems)
     def batteryDischargingCost(b, bat):
-        return b.batteryDischarged[bat] * m.dischargingCost[bat] # Verify discharging cost exists
+        return b.batteryDischarged[bat] * m.dischargingCost[bat] 
 
 
     # Track total dispatch values and costs
@@ -867,16 +904,16 @@ def add_dispatch_constraints(b, disp_per):
             if m.md.data["elements"]["generator"][gen]["bus"] == bus
         ]
         # JSC addn
-        # batts = [
-        #     bat for bat in m.batteryStorageSystems 
-        #     if m.md.data["elements"]["battery"][bat]["bus"] == bus
-        # ]
+        batts = [
+            bat for bat in m.batteryStorageSystems 
+            if m.md.data["elements"]["storage"][bat]["bus"] == bus
+        ]
         balance -= sum(b.powerFlow[i] for i in end_points)
         balance += sum(b.powerFlow[i] for i in start_points)
         balance += sum(b.thermalGeneration[g] for g in gens if g in m.thermalGenerators)
         # JSC addn
-        # balance += sum(b.batteryDischarged[bt] for bt in batts if bt in m.batteryStorageSystems)
-        # balance -= sum(b.batteryCharged[bt] for bt in batts if bt in m.batteryStorageSystems)
+        balance += sum(b.batteryDischarged[bt] for bt in batts)
+        balance -= sum(b.batteryCharged[bt] for bt in batts)
         balance += sum(
             b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
         )
@@ -886,8 +923,7 @@ def add_dispatch_constraints(b, disp_per):
 
     # Capacity factor constraint
     # NOTE: In comparison to reference work, this is *per renewable generator*
-    # JSC question: Do we add charging into this eqn? We don't want this to be 
-    # the only way to charge a generator, but we do want it as a way.
+    # JKS - charging costs from non-colocated plants?
     @b.Constraint(m.renewableGenerators)
     def capacity_factor(b, renewableGen):
         return (
@@ -1114,7 +1150,7 @@ def add_commitment_variables(b, commitment_period):
             )
         )
             
-    
+    # JSC Addn
     # Create constraints within disjunctions on battery storage status (charging/discharging/off)
     @b.Disjunct(m.batteryStorageSystems)
     def batDischarging(disj, bat):
@@ -1165,6 +1201,7 @@ def add_commitment_variables(b, commitment_period):
                 else Constraint.Skip
             )
         
+        # JSC Addn
         # Not sure if this is redundant and unnecessarily creating batteryCharged vars 
         # for dispatch periods where battery is not charging, or if this is necessary
         @disj.Constraint(b.dispatchPeriods)
@@ -1177,10 +1214,10 @@ def add_commitment_variables(b, commitment_period):
             return ( 
                     b.dispatchPeriod[disp_per].batteryChargeLevel[bat] == 
                     m.batteryRetentionRate[bat]*b.dispatchPeriod[disp_per-1].batteryChargeLevel[bat] -
-                    m.batteryDischargingEfficiency[bat]*b.dispatchPeriod[disp_per].batteryDischarged[bat]
+                    b.dispatchPeriod[disp_per].batteryDischarged[bat]
                     if disp_per != 1
                     else Constraint.Skip
-                ) # Does this need the efficiency parameter or is all of it discharged and the coefficient only needs to be in flow balance eqn
+                ) 
 
 
     @b.Disjunct(m.batteryStorageSystems)
@@ -1219,9 +1256,7 @@ def add_commitment_variables(b, commitment_period):
                 if disp_per != 1
                 else Constraint.Skip
             )
-        
-        # Not sure if this is redundant and unnecessarily creating batteryDischarged vars 
-        # for dispatch periods where battery is not discharging, or if this is necessary
+
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
             return b.dispatchPeriod[disp_per].batteryDischarged[bat] <= 0
@@ -1234,8 +1269,9 @@ def add_commitment_variables(b, commitment_period):
                     m.batteryRetentionRate[bat]*b.dispatchPeriod[disp_per-1].batteryChargeLevel[bat] +
                     m.batteryChargingEfficiency[bat]*b.dispatchPeriod[disp_per].batteryCharged[bat]
                     if disp_per != 1
-                    else Constraint.Skip
-                )
+                    else Constraint.Skip # Should this use the charge level from the previous commitment period or the initial state of charge?
+                    # or does the consistent_battery_charge_level_commitment handle this? 
+                ) # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
 
 
     @b.Disjunct(m.batteryStorageSystems)
@@ -1270,6 +1306,20 @@ def add_commitment_variables(b, commitment_period):
             disj.batDischarging[bat],
             disj.batOff[bat],
         ]
+    
+    # # JSC TEST: force batteries to charge or discharge
+    # @b.LogicalConstraint(m.batteryStorageSystems)
+    # def test(b, bat):
+    #     return lor(
+    #             i_p.batInstalled[bat].indicator_var, 
+    #             i_p.batOperational[bat].indicator_var,
+    #             i_p.batExtended[bat].indicator_var,
+    #         ).implies(
+    #             lor(
+    #                 b.batCharging[bat].indicator_var,
+    #                 b.batDischarging[bat].indicator_var
+    #                 )
+    #             )
 
     # bats cannot be committed unless they are operational or just installed
     @b.LogicalConstraint(m.batteryStorageSystems)
@@ -1284,7 +1334,7 @@ def add_commitment_variables(b, commitment_period):
                 i_p.batExtended[bat].indicator_var,
             )
         )
-            
+                    
 
 
 def add_commitment_constraints(
@@ -1422,8 +1472,7 @@ def commitment_period_rule(b, commitment_period):
             ]
             for load_n in m.md.data["elements"]["load"]
         }
-        # Testing
-        # print(m.loads)
+
     else:
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -1708,24 +1757,60 @@ def add_representative_period_constraints(b, rep_per):
             if commitmentPeriod != 1
             else LogicalConstraint.Skip
         )
-                
-    
-    # # Batteries cannot go below their minimum storage capacity; they must start
-    # # charging. JSC TODO: the dispatchPeriod and batOff vars are in different blocks - handle. I think this needs to be elsewhere.
-    # # Maybe move it into the batOff disjunct? This is also formulated incorrectly since it needs to change state over time
-    # @b.LogicalConstraint(b.commitmentPeriod, b.dispatchPeriod, m.batteryStorageSystems)
-    # def must_charge_when_at_min_capacity(b, comm_per, disp_per, bat):
-    #     return (
-    #         (
-    #         b.commitmentPeriod[comm_per - 1].batOff[bat] 
-    #         and m.batteryRetentionRate[bat]*b.commitmentPeriod[comm_per - 1].dispatchPeriod[disp_per].batteryChargeLevel[bat]
-    #             <= m.dischargeMin[bat] ).implies(b.commitmentPeriod[comm_per].batCharging[bat].indicator_var)
-    #         if commitmentPeriod != 1
-    #         else LogicalConstraint.Skip
-    #         )
 
+    # JSC Addn. Link battery charge level in consecutive commitment periods
+    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
+    def consistent_battery_charge_level_commitment(b, commitmentPeriod, bat):
 
-
+        return (
+                # Previous charge level less loss due to inefficiency
+                m.batteryRetentionRate[bat] * 
+                (
+                    b.commitmentPeriod[commitmentPeriod - 1]
+                    .dispatchPeriod
+                    [
+                        b.commitmentPeriod[commitmentPeriod - 1]
+                        .dispatchPeriods.last()
+                    ]
+                    .batteryChargeLevel[bat] 
+                ) +
+                # Amount charged in first dispatch period of new commitment period
+                (
+                    m.batteryChargingEfficiency[bat] * 
+                    (
+                        b.commitmentPeriod[commitmentPeriod - 1]
+                        .dispatchPeriod
+                        [
+                            b.commitmentPeriod[commitmentPeriod]
+                            .dispatchPeriods.first()
+                        ]
+                        .batteryCharged[bat] 
+                    )
+                ) - 
+                # Amount discharged in first dispatch period of new commitment period
+                (
+                    b.commitmentPeriod[commitmentPeriod - 1]
+                    .dispatchPeriod
+                    [
+                        b.commitmentPeriod[commitmentPeriod]
+                        .dispatchPeriods.first()
+                    ]
+                    .batteryDischarged[bat] 
+                )
+                == 
+                b.commitmentPeriod[commitmentPeriod].dispatchPeriod
+                [
+                    b.commitmentPeriod[commitmentPeriod]
+                    .dispatchPeriods.first()
+                    ]
+                .batteryChargeLevel[bat]
+            
+        if commitmentPeriod != 1
+        else Constraint.Skip
+        )
+        
+        
+        
 def representative_period_rule(
     b,
     representative_period,
@@ -1779,6 +1864,7 @@ def create_objective_function(m):
     renewable quota deficits, and curtailment)
     :param m: Pyomo GTEP model.
     """
+    
     if len(m.stages) > 1:
         m.operatingCost = sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
@@ -1882,11 +1968,12 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         )
         
     else:
-        
+        # TODO: assign remaining data below
         m.md.data["elements"]["storage"] = {
             "test_battery": {
                 "name": "ideas_spelled_wrong",
                 "bus": 3,
+                "generator": None,
                 "storage_type": "battery",
                 "energy_capacity": 100,
                 "initial_state_of_charge": 25,
@@ -1900,8 +1987,8 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                 "min_charge_rate": 5, 
                 "initial_charge_rate": 0,
                 "initial_discharge_rate": 0,
-                "charge_cost": 0.5, 
-                "discharge_cost": 0.1, 
+                "charge_cost": 0, 
+                "discharge_cost": 0, 
                 "retention_rate_60min": 0.95, 
                 "ramp_up_input_60min": 5, 
                 "ramp_down_input_60min": 5, 
@@ -1956,7 +2043,7 @@ def model_data_references(m):
         for thermalGen in m.thermalGenerators
     }
     
-    # JSC Addn - storage properties
+    # JSC Addn - storage properties - TODO add defaults
     m.batteryCapacity = {
         bat: m.md.data["elements"]["storage"][bat]["energy_capacity"] 
         for bat in m.batteryStorageSystems
@@ -2054,7 +2141,7 @@ def model_data_references(m):
     m.batteryInvestmentCost = {
         bat: 0
         for bat in m.batteryStorageSystems
-        }
+        } # Future not real cost: idealized DoE 10-yr targets or something
     
 
     # Maximum output of each renewable generator
@@ -2071,7 +2158,7 @@ def model_data_references(m):
 
     # A fraction of renewableCapacity representing fraction of capacity
     # that can be reliably counted toward planning reserve requirement
-    # TODO: WHAT HAVE I DONE HERE I HATE IT and JSC made it worse...
+    # TODO: WHAT HAVE I DONE HERE I HATE IT 
     m.renewableCapacityValue = {
         renewableGen: (
             0
@@ -2312,6 +2399,7 @@ def model_create_investment_stages(m, stages):
     #             if t_1 <= stage
     #         )
 
+    # TODO: Do we need these for branches and storage? Would guess yes, but branches seemed to work without it?
     # Linking generator investment status constraints
     @m.Constraint(m.stages, m.thermalGenerators)
     def gen_stats_link(m, stage, gen):
@@ -2327,6 +2415,44 @@ def model_create_investment_stages(m, stages):
             .indicator_var.get_associated_binary()
             - m.investmentStage[stage - 1]
             .genRetired[gen]
+            .indicator_var.get_associated_binary()
+            if stage != 1
+            else Constraint.Skip
+        )
+
+    @m.Constraint(m.stages, m.batteryStorageSystems)
+    def bat_stats_link(m, stage, bat):
+        return (
+            m.investmentStage[stage]
+            .batOperational[bat]
+            .indicator_var.get_associated_binary()
+            == m.investmentStage[stage - 1]
+            .batOperational[bat]
+            .indicator_var.get_associated_binary()
+            + m.investmentStage[stage - 1]
+            .batInstalled[bat]
+            .indicator_var.get_associated_binary()
+            - m.investmentStage[stage - 1]
+            .batRetired[bat]
+            .indicator_var.get_associated_binary()
+            if stage != 1
+            else Constraint.Skip
+        )
+    
+    @m.Constraint(m.stages, m.transmission)
+    def branch_stats_link(m, stage, branch):
+        return (
+            m.investmentStage[stage]
+            .branchOperational[branch]
+            .indicator_var.get_associated_binary()
+            == m.investmentStage[stage - 1]
+            .branchOperational[branch]
+            .indicator_var.get_associated_binary()
+            + m.investmentStage[stage - 1]
+            .branchInstalled[branch]
+            .indicator_var.get_associated_binary()
+            - m.investmentStage[stage - 1]
+            .branchRetired[branch]
             .indicator_var.get_associated_binary()
             if stage != 1
             else Constraint.Skip
@@ -2440,6 +2566,89 @@ def model_create_investment_stages(m, stages):
             .genInstalled[gen]
             .indicator_var.implies(
                 m.investmentStage[stage].genOperational[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+    
+    # If a bat is online at time t, it must have been online or installed at time t-1
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def consistent_battery_operation(m, stage, bat):
+        return (
+            m.investmentStage[stage]
+            .batOperational[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage - 1].batOperational[bat].indicator_var
+                | m.investmentStage[stage - 1].batInstalled[bat].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a bat is online at time t, it must be online, extended, or retired at time t+1
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def consistent_operation_battery_future(m, stage, bat):
+        return (
+            m.investmentStage[stage - 1]
+            .batOperational[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage].batOperational[bat].indicator_var
+                | m.investmentStage[stage].batExtended[bat].indicator_var
+                | m.investmentStage[stage].batRetired[bat].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # Retirement in period t-1 implies disabled in period t
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def full_battery_retirement(m, stage, bat):
+        return (
+            m.investmentStage[stage - 1]
+            .batRetired[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage].batDisabled[bat].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a bat is disabled at time t-1, it must stay disabled  at time t
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def consistent_battery_disabled(m, stage, bat):
+        return (
+            m.investmentStage[stage - 1]
+            .batDisabled[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage].batDisabled[bat].indicator_var
+                | m.investmentStage[stage].batInstalled[bat].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a bat is extended at time t-1, it must stay extended or be retired at time t
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def consistent_battery_extended(m, stage, bat):
+        return (
+            m.investmentStage[stage - 1]
+            .batExtended[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage].batExtended[bat].indicator_var
+                | m.investmentStage[stage].batRetired[bat].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # Installation in period t-1 implies operational in period t
+    @m.LogicalConstraint(m.stages, m.batteryStorageSystems)
+    def full_battery_investment(m, stage, bat):
+        return (
+            m.investmentStage[stage - 1]
+            .batInstalled[bat]
+            .indicator_var.implies(
+                m.investmentStage[stage].batOperational[bat].indicator_var
             )
             if stage != 1
             else LogicalConstraint.Skip
