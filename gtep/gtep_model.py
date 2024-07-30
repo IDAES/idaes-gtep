@@ -334,6 +334,7 @@ def add_investment_constraints(
             and investment_stage == 1
         ):
             b.batInstalled[bat].indicator_var.fix(True)
+            # Also initialize storage level 
 
     for branch in m.transmission:
         if (
@@ -536,7 +537,8 @@ def add_investment_constraints(
         )
     
     
-    # # JSC Addn. Enforce identical storage level at beginning and end of representative periods
+    # JSC Addn. Enforce identical storage level at beginning and end of representative periods
+    # Need to update to use init and end batteryChargeLevel?
     # @b.Constraint(b.representativePeriods, m.batteryStorageSystems)
     # def consistent_battery_charge_level_commitment(b, rep_per, bat):
 
@@ -556,21 +558,21 @@ def add_investment_constraints(
     #                         .dispatchPeriods.first()
     #                     ]
     #                     .batteryChargeLevel[bat]
-    #              == 
-    #              b.representativePeriod[rep_per]
-    #              .commitmentPeriod[
-    #                  b.representativePeriod[rep_per]
-    #                  .commitmentPeriods.last()
-    #                  ]
-    #                  .dispatchPeriod[
-    #                      b.representativePeriod[rep_per]
-    #                      .commitmentPeriod[
-    #                          b.representativePeriod[rep_per]
-    #                          .commitmentPeriods.last()
-    #                          ]
-    #                          .dispatchPeriods.last()
-    #                      ]
-    #                      .batteryChargeLevel[bat]
+    #               == 
+    #               b.representativePeriod[rep_per]
+    #               .commitmentPeriod[
+    #                   b.representativePeriod[rep_per]
+    #                   .commitmentPeriods.last()
+    #                   ]
+    #                   .dispatchPeriod[
+    #                       b.representativePeriod[rep_per]
+    #                       .commitmentPeriod[
+    #                           b.representativePeriod[rep_per]
+    #                           .commitmentPeriods.last()
+    #                           ]
+    #                           .dispatchPeriods.last()
+    #                       ]
+    #                       .batteryChargeLevel[bat]
     #     )
 
 
@@ -601,6 +603,7 @@ def add_dispatch_variables(
     def battery_capacity_limits(b, bat):
         return (m.minBatteryChargeLevel[bat], m.batteryCapacity[bat]) # The lower bound should be > 0 - data input
 
+    # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
     def init_battery_capacity(b, bat):
         return m.initBatteryChargeLevel[bat]
 
@@ -616,10 +619,10 @@ def add_dispatch_variables(
     # enforce that there are min & max charge/discharge levels if the bat is in
     # the charging or discharging state
     def battery_charge_limits(b, bat):
-        return(0, m.batteryCapacity[bat])
+        return(0, m.chargeMax[bat] * m.batteryCapacity[bat])
     
     def battery_discharge_limits(b, bat):
-        return(0, m.batteryCapacity[bat])
+        return(0, m.dischargeMax[bat] * m.batteryCapacity[bat])
 
     b.batteryCharged = Var(
         m.batteryStorageSystems,
@@ -1175,31 +1178,31 @@ def add_commitment_variables(b, commitment_period):
             )
         
 
-        # Ramp up limit constraints for fully on bats
-        @disj.Constraint(b.dispatchPeriods)
-        def discharge_ramp_up_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].batteryDischarged[bat]
-                - b.dispatchPeriod[disp_per - 1].batteryDischarged[bat]
-                <= m.batteryDischargingRampUpRates[bat]
-                * b.dispatchPeriod[disp_per].periodLength
-                * m.batteryCapacity[bat]
-                if disp_per != 1
-                else Constraint.Skip
-            )
+        # # Ramp up limit constraints for fully on bats
+        # @disj.Constraint(b.dispatchPeriods)
+        # def discharge_ramp_up_limits(disj, disp_per):
+        #     return (
+        #         b.dispatchPeriod[disp_per].batteryDischarged[bat]
+        #         - b.dispatchPeriod[disp_per - 1].batteryDischarged[bat]
+        #         <= m.batteryDischargingRampUpRates[bat]
+        #         * b.dispatchPeriod[disp_per].periodLength
+        #         * m.batteryCapacity[bat]
+        #         if disp_per != 1
+        #         else Constraint.Skip
+        #     )
 
-        # Ramp down limit constraints for fully on bats
-        @disj.Constraint(b.dispatchPeriods)
-        def discharge_ramp_down_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per - 1].batteryDischarged[bat]
-                - b.dispatchPeriod[disp_per].batteryDischarged[bat]
-                <= m.batteryDischargingRampDownRates[bat]
-                * b.dispatchPeriod[disp_per].periodLength
-                * m.batteryCapacity[bat]
-                if disp_per != 1
-                else Constraint.Skip
-            )
+        # # Ramp down limit constraints for fully on bats
+        # @disj.Constraint(b.dispatchPeriods)
+        # def discharge_ramp_down_limits(disj, disp_per):
+        #     return (
+        #         b.dispatchPeriod[disp_per - 1].batteryDischarged[bat]
+        #         - b.dispatchPeriod[disp_per].batteryDischarged[bat]
+        #         <= m.batteryDischargingRampDownRates[bat]
+        #         * b.dispatchPeriod[disp_per].periodLength
+        #         * m.batteryCapacity[bat]
+        #         if disp_per != 1
+        #         else Constraint.Skip
+        #     )
         
         # JSC Addn
         # Not sure if this is redundant and unnecessarily creating batteryCharged vars 
@@ -1240,22 +1243,22 @@ def add_commitment_variables(b, commitment_period):
             )
         
 
-        # Ramp up constraints for bats charging
-        ## TODO: is this max necessary? I would like to remove
-        @disj.Constraint(b.dispatchPeriods)
-        def charge_ramp_up_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].batteryCharged[bat]
-                - b.dispatchPeriod[disp_per - 1].batteryCharged[bat]
-                <= max(
-                    m.chargeMin[bat],
-                    m.batteryChargingRampUpRates[bat]
-                    * b.dispatchPeriod[disp_per].periodLength,
-                )
-                * m.batteryCapacity[bat]
-                if disp_per != 1
-                else Constraint.Skip
-            )
+        # # Ramp up constraints for bats charging
+        # ## TODO: is this max necessary? I would like to remove
+        # @disj.Constraint(b.dispatchPeriods)
+        # def charge_ramp_up_limits(disj, disp_per):
+        #     return (
+        #         b.dispatchPeriod[disp_per].batteryCharged[bat]
+        #         - b.dispatchPeriod[disp_per - 1].batteryCharged[bat]
+        #         <= max(
+        #             m.chargeMin[bat],
+        #             m.batteryChargingRampUpRates[bat]
+        #             * b.dispatchPeriod[disp_per].periodLength,
+        #         )
+        #         * m.batteryCapacity[bat]
+        #         if disp_per != 1
+        #         else Constraint.Skip
+        #     )
 
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
@@ -1269,11 +1272,11 @@ def add_commitment_variables(b, commitment_period):
                     m.batteryRetentionRate[bat]*b.dispatchPeriod[disp_per-1].batteryChargeLevel[bat] +
                     m.batteryChargingEfficiency[bat]*b.dispatchPeriod[disp_per].batteryCharged[bat]
                     if disp_per != 1
-                    else Constraint.Skip # Should this use the charge level from the previous commitment period or the initial state of charge?
-                    # or does the consistent_battery_charge_level_commitment handle this? 
+                    else Constraint.Skip 
                 ) # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
 
 
+    # TODO: fix from testing
     @b.Disjunct(m.batteryStorageSystems)
     def batOff(disj, bat):
         b = disj.parent_block()
@@ -1282,12 +1285,12 @@ def add_commitment_variables(b, commitment_period):
         # to the grid
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].batteryDischarged[bat] <= 0
+            return b.dispatchPeriod[disp_per].batteryDischarged[bat] == 0
 
         # Batteries that are off cannot charge
         @disj.Constraint(b.dispatchPeriods)
         def no_charge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].batteryCharged[bat] <= 0
+            return b.dispatchPeriod[disp_per].batteryCharged[bat] == 0
         
         # Batteries that are off still lose energy, and none goes to the grid
         @disj.Constraint(b.dispatchPeriods)
@@ -1295,6 +1298,10 @@ def add_commitment_variables(b, commitment_period):
             return ( 
                     b.dispatchPeriod[disp_per].batteryChargeLevel[bat] == 
                     m.batteryRetentionRate[bat]*b.dispatchPeriod[disp_per-1].batteryChargeLevel[bat]
+                    # +
+                    # m.batteryChargingEfficiency[bat]*b.dispatchPeriod[disp_per].batteryCharged[bat]
+                    # -
+                    # b.dispatchPeriod[disp_per].batteryDischarged[bat]
                     if disp_per != 1
                     else Constraint.Skip
                 )
@@ -1761,24 +1768,64 @@ def add_representative_period_constraints(b, rep_per):
     # JSC Addn. Link battery charge level in consecutive commitment periods
     @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
     def consistent_battery_charge_level_commitment(b, commitmentPeriod, bat):
-
-        return (
-                # Previous charge level less loss due to inefficiency
-                m.batteryRetentionRate[bat] * 
-                (
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .dispatchPeriod
-                    [
+        if commitmentPeriod != 1:
+            return (
+                    
+                    m.batteryRetentionRate[bat] * 
+                    (
                         b.commitmentPeriod[commitmentPeriod - 1]
-                        .dispatchPeriods.last()
-                    ]
-                    .batteryChargeLevel[bat] 
-                ) +
+                        .dispatchPeriod
+                        [
+                            b.commitmentPeriod[commitmentPeriod - 1]
+                            .dispatchPeriods.last()
+                        ]
+                        .batteryChargeLevel[bat] 
+                    ) +
+                    # Amount charged in first dispatch period of new commitment period
+                    (
+                        m.batteryChargingEfficiency[bat] * 
+                        (
+                            b.commitmentPeriod[commitmentPeriod]
+                            .dispatchPeriod
+                            [
+                                b.commitmentPeriod[commitmentPeriod]
+                                .dispatchPeriods.first()
+                            ]
+                            .batteryCharged[bat] 
+                        )
+                    ) - 
+                    # Amount discharged in first dispatch period of new commitment period
+                    (
+                        b.commitmentPeriod[commitmentPeriod]
+                        .dispatchPeriod
+                        [
+                            b.commitmentPeriod[commitmentPeriod]
+                            .dispatchPeriods.first()
+                        ]
+                        .batteryDischarged[bat] 
+                    )
+                    == 
+                    b.commitmentPeriod[commitmentPeriod].dispatchPeriod
+                    [
+                        b.commitmentPeriod[commitmentPeriod]
+                        .dispatchPeriods.first()
+                        ]
+                    .batteryChargeLevel[bat]
+                )
+        
+        else: 
+            # Initial value for each representative period.
+            # Will constraints linking the representative period force 
+            # a small amount of charging to offset the retention drop?
+            return (
+                # Initial charge level (data input)
+                m.initBatteryChargeLevel[bat]
+                +
                 # Amount charged in first dispatch period of new commitment period
                 (
                     m.batteryChargingEfficiency[bat] * 
                     (
-                        b.commitmentPeriod[commitmentPeriod - 1]
+                        b.commitmentPeriod[commitmentPeriod]
                         .dispatchPeriod
                         [
                             b.commitmentPeriod[commitmentPeriod]
@@ -1789,7 +1836,7 @@ def add_representative_period_constraints(b, rep_per):
                 ) - 
                 # Amount discharged in first dispatch period of new commitment period
                 (
-                    b.commitmentPeriod[commitmentPeriod - 1]
+                    b.commitmentPeriod[commitmentPeriod]
                     .dispatchPeriod
                     [
                         b.commitmentPeriod[commitmentPeriod]
@@ -1797,17 +1844,19 @@ def add_representative_period_constraints(b, rep_per):
                     ]
                     .batteryDischarged[bat] 
                 )
-                == 
-                b.commitmentPeriod[commitmentPeriod].dispatchPeriod
-                [
-                    b.commitmentPeriod[commitmentPeriod]
-                    .dispatchPeriods.first()
-                    ]
-                .batteryChargeLevel[bat]
-            
-        if commitmentPeriod != 1
-        else Constraint.Skip
-        )
+                
+                
+                 == 
+                 (
+                     b.commitmentPeriod[commitmentPeriod].dispatchPeriod
+                     [
+                         b.commitmentPeriod[commitmentPeriod]
+                         .dispatchPeriods.first()
+                     ]
+                     .batteryChargeLevel[bat]
+                 )
+            )
+        
         
         
         
@@ -1976,24 +2025,24 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                 "generator": None,
                 "storage_type": "battery",
                 "energy_capacity": 100,
-                "initial_state_of_charge": 25,
+                "initial_state_of_charge": 50, # JSC TODO: modified for analysis (25)
                 "end_state_of_charge": 25,
                 "minimum_state_of_charge": 5,
-                "charge_efficiency": 0.9,
-                "discharge_efficiency": 0.9,
-                "max_discharge_rate": 25, 
-                "min_discharge_rate": 5, 
-                "max_charge_rate": 25, 
-                "min_charge_rate": 5, 
+                "charge_efficiency": 1, # JSC TODO: modified for analysis (0.9)
+                "discharge_efficiency": 1, # JSC TODO: modified for analysis (0.9)
+                "max_discharge_rate": 0.5, 
+                "min_discharge_rate": 0.01, 
+                "max_charge_rate": 0.5, 
+                "min_charge_rate": 0.01, 
                 "initial_charge_rate": 0,
                 "initial_discharge_rate": 0,
                 "charge_cost": 0, 
                 "discharge_cost": 0, 
-                "retention_rate_60min": 0.95, 
-                "ramp_up_input_60min": 5, 
-                "ramp_down_input_60min": 5, 
-                "ramp_up_output_60min": 5,
-                "ramp_down_output_60min": 5, 
+                "retention_rate_60min": 1, # JSC TODO: modified for analysis (0.95)
+                "ramp_up_input_60min": 0.1, 
+                "ramp_down_input_60min": 0.1, 
+                "ramp_up_output_60min": 0.1,
+                "ramp_down_output_60min": 0.1, 
                 "in_service": True,
                 "capital_multiplier": 1, 
                 "extension_multiplier": 1}} # Thermal generator fuel costs are on [0.5,1.5]; renewables have no fuel cost. What should go here?
