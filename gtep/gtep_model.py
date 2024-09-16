@@ -25,7 +25,7 @@ from math import ceil
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
-rng = np.random.default_rng()
+rng = np.random.default_rng(seed=123186)
 
 ####################################
 ########## New Work Here ###########
@@ -289,7 +289,7 @@ def add_investment_constraints(
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
-            b.genInstalled[gen].indicator_var.fix(True)
+            b.genOperational[gen].indicator_var.fix(True)
             # b.genInstalled[gen].binary_indicator_var.fix(1)
 
     for branch in m.transmission:
@@ -303,7 +303,7 @@ def add_investment_constraints(
             m.md.data["elements"]["branch"][branch]["in_service"] == True
             and investment_stage == 1
         ):
-            b.branchInstalled[branch].indicator_var.fix(True)
+            b.branchOperational[branch].indicator_var.fix(True)
             # b.branchInstalled[branch].binary_indicator_var.fix(1)
 
     # Planning reserve requirement constraint
@@ -723,7 +723,7 @@ def add_dispatch_constraints(b, disp_per):
     # all generators always on (???)
 
     for key in m.loads.keys():
-        m.loads[key] *= max(0, rng.normal(1.0, 0.4))
+        m.loads[key] *= max(0, rng.normal(0.5, 0.2))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
