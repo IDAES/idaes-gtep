@@ -33,6 +33,7 @@ def _get_model_config():
             description="Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
+    CONFIG.declare("dispatch_randomizations", ConfigValue(default=True, domain=Bool, description="Introduces random dispatch information rather than having fixed values per-commitment period."))
     return CONFIG
 
 
