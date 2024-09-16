@@ -19,6 +19,7 @@ import numpy as np
 import numpy as np
 
 from math import ceil
+from config_options import _get_model_config
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
@@ -51,6 +52,7 @@ class ExpansionPlanningModel:
 
     def __init__(
         self,
+        config=None,
         stages=1,
         formulation=None,
         data=None,
@@ -78,6 +80,7 @@ class ExpansionPlanningModel:
         self.len_reps = len_reps
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
+        self.config = _get_model_config()
         self.timer = TicTocTimer()
 
     def create_model(self):
