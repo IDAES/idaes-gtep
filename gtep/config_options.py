@@ -7,7 +7,7 @@ from pyomo.common.config import (
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
-    Bool
+    Bool,
 )
 from pyomo.common.deprecation import deprecation_warning
 
@@ -33,7 +33,14 @@ def _get_model_config():
             description="Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
-    CONFIG.declare("dispatch_randomizations", ConfigValue(default=True, domain=Bool, description="Introduces random dispatch information rather than having fixed values per-commitment period."))
+    CONFIG.declare(
+        "dispatch_randomizations",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Introduces random dispatch information rather than having fixed values per-commitment period.",
+        ),
+    )
     return CONFIG
 
 
@@ -42,10 +49,36 @@ def _add_common_configs(CONFIG):
 
 
 def _add_investment_configs(CONFIG):
-    CONFIG.declare("thermal_generation", ConfigValue(default=False, domain=Bool, description="Include thermal generation investment options"))
-    CONFIG.declare("renewable_generation", ConfigValue(default=False, domain=Bool, description="Include renewable generation investment options"))
-    CONFIG.declare("storage", ConfigValue(default=False, domain=Bool, description="Include storage investment options"))
-    CONFIG.declare("transmission", ConfigValue(default=False, domain=Bool, description="Include transmission investment options"))
+    CONFIG.declare(
+        "thermal_generation",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include thermal generation investment options",
+        ),
+    )
+    CONFIG.declare(
+        "renewable_generation",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include renewable generation investment options",
+        ),
+    )
+    CONFIG.declare(
+        "storage",
+        ConfigValue(
+            default=False, domain=Bool, description="Include storage investment options"
+        ),
+    )
+    CONFIG.declare(
+        "transmission",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include transmission investment options",
+        ),
+    )
     pass
 
 
