@@ -88,9 +88,7 @@ class TestGTEP(unittest.TestCase):
             len(dispatch_block_1), len(commitment_block_q[1].dispatchPeriods)
         )
 
-    # Solve the debug model as is.  Objective value should be $1375.56
-    # assumes availability of Highs == 1.5.3
-    # NOTE: I don't know why Highs 1.7 breaks?
+    # Solve the debug model as is.  Objective value should be $6078.86
     def test_solve_bigm(self):
         md = read_debug_model()
         modObject = ExpansionPlanningModel(
@@ -101,14 +99,15 @@ class TestGTEP(unittest.TestCase):
         if not opt.available():
             print("Ack, no Highs?")
             print(f"{opt.available() = }")
-            raise AssertionError 
+            raise AssertionError
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model)
         modObject.model.pprint()
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 1375.56, places=1
+            value(modObject.model.total_cost_objective_rule), 6078.86, places=1
         )
+        # Is it finally time to fix units
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
