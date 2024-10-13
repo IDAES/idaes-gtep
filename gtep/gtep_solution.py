@@ -29,6 +29,7 @@ import matplotlib.path as mpath
 
 logger = logging.getLogger(__name__)
 
+
 # [TODO] inject units into plots
 class ExpansionPlanningSolution:
     def __init__(self):
@@ -58,7 +59,11 @@ class ExpansionPlanningSolution:
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
 
-        self.expressions = {expr.name: value(expr) for expr in gtep_model.model.component_data_objects(Expression) if ("Commitment" in expr.name) or ("Investment" in expr.name)}
+        self.expressions = {
+            expr.name: value(expr)
+            for expr in gtep_model.model.component_data_objects(Expression)
+            if ("Commitment" in expr.name) or ("Investment" in expr.name)
+        }
 
     def import_data_object(self, data_obj):
         self.data = data_obj.md
@@ -111,12 +116,18 @@ class ExpansionPlanningSolution:
 
             # handle binary
             if val[0].is_binary():
-                results_dict["solution_loader"]["primals"][tmp_key]['is_binary'] = val[0].is_binary()
+                results_dict["solution_loader"]["primals"][tmp_key]["is_binary"] = val[
+                    0
+                ].is_binary()
             # handle units, sometimes they dont have anything
             if val[0].get_units() is not None:
-                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[0].get_units().name
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = (
+                    val[0].get_units().name
+                )
             else:
-                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[0].get_units()
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[
+                    0
+                ].get_units()
 
         # renest "termination_condition" as a json-friendly dictionary
         # things are either vars (which have some sort of signifier in [] brackets) or are an attribute, which dont
@@ -137,19 +148,19 @@ class ExpansionPlanningSolution:
 
             # handle binary
             if val[0].is_binary():
-                tmp_dict['is_binary'] = val[0].is_binary()
-            
+                tmp_dict["is_binary"] = val[0].is_binary()
+
             # handle units, sometimes they dont have anything
             if val[0].get_units() is not None:
-                tmp_dict['units'] = val[0].get_units().name
+                tmp_dict["units"] = val[0].get_units().name
             else:
-                tmp_dict['units'] = val[0].get_units()
+                tmp_dict["units"] = val[0].get_units()
 
             # allocate the nested dictionary
             def nested_set(this_dict, key, val):
                 if len(key) > 1:
                     # check if it's a binary var and pull up one layer
-                    if key[1] == 'binary_indicator_var':
+                    if key[1] == "binary_indicator_var":
                         this_dict[key[0]] = val
                     else:
                         this_dict.setdefault(key[0], {})
@@ -183,7 +194,7 @@ class ExpansionPlanningSolution:
         # split out expressions
         self.expressions_tree = results_dict["expressions_tree"]
 
-        # mint the final dictionary to save 
+        # mint the final dictionary to save
         out_dict = {"data": self.data.data, "results": results_dict}
 
         self.primals_tree = results_dict["primals_tree"]
@@ -205,7 +216,9 @@ class ExpansionPlanningSolution:
                 relationships_dict[primal_name].add(primal_category)
 
             except IndexError as iEx:
-                print(f"[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: \"{iEx}\". Assigning as axuilary.")
+                print(
+                    f'[WARNING] discover_level_relationships has encountered an error: Attempted to split out {this_key}, failed with error: "{iEx}". Assigning as axuilary.'
+                )
 
         # convert sets to frozensets to be hashable
         for this_key in relationships_dict:
@@ -240,30 +253,70 @@ class ExpansionPlanningSolution:
                     # check if this is a variable by checking if it has a "value"
                     if "value" in period_dict["primals_by_name"][this_koi][this_voi]:
                         # if its an integer, cast it as a boolean for now
-                        if 'is_binary' in period_dict["primals_by_name"][this_koi][this_voi]:
-                            if period_dict["primals_by_name"][this_koi][this_voi]['is_binary']:
+                        if (
+                            "is_binary"
+                            in period_dict["primals_by_name"][this_koi][this_voi]
+                        ):
+                            if period_dict["primals_by_name"][this_koi][this_voi][
+                                "is_binary"
+                            ]:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                                    bool(round(period_dict["primals_by_name"][this_koi][this_voi]["value"])) # have to cast to int because there are floating point errors
+                                    bool(
+                                        round(
+                                            period_dict["primals_by_name"][this_koi][
+                                                this_voi
+                                            ]["value"]
+                                        )
+                                    )  # have to cast to int because there are floating point errors
                                 )
-                                units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
+                                units_dict.setdefault(
+                                    f"{this_koi}_{this_voi}_value",
+                                    period_dict["primals_by_name"][this_koi][this_voi][
+                                        "units"
+                                    ],
+                                )
                             else:
                                 df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                                    period_dict["primals_by_name"][this_koi][this_voi]["value"]
+                                    period_dict["primals_by_name"][this_koi][this_voi][
+                                        "value"
+                                    ]
                                 )
-                                units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
+                                units_dict.setdefault(
+                                    f"{this_koi}_{this_voi}_value",
+                                    period_dict["primals_by_name"][this_koi][this_voi][
+                                        "units"
+                                    ],
+                                )
                         else:
                             df_data_dict[f"{this_koi}_{this_voi}_value"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["value"]
-                        )
-                            units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
+                                period_dict["primals_by_name"][this_koi][this_voi][
+                                    "value"
+                                ]
+                            )
+                            units_dict.setdefault(
+                                f"{this_koi}_{this_voi}_value",
+                                period_dict["primals_by_name"][this_koi][this_voi][
+                                    "units"
+                                ],
+                            )
                         df_data_dict[f"{this_koi}_{this_voi}_lower_bound"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["bounds"][0]
+                            period_dict["primals_by_name"][this_koi][this_voi][
+                                "bounds"
+                            ][0]
                         )
-                        units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
+                        units_dict.setdefault(
+                            f"{this_koi}_{this_voi}_value",
+                            period_dict["primals_by_name"][this_koi][this_voi]["units"],
+                        )
                         df_data_dict[f"{this_koi}_{this_voi}_upper_bound"].append(
-                            period_dict["primals_by_name"][this_koi][this_voi]["bounds"][1]
+                            period_dict["primals_by_name"][this_koi][this_voi][
+                                "bounds"
+                            ][1]
                         )
-                        units_dict.setdefault(f"{this_koi}_{this_voi}_value",  period_dict["primals_by_name"][this_koi][this_voi]['units'])
+                        units_dict.setdefault(
+                            f"{this_koi}_{this_voi}_value",
+                            period_dict["primals_by_name"][this_koi][this_voi]["units"],
+                        )
 
         # try to make a DF, and if not just pass back an empty
         try:
@@ -272,50 +325,58 @@ class ExpansionPlanningSolution:
             data_df = data_df.fillna(value=np.nan)
             return data_df, units_dict
         except ValueError as vEx:
-            print(f"[WARNING] _level_relationship_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}")
+            print(
+                f"[WARNING] _level_relationship_dict_to_df_workhorse attempted to create dataframe and failed: {vEx}"
+            )
             return pd.DataFrame(), {}
 
-    def _plot_workhorse_relational(self,
-                                   level_key,
-                                   df,
-                                   keys,
-                                   vars,
-                                   parent_key_string,
-                                   pretty_title="Selected Data",
-                                   plot_bounds=False,
-                                   save_dir=".",
-                                   aspect_ratio=1):
-        
+    def _plot_workhorse_relational(
+        self,
+        level_key,
+        df,
+        keys,
+        vars,
+        parent_key_string,
+        pretty_title="Selected Data",
+        plot_bounds=False,
+        save_dir=".",
+        aspect_ratio=1,
+    ):
 
-        
         # figure out how big the plot needs to be
-        gridspec_height = 2*max(len(keys), len(vars))
+        gridspec_height = 2 * max(len(keys), len(vars))
         gridspec_width = 2
         fig_width_padding = 0
         fig_height_padding = 0
         max_figheight = 48
         total_periods = len(df[level_key])
-        key_gridspec_div = floor(gridspec_height/len(keys)) # number of gridspec heights a key plot can be
-        var_gridspec_div = floor(gridspec_height/len(vars)) # number of gridspec heights a var plot can be
+        key_gridspec_div = floor(
+            gridspec_height / len(keys)
+        )  # number of gridspec heights a key plot can be
+        var_gridspec_div = floor(
+            gridspec_height / len(vars)
+        )  # number of gridspec heights a var plot can be
 
         # to make things look nice, we dont want height or width to be more than twice the other
-        fig_width = (total_periods*gridspec_width*4)+fig_width_padding
+        fig_width = (total_periods * gridspec_width * 4) + fig_width_padding
         fig_width = min(max_figheight, fig_width)
-        fig_height = (2*gridspec_height)+fig_height_padding
-        if fig_width/fig_height > aspect_ratio:
-            fig_height = floor(fig_width/aspect_ratio)
-        elif fig_height/fig_width > aspect_ratio:
-            fig_width = floor(fig_height/aspect_ratio)
+        fig_height = (2 * gridspec_height) + fig_height_padding
+        if fig_width / fig_height > aspect_ratio:
+            fig_height = floor(fig_width / aspect_ratio)
+        elif fig_height / fig_width > aspect_ratio:
+            fig_width = floor(fig_height / aspect_ratio)
 
         # set up plot
-        fig = plt.figure(figsize=(fig_width,
-                                  fig_height),
-                                  tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+        fig = plt.figure(
+            figsize=(fig_width, fig_height), tight_layout=False
+        )  # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
         gs = fig.add_gridspec(gridspec_height, gridspec_width)
         # plot out the keys of interest
         ax_koi_list = []
         for ix_koi, this_koi in enumerate(keys):
-            ax_koi = fig.add_subplot(gs[(ix_koi*key_gridspec_div):((ix_koi+1)*key_gridspec_div), 0])
+            ax_koi = fig.add_subplot(
+                gs[(ix_koi * key_gridspec_div) : ((ix_koi + 1) * key_gridspec_div), 0]
+            )
             ax_koi_list.append(ax_koi)
 
             for iy, this_voi in enumerate(vars):
@@ -345,7 +406,9 @@ class ExpansionPlanningSolution:
         ax_voi_list = []
         # plot generations and curtailmentsagainst each outher
         for ix_voi, this_voi in enumerate(vars):
-            ax_voi = fig.add_subplot(gs[(ix_voi*var_gridspec_div):((ix_voi+1)*var_gridspec_div), 1])
+            ax_voi = fig.add_subplot(
+                gs[(ix_voi * var_gridspec_div) : ((ix_voi + 1) * var_gridspec_div), 1]
+            )
             ax_voi_list.append(ax_voi)
             for this_koi in keys:
                 ax_voi.plot(
@@ -372,56 +435,75 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+        )
         plt.close()
-        
-    def _plot_workhose_binaries(self, 
-                                level_key,
-                                df,
-                                keys,
-                                vars,
-                                parent_key_string,
-                                pretty_title="Selected Data",
-                                save_dir=".",):
-        
+
+    def _plot_workhose_binaries(
+        self,
+        level_key,
+        df,
+        keys,
+        vars,
+        parent_key_string,
+        pretty_title="Selected Data",
+        save_dir=".",
+    ):
+
         fig = plt.figure(figsize=(32, 16), tight_layout=False)
-        gs = fig.add_gridspec(1, 1) # only need 1 plot for now
+        gs = fig.add_gridspec(1, 1)  # only need 1 plot for now
         # if all the variables are binaries, we can assume that the vars are all binaries and the keys are all categories
         total_height = len(vars)
-        interstate_height = 1./(len(keys)+2)
-        width = 1 
+        interstate_height = 1.0 / (len(keys) + 2)
+        width = 1
         width_padding = 0.05
         ax_bins = fig.add_subplot(gs[:, :])
-        ax_bins.set_ylim([-0.5, total_height-0.5]) # set ylims to support bools
-        ax_bins.set_xlim([0.5, len(df[level_key])+0.5]) # set xlims to support bools
-        ax_bins.set_yticklabels([None]+list(vars))
+        ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
+        ax_bins.set_xlim([0.5, len(df[level_key]) + 0.5])  # set xlims to support bools
+        ax_bins.set_yticklabels([None] + list(vars))
         ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
         for axline_ix in range(total_height):
-            ax_bins.axhline(axline_ix+0.5, color='grey', linewidth=3,) # draw a seperator line between each level
+            ax_bins.axhline(
+                axline_ix + 0.5,
+                color="grey",
+                linewidth=3,
+            )  # draw a seperator line between each level
         for axline_ix in range(len(df[level_key])):
-            ax_bins.axvline(axline_ix+0.5, color='grey', linewidth=3, linestyle='dotted', alpha=0.5) # draw a seperator line between each level
+            ax_bins.axvline(
+                axline_ix + 0.5,
+                color="grey",
+                linewidth=3,
+                linestyle="dotted",
+                alpha=0.5,
+            )  # draw a seperator line between each level
 
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
-            line, = ax_bins.plot(
+            (line,) = ax_bins.plot(
                 [None],
                 [None],
                 label=f"{this_koi}",
                 linewidth=5,
             )
             for ix_var, this_voi in enumerate(vars):
-                for tx, is_it_on in zip(df[level_key], df[f"{this_koi}_{this_voi}_value"]):
+                for tx, is_it_on in zip(
+                    df[level_key], df[f"{this_koi}_{this_voi}_value"]
+                ):
                     if is_it_on:
-                        tmp_rect = plt.Rectangle([tx-0.5+width_padding, ((ix_var)+(interstate_height*(ix_key+1)))-0.5],
-                                                width-(width_padding*2),
-                                                interstate_height,
-                                                alpha=0.9,
-                                                edgecolor='black',
-                                                color=line.get_color())
+                        tmp_rect = plt.Rectangle(
+                            [
+                                tx - 0.5 + width_padding,
+                                ((ix_var) + (interstate_height * (ix_key + 1))) - 0.5,
+                            ],
+                            width - (width_padding * 2),
+                            interstate_height,
+                            alpha=0.9,
+                            edgecolor="black",
+                            color=line.get_color(),
+                        )
                         ax_bins.add_patch(tmp_rect)
-
-
 
         ax_bins.set_xlabel(f"{level_key} $[n]$")
         ax_bins.set_title("State Variable Time History")
@@ -430,10 +512,10 @@ class ExpansionPlanningSolution:
 
         fig.align_labels()
         fig.suptitle(f"{parent_key_string}")
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+        )
         plt.close()
-
-
 
     def _level_relationship_df_to_plot(
         self,
@@ -449,45 +531,81 @@ class ExpansionPlanningSolution:
     ):
 
         # [HACK] hard coding the generator state order, to be fixed later
-        config['order_gen_state'] = ['genOff', 'genShutdown', 'genStartup', 'genOn']
+        config["order_gen_state"] = ["genOff", "genShutdown", "genStartup", "genOn"]
+        config["order_gen_invest_state"] = [
+            "genDisabled",
+            "genRetired",
+            "genExtended",
+            "genInstalled",
+            "genOperational",
+        ]
+        config["order_branch_invest_state"] = [
+            "branchDisabled",
+            "branchRetired",
+            "branchExtended",
+            "branchInstalled",
+            "branchOperational",
+        ]
 
         # check if ALL the possible things to look at are binaries
         all_binaries = True
         for ix, this_voi in enumerate(vars):
             for iy, this_koi in enumerate(keys):
-                if not (df[f"{this_koi}_{this_voi}_value"].dtype == 'bool'):
+                if not (df[f"{this_koi}_{this_voi}_value"].dtype == "bool"):
                     all_binaries = False
                     break
         if all_binaries:
 
             # check the config to see if we have any overrides
-            if 'order_gen_state' in config:
+            if "order_gen_state" in config:
                 # check that everything can be mapped over
                 matched_config_override = True
                 for item in vars:
-                    if not item in config['order_gen_state']:
+                    if not item in config["order_gen_state"]:
                         matched_config_override = False
                         break
                 if matched_config_override:
-                    vars = config['order_gen_state']
+                    vars = config["order_gen_state"]
+            if "order_gen_invest_state" in config:
+                # check that everything can be mapped over
+                matched_config_override = True
+                for item in vars:
+                    if not item in config["order_gen_invest_state"]:
+                        matched_config_override = False
+                        break
+                if matched_config_override:
+                    vars = config["order_gen_invest_state"]
+            if "order_branch_invest_state" in config:
+                # check that everything can be mapped over
+                matched_config_override = True
+                for item in vars:
+                    if not item in config["order_branch_invest_state"]:
+                        matched_config_override = False
+                        break
+                if matched_config_override:
+                    vars = config["order_branch_invest_state"]
 
-            self._plot_workhose_binaries(level_key,
-                                         df,
-                                         keys,
-                                         vars,
-                                         parent_key_string,
-                                         pretty_title,
-                                         save_dir,)
-            
+            self._plot_workhose_binaries(
+                level_key,
+                df,
+                keys,
+                vars,
+                parent_key_string,
+                pretty_title,
+                save_dir,
+            )
+
         else:
-            self._plot_workhorse_relational(level_key,
-                                            df,
-                                            keys,
-                                            vars,
-                                            parent_key_string,
-                                            pretty_title,
-                                            plot_bounds,
-                                            save_dir)
+            self._plot_workhorse_relational(
+                level_key,
+                df,
+                keys,
+                vars,
+                parent_key_string,
+                pretty_title,
+                plot_bounds,
+                save_dir,
+            )
 
     def _expressions_plot_workhorse(
         self,
@@ -499,12 +617,14 @@ class ExpansionPlanningSolution:
     ):
         # go through a commitment period and parse out the dispatch periods
         # slice out all keys pertaining to dispatchPeriod
-        level_period_keys = [this_key for this_key in upper_level_dict.keys() if (level_key in this_key) ]
+        level_period_keys = [
+            this_key for this_key in upper_level_dict.keys() if (level_key in this_key)
+        ]
 
         # scan level period for keys that have values associated
         keys_of_vals_of_interest = []
         for this_key in upper_level_dict[level_period_keys[0]]:
-            if 'value' in upper_level_dict[level_period_keys[0]][this_key]:
+            if "value" in upper_level_dict[level_period_keys[0]][this_key]:
                 keys_of_vals_of_interest.append(this_key)
 
         print(keys_of_vals_of_interest)
@@ -514,21 +634,24 @@ class ExpansionPlanningSolution:
         if len(keys_of_vals_of_interest) > 0:
             # check all the periods and sort them out
             vals_dict = {}
-            
+
             for this_key in upper_level_dict:
-                level_period_number = int(re.split('\[|\]', this_key.split(level_key)[1])[1])
+                level_period_number = int(
+                    re.split("\[|\]", this_key.split(level_key)[1])[1]
+                )
                 vals_dict.setdefault(level_period_number, {})
                 for this_val_key in keys_of_vals_of_interest:
-                    vals_dict[level_period_number][this_val_key] = upper_level_dict[this_key][this_val_key]['value']
-
+                    vals_dict[level_period_number][this_val_key] = upper_level_dict[
+                        this_key
+                    ][this_val_key]["value"]
 
             print(vals_dict)
 
             # now pivot the dictionary to make a dataframe
             # make a dictionary where the keys are the top layer
-            df_dict = {key:[] for key in keys_of_vals_of_interest}
+            df_dict = {key: [] for key in keys_of_vals_of_interest}
             sorted_vals_period = sorted(vals_dict)
-            df_dict['period_number'] = sorted_vals_period
+            df_dict["period_number"] = sorted_vals_period
             for this_val_period in sorted_vals_period:
                 for this_key in keys_of_vals_of_interest:
                     df_dict[this_key].append(vals_dict[this_val_period][this_key])
@@ -539,40 +662,46 @@ class ExpansionPlanningSolution:
 
             # plot the DF
             # figure out how big the plot needs to be
-            gridspec_height = 2*len(keys_of_vals_of_interest)
+            gridspec_height = 2 * len(keys_of_vals_of_interest)
             gridspec_width = 2
             fig_width_padding = 0
             fig_height_padding = 0
             max_figheight = 48
             total_periods = len(expression_level_df)
-            key_gridspec_div = floor(gridspec_height/len(keys_of_vals_of_interest)) # number of gridspec heights a key plot can be
+            key_gridspec_div = floor(
+                gridspec_height / len(keys_of_vals_of_interest)
+            )  # number of gridspec heights a key plot can be
 
             # to make things look nice, we dont want height or width to be more than twice the other
-            fig_width = (total_periods*gridspec_width*4)+fig_width_padding
+            fig_width = (total_periods * gridspec_width * 4) + fig_width_padding
             fig_width = min(max_figheight, fig_width)
-            fig_height = (2*gridspec_height)+fig_height_padding
-            if fig_width/fig_height > 2:
-                fig_height = floor(fig_width/2)
-            elif fig_height/fig_width > 2:
-                fig_width = floor(fig_height/2)
+            fig_height = (2 * gridspec_height) + fig_height_padding
+            if fig_width / fig_height > 2:
+                fig_height = floor(fig_width / 2)
+            elif fig_height / fig_width > 2:
+                fig_width = floor(fig_height / 2)
 
             # set up plot
-            fig = plt.figure(figsize=(fig_width,
-                                    fig_height),
-                                    tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+            fig = plt.figure(
+                figsize=(fig_width, fig_height), tight_layout=False
+            )  # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
             gs = fig.add_gridspec(gridspec_height, gridspec_width)
             # plot out the keys of interest
-            
+
             pretty_title = "Expression"
-            
-            
+
             ax_koi_list = []
             for ix_koi, this_koi in enumerate(keys_of_vals_of_interest):
-                ax_koi = fig.add_subplot(gs[(ix_koi*key_gridspec_div):((ix_koi+1)*key_gridspec_div), :])
+                ax_koi = fig.add_subplot(
+                    gs[
+                        (ix_koi * key_gridspec_div) : ((ix_koi + 1) * key_gridspec_div),
+                        :,
+                    ]
+                )
                 ax_koi_list.append(ax_koi)
 
                 ax_koi.plot(
-                    expression_level_df['period_number'],
+                    expression_level_df["period_number"],
                     expression_level_df[this_koi],
                     label=f"{this_koi}",
                     marker="o",
@@ -585,14 +714,14 @@ class ExpansionPlanningSolution:
             ax_koi_list[-1].set_xlabel(f"{level_key} $[n]$")
             ax_koi_list[0].set_title(f"{pretty_title} by Type")
 
-
+            # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
             fig.align_labels()
             fig.suptitle(f"{parent_key_string}")
-            fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png")
+            fig.savefig(
+                f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}.png"
+            )
             plt.close()
-            
 
-        
     def _level_plot_workhorse(
         self,
         level_key,
@@ -604,12 +733,16 @@ class ExpansionPlanningSolution:
         # go through a commitment period and parse out the dispatch periods
         level_timeseries = []
         # slice out all keys pertaining to dispatchPeriod
-        level_period_keys = [this_key for this_key in upper_level_dict.keys() if (level_key in this_key) ]
+        level_period_keys = [
+            this_key for this_key in upper_level_dict.keys() if (level_key in this_key)
+        ]
         # aux_var_dict = {}
         for this_key in level_period_keys:
             level_period_dict = {}
             # cut out which dispatch period this is
-            level_period_number = int(re.split('\[|\]', this_key.split(level_key)[1])[1])
+            level_period_number = int(
+                re.split("\[|\]", this_key.split(level_key)[1])[1]
+            )
             # print(level_period_number)
 
             level_period_dict["period_number"] = level_period_number
@@ -631,20 +764,20 @@ class ExpansionPlanningSolution:
                     # - category: "commitmentPeriod"
                     # -     name: "1"
                     primal_category = this_primal.split("[")[0]
-                    primal_name = this_primal.split("[")[1].split("]")[0] 
-                    
+                    primal_name = this_primal.split("[")[1].split("]")[0]
+
                     # create one view that shares the categories, and one the shares the names
                     primals_by_category.setdefault(primal_category, {})
                     primals_by_name.setdefault(primal_name, {})
 
-                    primals_by_category[primal_category][primal_name] = (
-                        tmp_save_primal
-                    )
+                    primals_by_category[primal_category][primal_name] = tmp_save_primal
                     primals_by_name[primal_name][primal_category] = tmp_save_primal
 
                 except IndexError as iEx:
-                    print(f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_primal} from {this_key}, failed with error {iEx}. Skipping.")
-                    # aux_var_dict.setdefault(this_primal, []) 
+                    print(
+                        f"[WARNING] _level_plot_workhorse has encountered an error: Attempted to split out {this_primal} from {this_key}, failed with error {iEx}. Skipping."
+                    )
+                    # aux_var_dict.setdefault(this_primal, [])
                     # aux_var_dict[this_primal].append(this_key)
             level_period_dict["primals_by_category"] = primals_by_category
             level_period_dict["primals_by_name"] = primals_by_name
@@ -655,13 +788,16 @@ class ExpansionPlanningSolution:
         #     print(aux_var_primal_name, aux_var_category_name)
 
         # sort by the dispatch period number
-        level_timeseries = sorted(
-            level_timeseries, key=lambda x: x["period_number"]
-        )
+        level_timeseries = sorted(level_timeseries, key=lambda x: x["period_number"])
 
         # discover the relationships at the dispatch level
         # ASSUMES that all the dispatch levels have the exact same underlying variables and relationships
-        level_relationships = self.discover_level_relationships(upper_level_dict[level_period_keys[0]])
+        level_relationships = self.discover_level_relationships(
+            upper_level_dict[level_period_keys[0]]
+        )
+        # print("LEVEL RELATIONSHIPS DEBUG")
+        # print(level_relationships)
+        # print("END LEVEL RELATIONSHIPS DEBUG")
 
         # plot relationships
         for vars_of_interest, keys_of_interest in level_relationships.items():
@@ -671,10 +807,12 @@ class ExpansionPlanningSolution:
             tmp_koi = sorted(keys_of_interest)
 
             # make a df for debug and also easy tabularness for plots
-            this_df_of_interest, this_df_units = self._level_relationship_dict_to_df_workhorse(
-                level_key, level_timeseries, tmp_koi, tmp_voi
+            this_df_of_interest, this_df_units = (
+                self._level_relationship_dict_to_df_workhorse(
+                    level_key, level_timeseries, tmp_koi, tmp_voi
+                )
             )
-        
+
             # check if we got anything in the df
             if not this_df_of_interest.empty:
 
@@ -683,17 +821,19 @@ class ExpansionPlanningSolution:
 
                 # [HACK]
                 # if we find powerflow, plot it as a network
-                if 'powerFlow' in tmp_voi:
-                    self._plot_graph_workhorse(this_df_of_interest,
-                                               'powerFlow',
-                                               parent_key_string,
-                                               units=this_df_units,
-                                               pretty_title=this_pretty_title,
-                                               save_dir=save_dir,)
-    
+                if "powerFlow" in tmp_voi:
+                    self._plot_graph_workhorse(
+                        this_df_of_interest,
+                        "powerFlow",
+                        parent_key_string,
+                        units=this_df_units,
+                        pretty_title=this_pretty_title,
+                        save_dir=save_dir,
+                    )
+
                     # [HACK] put this back one indent level when done
                     ## tab this back and forth to do the things
-                    
+
                     # plot it
                 self._level_relationship_df_to_plot(
                     level_key,
@@ -703,19 +843,20 @@ class ExpansionPlanningSolution:
                     parent_key_string,
                     pretty_title=this_pretty_title,
                     save_dir=save_dir,
-                    plot_bounds=plot_bounds)
-                
-    
-    def _plot_graph_workhorse(self,
-                              df,
-                              value_key,
-                              parent_key_string,
+                    plot_bounds=plot_bounds,
+                )
 
-                              what_is_a_bus_called='branch', #'dc_branch',
-
-                              units=None,
-                              pretty_title="Selected Data",
-                              save_dir=".",):
+    # JSC update - 'dc_branch' to 'branch'
+    def _plot_graph_workhorse(
+        self,
+        df,
+        value_key,
+        parent_key_string,
+        what_is_a_bus_called="branch",  #'dc_branch',
+        units=None,
+        pretty_title="Selected Data",
+        save_dir=".",
+    ):
         # testing networkx plots
 
         # preslice out data of interest
@@ -732,127 +873,186 @@ class ExpansionPlanningSolution:
         G = nx.Graph()
         labels = {}
         # add nodes
-        for item in self.data.data['elements']['bus']:
+        for item in self.data.data["elements"]["bus"]:
             G.add_node(item)
             labels[item] = item
 
         # do edges manually later
 
         # set up plot
-        fig = plt.figure(figsize=(16, 8), tight_layout=False) # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
+        fig = plt.figure(
+            figsize=(16, 8), tight_layout=False
+        )  # (32, 16) works will for 4 plots tall and about 6 periods wide per plot
         ax_graph = fig.add_subplot()
         ax_graph.grid(False)
 
         # # add edges
         # for item in self.data.data['elements']['branch']:
         #     G.add_edge(self.data.data['elements']['branch'][item]['from_bus'], self.data.data['elements']['branch'][item]['to_bus'])
-    
+
         # G = nx.path_graph(5)
         graph_node_position_dict = nx.kamada_kawai_layout(G)
         # graph_node_position_dict = nx.planar_layout(G)
         # graph_node_position_dict = nx.spectral_layout(G)
-        nx.drawing.draw_networkx_nodes(G, graph_node_position_dict, node_size=1000, ax=ax_graph)
-        nx.draw_networkx_labels(G, graph_node_position_dict, labels, font_size=18, font_color="whitesmoke", ax=ax_graph)
+        nx.drawing.draw_networkx_nodes(
+            G, graph_node_position_dict, node_size=1000, ax=ax_graph
+        )
+        nx.draw_networkx_labels(
+            G,
+            graph_node_position_dict,
+            labels,
+            font_size=18,
+            font_color="whitesmoke",
+            ax=ax_graph,
+        )
 
-        def draw_single_edge_flow(item,
-                                  glyph_values_slice,
-                                  ax_graph,
-                                  cmap=cm.rainbow,
-                                  norm=Normalize(vmin=None, vmax=None),
-                                  glyph_type='custom'):
+        def draw_single_edge_flow(
+            item,
+            glyph_values_slice,
+            ax_graph,
+            cmap=cm.rainbow,
+            norm=Normalize(vmin=None, vmax=None),
+            glyph_type="custom",
+        ):
 
+            def generate_flow_glyphs(
+                num_glyphs,
+                spacing=0.05,
+                glyph_type="triangle",
+                glyph_rotation=0.0,
+                verts=3,
+            ):
 
-            def generate_flow_glyphs(num_glyphs,
-                                     spacing=0.05,
-                                     glyph_type='triangle',
-                                     glyph_rotation=0.,
-                                     verts=3):
-                
                 flow_glyphs = []
                 for this_block_ix in range(num_glyphs):
                     # normalizing this patch to 1
 
-                    #### 
+                    ####
                     # rectangle version
                     ####
-                    if glyph_type == 'rectangle':
+                    if glyph_type == "rectangle":
                         # anchor for rectangles are set to bottom left
-                        glyph_anchor_coord = [this_block_ix/float(num_glyphs), -.5]
+                        glyph_anchor_coord = [this_block_ix / float(num_glyphs), -0.5]
                         # height is y, width is x
-                        consistent_width = 1./float(num_glyphs)            
+                        consistent_width = 1.0 / float(num_glyphs)
                         # apply scaling
-                        x_nudge = consistent_width*(spacing)
+                        x_nudge = consistent_width * (spacing)
                         # nudge the start forward a bit (by the nudge factor)
-                        glyph_anchor_coord[0]+=x_nudge
-                        patch_width = consistent_width-x_nudge
+                        glyph_anchor_coord[0] += x_nudge
+                        patch_width = consistent_width - x_nudge
                         patch_height = 1
-                        flow_glyphs.append(Rectangle(glyph_anchor_coord,
-                                                        patch_width,
-                                                        patch_height))
+                        flow_glyphs.append(
+                            Rectangle(glyph_anchor_coord, patch_width, patch_height)
+                        )
 
-                    #### 
+                    ####
                     # triangle version
                     ####
-                    if glyph_type == 'triangle':
+                    if glyph_type == "triangle":
                         # triangles need to be in the center and then given a size
-                        glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
+                        glyph_anchor_coord = [
+                            (this_block_ix + 0.5) / float(num_glyphs),
+                            0,
+                        ]
                         glyph_verts = 3
-                        glyph_radius = (1./float(num_glyphs))/2.
+                        glyph_radius = (1.0 / float(num_glyphs)) / 2.0
                         # apply nudges
-                        glyph_radius *= (1-(spacing/2.))
-                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
-                                                        glyph_verts,
-                                                        radius=glyph_radius,
-                                                        orientation=glyph_rotation))
-                        
-                        yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
+                        glyph_radius *= 1 - (spacing / 2.0)
+                        flow_glyphs.append(
+                            RegularPolygon(
+                                glyph_anchor_coord,
+                                glyph_verts,
+                                radius=glyph_radius,
+                                orientation=glyph_rotation,
+                            )
+                        )
+
+                        yscale_transform = Affine2D().scale(sx=1, sy=0.5 / glyph_radius)
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(yscale_transform)
 
-                    #### 
+                    ####
                     # n-gon version
                     ####
-                    if glyph_type == 'n-gon':
+                    if glyph_type == "n-gon":
                         # triangles need to be in the center and then given a size
-                        glyph_anchor_coord = [(this_block_ix+.5)/float(num_glyphs), 0]
+                        glyph_anchor_coord = [
+                            (this_block_ix + 0.5) / float(num_glyphs),
+                            0,
+                        ]
                         glyph_verts = verts
-                        glyph_radius = (1./float(num_glyphs))/2.
+                        glyph_radius = (1.0 / float(num_glyphs)) / 2.0
                         # apply nudges
-                        glyph_radius *= (1-(spacing))
-                        flow_glyphs.append(RegularPolygon(glyph_anchor_coord,
-                                                        glyph_verts,
-                                                        radius=glyph_radius,
-                                                        orientation=glyph_rotation))
-                        
-                        yscale_transform = Affine2D().scale(sx=1, sy=0.5/glyph_radius)
+                        glyph_radius *= 1 - (spacing)
+                        flow_glyphs.append(
+                            RegularPolygon(
+                                glyph_anchor_coord,
+                                glyph_verts,
+                                radius=glyph_radius,
+                                orientation=glyph_rotation,
+                            )
+                        )
+
+                        yscale_transform = Affine2D().scale(sx=1, sy=0.5 / glyph_radius)
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(yscale_transform)
 
-                    #### 
+                    ####
                     # custom_flow
                     ####
-                    if glyph_type == 'custom':
+                    if glyph_type == "custom":
                         # anchor for rectangles are set to bottom left
-                        glyph_anchor_coord = [this_block_ix/float(num_glyphs), -.5]
+                        glyph_anchor_coord = [this_block_ix / float(num_glyphs), -0.5]
                         # height is y, width is x
-                        consistent_width = 1./float(num_glyphs)    
+                        consistent_width = 1.0 / float(num_glyphs)
                         # apply scaling
-                        x_nudge = consistent_width*(spacing)       
-                        patch_width = consistent_width-x_nudge
+                        x_nudge = consistent_width * (spacing)
+                        patch_width = consistent_width - x_nudge
                         patch_height = 1
-                        codes, verts = zip(*[
-                            (mpath.Path.MOVETO, glyph_anchor_coord),
-                            (mpath.Path.LINETO, [glyph_anchor_coord[0], glyph_anchor_coord[1]+patch_height]),
-                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width*.7, glyph_anchor_coord[1]+patch_height]), # go 70% of the width along the top
-                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width, glyph_anchor_coord[1]+patch_height*.5]), # go the rest of the width and meet in the center
-                            (mpath.Path.LINETO, [glyph_anchor_coord[0]+patch_width*.7, glyph_anchor_coord[1]]), # go back a bit and to the bottom to finish the wedge
-                            (mpath.Path.LINETO, glyph_anchor_coord)]) # go to home
+                        codes, verts = zip(
+                            *[
+                                (mpath.Path.MOVETO, glyph_anchor_coord),
+                                (
+                                    mpath.Path.LINETO,
+                                    [
+                                        glyph_anchor_coord[0],
+                                        glyph_anchor_coord[1] + patch_height,
+                                    ],
+                                ),
+                                (
+                                    mpath.Path.LINETO,
+                                    [
+                                        glyph_anchor_coord[0] + patch_width * 0.7,
+                                        glyph_anchor_coord[1] + patch_height,
+                                    ],
+                                ),  # go 70% of the width along the top
+                                (
+                                    mpath.Path.LINETO,
+                                    [
+                                        glyph_anchor_coord[0] + patch_width,
+                                        glyph_anchor_coord[1] + patch_height * 0.5,
+                                    ],
+                                ),  # go the rest of the width and meet in the center
+                                (
+                                    mpath.Path.LINETO,
+                                    [
+                                        glyph_anchor_coord[0] + patch_width * 0.7,
+                                        glyph_anchor_coord[1],
+                                    ],
+                                ),  # go back a bit and to the bottom to finish the wedge
+                                (mpath.Path.LINETO, glyph_anchor_coord),
+                            ]
+                        )  # go to home
 
-                        flow_glyphs.append(PathPatch(mpath.Path(verts, codes), ec="none"),)
+                        flow_glyphs.append(
+                            PathPatch(mpath.Path(verts, codes), ec="none"),
+                        )
 
-                        rotation_transofrm = Affine2D().rotate_around(glyph_anchor_coord[0]+patch_width*.5,
-                                                                      glyph_anchor_coord[1]+patch_height*.5,
-                                                                      glyph_rotation)
+                        rotation_transofrm = Affine2D().rotate_around(
+                            glyph_anchor_coord[0] + patch_width * 0.5,
+                            glyph_anchor_coord[1] + patch_height * 0.5,
+                            glyph_rotation,
+                        )
                         # rescale y to make it fit in a 1x1 box
                         flow_glyphs[-1].set_transform(rotation_transofrm)
 
@@ -866,46 +1066,76 @@ class ExpansionPlanningSolution:
             weights_top = glyph_values_slice
             weights_bot = glyph_values_slice
 
-            top_flow_glyphs = generate_flow_glyphs(len(weights_top), glyph_type=glyph_type)
+            top_flow_glyphs = generate_flow_glyphs(
+                len(weights_top), glyph_type=glyph_type
+            )
             top_facecolors = cmap(norm(weights_top))
-            top_flow_collection = PatchCollection(top_flow_glyphs, facecolors=top_facecolors, edgecolors='grey', alpha=0.5)
+            top_flow_collection = PatchCollection(
+                top_flow_glyphs, facecolors=top_facecolors, edgecolors="grey", alpha=0.5
+            )
             # bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi/2.)) # for squares
-            bot_flow_glyphs = generate_flow_glyphs(len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi)) # for custom
+            bot_flow_glyphs = generate_flow_glyphs(
+                len(weights_bot), glyph_type=glyph_type, glyph_rotation=(np.pi)
+            )  # for custom
             bot_flow_glyphs = reversed(bot_flow_glyphs)
             bot_facecolors = cmap(norm(weights_bot))
             # bot_flow_collection = PatchCollection(bot_flow_glyphs, facecolors=bot_facecolors, edgecolors='grey', alpha=0.5) # [HACK]
 
             # scale and move top and bottom collections
             # top_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, 0.5) #+ ax_graph.transData  # [HACK]
-            top_base_transform = Affine2D().scale(sx=1, sy=1.0) + Affine2D().translate(0, 0.0) #+ ax_graph.transData
+            top_base_transform = Affine2D().scale(sx=1, sy=1.0) + Affine2D().translate(
+                0, 0.0
+            )  # + ax_graph.transData
             top_flow_collection.set_transform(top_base_transform)
-            bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5)# + ax_graph.transData
+            bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(
+                0, -0.5
+            )  # + ax_graph.transData
             # bot_base_transform = Affine2D().scale(sx=1, sy=0.9) + Affine2D().translate(0, -0.5) + ax_graph.transData
             # bot_flow_collection.set_transform(bot_base_transform) # [HACK]
 
             # combine collections and move to edge between nodes
 
             # attempt to rotate
-            start_key = self.data.data['elements'][what_is_a_bus_called][item]['from_bus']
-            end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
+            start_key = self.data.data["elements"][what_is_a_bus_called][item][
+                "from_bus"
+            ]
+            end_key = self.data.data["elements"][what_is_a_bus_called][item]["to_bus"]
             start_pos = graph_node_position_dict[start_key]
             end_pos = graph_node_position_dict[end_key]
-            node_distance = np.linalg.norm(end_pos-start_pos)
-            rot_angle_rad = np.arctan2((end_pos[1]-start_pos[1]),(end_pos[0]-start_pos[0]))
+            node_distance = np.linalg.norm(end_pos - start_pos)
+            rot_angle_rad = np.arctan2(
+                (end_pos[1] - start_pos[1]), (end_pos[0] - start_pos[0])
+            )
 
             along_edge_scale = 0.4
             away_from_edge_scale = 0.1
             # set up transformations
             # stretch to the distance between target nodes
-            length_transform = Affine2D().scale(sx=node_distance*along_edge_scale, sy=1)
+            length_transform = Affine2D().scale(
+                sx=node_distance * along_edge_scale, sy=1
+            )
             # squish
             scale_transform = Affine2D().scale(sx=1, sy=away_from_edge_scale)
             # rotate
-            rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad)) 
+            rot_transform = Affine2D().rotate_deg(np.rad2deg(rot_angle_rad))
             # translate to the node start, then push it along the edge until it's apprximately centered and scaled nicely
-            translate_transform = Affine2D().translate(start_pos[0]+(np.cos(rot_angle_rad)*node_distance*.5*(1-along_edge_scale)),
-                                                    start_pos[1]+(np.sin(rot_angle_rad)*node_distance*.5*(1-along_edge_scale)))
-            t2 = length_transform + scale_transform + rot_transform + translate_transform + ax_graph.transData
+            translate_transform = Affine2D().translate(
+                start_pos[0]
+                + (
+                    np.cos(rot_angle_rad) * node_distance * 0.5 * (1 - along_edge_scale)
+                ),
+                start_pos[1]
+                + (
+                    np.sin(rot_angle_rad) * node_distance * 0.5 * (1 - along_edge_scale)
+                ),
+            )
+            t2 = (
+                length_transform
+                + scale_transform
+                + rot_transform
+                + translate_transform
+                + ax_graph.transData
+            )
 
             top_flow_collection.set_transform(top_flow_collection.get_transform() + t2)
             # bot_flow_collection.set_transform(bot_flow_collection.get_transform() + t2) # [HACK]
@@ -920,50 +1150,74 @@ class ExpansionPlanningSolution:
         normalize = Normalize(vmin=df_min, vmax=df_max)
         cmappable = cm.ScalarMappable(norm=normalize, cmap=cmap)
 
-        for item in self.data.data['elements'][what_is_a_bus_called]:
+        for item in self.data.data["elements"][what_is_a_bus_called]:
 
             # grab the keys we care about
-            start_key = self.data.data['elements'][what_is_a_bus_called][item]['from_bus']
-            end_key = self.data.data['elements'][what_is_a_bus_called][item]['to_bus']
+            start_key = self.data.data["elements"][what_is_a_bus_called][item][
+                "from_bus"
+            ]
+            end_key = self.data.data["elements"][what_is_a_bus_called][item]["to_bus"]
             start_pos = graph_node_position_dict[start_key]
             end_pos = graph_node_position_dict[end_key]
             # edge_key = f"branch_{start_key}_{end_key}_{value_key}_value"
             # alt_edge_key = f"branch_{end_key}_{start_key}_{value_key}_value"
             edge_key = f"{item}_{value_key}_value"
             alt_edge_key = f"{item}_{value_key}_value"
-            
+
+            # @KyleSkolfield is there a reason to not do this?
+            branch_name_edge_key = item + "_powerFlow_value"
+
             # kind = 'triangle'
             # kind = 'rectangle'
-            kind = 'custom'
-            glyph_values_slice = None
+            kind = "custom"
+            glyph_values_slice = df[branch_name_edge_key].values
+
             try:
                 glyph_values_slice = df[edge_key].values
             except KeyError as kex:
-                try:
-                    glyph_values_slice = df[alt_edge_key].values
-                except KeyError as kex_second_attempt:
-                    print(f"Attempted to slice DF in network twice using {edge_key} and {alt_edge_key}, failed both.")
-            draw_single_edge_flow(item, glyph_values_slice, ax_graph, cmap=cmap, norm=normalize, glyph_type=kind)
+                print(f"Attempted to slice DF in network using {edge_key}, failed.")
+
+            draw_single_edge_flow(
+                item,
+                glyph_values_slice,
+                ax_graph,
+                cmap=cmap,
+                norm=normalize,
+                glyph_type=kind,
+            )
 
             # forward arrow
-            ax_graph.arrow(start_pos[0], start_pos[1], (end_pos[0]-start_pos[0]), (end_pos[1]-start_pos[1]), color='black')
+            ax_graph.arrow(
+                start_pos[0],
+                start_pos[1],
+                (end_pos[0] - start_pos[0]),
+                (end_pos[1] - start_pos[1]),
+                color="black",
+            )
             # backward arrow
-            ax_graph.arrow(end_pos[0], end_pos[1], (start_pos[0]-end_pos[0]), (start_pos[1]-end_pos[1]), color='black')
-
+            ax_graph.arrow(
+                end_pos[0],
+                end_pos[1],
+                (start_pos[0] - end_pos[0]),
+                (start_pos[1] - end_pos[1]),
+                color="black",
+            )
 
         # insert colorbar
         fig.colorbar(cmappable, ax=ax_graph, label=f"{value_key}{units_str}")
         # make some titles
         fig.suptitle(f"{parent_key_string}_{value_key}")
 
+        # JSC update - " ", "_" to ' ', '_' for compilation. Not sure if this is due to a version diff or what
         # save
-        fig.savefig(f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}_graph.png")
+        fig.savefig(
+            f"{save_dir}{parent_key_string}_{pretty_title.replace(' ', '_')}_graph.png"
+        )
         pass
 
     def plot_levels(self, save_dir="."):
 
         # self._plot_graph_workhorse()
-
 
         # plot or represent primals trees
         for this_root_level_key in self.primals_tree:
@@ -978,15 +1232,25 @@ class ExpansionPlanningSolution:
                 investment_level_cut = self.primals_tree[this_root_level_key]
                 parent_key_string = f"{this_root_level_key}"
                 self._level_plot_workhorse(
-                    "representativePeriod", investment_level_cut, parent_key_string, save_dir
+                    "representativePeriod",
+                    investment_level_cut,
+                    parent_key_string,
+                    save_dir,
                 )
 
                 for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
                     if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.primals_tree[this_root_level_key][this_inv_level_key]
-                        parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+                        representative_level_cut = self.primals_tree[
+                            this_root_level_key
+                        ][this_inv_level_key]
+                        parent_key_string = (
+                            f"{this_root_level_key}_{this_inv_level_key}"
+                        )
                         self._level_plot_workhorse(
-                            "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+                            "commitmentPeriod",
+                            representative_level_cut,
+                            parent_key_string,
+                            save_dir,
                         )
 
                         for this_rep_level_key in self.primals_tree[
@@ -1000,7 +1264,10 @@ class ExpansionPlanningSolution:
                                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
                                 self._level_plot_workhorse(
-                                    "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+                                    "dispatchPeriod",
+                                    commitment_level_cut,
+                                    parent_key_string,
+                                    save_dir,
                                 )
 
         # # plot or represent expressions
@@ -1035,5 +1302,5 @@ class ExpansionPlanningSolution:
 
         #                         self._expressions_plot_workhorse(
         #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
-        #                         )         
+        #                         )
         # pass
