@@ -4,7 +4,7 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
-from pyomo.environ import *
+from pyomo.environ import * 
 from pyomo.environ import units as u
 
 # from pyomo.gdp import *
@@ -16,7 +16,6 @@ from pyomo.repn.linear import LinearRepnVisitor
 import json
 import numpy as np
 
-import numpy as np
 
 from math import ceil
 
