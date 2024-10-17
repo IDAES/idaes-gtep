@@ -4,10 +4,9 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
+import gurobipy as gp
 
-
-
-data_path = "./data/5bus"
+data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
@@ -23,8 +22,8 @@ mod_object.create_model()
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model) 
 TransformationFactory("gdp.bigm").apply_to(mod_object.model) 
 # opt = SolverFactory("gurobi")
-opt = Gurobi()
-# opt = Highs()
+# opt = Gurobi()
+opt = Highs()
 # # mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model) 
 
