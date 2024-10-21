@@ -6,9 +6,10 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 import logging
 
-from gtep.validation import populate_generators
+from gtep.validation import clone_timeseries, filter_pointers, populate_generators, populate_transmission
 
 input_data_source = "./gtep/data/5bus"
+output_data_source = "./gtep/tests/data/5bus_out"
 
 def test_solution():
     data_object = ExpansionPlanningData()
@@ -40,14 +41,14 @@ solution = test_solution()
 
 class TestValidation(unittest.TestCase):
     def test_populate_generators(self):
-        populate_generators(input_data_source, solution, "")
-        pass
+        populate_generators(input_data_source, solution, output_data_source)
+
 
     def test_populate_transmission(self):
-        pass
+        populate_transmission(input_data_source, solution, output_data_source)
 
     def test_filter_pointers(self):
-        pass
+        filter_pointers(input_data_source, output_data_source)
 
     def test_clone_timeseries(self):
-        pass
+        clone_timeseries(input_data_source, output_data_source)
