@@ -4,7 +4,7 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
-from pyomo.environ import *
+from pyomo.environ import * 
 from pyomo.environ import units as u
 
 # from pyomo.gdp import *
@@ -16,7 +16,8 @@ from pyomo.repn.linear import LinearRepnVisitor
 import json
 import numpy as np
 
-import numpy as np
+import math
+
 
 from math import ceil
 from config_options import _get_model_config
@@ -26,7 +27,7 @@ from config_options import _get_model_config
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
-rng = np.random.default_rng()
+rng = np.random.default_rng(seed=123186)
 
 ####################################
 ########## New Work Here ###########
@@ -292,7 +293,7 @@ def add_investment_constraints(
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
-            b.genInstalled[gen].indicator_var.fix(True)
+            b.genOperational[gen].indicator_var.fix(True)
             # b.genInstalled[gen].binary_indicator_var.fix(1)
 
     for branch in m.transmission:
@@ -306,7 +307,7 @@ def add_investment_constraints(
             m.md.data["elements"]["branch"][branch]["in_service"] == True
             and investment_stage == 1
         ):
-            b.branchInstalled[branch].indicator_var.fix(True)
+            b.branchOperational[branch].indicator_var.fix(True)
             # b.branchInstalled[branch].binary_indicator_var.fix(1)
 
     # Planning reserve requirement constraint
@@ -489,7 +490,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=thermal_generation_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Define bounds on renewable generator active generation
@@ -501,7 +502,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=renewable_generation_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Define bounds on renewable generator curtailment
@@ -513,7 +514,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=curtailment_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Per generator surplus
@@ -534,7 +535,7 @@ def add_dispatch_variables(
         return b.thermalGeneration[gen] * m.fuelCost[gen]
 
     # Load shed per bus
-    b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0)
+    b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0, units=u.MW * u.hr)
 
     # Per bus load shed cost
     @b.Expression(m.buses)
@@ -572,15 +573,12 @@ def add_dispatch_variables(
         domain=Reals,
         bounds=power_flow_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     @b.Disjunct(m.transmission)
     def branchInUse(disj, branch):
         b = disj.parent_block()
-
-        # JSC inprog (done?) Moved inside disjunction
-        import math
 
         # Voltage angle
         def bus_angle_bounds(disj, bus):
@@ -720,13 +718,8 @@ def add_dispatch_constraints(b, disp_per):
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    # JSC: how do we actually fix the seed as a sequence over all dispatch periods?
-    # Fixing a seed within the add_dispatch_constraints fxn doesn't work - it
-    # repeats the load values for each period, which seems to always lead to
-    # all generators always on (???)
-
     for key in m.loads.keys():
-        m.loads[key] *= max(0, rng.normal(1.0, 0.4))
+        m.loads[key] *= max(0, rng.normal(0.5, 0.2))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
