@@ -1,17 +1,9 @@
-name: GitHub CI
+name: GitHub Branch CI
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
   workflow_dispatch:
     inputs:
       git-ref:
