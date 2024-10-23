@@ -379,7 +379,7 @@ class ExpansionPlanningSolution:
             )
             ax_koi_list.append(ax_koi)
 
-            for iy, this_voi in enumerate(vars):
+            for _, this_voi in enumerate(vars):
                 ax_koi.plot(
                     df[level_key],
                     df[f"{this_koi}_{this_voi}_value"],
@@ -404,7 +404,7 @@ class ExpansionPlanningSolution:
 
         # plot variables of interest
         ax_voi_list = []
-        # plot generations and curtailmentsagainst each outher
+        # plot generations and curtailments against each other
         for ix_voi, this_voi in enumerate(vars):
             ax_voi = fig.add_subplot(
                 gs[(ix_voi * var_gridspec_div) : ((ix_voi + 1) * var_gridspec_div), 1]
@@ -469,7 +469,7 @@ class ExpansionPlanningSolution:
                 axline_ix + 0.5,
                 color="grey",
                 linewidth=3,
-            )  # draw a seperator line between each level
+            )  # draw a separator line between each level
         for axline_ix in range(len(df[level_key])):
             ax_bins.axvline(
                 axline_ix + 0.5,
@@ -477,7 +477,7 @@ class ExpansionPlanningSolution:
                 linewidth=3,
                 linestyle="dotted",
                 alpha=0.5,
-            )  # draw a seperator line between each level
+            )  # draw a separator line between each level
 
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
@@ -550,7 +550,7 @@ class ExpansionPlanningSolution:
         # check if ALL the possible things to look at are binaries
         all_binaries = True
         for ix, this_voi in enumerate(vars):
-            for iy, this_koi in enumerate(keys):
+            for _, this_koi in enumerate(keys):
                 if not (df[f"{this_koi}_{this_voi}_value"].dtype == "bool"):
                     all_binaries = False
                     break
@@ -1048,13 +1048,13 @@ class ExpansionPlanningSolution:
                             PathPatch(mpath.Path(verts, codes), ec="none"),
                         )
 
-                        rotation_transofrm = Affine2D().rotate_around(
+                        rotation_transform = Affine2D().rotate_around(
                             glyph_anchor_coord[0] + patch_width * 0.5,
                             glyph_anchor_coord[1] + patch_height * 0.5,
                             glyph_rotation,
                         )
                         # rescale y to make it fit in a 1x1 box
-                        flow_glyphs[-1].set_transform(rotation_transofrm)
+                        flow_glyphs[-1].set_transform(rotation_transform)
 
                 return flow_glyphs
 
