@@ -63,6 +63,7 @@ jobs:
     needs: [code-formatting, spell-check]
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix: 
         os: [ubuntu-latest, windows-latest]
         python: [3.9, '3.10', '3.11']
