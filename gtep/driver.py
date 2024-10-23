@@ -19,13 +19,13 @@ mod_object = ExpansionPlanningModel(
     num_dispatch=4,
 )
 mod_object.create_model()
-TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model) 
-TransformationFactory("gdp.bigm").apply_to(mod_object.model) 
+TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 # opt = SolverFactory("gurobi")
 # opt = Gurobi()
 opt = Highs()
 # # mod_object.results = opt.solve(mod_object.model, tee=True)
-mod_object.results = opt.solve(mod_object.model) 
+mod_object.results = opt.solve(mod_object.model)
 
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)

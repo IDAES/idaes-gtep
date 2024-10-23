@@ -6,10 +6,16 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 import logging
 
-from gtep.validation import clone_timeseries, filter_pointers, populate_generators, populate_transmission
+from gtep.validation import (
+    clone_timeseries,
+    filter_pointers,
+    populate_generators,
+    populate_transmission,
+)
 
 input_data_source = "./gtep/data/5bus"
 output_data_source = "./gtep/tests/data/5bus_out"
+
 
 def test_solution():
     data_object = ExpansionPlanningData()
@@ -24,25 +30,26 @@ def test_solution():
         num_dispatch=4,
     )
     mod_object.create_model()
-    TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model) 
-    TransformationFactory("gdp.bigm").apply_to(mod_object.model) 
+    TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+    TransformationFactory("gdp.bigm").apply_to(mod_object.model)
     # opt = SolverFactory("gurobi")
     # opt = Gurobi()
     opt = Highs()
     # # mod_object.results = opt.solve(mod_object.model, tee=True)
-    mod_object.results = opt.solve(mod_object.model) 
+    mod_object.results = opt.solve(mod_object.model)
 
     sol_object = ExpansionPlanningSolution()
     sol_object.load_from_model(mod_object)
     sol_object.dump_json("./gtep/tests/test_solution.json")
     return sol_object
 
+
 solution = test_solution()
+
 
 class TestValidation(unittest.TestCase):
     def test_populate_generators(self):
         populate_generators(input_data_source, solution, output_data_source)
-
 
     def test_populate_transmission(self):
         populate_transmission(input_data_source, solution, output_data_source)

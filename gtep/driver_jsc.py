@@ -33,7 +33,7 @@ TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 opt = Highs()
 # opt = SolverFactory("gurobi", solver_io="python")
 # opt = Gurobi()
-#mod_object.results = opt.solve(mod_object.model, tee=True)
+# mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model)
 
 
@@ -48,7 +48,7 @@ load_numerical_results = True
 if load_numerical_results:
     sol_object.read_json("./gtep_solution_jscTest.json")
     # sol_object.read_json("./gtep_solution.json")
-    #sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
+    # sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
 plot_results = True
 if plot_results:
     sol_object.plot_levels(save_dir="./plots/")

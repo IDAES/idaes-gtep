@@ -12,7 +12,6 @@ data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
 
-
 mod_object = ExpansionPlanningModel(
     stages=1,
     data=data_object.md,
@@ -22,8 +21,8 @@ mod_object = ExpansionPlanningModel(
     num_dispatch=4,
 )
 
-for k,v in mod_object.config.items():
-    ic(k,v)
+for k, v in mod_object.config.items():
+    ic(k, v)
 
 quit()
 
