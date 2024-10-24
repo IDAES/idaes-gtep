@@ -20,7 +20,7 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config
+from gtep.config_options import _get_model_config
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
