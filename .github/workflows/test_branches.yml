@@ -115,7 +115,7 @@ jobs:
       #    pip install pyomo
       - name: Install idaes-gtep
         run: |
-          python setup.py develop
+          pip install -e 
       - name: Run Tests
         run: |
           #pip install pytest
