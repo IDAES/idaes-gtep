@@ -69,8 +69,7 @@ jobs:
       - name: Install Python Packages (pip)
         shell: bash # DO NOT REMOVE: see note above
         run: |
-          python -c 'import sys;print(sys.executable)'
-          python -m pip install --upgrade pip
+          pip install scipy
           
           python -c 'import sys; print("PYTHON_EXE=%s" \
               % (sys.executable,))' >> $GITHUB_ENV
