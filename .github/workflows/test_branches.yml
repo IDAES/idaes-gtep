@@ -89,15 +89,6 @@ jobs:
           conda config --remove channels defaults
           conda config --append channels nodefaults
           conda config --append channels conda-forge
-         
-          # Print environment info
-          echo "*** CONDA environment: ***"
-          conda info
-          conda config --show-sources
-          conda config --show channels
-          conda list --show-channel-urls
-          which python
-          python --version
           
           echo "Install Python packages"
           conda install --yes --quiet pip setuptools wheel
@@ -115,7 +106,7 @@ jobs:
       #    pip install pyomo
       - name: Install idaes-gtep
         run: |
-          pip install -e 
+          pip install -e .
       - name: Run Tests
         run: |
           #pip install pytest
