@@ -76,7 +76,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install Pyomo
         run: |
-          pip install git+https://github.com/Pyomo/pyomo.git
+          pip install pyomo
       - name: Install idaes-gtep
         run: |
           python setup.py develop
