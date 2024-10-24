@@ -66,12 +66,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Install Python Packages (pip)
+        shell: bash # DO NOT REMOVE: see note above
+        run: |
+          python -c 'import sys;print(sys.executable)'
+          python -m pip install --upgrade pip
+          
+          python -c 'import sys; print("PYTHON_EXE=%s" \
+              % (sys.executable,))' >> $GITHUB_ENV
+          echo ""
+          echo "Final pip environment:"
+          python -m pip list | sed 's/^/    /'
       - name: Install Pyomo
         run: |
           pip install pyomo
       - name: Install idaes-gtep
         run: |
-          python setup.py develop
+          $PYTHON_EXE setup.py develop
       - name: Run Tests
         run: |
           pip install pytest
