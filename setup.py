@@ -17,7 +17,7 @@ requires = [
     "gridx-prescient",
     "anyio",
     "pint",
-    "icecream"
+    "icecream",
 ]
 setup(
     name="gtep",
