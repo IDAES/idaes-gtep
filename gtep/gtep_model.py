@@ -756,6 +756,8 @@ def add_dispatch_constraints(b, disp_per):
             == m.renewableCapacity[renewableGen]
         )
 
+
+    ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
         return (

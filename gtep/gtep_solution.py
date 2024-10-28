@@ -82,7 +82,7 @@ class ExpansionPlanningSolution:
         with open(dump_filepath, "w") as fobj:
             json.dump(self._to_dict(), fobj)
 
-    def _to_dict(self):
+    def _to_dict(self) -> dict:
 
         results_dict = {
             "solution_loader": self.results.solution_loader,  # object

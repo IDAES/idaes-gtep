@@ -4,6 +4,7 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
+import gurobipy as gp
 
 
 data_path = "./gtep/data/5bus"
