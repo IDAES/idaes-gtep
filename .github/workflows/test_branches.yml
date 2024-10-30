@@ -62,25 +62,12 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      # - name: Set up Python ${{ matrix.python }}
-      #   uses: actions/setup-python@v5
-      #   with:
-      #     python-version: ${{ matrix.python }}
-      # - name: Install Python Packages (pip)
-      #   shell: bash # DO NOT REMOVE: see note above
-      #   run: |
-      #     pip install scipy
-          
-      #     python -c 'import sys; print("PYTHON_EXE=%s" \
-      #         % (sys.executable,))' >> $GITHUB_ENV
-      #     echo ""
-      #     echo "Final pip environment:"
-      #     python -m pip list | sed 's/^/    /'
       
-      - name: Set up Conda environment
+      - name: Set up Miniconda Python
         uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python }}
+
       - name: Intall Python packages (conda)
         run: |
           # Set up environment
@@ -94,22 +81,13 @@ jobs:
           conda install --yes --quiet pip setuptools wheel
           conda install --yes --quiet scipy pyomo pytest highspy
           
-          # remember this python interpreter
-          python -c 'import sys; print("PYTHON_EXE=%s" \
-              % (sys.executable,))' >> $GITHUB_ENV
-          
           echo "Final conda environment:"
           conda list | sed 's/^/    /'
 
-      #- name: Install Pyomo
-      #  run: |
-      #    pip install pyomo
       - name: Install idaes-gtep
         run: |
           pip install -e .
       - name: Run Tests
         run: |
-          #pip install pytest
-          #pip install highspy
           pytest -v gtep
           
