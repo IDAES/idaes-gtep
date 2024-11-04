@@ -636,6 +636,60 @@ def add_dispatch_variables(
             return b.powerFlow[branch] == (-1 / reactance) * (
                 disj.busAngle[tb] - disj.busAngle[fb] + shift
             )
+        
+        if m.config["flow_model"] == "ACP":
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
+            reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6) 
+
+            # Transformer tap ratio and phase shift 
+            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
+                reactance *= m.md.data["elements"]["branch"][branch][
+                    "transformer_tap_ratio"
+                ]
+                phase_shift = m.md.data["elements"]["branch"][branch][
+                    "transformer_phase_shift"
+                ]
+            else:
+                phase_shift = 0
+
+            admittance = 1 / complex(resistance, reactance)
+            G = admittance.real
+            B = admittance.imag
+            
+            # Define voltage magnitude variables for from and to buses
+            @disj.Var()
+            def voltage_from(disj):
+                return disj.parent_block().voltage[fb]
+
+            @disj.Var()
+            def voltage_to(disj):
+                return disj.parent_block().voltage[tb]
+
+
+            # Active Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_p(disj):
+                return m.P_flow[branch] == (
+                    m.voltage[fb]**2 * G
+                    - m.voltage[fb] * m.voltage[tb] * (
+                        G * math.cos(m.theta[fb] - m.theta[tb] + phase_shift)
+                        + B * math.sin(m.theta[fb] - m.theta[tb] + phase_shift)
+                    )
+                )
+            
+            # Reactive Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_q(disj):
+                return m.Q_flow[branch] == (
+                    -m.voltage[fb]**2 * B
+                    - m.voltage[fb] * m.voltage[tb] * (
+                        G * math.sin(m.theta[fb] - m.theta[tb] + phase_shift)
+                        - B * math.cos(m.theta[fb] - m.theta[tb] + phase_shift)
+                    )
+                )
+
 
     @b.Disjunct(m.transmission)
     def branchNotInUse(disj, branch):
@@ -755,7 +809,7 @@ def add_dispatch_constraints(b, disp_per):
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == m.renewableCapacity[renewableGen]
         )
-
+    
 
     ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
     @b.Constraint(m.renewableGenerators)
@@ -1567,6 +1621,26 @@ def model_data_references(m):
         thermalGen: m.md.data["elements"]["generator"][thermalGen]["p_min"]
         for thermalGen in m.thermalGenerators
     }
+
+    # Maximum reactive power output of each thermal generator
+    m.thermalReactiveCapacity = {
+        thermalGen: m.md.data["elements"]["generator"][thermalGen].get("q_max", 0)
+        for thermalGen in m.thermalGenerators
+    }
+
+    # Minimum reactive power output of each thermal generator
+    m.thermalReactiveMin = {
+        thermalGen: m.md.data["elements"]["generator"][thermalGen].get("q_max", 0)
+        for thermalGen in m.thermalGenerators
+    }  
+
+    # Handles case where reactive power limits of generator is not provided
+    for gen in m.thermalGenerators:
+        if gen not in m.thermalReactiveCapacity:
+            m.thermalReactiveCapacity[gen] = 0
+        if gen not in m.thermalReactiveMin:
+            m.thermalReactiveMin[gen] = 0
+
 
     # Maximum output of each renewable generator
     m.renewableCapacity = {
