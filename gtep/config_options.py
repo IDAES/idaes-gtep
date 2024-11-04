@@ -14,6 +14,8 @@ from pyomo.common.deprecation import deprecation_warning
 _supported_flows = {
     "DC": ("gtep.dcopf", "DC power flow approximation"),
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
+    "ACP": ("gtep.acp", "AC power flow in polar formulation"),
+    
 }
 
 
