@@ -1,3 +1,4 @@
+from os.path import abspath, join, dirname
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -13,8 +14,9 @@ from gtep.validation import (
     populate_transmission,
 )
 
-input_data_source = "./gtep/data/5bus"
-output_data_source = "./gtep/tests/data/5bus_out"
+curr_dir = dirname(abspath(__file__))
+input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
+output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
 
 
 def test_solution():
