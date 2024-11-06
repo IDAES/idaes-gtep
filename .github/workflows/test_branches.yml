@@ -52,7 +52,6 @@ jobs:
 
   build:
     name: ${{ matrix.os }}/${{ matrix.python }}
-    needs: [code-formatting, spell-check]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
