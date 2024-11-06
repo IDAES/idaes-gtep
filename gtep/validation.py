@@ -125,6 +125,10 @@ def filter_pointers(data_input_path, data_output_path):
 
 
 def clone_timeseries(data_input_path, data_output_path):
+    
+    if not os.path.exists(data_output_path):
+        os.makedirs(data_output_path)
+    
     file_list = os.listdir(data_input_path)
     file_list.remove("timeseries_pointers.csv")
     file_list.remove("gen.csv")
@@ -132,4 +136,6 @@ def clone_timeseries(data_input_path, data_output_path):
 
     # @jkskolf, I don't think I like this ...
     for fname in file_list:
-        shutil.copy(data_input_path + "/" + fname, data_output_path + "/" + fname)
+        from_file = os.path.join(data_input_path, fname)
+        to_file = os.path.join(data_output_path, fname)
+        shutil.copy(from_file, to_file)
