@@ -103,7 +103,9 @@ def populate_transmission(data_input_path, sol_object, data_output_path):
 
 def filter_pointers(data_input_path, data_output_path):
     # load initial timeseries pointers
-    input_pointers_df = pd.read_csv(os.path.join(data_input_path, "timeseries_pointers.csv"))
+    input_pointers_df = pd.read_csv(
+        os.path.join(data_input_path, "timeseries_pointers.csv")
+    )
 
     # load final generators
     # NOTE: must be run _after_ populate_generators and with the same data_output_path
