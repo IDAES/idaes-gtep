@@ -16,7 +16,7 @@ def populate_generators(
 ):
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
-    input_df = pd.read_csv(data_input_path + "/gen.csv")
+    input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
 
     # pull final stage solution variables for thermal and renewable investments
     # for thermal:
@@ -69,13 +69,13 @@ def populate_generators(
     # TODO: (@jkskolf) should we update prices here? I think no, but ...
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
-    output_df.to_csv(data_output_path + "/gen.csv", index=False)
+    output_df.to_csv(os.path.join(data_output_path, "gen.csv"), index=False)
 
 
 def populate_transmission(data_input_path, sol_object, data_output_path):
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
-    input_df = pd.read_csv(data_input_path + "/branch.csv")
+    input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
 
     # pull final stage solution variables for transmission
     def branch_name_filter(gen_name):
@@ -98,17 +98,17 @@ def populate_transmission(data_input_path, sol_object, data_output_path):
 
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
-    output_df.to_csv(data_output_path + "/branch.csv", index=False)
+    output_df.to_csv(os.path.join(data_output_path, "branch.csv"), index=False)
 
 
 def filter_pointers(data_input_path, data_output_path):
     # load initial timeseries pointers
-    input_pointers_df = pd.read_csv(data_input_path + "/timeseries_pointers.csv")
+    input_pointers_df = pd.read_csv(os.path.join(data_input_path, "timeseries_pointers.csv"))
 
     # load final generators
     # NOTE: must be run _after_ populate_generators and with the same data_output_path
     # to pull resulting generator objects
-    output_generators_df = pd.read_csv(data_output_path + "/gen.csv")
+    output_generators_df = pd.read_csv(os.path.join(data_output_path, "gen.csv"))
 
     # keep generators that exist at the final investment stage and remove the rest
     # keep all non-generator timeseries pointers
@@ -121,7 +121,7 @@ def filter_pointers(data_input_path, data_output_path):
 
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
-    output_df.to_csv(data_output_path + "/timeseries_pointers.csv")
+    output_df.to_csv(os.path.join(data_output_path, "timeseries_pointers.csv"))
 
 
 def clone_timeseries(data_input_path, data_output_path):
