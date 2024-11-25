@@ -125,7 +125,7 @@ class ExpansionPlanningModel:
         )
         m.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
         # TODO: index by dispatch period? Certainly index by commitment period
-        m.dispatchPeriodLength = Param(within=PositiveReals, default=15, units=u.min)
+        m.dispatchPeriodLength = Param(within=PositiveReals, default=0.25, units=u.hr)
 
         model_data_references(m)
         model_create_investment_stages(m, self.stages)
@@ -253,21 +253,20 @@ def add_investment_variables(
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
     )
     b.renewableInstalled = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
     )
     b.renewableRetired = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableExtended = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
 
     # Track and accumulate costs and penalties
-    b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW)
-    b.operatingCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
+    b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW * u.hr)
     b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
     b.renewableCurtailmentInvestment = Var(
         within=NonNegativeReals, initialize=0, units=u.USD
@@ -379,7 +378,6 @@ def add_investment_constraints(
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 renewableSurplusRepresentative += (
                     m.weights[rep_per]
-                    * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .renewableSurplusCommitment
@@ -397,13 +395,12 @@ def add_investment_constraints(
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 operatingCostRepresentative += (
                     m.weights[rep_per]
-                    * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .operatingCostCommitment
                 )
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
-
+    
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
@@ -692,7 +689,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=spinning_reserve_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Define bounds on thermal generator quickstart reserve supply
@@ -707,7 +704,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=quickstart_reserve_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
 
@@ -1002,14 +999,12 @@ def add_commitment_constraints(
     def operatingCostCommitment(b):
         return (
             sum(
-                ## FIXME: update test objective value when this changes; ready to uncomment
-                # (m.dispatchPeriodLength / 60) *
                 b.dispatchPeriod[disp_per].operatingCostDispatch
                 for disp_per in b.dispatchPeriods
             )
             + sum(
                 m.fixedOperatingCost[gen]
-                # * m.thermalCapacity[gen]
+                * b.commitmentPeriodLength
                 * (
                     b.genOn[gen].indicator_var.get_associated_binary()
                     + b.genShutdown[gen].indicator_var.get_associated_binary()
@@ -1019,7 +1014,7 @@ def add_commitment_constraints(
             )
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
             + sum(
-                m.fixedOperatingCost[gen]
+                m.fixedOperatingCost[gen] * b.commitmentPeriodLength
                 # * m.renewableCapacity[gen]
                 for gen in m.renewableGenerators
             )
@@ -1029,6 +1024,7 @@ def add_commitment_constraints(
                 for gen in m.thermalGenerators
             )
         )
+
 
     # Define total curtailment for commitment block
     @b.Expression()
@@ -1050,6 +1046,7 @@ def commitment_period_rule(b, commitment_period):
     i_p = r_p.parent_block()
 
     b.commitmentPeriod = commitment_period
+    b.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
     b.dispatchPeriods = RangeSet(m.numDispatchPeriods[r_p.currentPeriod])
     b.carbonTax = Param(default=0)
     b.dispatchPeriod = Block(b.dispatchPeriods)
@@ -1673,8 +1670,8 @@ def model_data_references(m):
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
-    m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD)
-    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / u.MW)
+    m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD / u.hr)
+    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW *u.hr))
 
     # Amount of fuel required to be consumed for startup process for each generator
     m.startFuel = {
@@ -1682,23 +1679,23 @@ def model_data_references(m):
         for gen in m.generators
     }
 
+    fuelCost = {}
     # Cost per unit of fuel at each generator
     if "RTS-GMLC" in m.md.data["system"]["name"]:
-        m.fuelCost = {
-            gen: m.md.data["elements"]["generator"][gen]["fuel_cost"]
-            for gen in m.thermalGenerators
-        }
+        for gen in m.thermalGenerators:
+            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost"]
+
     else:
-        m.fuelCost = {
-            gen: m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-            for gen in m.thermalGenerators
-        }
+        for gen in m.thermalGenerators:
+            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+
+    m.fuelCost = Param(m.thermalGenerators, initialize=fuelCost, units = u.USD / (u.MW * u.hr))
 
     # Cost per MW of curtailed renewable energy
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
-    m.curtailmentCost = 2 * max(m.fuelCost.values())
-    m.loadShedCost = 1000 * m.curtailmentCost
+    m.curtailmentCost = Param(initialize = 2 * max(value(item) for item in m.fuelCost.values()), units = u.USD / (u.MW * u.hr))
+    m.loadShedCost = Param(initialize = 1000 * m.curtailmentCost, units= u.USD / (u.MW * u.hr))
 
     # Full lifecycle CO_2 emission factor for each generator
     m.emissionsFactor = {
@@ -1708,15 +1705,19 @@ def model_data_references(m):
 
     # Flat startup cost for each generator
     if "RTS-GMLC" in m.md.data["system"]["name"]:
-        m.startupCost = {
+        startupCost = {
             gen: m.md.data["elements"]["generator"][gen]["non_fuel_startup_cost"]
             for gen in m.thermalGenerators
         }
+        m.startupCost = Param(m.thermalGenerators, initialize = startupCost, units = u.USD)
     else:
-        m.startupCost = {
+        startupCost = {
             gen: m.md.data["elements"]["generator"][gen]["startup_cost"]
             for gen in m.generators
         }
+        m.startupCost = Param(m.generators, initialize = startupCost, units = u.USD)
+    
+    
 
     # (Arbitrary) multiplier for new generator investments corresponds to depreciation schedules
     # for individual technologies; higher values are indicative of slow depreciation
