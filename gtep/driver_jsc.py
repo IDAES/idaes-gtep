@@ -52,5 +52,3 @@ if load_numerical_results:
 plot_results = True
 if plot_results:
     sol_object.plot_levels(save_dir="./plots/")
-
-pass
