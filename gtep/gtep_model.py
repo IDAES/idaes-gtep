@@ -253,10 +253,10 @@ def add_investment_variables(
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableInstalled = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableRetired = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
@@ -400,7 +400,7 @@ def add_investment_constraints(
                     .operatingCostCommitment
                 )
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
-    
+
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
@@ -1024,7 +1024,6 @@ def add_commitment_constraints(
                 for gen in m.thermalGenerators
             )
         )
-
 
     # Define total curtailment for commitment block
     @b.Expression()
@@ -1671,7 +1670,7 @@ def model_data_references(m):
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
     m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD / u.hr)
-    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW *u.hr))
+    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW * u.hr))
 
     # Amount of fuel required to be consumed for startup process for each generator
     m.startFuel = {
@@ -1687,15 +1686,24 @@ def model_data_references(m):
 
     else:
         for gen in m.thermalGenerators:
-            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][
+                1
+            ]
 
-    m.fuelCost = Param(m.thermalGenerators, initialize=fuelCost, units = u.USD / (u.MW * u.hr))
+    m.fuelCost = Param(
+        m.thermalGenerators, initialize=fuelCost, units=u.USD / (u.MW * u.hr)
+    )
 
     # Cost per MW of curtailed renewable energy
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
-    m.curtailmentCost = Param(initialize = 2 * max(value(item) for item in m.fuelCost.values()), units = u.USD / (u.MW * u.hr))
-    m.loadShedCost = Param(initialize = 1000 * m.curtailmentCost, units= u.USD / (u.MW * u.hr))
+    m.curtailmentCost = Param(
+        initialize=2 * max(value(item) for item in m.fuelCost.values()),
+        units=u.USD / (u.MW * u.hr),
+    )
+    m.loadShedCost = Param(
+        initialize=1000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+    )
 
     # Full lifecycle CO_2 emission factor for each generator
     m.emissionsFactor = {
@@ -1709,15 +1717,13 @@ def model_data_references(m):
             gen: m.md.data["elements"]["generator"][gen]["non_fuel_startup_cost"]
             for gen in m.thermalGenerators
         }
-        m.startupCost = Param(m.thermalGenerators, initialize = startupCost, units = u.USD)
+        m.startupCost = Param(m.thermalGenerators, initialize=startupCost, units=u.USD)
     else:
         startupCost = {
             gen: m.md.data["elements"]["generator"][gen]["startup_cost"]
             for gen in m.generators
         }
-        m.startupCost = Param(m.generators, initialize = startupCost, units = u.USD)
-    
-    
+        m.startupCost = Param(m.generators, initialize=startupCost, units=u.USD)
 
     # (Arbitrary) multiplier for new generator investments corresponds to depreciation schedules
     # for individual technologies; higher values are indicative of slow depreciation

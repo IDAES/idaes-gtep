@@ -20,11 +20,32 @@ _supported_flows = {
 def _get_model_config():
     CONFIG = ConfigBlock("GTEPModelConfig")
 
-    CONFIG.declare("include_planning", ConfigValue(default = True, domain=Bool, description="Enable inclusion of any investment options."))
+    CONFIG.declare(
+        "include_planning",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Enable inclusion of any investment options.",
+        ),
+    )
 
-    CONFIG.declare("include_commitment", ConfigValue(default = True, domain=Bool, description="Include unit commitment formulation."))
+    CONFIG.declare(
+        "include_commitment",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Include unit commitment formulation.",
+        ),
+    )
 
-    CONFIG.declare("include_dispatch", ConfigValue(default = True, domain=Bool, description="Include economic dispatch formulation (i.e., OPF)."))
+    CONFIG.declare(
+        "include_dispatch",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Include economic dispatch formulation (i.e., OPF).",
+        ),
+    )
 
     CONFIG.declare(
         "flow_model",
@@ -86,7 +107,6 @@ def _add_investment_configs(CONFIG):
             description="Include transmission investment options",
         ),
     )
-
 
 
 def _add_solver_configs(CONFIG):
