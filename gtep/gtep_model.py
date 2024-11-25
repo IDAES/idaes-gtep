@@ -27,7 +27,7 @@ from config_options import _get_model_config
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
-rng = np.random.default_rng(seed=123186)
+
 
 ####################################
 ########## New Work Here ###########
@@ -73,7 +73,7 @@ class ExpansionPlanningModel:
         :param num_dispatch: integer number of dispatch periods per commitment period
         :return: Pyomo model for full GTEP
         """
-
+        
         self.stages = stages
         self.formulation = formulation
         self.data = data
@@ -89,6 +89,7 @@ class ExpansionPlanningModel:
 
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
+        m.rng = np.random.default_rng(seed=123186)
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
@@ -716,7 +717,7 @@ def add_dispatch_constraints(b, disp_per):
     i_p = r_p.parent_block()
 
     for key in m.loads.keys():
-        m.loads[key] *= max(0, rng.normal(0.5, 0.2))
+        m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
