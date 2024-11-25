@@ -28,7 +28,6 @@ from gtep.config_options import _get_model_config
 u.load_definitions_from_strings(["USD = [currency]"])
 
 
-
 ####################################
 ########## New Work Here ###########
 ####################################
@@ -73,7 +72,7 @@ class ExpansionPlanningModel:
         :param num_dispatch: integer number of dispatch periods per commitment period
         :return: Pyomo model for full GTEP
         """
-        
+
         self.stages = stages
         self.formulation = formulation
         self.data = data
