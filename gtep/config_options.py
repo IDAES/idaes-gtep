@@ -21,7 +21,7 @@ def _get_model_config():
     CONFIG = ConfigBlock("GTEPModelConfig")
 
     CONFIG.declare(
-        "include_planning",
+        "include_investment",
         ConfigValue(
             default=True,
             domain=Bool,

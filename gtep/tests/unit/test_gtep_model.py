@@ -113,3 +113,13 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
+
+    def test_no_investment(self):
+        md = read_debug_model()
+        modObject = ExpansionPlanningModel(
+            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        )
+        modObject.config["include_investment"] = False
+        modObject.create_model()
+
+        pass

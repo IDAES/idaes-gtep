@@ -599,11 +599,6 @@ def add_dispatch_variables(b, dispatch_period):
             domain=Reals, bounds=delta_bus_angle_bounds, rule=delta_bus_angle_rule
         )
 
-        ## FIXME
-        # @disj.Constraint()
-        # def max_delta_bus_angle(disj):
-        #     return abs(disj.deltaBusAngle) <= math.pi/6
-
         if m.config["flow_model"] == "DC":
 
             @disj.Constraint()
@@ -1807,219 +1802,220 @@ def model_create_investment_stages(m, stages):
     #             for t_1 in m.stages
     #             if t_1 <= stage
     #         )
+    if m.config["include_investment"]:
 
-    # Linking generator investment status constraints
-    @m.Constraint(m.stages, m.thermalGenerators)
-    def gen_stats_link(m, stage, gen):
-        return (
-            m.investmentStage[stage]
-            .genOperational[gen]
-            .indicator_var.get_associated_binary()
-            == m.investmentStage[stage - 1]
-            .genOperational[gen]
-            .indicator_var.get_associated_binary()
-            + m.investmentStage[stage - 1]
-            .genInstalled[gen]
-            .indicator_var.get_associated_binary()
-            - m.investmentStage[stage - 1]
-            .genRetired[gen]
-            .indicator_var.get_associated_binary()
-            if stage != 1
-            else Constraint.Skip
-        )
+        # Linking generator investment status constraints
+        @m.Constraint(m.stages, m.thermalGenerators)
+        def gen_stats_link(m, stage, gen):
+            return (
+                m.investmentStage[stage]
+                .genOperational[gen]
+                .indicator_var.get_associated_binary()
+                == m.investmentStage[stage - 1]
+                .genOperational[gen]
+                .indicator_var.get_associated_binary()
+                + m.investmentStage[stage - 1]
+                .genInstalled[gen]
+                .indicator_var.get_associated_binary()
+                - m.investmentStage[stage - 1]
+                .genRetired[gen]
+                .indicator_var.get_associated_binary()
+                if stage != 1
+                else Constraint.Skip
+            )
 
-    # Renewable generation (in MW) retirement relationships
-    if len(m.stages) > 1:
+        # Renewable generation (in MW) retirement relationships
+        if len(m.stages) > 1:
 
+            @m.Constraint(m.stages, m.renewableGenerators)
+            def renewable_retirement(m, stage, gen):
+                return sum(
+                    m.investmentStage[t_2].renewableInstalled[gen]
+                    for t_2 in m.stages
+                    if t_2 <= stage - m.lifetimes[gen]
+                ) <= sum(
+                    m.investmentStage[t_1].renewableRetired[gen]
+                    + m.investmentStage[t_1].renewableExtended[gen]
+                    for t_1 in m.stages
+                    if t_1 <= stage
+                )
+
+        # Total renewable generation (in MW) operational at a given stage
+        # is equal to what was operational and/or installed in the previous stage
+        # less what was retired in the previous stage
         @m.Constraint(m.stages, m.renewableGenerators)
-        def renewable_retirement(m, stage, gen):
-            return sum(
-                m.investmentStage[t_2].renewableInstalled[gen]
-                for t_2 in m.stages
-                if t_2 <= stage - m.lifetimes[gen]
-            ) <= sum(
-                m.investmentStage[t_1].renewableRetired[gen]
-                + m.investmentStage[t_1].renewableExtended[gen]
-                for t_1 in m.stages
-                if t_1 <= stage
+        def renewable_stats_link(m, stage, gen):
+            return (
+                m.investmentStage[stage].renewableOperational[gen]
+                == m.investmentStage[stage - 1].renewableOperational[gen]
+                + m.investmentStage[stage - 1].renewableInstalled[gen]
+                - m.investmentStage[stage - 1].renewableRetired[gen]
+                if stage != 1
+                else Constraint.Skip
             )
 
-    # Total renewable generation (in MW) operational at a given stage
-    # is equal to what was operational and/or installed in the previous stage
-    # less what was retired in the previous stage
-    @m.Constraint(m.stages, m.renewableGenerators)
-    def renewable_stats_link(m, stage, gen):
-        return (
-            m.investmentStage[stage].renewableOperational[gen]
-            == m.investmentStage[stage - 1].renewableOperational[gen]
-            + m.investmentStage[stage - 1].renewableInstalled[gen]
-            - m.investmentStage[stage - 1].renewableRetired[gen]
-            if stage != 1
-            else Constraint.Skip
-        )
-
-    # If a gen is online at time t, it must have been online or installed at time t-1
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_operation(m, stage, gen):
-        return (
-            m.investmentStage[stage]
-            .genOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage - 1].genOperational[gen].indicator_var
-                | m.investmentStage[stage - 1].genInstalled[gen].indicator_var
+        # If a gen is online at time t, it must have been online or installed at time t-1
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def consistent_operation(m, stage, gen):
+            return (
+                m.investmentStage[stage]
+                .genOperational[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage - 1].genOperational[gen].indicator_var
+                    | m.investmentStage[stage - 1].genInstalled[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a gen is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_operation_future(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genOperational[gen].indicator_var
-                | m.investmentStage[stage].genExtended[gen].indicator_var
-                | m.investmentStage[stage].genRetired[gen].indicator_var
+        # If a gen is online at time t, it must be online, extended, or retired at time t+1
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def consistent_operation_future(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .genOperational[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].genOperational[gen].indicator_var
+                    | m.investmentStage[stage].genExtended[gen].indicator_var
+                    | m.investmentStage[stage].genRetired[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def full_retirement(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genRetired[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genDisabled[gen].indicator_var
+        # Retirement in period t-1 implies disabled in period t
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def full_retirement(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .genRetired[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].genDisabled[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a gen is disabled at time t-1, it must stay disabled  at time t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_disabled(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genDisabled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genDisabled[gen].indicator_var
-                | m.investmentStage[stage].genInstalled[gen].indicator_var
+        # If a gen is disabled at time t-1, it must stay disabled  at time t
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def consistent_disabled(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .genDisabled[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].genDisabled[gen].indicator_var
+                    | m.investmentStage[stage].genInstalled[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a gen is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_extended(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genExtended[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genExtended[gen].indicator_var
-                | m.investmentStage[stage].genRetired[gen].indicator_var
+        # If a gen is extended at time t-1, it must stay extended or be retired at time t
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def consistent_extended(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .genExtended[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].genExtended[gen].indicator_var
+                    | m.investmentStage[stage].genRetired[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def full_investment(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genInstalled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genOperational[gen].indicator_var
+        # Installation in period t-1 implies operational in period t
+        @m.LogicalConstraint(m.stages, m.thermalGenerators)
+        def full_investment(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .genInstalled[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].genOperational[gen].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a branch is online at time t, it must have been online or installed at time t-1
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_operation(m, stage, branch):
-        return (
-            m.investmentStage[stage]
-            .branchOperational[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage - 1].branchOperational[branch].indicator_var
-                | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
+        # If a branch is online at time t, it must have been online or installed at time t-1
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_operation(m, stage, branch):
+            return (
+                m.investmentStage[stage]
+                .branchOperational[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage - 1].branchOperational[branch].indicator_var
+                    | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a branch is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_operation_future(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchOperational[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchOperational[branch].indicator_var
-                | m.investmentStage[stage].branchExtended[branch].indicator_var
-                | m.investmentStage[stage].branchRetired[branch].indicator_var
+        # If a branch is online at time t, it must be online, extended, or retired at time t+1
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_operation_future(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchOperational[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchOperational[branch].indicator_var
+                    | m.investmentStage[stage].branchExtended[branch].indicator_var
+                    | m.investmentStage[stage].branchRetired[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def full_branch_retirement(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchRetired[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchDisabled[branch].indicator_var
+        # Retirement in period t-1 implies disabled in period t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def full_branch_retirement(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchRetired[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchDisabled[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a branch is disabled at time t-1, it must stay disabled or be installed at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_disabled(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchDisabled[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchDisabled[branch].indicator_var
-                | m.investmentStage[stage].branchInstalled[branch].indicator_var
+        # If a branch is disabled at time t-1, it must stay disabled or be installed at time t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_disabled(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchDisabled[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchDisabled[branch].indicator_var
+                    | m.investmentStage[stage].branchInstalled[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # If a branch is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_extended(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchExtended[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchExtended[branch].indicator_var
-                | m.investmentStage[stage].branchRetired[branch].indicator_var
+        # If a branch is extended at time t-1, it must stay extended or be retired at time t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_extended(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchExtended[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchExtended[branch].indicator_var
+                    | m.investmentStage[stage].branchRetired[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
 
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def full_branch_investment(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchInstalled[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchOperational[branch].indicator_var
+        # Installation in period t-1 implies operational in period t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def full_branch_investment(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchInstalled[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchOperational[branch].indicator_var
+                )
+                if stage != 1
+                else LogicalConstraint.Skip
             )
-            if stage != 1
-            else LogicalConstraint.Skip
-        )
