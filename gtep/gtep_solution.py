@@ -177,9 +177,7 @@ class ExpansionPlanningSolution:
             split_name = key.split(".")
 
             # start at the bottom and nest accordingly
-            tmp_dict = {
-                "value": val,
-            }
+            tmp_dict = {"value": val}
 
             # allocate the nested dictionary
             def nested_set(this_dict, key, val):
@@ -466,9 +464,7 @@ class ExpansionPlanningSolution:
         ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
         for axline_ix in range(total_height):
             ax_bins.axhline(
-                axline_ix + 0.5,
-                color="grey",
-                linewidth=3,
+                axline_ix + 0.5, color="grey", linewidth=3
             )  # draw a seperator line between each level
         for axline_ix in range(len(df[level_key])):
             ax_bins.axvline(
@@ -481,12 +477,7 @@ class ExpansionPlanningSolution:
 
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
-            (line,) = ax_bins.plot(
-                [None],
-                [None],
-                label=f"{this_koi}",
-                linewidth=5,
-            )
+            (line,) = ax_bins.plot([None], [None], label=f"{this_koi}", linewidth=5)
             for ix_var, this_voi in enumerate(vars):
                 for tx, is_it_on in zip(
                     df[level_key], df[f"{this_koi}_{this_voi}_value"]
@@ -586,13 +577,7 @@ class ExpansionPlanningSolution:
                     vars = config["order_branch_invest_state"]
 
             self._plot_workhose_binaries(
-                level_key,
-                df,
-                keys,
-                vars,
-                parent_key_string,
-                pretty_title,
-                save_dir,
+                level_key, df, keys, vars, parent_key_string, pretty_title, save_dir
             )
 
         else:
@@ -807,10 +792,11 @@ class ExpansionPlanningSolution:
             tmp_koi = sorted(keys_of_interest)
 
             # make a df for debug and also easy tabularness for plots
-            this_df_of_interest, this_df_units = (
-                self._level_relationship_dict_to_df_workhorse(
-                    level_key, level_timeseries, tmp_koi, tmp_voi
-                )
+            (
+                this_df_of_interest,
+                this_df_units,
+            ) = self._level_relationship_dict_to_df_workhorse(
+                level_key, level_timeseries, tmp_koi, tmp_voi
             )
 
             # check if we got anything in the df
@@ -914,7 +900,6 @@ class ExpansionPlanningSolution:
             norm=Normalize(vmin=None, vmax=None),
             glyph_type="custom",
         ):
-
             def generate_flow_glyphs(
                 num_glyphs,
                 spacing=0.05,
@@ -1045,7 +1030,7 @@ class ExpansionPlanningSolution:
                         )  # go to home
 
                         flow_glyphs.append(
-                            PathPatch(mpath.Path(verts, codes), ec="none"),
+                            PathPatch(mpath.Path(verts, codes), ec="none")
                         )
 
                         rotation_transofrm = Affine2D().rotate_around(

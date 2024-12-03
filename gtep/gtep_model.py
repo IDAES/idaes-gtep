@@ -4,7 +4,7 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
-from pyomo.environ import * 
+from pyomo.environ import *
 from pyomo.environ import units as u
 
 # from pyomo.gdp import *
@@ -26,7 +26,6 @@ from config_options import _get_model_config
 # This will be set to a base year and we will do NPV calculations
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
-
 
 
 ####################################
@@ -73,7 +72,7 @@ class ExpansionPlanningModel:
         :param num_dispatch: integer number of dispatch periods per commitment period
         :return: Pyomo model for full GTEP
         """
-        
+
         self.stages = stages
         self.formulation = formulation
         self.data = data
@@ -174,10 +173,7 @@ class ExpansionPlanningModel:
 ####################################
 
 
-def add_investment_variables(
-    b,
-    investment_stage,
-):
+def add_investment_variables(b, investment_stage):
     """Add variables to investment stage block.
 
     :param b: Investment block
@@ -254,10 +250,10 @@ def add_investment_variables(
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableInstalled = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units = u.MW
+        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableRetired = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
@@ -274,10 +270,7 @@ def add_investment_variables(
     )
 
 
-def add_investment_constraints(
-    b,
-    investment_stage,
-):
+def add_investment_constraints(b, investment_stage):
     """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
 
     m = b.model()
@@ -401,7 +394,7 @@ def add_investment_constraints(
                     .operatingCostCommitment
                 )
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
-    
+
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
@@ -468,10 +461,7 @@ def add_investment_constraints(
         )
 
 
-def add_dispatch_variables(
-    b,
-    dispatch_period,
-):
+def add_dispatch_variables(b, dispatch_period):
     """Add dispatch-associated variables to representative period block."""
 
     m = b.model()
@@ -560,10 +550,7 @@ def add_dispatch_variables(
     # Define bounds on transmission line capacity - restrictions on flow over
     # uninvested lines are enforced in a disjuction below
     def power_flow_limits(b, branch):
-        return (
-            -m.transmissionCapacity[branch],
-            m.transmissionCapacity[branch],
-        )
+        return (-m.transmissionCapacity[branch], m.transmissionCapacity[branch])
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
@@ -617,23 +604,28 @@ def add_dispatch_variables(
         # def max_delta_bus_angle(disj):
         #     return abs(disj.deltaBusAngle) <= math.pi/6
 
-        @disj.Constraint()
-        def dc_power_flow(disj):
-            fb = m.transmission[branch]["from_bus"]
-            tb = m.transmission[branch]["to_bus"]
-            reactance = m.md.data["elements"]["branch"][branch]["reactance"]
-            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
-                reactance *= m.md.data["elements"]["branch"][branch][
-                    "transformer_tap_ratio"
-                ]
-                shift = m.md.data["elements"]["branch"][branch][
-                    "transformer_phase_shift"
-                ]
-            else:
-                shift = 0
-            return b.powerFlow[branch] == (-1 / reactance) * (
-                disj.busAngle[tb] - disj.busAngle[fb] + shift
-            )
+        if m.config["flow_model"] == "DC":
+
+            @disj.Constraint()
+            def dc_power_flow(disj):
+                fb = m.transmission[branch]["from_bus"]
+                tb = m.transmission[branch]["to_bus"]
+                reactance = m.md.data["elements"]["branch"][branch]["reactance"]
+                if (
+                    m.md.data["elements"]["branch"][branch]["branch_type"]
+                    == "transformer"
+                ):
+                    reactance *= m.md.data["elements"]["branch"][branch][
+                        "transformer_tap_ratio"
+                    ]
+                    shift = m.md.data["elements"]["branch"][branch][
+                        "transformer_phase_shift"
+                    ]
+                else:
+                    shift = 0
+                return b.powerFlow[branch] == (-1 / reactance) * (
+                    disj.busAngle[tb] - disj.busAngle[fb] + shift
+                )
 
     @b.Disjunct(m.transmission)
     def branchNotInUse(disj, branch):
@@ -650,10 +642,7 @@ def add_dispatch_variables(
     # provide the basis for transmission switching in the future
     @b.Disjunction(m.transmission)
     def branchInUseStatus(disj, branch):
-        return [
-            disj.branchInUse[branch],
-            disj.branchNotInUse[branch],
-        ]
+        return [disj.branchInUse[branch], disj.branchNotInUse[branch]]
 
     # JSC update - If a branch is in use, it must be active
     # Update this when switching is implemented
@@ -753,7 +742,6 @@ def add_dispatch_constraints(b, disp_per):
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == m.renewableCapacity[renewableGen]
         )
-
 
     ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
     @b.Constraint(m.renewableGenerators)
@@ -976,10 +964,7 @@ def add_commitment_variables(b, commitment_period):
         )
 
 
-def add_commitment_constraints(
-    b,
-    comm_per,
-):
+def add_commitment_constraints(b, comm_per):
     """Add commitment-associated disjunctions and constraints to representative period block."""
     m = b.model()
     r_p = b.parent_block()
@@ -1026,7 +1011,6 @@ def add_commitment_constraints(
                 for gen in m.thermalGenerators
             )
         )
-
 
     # Define total curtailment for commitment block
     @b.Expression()
@@ -1383,10 +1367,7 @@ def add_representative_period_constraints(b, rep_per):
         )
 
 
-def representative_period_rule(
-    b,
-    representative_period,
-):
+def representative_period_rule(b, representative_period):
     """Create representative period block.
 
     :b: Representative period block
@@ -1404,10 +1385,7 @@ def representative_period_rule(
     add_representative_period_constraints(b, representative_period)
 
 
-def investment_stage_rule(
-    b,
-    investment_stage,
-):
+def investment_stage_rule(b, investment_stage):
     """Creates investment stage block.
 
     :b: Investment block
@@ -1501,8 +1479,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     }
 
     m.generators = Set(
-        initialize=m.md.data["elements"]["generator"].keys(),
-        doc="All generators",
+        initialize=m.md.data["elements"]["generator"].keys(), doc="All generators"
     )
 
     m.thermalGenerators = Set(
@@ -1538,8 +1515,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     m.stages = RangeSet(stages, doc="Set of planning periods")
 
     m.representativePeriods = Set(
-        initialize=rep_per,
-        doc="Set of representative periods for each planning period",
+        initialize=rep_per, doc="Set of representative periods for each planning period"
     )
 
 
@@ -1673,7 +1649,7 @@ def model_data_references(m):
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
     m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD / u.hr)
-    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW *u.hr))
+    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW * u.hr))
 
     # Amount of fuel required to be consumed for startup process for each generator
     m.startFuel = {
@@ -1689,15 +1665,24 @@ def model_data_references(m):
 
     else:
         for gen in m.thermalGenerators:
-            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][
+                1
+            ]
 
-    m.fuelCost = Param(m.thermalGenerators, initialize=fuelCost, units = u.USD / (u.MW * u.hr))
+    m.fuelCost = Param(
+        m.thermalGenerators, initialize=fuelCost, units=u.USD / (u.MW * u.hr)
+    )
 
     # Cost per MW of curtailed renewable energy
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
-    m.curtailmentCost = Param(initialize = 2 * max(value(item) for item in m.fuelCost.values()), units = u.USD / (u.MW * u.hr))
-    m.loadShedCost = Param(initialize = 1000 * m.curtailmentCost, units= u.USD / (u.MW * u.hr))
+    m.curtailmentCost = Param(
+        initialize=2 * max(value(item) for item in m.fuelCost.values()),
+        units=u.USD / (u.MW * u.hr),
+    )
+    m.loadShedCost = Param(
+        initialize=1000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+    )
 
     # Full lifecycle CO_2 emission factor for each generator
     m.emissionsFactor = {
@@ -1711,15 +1696,13 @@ def model_data_references(m):
             gen: m.md.data["elements"]["generator"][gen]["non_fuel_startup_cost"]
             for gen in m.thermalGenerators
         }
-        m.startupCost = Param(m.thermalGenerators, initialize = startupCost, units = u.USD)
+        m.startupCost = Param(m.thermalGenerators, initialize=startupCost, units=u.USD)
     else:
         startupCost = {
             gen: m.md.data["elements"]["generator"][gen]["startup_cost"]
             for gen in m.generators
         }
-        m.startupCost = Param(m.generators, initialize = startupCost, units = u.USD)
-    
-    
+        m.startupCost = Param(m.generators, initialize=startupCost, units=u.USD)
 
     # (Arbitrary) multiplier for new generator investments corresponds to depreciation schedules
     # for individual technologies; higher values are indicative of slow depreciation
