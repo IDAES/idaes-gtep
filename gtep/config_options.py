@@ -39,11 +39,11 @@ def _get_model_config():
     )
 
     CONFIG.declare(
-        "include_dispatch",
+        "include_redispatch",
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Include economic dispatch formulation (i.e., OPF).",
+            description="Include economic redispatch formulation (i.e., >1 dispatch period per commitment period).",
         ),
     )
 
@@ -86,7 +86,7 @@ def _add_common_configs(CONFIG):
     CONFIG.declare(
         "scale_loads",
         ConfigValue(
-            default=False,
+            default=True,
             domain=Bool,
             description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
         ),
