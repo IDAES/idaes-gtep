@@ -55,12 +55,21 @@ def _get_model_config():
             description="Power flow approximation to use.",
         ),
     )
+
+    CONFIG.declare(
+        "time_period_subsets",
+        ConfigList(
+            description="Time period counts for fixed-length and fixed-subset periods."
+        ),
+    )
+
     CONFIG.declare(
         "time_period_dict",
         ConfigDict(
             description="Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
+
     CONFIG.declare(
         "dispatch_randomization",
         ConfigValue(
@@ -73,7 +82,15 @@ def _get_model_config():
 
 
 def _add_common_configs(CONFIG):
-    pass
+
+    CONFIG.declare(
+        "scale_loads",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
+        ),
+    )
 
 
 def _add_investment_configs(CONFIG):
