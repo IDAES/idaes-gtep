@@ -19,7 +19,6 @@ input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
 output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
 
 
-
 def test_solution():
     data_object = ExpansionPlanningData()
     data_object.load_prescient(input_data_source)

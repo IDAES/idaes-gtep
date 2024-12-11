@@ -24,43 +24,43 @@ def populate_generators(
     # is installed, operational, or extended
 
     def gen_name_filter(gen_name):
-        return 'gen' in gen_name and (
-            'Ext' in gen_name or 'Ope' in gen_name or 'Ins' in gen_name
+        return "gen" in gen_name and (
+            "Ext" in gen_name or "Ope" in gen_name or "Ins" in gen_name
         )
 
-    solution_dict = sol_object._to_dict()['results']['primals_tree']
+    solution_dict = sol_object._to_dict()["results"]["primals_tree"]
     end_investment_stage = list(solution_dict.keys())[0]
     end_investment_solution_dict = {
-        k: v['value']
+        k: v["value"]
         for k, v in solution_dict[end_investment_stage].items()
-        if gen_name_filter(k) and v['value'] > 0.5
+        if gen_name_filter(k) and v["value"] > 0.5
     }
     end_investment_gens = [
-        re.search(r'\[.*\]', k).group(0)[1:-1]
+        re.search(r"\[.*\]", k).group(0)[1:-1]
         for k in end_investment_solution_dict.keys()
     ]
 
     # for renewable:
     # total capacity should be installed + operational + extended values
     def renewable_name_filter(gen_name):
-        return 'renew' in gen_name and (
-            'Ext' in gen_name or 'Ope' in gen_name or 'Ins' in gen_name
+        return "renew" in gen_name and (
+            "Ext" in gen_name or "Ope" in gen_name or "Ins" in gen_name
         )
 
     end_investment_renewable_dict = {
-        k: v['value']
+        k: v["value"]
         for k, v in solution_dict[end_investment_stage].items()
         if renewable_name_filter(k)
     }
     end_investment_renewable_gens = {
-        re.search(r'\[.*\]', k).group(0)[1:-1]: 0
+        re.search(r"\[.*\]", k).group(0)[1:-1]: 0
         for k in end_investment_renewable_dict.keys()
     }
     for k, v in end_investment_renewable_dict.items():
-        end_investment_renewable_gens[re.search(r'\[.*\]', k).group(0)[1:-1]] += v
+        end_investment_renewable_gens[re.search(r"\[.*\]", k).group(0)[1:-1]] += v
     for k, v in end_investment_renewable_gens.items():
         ## NOTE: (@jkskolf) this will break in pandas 3.0
-        input_df["PMax MW"].mask(input_df['GEN UID'] == k, v, inplace=True)
+        input_df["PMax MW"].mask(input_df["GEN UID"] == k, v, inplace=True)
 
     end_investment_gens += [k for k in end_investment_renewable_gens.keys()]
     # populate output dataframe
@@ -114,17 +114,16 @@ def filter_pointers(data_input_path, data_output_path):
 
     # keep generators that exist at the final investment stage and remove the rest
     # keep all non-generator timeseries pointers
-    matching_gen_list = [gen for gen in output_generators_df['GEN UID']]
+    matching_gen_list = [gen for gen in output_generators_df["GEN UID"]]
     output_df = input_pointers_df[
-        input_pointers_df['Object'].isin(matching_gen_list)
-        | input_pointers_df['Category']
-        != 'Generator'
+        input_pointers_df["Object"].isin(matching_gen_list)
+        | input_pointers_df["Category"]
+        != "Generator"
     ]
 
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
     output_df.to_csv(os.path.join(data_output_path, "timeseries_pointers.csv"))
-
 
 
 def clone_timeseries(data_input_path, data_output_path):
