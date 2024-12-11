@@ -473,7 +473,7 @@ class ExpansionPlanningSolution:
                 linewidth=3,
                 linestyle="dotted",
                 alpha=0.5,
-            )  # draw a separator line between each level
+            )  # draw a seperator line between each level
 
         for ix_key, this_koi in enumerate(keys):
             # make a dummy line to steal the color cycler and make a single item for the legend
