@@ -50,14 +50,16 @@ solution = test_solution()
 
 
 class TestValidation(unittest.TestCase):
-    def test_populate_generators(self):
+    def test_populate_generators_filter_pointers(self):
         populate_generators(input_data_source, solution, output_data_source)
+        # filter_pointers needs to access the gen.csv file created in populate_generators
+        filter_pointers(input_data_source, output_data_source)
 
     def test_populate_transmission(self):
         populate_transmission(input_data_source, solution, output_data_source)
 
-    def test_filter_pointers(self):
-        filter_pointers(input_data_source, output_data_source)
+    # def test_filter_pointers(self):
+    #    filter_pointers(input_data_source, output_data_source)
 
     def test_clone_timeseries(self):
         clone_timeseries(input_data_source, output_data_source)
