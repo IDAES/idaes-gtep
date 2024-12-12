@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix: 
         os: [ubuntu-latest, windows-latest]
-        python: [3.9, '3.10', '3.11']
+        python: [3.9, '3.10', '3.11', '3.12']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
       - name: Install idaes-gtep
         run: |
           pip install -e .
+          
       - name: Run Tests
         run: |
           pytest -v gtep
-          
