@@ -622,7 +622,7 @@ class ExpansionPlanningSolution:
 
             for this_key in upper_level_dict:
                 level_period_number = int(
-                    re.split("\[|\]", this_key.split(level_key)[1])[1]
+                    re.split(r"\[|\]", this_key.split(level_key)[1])[1]
                 )
                 vals_dict.setdefault(level_period_number, {})
                 for this_val_key in keys_of_vals_of_interest:
@@ -726,7 +726,7 @@ class ExpansionPlanningSolution:
             level_period_dict = {}
             # cut out which dispatch period this is
             level_period_number = int(
-                re.split("\[|\]", this_key.split(level_key)[1])[1]
+                re.split(r"\[|\]", this_key.split(level_key)[1])[1]
             )
             # print(level_period_number)
 
