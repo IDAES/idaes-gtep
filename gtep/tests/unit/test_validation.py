@@ -19,7 +19,7 @@ input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
 output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
 
 
-def test_solution():
+def get_solution_object():
     data_object = ExpansionPlanningData()
     data_object.load_prescient(input_data_source)
 
@@ -42,24 +42,24 @@ def test_solution():
 
     sol_object = ExpansionPlanningSolution()
     sol_object.load_from_model(mod_object)
-    sol_object.dump_json("./gtep/tests/test_solution.json")
+    # sol_object.dump_json("./gtep/tests/test_solution.json")
     return sol_object
 
 
-solution = test_solution()
-
-
 class TestValidation(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.solution = get_solution_object()
+
     def test_populate_generators_filter_pointers(self):
-        populate_generators(input_data_source, solution, output_data_source)
+        populate_generators(input_data_source, self.solution, output_data_source)
         # filter_pointers needs to access the gen.csv file created in populate_generators
+        # so these functions need to be tested together
         filter_pointers(input_data_source, output_data_source)
 
     def test_populate_transmission(self):
-        populate_transmission(input_data_source, solution, output_data_source)
-
-    # def test_filter_pointers(self):
-    #    filter_pointers(input_data_source, output_data_source)
+        populate_transmission(input_data_source, self.solution, output_data_source)
 
     def test_clone_timeseries(self):
         clone_timeseries(input_data_source, output_data_source)
