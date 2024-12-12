@@ -49,7 +49,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Everything outside of Solar PV requires "Low Urban Density", so we're just going to completely ignore that entirely.
 # Wind needs to map to Wind Zones
 # Solar Thermal need Solar Resource and Water Vailability
-# NG CT needs NG Supply, and Non-attainment is requird if replacing higher-emission generation
+# NG CT needs NG Supply, and Non-attainment is required if replacing higher-emission generation
 # NG CC needs NG Supply, and Water Availability
 # Coal needs Rail, Can't be in  Non-Attainment Area, and Water Availability
 # Biomass needs Rail and Biomass
@@ -178,7 +178,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # Hydrothermal is probably Hydrothermal in both cases. That only really makes sense for Binary, because the map says that the highest temperature is
 # ~160F (71C), which is well below the 200C needed for Flash. Geopressure can get high enough temperature, but is deep.
 # Geopressure is very deep (13000 ft ~= 3.9 km), so this likely applies to the Deep EGS (3-6 km). Let's ignore it for now.
-# Hot Dry Rock is very explicity "little or no water", so let's seperate Hydro from NFEGS
+# Hot Dry Rock is very explicitly "little or no water", so let's separate Hydro from NFEGS
 # C.2 only gives us High, Medium and NA. Everything is pain.
 # Looking at the workbook, Flash and Binary appear to be identical in the data and we can ignore Hydro and NFEGS, until you get to costs.
 # If it was the other way around, we could instead map "Medium" and "High" to production.
@@ -191,7 +191,7 @@ bus_data_df.to_csv("Bus_data_extended.csv", index=False)
 # ***************************************************************************************************************************************************
 
 # --- Solar - Utility PV ---
-# For some reason, we can't assign any actual units here, even though we did so on the other solar classificaitons. Cool. Thanks. Appreciate that.
+# For some reason, we can't assign any actual units here, even though we did so on the other solar classifications. Cool. Thanks. Appreciate that.
 # Instead we get "Very High", "High", and "Medium" from C.1 and "Good" or "Avg." from C.2.
 # Mapping C.1 to C.2 we get that Very High = Good, High = Good and Medium = Avg. So let's use C.1 because it's more detailed.
 # The workbook gives us Class 1-10. Lower is better. Everything is pain.
