@@ -66,7 +66,7 @@ def _get_model_config():
     CONFIG.declare(
         "time_period_dict",
         ConfigDict(
-            description="Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
+            description=r"Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
 
