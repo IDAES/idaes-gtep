@@ -64,7 +64,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Intall Python packages (conda)
+      - name: Install Python packages (conda)
         run: |
           # Set up environment
           conda config --set always_yes yes
