@@ -5,3 +5,8 @@ extend-exclude = ["*.eps"]
 # Ignore IDAES
 IDAES = "IDAES"
 idaes = "idaes"
+# Ignore ND
+ND = "ND"
+nd = "nd"
+# Ignore opf
+opf = "opf"
