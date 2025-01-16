@@ -20,7 +20,7 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config
+from config_options import _get_model_config, _add_common_configs
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
@@ -83,11 +83,14 @@ class ExpansionPlanningModel:
         self.config = _get_model_config()
         self.timer = TicTocTimer()
 
+        _add_common_configs(self.config)
+
     def create_model(self):
         """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
 
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
+        m.config = self.config
         m.rng = np.random.default_rng(seed=123186)
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
@@ -1835,25 +1838,25 @@ def model_create_investment_stages(m, stages):
     #         )
     if m.config["include_investment"]:
 
-        # Linking generator investment status constraints
-        @m.Constraint(m.stages, m.thermalGenerators)
-        def gen_stats_link(m, stage, gen):
-            return (
-                m.investmentStage[stage]
-                .genOperational[gen]
-                .indicator_var.get_associated_binary()
-                == m.investmentStage[stage - 1]
-                .genOperational[gen]
-                .indicator_var.get_associated_binary()
-                + m.investmentStage[stage - 1]
-                .genInstalled[gen]
-                .indicator_var.get_associated_binary()
-                - m.investmentStage[stage - 1]
-                .genRetired[gen]
-                .indicator_var.get_associated_binary()
-                if stage != 1
-                else Constraint.Skip
-            )
+        # # Linking generator investment status constraints
+        # @m.Constraint(m.stages, m.thermalGenerators)
+        # def gen_stats_link(m, stage, gen):
+        #     return (
+        #         m.investmentStage[stage]
+        #         .genOperational[gen]
+        #         .indicator_var.get_associated_binary()
+        #         == m.investmentStage[stage - 1]
+        #         .genOperational[gen]
+        #         .indicator_var.get_associated_binary()
+        #         + m.investmentStage[stage - 1]
+        #         .genInstalled[gen]
+        #         .indicator_var.get_associated_binary()
+        #         - m.investmentStage[stage - 1]
+        #         .genRetired[gen]
+        #         .indicator_var.get_associated_binary()
+        #         if stage != 1
+        #         else Constraint.Skip
+        #     )
 
         # Renewable generation (in MW) retirement relationships
         if len(m.stages) > 1:
