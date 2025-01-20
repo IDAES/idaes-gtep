@@ -1273,49 +1273,6 @@ def add_representative_period_constraints(b, rep_per):
                 else LogicalConstraint.Skip
             )
 
-        ##FIXME: Is this constraint necessary?
-        # @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        # def consistent_commitment_shutdown_after_uptime(
-        #     b, commitmentPeriod, thermalGen
-        # ):
-        #     return (
-        #         (
-        #             atleast(
-        #                 int(
-        #                     m.md.data["elements"]["generator"][thermalGen][
-        #                         "min_up_time"
-        #                     ]
-        #                 ),
-        #                 [
-        #                     b.commitmentPeriod[commitmentPeriod - j - 1]
-        #                     .genOn[thermalGen]
-        #                     .indicator_var
-        #                     for j in range(
-        #                         min(
-        #                             int(
-        #                                 m.md.data["elements"]["generator"][thermalGen][
-        #                                     "min_up_time"
-        #                                 ]
-        #                             ),
-        #                             commitmentPeriod - 1,
-        #                         )
-        #                     )
-        #                 ],
-        #             ).land(
-        #                 b.commitmentPeriod[commitmentPeriod - 1]
-        #                 .genOn[thermalGen]
-        #                 .indicator_var
-        #             )
-        #         ).implies(
-        #             b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
-        #             | b.commitmentPeriod[commitmentPeriod]
-        #             .genShutdown[thermalGen]
-        #             .indicator_var
-        #         )
-        #         if commitmentPeriod != 1
-        #         else LogicalConstraint.Skip
-        #     )
-
         @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
         def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
             return (
@@ -1356,49 +1313,6 @@ def add_representative_period_constraints(b, rep_per):
                 != 1  # >= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
                 else LogicalConstraint.Skip
             )
-
-        ##FIXME: is this constraint necessary?
-        # @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        # def consistent_commitment_start_after_downtime(b, commitmentPeriod, thermalGen):
-        #     return (
-        #         (
-        #             atleast(
-        #                 int(
-        #                     m.md.data["elements"]["generator"][thermalGen][
-        #                         "min_down_time"
-        #                     ]
-        #                 ),
-        #                 [
-        #                     b.commitmentPeriod[commitmentPeriod - j - 1]
-        #                     .genOff[thermalGen]
-        #                     .indicator_var
-        #                     for j in range(
-        #                         min(
-        #                             int(
-        #                                 m.md.data["elements"]["generator"][thermalGen][
-        #                                     "min_down_time"
-        #                                 ]
-        #                             ),
-        #                             commitmentPeriod - 1,
-        #                         )
-        #                     )
-        #                 ],
-        #             ).land(
-        #                 b.commitmentPeriod[commitmentPeriod - 1]
-        #                 .genOff[thermalGen]
-        #                 .indicator_var
-        #             )
-        #         ).implies(
-        #             b.commitmentPeriod[commitmentPeriod]
-        #             .genOff[thermalGen]
-        #             .indicator_var
-        #             | b.commitmentPeriod[commitmentPeriod]
-        #             .genStartup[thermalGen]
-        #             .indicator_var
-        #         )
-        #         if commitmentPeriod != 1
-        #         else LogicalConstraint.Skip
-        #     )
 
 
 def representative_period_rule(b, representative_period):
@@ -1842,26 +1756,6 @@ def model_create_investment_stages(m, stages):
     #             if t_1 <= stage
     #         )
     if m.config["include_investment"]:
-
-        # # Linking generator investment status constraints
-        # @m.Constraint(m.stages, m.thermalGenerators)
-        # def gen_stats_link(m, stage, gen):
-        #     return (
-        #         m.investmentStage[stage]
-        #         .genOperational[gen]
-        #         .indicator_var.get_associated_binary()
-        #         == m.investmentStage[stage - 1]
-        #         .genOperational[gen]
-        #         .indicator_var.get_associated_binary()
-        #         + m.investmentStage[stage - 1]
-        #         .genInstalled[gen]
-        #         .indicator_var.get_associated_binary()
-        #         - m.investmentStage[stage - 1]
-        #         .genRetired[gen]
-        #         .indicator_var.get_associated_binary()
-        #         if stage != 1
-        #         else Constraint.Skip
-        #     )
 
         if len(m.stages) > 1:
             ##FIXME Rewrite as logic
