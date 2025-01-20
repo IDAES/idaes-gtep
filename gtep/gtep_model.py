@@ -480,7 +480,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=NonNegativeReals,
         bounds=thermal_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Define bounds on renewable generator active generation
@@ -492,7 +492,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=NonNegativeReals,
         bounds=renewable_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Define bounds on renewable generator curtailment
@@ -504,7 +504,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=NonNegativeReals,
         bounds=curtailment_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Per generator surplus
@@ -522,7 +522,7 @@ def add_dispatch_variables(b, dispatch_period):
     # Per generator cost
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
-        return b.thermalGeneration[gen] * m.fuelCost[gen]
+        return b.thermalGeneration[gen] * m.fuelCost[gen] * b.di
 
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0, units=u.MW * u.hr)
@@ -560,7 +560,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=Reals,
         bounds=power_flow_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     @b.Disjunct(m.transmission)
@@ -1109,7 +1109,8 @@ def add_representative_period_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
     if m.config["include_commitment"]:
-
+        ##FIXME this needs to be updated for variable length commitment periods
+        ## do this by (pre) processing the set of commitment periods for req_shutdown_periods
         @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
         def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
             req_shutdown_periods = ceil(
@@ -1855,6 +1856,27 @@ def model_create_investment_stages(m, stages):
                 else Constraint.Skip
             )
 
+        if len(m.stages) > 1:
+            ##FIXME Rewrite as logic
+            @m.Constraint(m.stages, m.thermalGenerators)
+            def gen_retirement(m, stage, gen):
+                return sum(
+                    m.investmentStage[t_2]
+                    .genInstalled[gen]
+                    .indicator_var.get_associated_binary()
+                    for t_2 in m.stages
+                    if t_2 <= stage - m.lifetimes[gen]
+                ) <= sum(
+                    m.investmentStage[t_1]
+                    .genRetired[gen]
+                    .indicator_var.get_associated_binary()
+                    + m.investmentStage[t_1]
+                    .genExtended[gen]
+                    .indicator_var.get_associated_binary()
+                    for t_1 in m.stages
+                    if t_1 <= stage
+                )
+
         # Renewable generation (in MW) retirement relationships
         if len(m.stages) > 1:
 
@@ -1928,6 +1950,7 @@ def model_create_investment_stages(m, stages):
             )
 
         # If a gen is disabled at time t-1, it must stay disabled  at time t
+        ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
         @m.LogicalConstraint(m.stages, m.thermalGenerators)
         def consistent_disabled(m, stage, gen):
             return (
