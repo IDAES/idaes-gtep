@@ -808,6 +808,7 @@ def add_commitment_variables(b, commitment_period):
             )
 
         # Maximum operating limits
+        ##FIXME: don't need this constraint
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit_max(d, dispatchPeriod):
             return (
@@ -851,6 +852,8 @@ def add_commitment_variables(b, commitment_period):
                 <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
             )
 
+        ##FIXME: add quick start reserve = 0
+
     @b.Disjunct(m.thermalGenerators)
     def genStartup(disj, generator):
         b = disj.parent_block()
@@ -882,6 +885,7 @@ def add_commitment_variables(b, commitment_period):
                     m.rampUpRates[generator]
                     * b.dispatchPeriod[dispatchPeriod].periodLength,
                 )
+                ##FIXME: I don't think this parenthesis is correct -- thermal capacity should go inside with the second term.  Or do I need to make this two constraints?
                 * m.thermalCapacity[generator]
                 if dispatchPeriod != 1
                 else Constraint.Skip
@@ -917,6 +921,7 @@ def add_commitment_variables(b, commitment_period):
                     m.rampDownRates[generator]
                     * b.dispatchPeriod[dispatchPeriod].periodLength,
                 )
+                ##FIXME: I don't think this parenthesis is correct -- thermal capacity should go inside with the second term.  Or do I need to make this two constraints?
                 * m.thermalCapacity[generator]
                 if dispatchPeriod != 1
                 else Constraint.Skip
@@ -934,6 +939,7 @@ def add_commitment_variables(b, commitment_period):
 
         # Maximum quickstart reserve constraint
         ## NOTE: maxQuickstartReserve is a percentage of thermalCapacity
+        ##FIXME: This isn't needed.  instead we need to set spinning reserve to 0.
         @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
         def max_quickstart_reserve(disj, dispatchPeriod, generator):
             return (
