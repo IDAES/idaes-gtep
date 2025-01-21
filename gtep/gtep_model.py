@@ -587,6 +587,7 @@ def add_dispatch_variables(b, dispatch_period):
             )
         ]
 
+        ##FIXME: we need this for all buses all the time
         disj.busAngle = Var(
             disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds
         )
@@ -601,6 +602,7 @@ def add_dispatch_variables(b, dispatch_period):
             tb = m.transmission[branch]["to_bus"]
             return disj.busAngle[tb] - disj.busAngle[fb]
 
+        ##FIXME: we can just add this as a constraint rather than a variable, this is weird
         # @KyleSkolfield - I think this var is unused and commented it out, can we delete?
         disj.deltaBusAngle = Var(
             domain=Reals, bounds=delta_bus_angle_bounds, rule=delta_bus_angle_rule
@@ -658,6 +660,8 @@ def add_dispatch_variables(b, dispatch_period):
             )
         )
 
+    ##FIXME: this logic isn't true.  remove when con fig fixes switching.
+    ##FIXME: replace with disabled/retired \implies not in use
     # JSC update - If a branch is not in use, it must be inactive.
     # Update this when switching is implemented
     @b.LogicalConstraint(m.transmission)

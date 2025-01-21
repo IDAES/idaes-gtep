@@ -124,6 +124,7 @@ def _add_investment_configs(CONFIG):
             description="Include transmission investment options",
         ),
     )
+    CONFIG.declare("transmission_switching", ConfigValue(default=False, domain=Bool, description="Allow transmission switching during dispatch"))
 
 
 def _add_solver_configs(CONFIG):
