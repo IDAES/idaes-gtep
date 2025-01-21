@@ -22,6 +22,7 @@ import math
 from math import ceil
 from config_options import _get_model_config, _add_common_configs
 
+
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
 # based on automatic pyomo unit transformations

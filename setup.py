@@ -10,7 +10,15 @@ from setuptools import setup, find_packages
 #     "pint",
 # ]
 
-requires = ["pyomo", "scipy", "gridx-egret", "gridx-prescient", "anyio==3.1", "pint"]
+requires = [
+    "pyomo",
+    "scipy",
+    "gridx-egret",
+    "gridx-prescient",
+    "anyio",
+    "pint",
+    "icecream",
+]
 setup(
     name="gtep",
     version="0.1.dev0",
