@@ -54,3 +54,8 @@ class timePeriodData(object):
 
 if __name__ == "__main__":
     print("fasldkfj")
+    array = ak.Record({"hat": 1, "cat": 2, "borg": "worg", "3": [1, 2, 3]})
+    print(array)
+    x = ak.unzip(array)
+    print(x)
+    print(list(chr(y) for y in x[2]))
