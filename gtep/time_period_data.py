@@ -9,6 +9,11 @@ logger = logging.getLogger("time_period_data")
 # one thing it should do is send itself to config, most notably the time dict shenanigans
 
 
+class timePeriod(ak.Record):
+    def parent(self):
+        return
+
+
 class timePeriodData(object):
     @staticmethod
     def empty_time_period_dict():
@@ -31,4 +36,21 @@ class timePeriodData(object):
             If timePeriodData, the original is copied into the new timePeriodData
             If None, a blank dictionary is created
         """
-        pass
+        if isinstance(source, dict):
+            self.data = source
+        elif isinstance(source, str):
+            raise Warning("Not yet implemented.")
+        elif isinstance(source, timePeriodData):
+            ##FIXME: write a clone function probably
+            self.data = source.data
+        elif source is None:
+            self.data = timePeriodData.empty_time_period_dict()
+        else:
+            raise RuntimeError("Unrecognized source for timePeriodData.")
+
+    def snapshot(self):
+        return ak.from_iter(self.data)
+
+
+if __name__ == "__main__":
+    print("fasldkfj")
