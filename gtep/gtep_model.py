@@ -25,7 +25,7 @@ from config_options import _get_model_config
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
 # based on automatic pyomo unit transformations
-u.load_definitions_from_strings(["USD = [currency]"])
+u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]"])
 
 rng = np.random.default_rng(seed=123186)
 
@@ -89,6 +89,7 @@ class ExpansionPlanningModel:
 
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
+        m.config = self.config
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
@@ -493,6 +494,18 @@ def add_dispatch_variables(
         units=u.MW * u.hr,
     )
 
+    # Define bounds on thermal generator reactive generation
+    def thermal_reactive_generation_limits(b, thermalGen):
+        return (0, m.thermalReactiveCapacity[thermalGen])
+    
+    b.thermalReactiveGeneration = Var(
+        m.thermalGenerators,
+        domain=Reals,
+        bounds=thermal_reactive_generation_limits,
+        initialize=0,
+        units=u.MVAR * u.hr,
+    )
+
     # Define bounds on renewable generator active generation
     def renewable_generation_limits(b, renewableGen):
         return (0, m.renewableCapacity[renewableGen])
@@ -534,6 +547,11 @@ def add_dispatch_variables(
     def generatorCost(b, gen):
         return b.thermalGeneration[gen] * m.fuelCost[gen]
 
+    # Per generator reactive power cost
+    @b.Expression(m.thermalGenerators)
+    def reactiveGeneratorCost(b, gen):
+        return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0, units=u.MW * u.hr)
 
@@ -547,12 +565,15 @@ def add_dispatch_variables(
 
     b.generationCostDispatch = sum(b.generatorCost.values())
 
+    # Reactive generation cost
+    b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
+    
     b.loadShedCostDispatch = sum(b.loadShedCost.values())
 
     b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
 
     b.operatingCostDispatch = (
-        b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
+        b.generationCostDispatch + b.reactiveGenerationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
     )
 
     b.renewableCurtailmentDispatch = sum(
@@ -659,35 +680,97 @@ def add_dispatch_variables(
             B = admittance.imag
             
             # Define voltage magnitude variables for from and to buses
-            @disj.Var()
-            def voltage_from(disj):
-                return disj.parent_block().voltage[fb]
-
-            @disj.Var()
-            def voltage_to(disj):
-                return disj.parent_block().voltage[tb]
+            disj.voltage_from = Var(bounds = (0,2))
+            disj.voltage_to = Var(bounds = (0,2))
 
 
-            # Active Power Flow Constraint
+            
+
+            # Define active and reactive power flow variables 
+            disj.P_flow = Var(bounds = (-1000,1000))
+            disj.Q_flow = Var(bounds = (-1000,1000))
+
+            # Polar Active Power Flow Constraint
             @disj.Constraint()
             def ac_power_flow_p(disj):
-                return m.P_flow[branch] == (
-                    m.voltage[fb]**2 * G
-                    - m.voltage[fb] * m.voltage[tb] * (
-                        G * math.cos(m.theta[fb] - m.theta[tb] + phase_shift)
-                        + B * math.sin(m.theta[fb] - m.theta[tb] + phase_shift)
+                return disj.P_flow == (
+                    disj.voltage_from**2 * G
+                    - disj.voltage_from * disj.voltage_to * (
+                        G * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        + B * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                     )
                 )
             
-            # Reactive Power Flow Constraint
+            # Polar Reactive Power Flow Constraint
             @disj.Constraint()
             def ac_power_flow_q(disj):
-                return m.Q_flow[branch] == (
-                    -m.voltage[fb]**2 * B
-                    - m.voltage[fb] * m.voltage[tb] * (
-                        G * math.sin(m.theta[fb] - m.theta[tb] + phase_shift)
-                        - B * math.cos(m.theta[fb] - m.theta[tb] + phase_shift)
+                return disj.Q_flow == (
+                    -disj.voltage_from**2 * B
+                    - disj.voltage_from * disj.voltage_to * (
+                        G * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        - B * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                     )
+                )
+
+
+        if m.config["flow_model"] == "ACR":
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
+            reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6) 
+
+            # Transformer tap ratio and phase shift 
+            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
+                reactance *= m.md.data["elements"]["branch"][branch][
+                    "transformer_tap_ratio"
+                ]
+                phase_shift = m.md.data["elements"]["branch"][branch][
+                    "transformer_phase_shift"
+                ]
+            else:
+                phase_shift = 0
+
+            admittance = 1 / complex(resistance, reactance)
+            G = admittance.real
+            B = admittance.imag
+            
+            # Define rectangular voltage variables for from and to buses
+            disj.real_voltage_from = Var(bounds = (0,2))
+            disj.real_voltage_to = Var(bounds = (-2,2))
+            disj.imag_voltage_from = Var(bounds = (0,2))
+            disj.imag_voltage_to = Var(bounds = (-2,2))
+
+            
+
+            # Define active and reactive power flow variables 
+            disj.P_flow = Var(bounds = (-1000,1000))
+            disj.Q_flow = Var(bounds = (-1000,1000))
+
+
+            # Rectangular Active Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_p(disj):
+                Vf_r = disj.real_voltage_from
+                Vf_i = disj.imag_voltage_from
+                Vt_r = disj.real_voltage_to
+                Vt_i = disj.imag_voltage_to
+
+                # Active Power Flow Equation
+                return disj.P_flow == (
+                    G * (Vf_r**2 + Vf_i**2) - G * (Vf_r * Vt_r + Vf_i * Vt_i) - B * (Vf_r * Vt_i - Vf_i * Vt_r)
+                )
+
+            # Rectangular Reactive Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_q(disj):
+                Vf_r = disj.real_voltage_from
+                Vf_i = disj.imag_voltage_from
+                Vt_r = disj.real_voltage_to
+                Vt_i = disj.imag_voltage_to
+
+                # Reactive Power Flow Equation
+                return disj.Q_flow == (
+                    B * (Vf_r**2 + Vf_i**2) + B * (Vf_r * Vt_r + Vf_i * Vt_i) - G * (Vf_r * Vt_i - Vf_i * Vt_r)
                 )
 
 
@@ -1627,10 +1710,10 @@ def model_data_references(m):
         thermalGen: m.md.data["elements"]["generator"][thermalGen].get("q_max", 0)
         for thermalGen in m.thermalGenerators
     }
-
+    
     # Minimum reactive power output of each thermal generator
     m.thermalReactiveMin = {
-        thermalGen: m.md.data["elements"]["generator"][thermalGen].get("q_max", 0)
+        thermalGen: m.md.data["elements"]["generator"][thermalGen].get("q_min", 0)
         for thermalGen in m.thermalGenerators
     }  
 
@@ -2112,3 +2195,5 @@ def model_create_investment_stages(m, stages):
             if stage != 1
             else LogicalConstraint.Skip
         )
+
+        

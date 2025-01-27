@@ -15,7 +15,8 @@ _supported_flows = {
     "DC": ("gtep.dcopf", "DC power flow approximation"),
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
-    
+    "ACR": ("gtep.acr", "AC power flow in rectangular formulation")
+
 }
 
 
