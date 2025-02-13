@@ -29,16 +29,17 @@ def populate_generators(
         )
 
     solution_dict = sol_object._to_dict()["results"]["primals_tree"]
-    end_investment_stage = list(solution_dict.keys())[0]
+    end_investment_stage = list(solution_dict.keys())[-2]
     end_investment_solution_dict = {
         k: v["value"]
         for k, v in solution_dict[end_investment_stage].items()
         if gen_name_filter(k) and v["value"] > 0.5
     }
-    end_investment_gens = [
+    end_investment_thermal_gens = [
         re.search(r"\[.*\]", k).group(0)[1:-1]
         for k in end_investment_solution_dict.keys()
     ]
+    end_investment_gens = end_investment_thermal_gens
 
     # for renewable:
     # total capacity should be installed + operational + extended values
@@ -70,6 +71,18 @@ def populate_generators(
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
     output_df.to_csv(os.path.join(data_output_path, "gen.csv"), index=False)
+
+    # We also need to update initial status values for thermal gens that have been invested
+    # By default we will set these to (-24, 0)
+    # initial_df = pd.read_csv(os.path.join(data_input_path, "initial_status.csv"))
+    # for gen in end_investment_thermal_gens:
+    #     print(gen)
+    #     if gen not in initial_df.columns:
+    #         # initial_df.insert(-1, gen, [-24, 0])
+    #         initial_df[gen] = [-24, 0]
+    #         print(initial_df)
+
+    # initial_df.to_csv(os.path.join(data_output_path, "initial_status.csv"), index=False)
 
 
 def populate_transmission(data_input_path, sol_object, data_output_path):
@@ -115,6 +128,8 @@ def filter_pointers(data_input_path, data_output_path):
     # keep generators that exist at the final investment stage and remove the rest
     # keep all non-generator timeseries pointers
     matching_gen_list = [gen for gen in output_generators_df["GEN UID"]]
+
+    ## FIXME: this won't work when completely NEW renewable sites are an option
     output_df = input_pointers_df[
         input_pointers_df["Object"].isin(matching_gen_list)
         | input_pointers_df["Category"]
@@ -135,9 +150,13 @@ def clone_timeseries(data_input_path, data_output_path):
     file_list.remove("timeseries_pointers.csv")
     file_list.remove("gen.csv")
     file_list.remove("branch.csv")
+    file_list.remove("initial_status.csv")
 
     # @jkskolf, I don't think I like this ...
     for fname in file_list:
         from_file = os.path.join(data_input_path, fname)
         to_file = os.path.join(data_output_path, fname)
         shutil.copy(from_file, to_file)
+
+
+# TODO: synchronize load scaling

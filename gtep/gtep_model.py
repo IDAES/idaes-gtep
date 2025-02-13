@@ -102,7 +102,9 @@ class ExpansionPlanningModel:
             # If self.data is a list, it is a list of data for
             # representative periods
             m.data_list = self.data
-            m.md = scale_ModelData_to_pu(self.data[0])
+            # TODO god what have I done
+            # m.md = scale_ModelData_to_pu(self.data[0])
+            m.md = self.data[0]
         else:
             # If self.data is an Egret model data object, representative periods will just copy it unchanged
             m.data_list = None
@@ -501,6 +503,8 @@ def add_dispatch_variables(b, dispatch_period):
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(b, renewableGen):
+        if "HYDRO" in renewableGen:
+            return (0, 0)
         return (0, m.renewableCapacity[renewableGen])
 
     b.renewableCurtailment = Var(
@@ -712,8 +716,9 @@ def add_dispatch_constraints(b, disp_per):
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    for key in m.loads.keys():
-        m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
+    if m.config["dispatch_randomization"]:
+        for key in m.loads.keys():
+            m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
@@ -1641,6 +1646,7 @@ def model_data_references(m):
     }
 
     # Demand at each bus
+    ## FIXME this just builds a full 8760 of loads which is not really what we want
     m.loads = {
         m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
             load_n
@@ -1693,7 +1699,7 @@ def model_data_references(m):
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
-    m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD / u.hr)
+    m.fixedOperatingCost = Param(m.generators, default=0, units=u.USD / u.hr)
     m.deficitPenalty = Param(m.stages, default=1, units=u.USD / (u.MW * u.hr))
 
     # Amount of fuel required to be consumed for startup process for each generator
@@ -1722,7 +1728,7 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2 * max(value(item) for item in m.fuelCost.values()),
+        initialize=10000 * max(value(item) for item in m.fuelCost.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(

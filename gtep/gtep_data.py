@@ -71,16 +71,16 @@ class ExpansionPlanningData:
         # default here allows up to 24 hours for periods
         time_keys = self.md.data["system"]["time_keys"]
         key_idx = time_keys.index("2020-01-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
+        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
         key_idx = time_keys.index("2020-04-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
+        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
         key_idx = time_keys.index("2020-07-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
+        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
         key_idx = time_keys.index("2020-10-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
+        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
@@ -90,8 +90,8 @@ class ExpansionPlanningData:
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
             self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-            self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
-            self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
+            self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0
+            self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0
             self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
             self.md.data["elements"]["generator"][gen]["extension_multiplier"] = 1
             self.md.data["elements"]["generator"][gen]["max_operating_reserve"] = 1
@@ -101,9 +101,9 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
             self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
             self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
-            self.md.data["elements"]["generator"][gen]["investment_cost"] = 235164
+            self.md.data["elements"]["generator"][gen]["investment_cost"] = 235
         for branch in self.md.data["elements"]["branch"]:
             self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
             self.md.data["elements"]["branch"][branch]["distance"] = 1
-        self.md.data["system"]["min_operating_reserve"] = 0.1
-        self.md.data["system"]["min_spinning_reserve"] = 0.1
+        self.md.data["system"]["min_operating_reserve"] = 0
+        self.md.data["system"]["min_spinning_reserve"] = 0

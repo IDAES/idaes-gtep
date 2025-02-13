@@ -193,8 +193,9 @@ class ExpansionPlanningSolution:
         self.expressions_tree = results_dict["expressions_tree"]
 
         # mint the final dictionary to save
-        out_dict = {"data": self.data.data, "results": results_dict}
-
+        # out_dict = {"data": self.data.data, "results": results_dict}
+        out_dict = {"data": self.data[1].data, "results": results_dict}
+        print(self.data)
         self.primals_tree = results_dict["primals_tree"]
 
         return out_dict
