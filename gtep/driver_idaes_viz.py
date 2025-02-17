@@ -17,27 +17,37 @@ mod_object = ExpansionPlanningModel(
     data=data_object.representative_data,
     num_reps=4,
     len_reps=1,
-    num_commit=6,
-    num_dispatch=4,
+    num_commit=24,
+    num_dispatch=1,
 )
 
 
 mod_object.config["include_investment"] = True
 mod_object.config["dispatch_randomization"] = False
 mod_object.config["scale_loads"] = False
-mod_object.create_model()
 
+from pyomo.common.timing import TicTocTimer
+
+t = TicTocTimer()
+t.tic("here we go")
+mod_object.create_model()
+t.toc("created")
 
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 opt = Gurobi()
+
 mod_object.results = opt.solve(mod_object.model)
+t.toc("solved")
+import sys
+
+sys.exit()
 
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)
-sol_object.dump_json("./Sim Eng Viz/4Hourly/GTEP/idaes_solution.json")
+sol_object.dump_json("./Sim Eng Viz/Hourly/GTEP/idaes_solution.json")
 
-data_out_path = "./Sim Eng Viz/4Hourly/Prescient/data"
+data_out_path = "./Sim Eng Viz/Hourly/Prescient/data"
 
 gtep.validation.populate_generators(data_path, sol_object, data_out_path)
 gtep.validation.populate_transmission(data_path, sol_object, data_out_path)
@@ -57,9 +67,9 @@ prescient_options = {
     "input_format": "rts-gmlc",
     "simulate_out_of_sample": False,
     "run_sced_with_persistent_forecast_errors": False,
-    "output_directory": "./Sim Eng Viz/4Hourly/Prescient/results/04-01-2020",
-    "start_date": "03-26-2020",
-    "num_days": 7,
+    "output_directory": "./Sim Eng Viz/Hourly/Prescient/results/04-01-2020",
+    "start_date": "07-26-2020",
+    "num_days": 21,
     "sced_horizon": 24,
     "ruc_mipgap": 0.01,
     "reserve_factor": 0,

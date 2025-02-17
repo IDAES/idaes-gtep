@@ -70,22 +70,31 @@ class ExpansionPlanningData:
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
         time_keys = self.md.data["system"]["time_keys"]
-        key_idx = time_keys.index("2020-01-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
+        key_idx = time_keys.index("2020-07-29 00:00")
+        time_key_set = time_keys[key_idx : key_idx + 24]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
-        key_idx = time_keys.index("2020-04-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
+        key_idx = time_keys.index("2020-08-12 00:00")
+        time_key_set = time_keys[key_idx : key_idx + 24]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
-        key_idx = time_keys.index("2020-07-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
+        key_idx = time_keys.index("2020-08-14 00:00")
+        time_key_set = time_keys[key_idx : key_idx + 24]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
         key_idx = time_keys.index("2020-10-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24 : 4]
+        time_key_set = time_keys[key_idx : key_idx + 24]
         data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
 
     def load_default_data_settings(self):
+        investment_cost_map = {
+            "CT": 121000000,
+            "CC": 317000000,
+            "STEAM": 200000000,
+            "WIND": 166600000,
+            "PV": 205800000,
+            "RTPV": 318300000,
+            "HYDRO": 2000000000,
+        }
         ## TODO: too many of these are hard coded; everything should check if it exists too.
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
@@ -101,7 +110,11 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
             self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
             self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
-            self.md.data["elements"]["generator"][gen]["investment_cost"] = 235
+            self.md.data["elements"]["generator"][gen]["investment_cost"] = (
+                investment_cost_map[
+                    self.md.data["elements"]["generator"][gen]["unit_type"]
+                ]
+            )
         for branch in self.md.data["elements"]["branch"]:
             self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
             self.md.data["elements"]["branch"][branch]["distance"] = 1

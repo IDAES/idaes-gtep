@@ -1770,10 +1770,10 @@ def model_data_references(m):
 
     # Cost of investment in each new generator
     m.generatorInvestmentCost = {
-        # gen: m.md.data["elements"]["generator"][gen]["investment_cost"]
-        # for gen in m.generators]
-        gen: 0
+        gen: m.md.data["elements"]["generator"][gen]["investment_cost"]
         for gen in m.generators
+        # gen: 0
+        # for gen in m.generators
     }
 
     # Minimum operating reserve, expressed as a fraction of load within a region
