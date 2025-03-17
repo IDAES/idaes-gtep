@@ -20,7 +20,7 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config, _add_common_configs
+from gtep.config_options import _get_model_config, _add_common_configs
 
 
 # Define what a USD is for pyomo units purposes
@@ -1422,7 +1422,7 @@ def representative_period_rule(b, representative_period):
     i_s = b.parent_block()
 
     b.currentPeriod = representative_period
-    if m.config["include_commitment"] or m.config["include_redispatch"]:
+    if m.config.get("include_commitment") or m.config.get("include_redispatch"):
         b.commitmentPeriods = RangeSet(m.numCommitmentPeriods[representative_period])
         b.commitmentPeriod = Block(b.commitmentPeriods, rule=commitment_period_rule)
 

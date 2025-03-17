@@ -1,5 +1,5 @@
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_data_cho import ExpansionPlanningDataforReliability
+from gtep.contrib.gtep_data_cho import ExpansionPlanningDataforReliability
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi

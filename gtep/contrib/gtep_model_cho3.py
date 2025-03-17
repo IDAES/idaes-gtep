@@ -2065,6 +2065,8 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
     # Sets for reliability
     # TODO: should be flexible depending on critical nodes and generators
+
+    ## FIXME: lol
     failure_state = list(range(1, 9))  # 8 states
     m.states = Set(initialize=failure_state, doc="capacity failure states")
 

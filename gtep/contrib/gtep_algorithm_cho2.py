@@ -1,13 +1,14 @@
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_model_cho3 import ExpansionPlanningModelwithReliability
-from gtep.gtep_data_cho import ExpansionPlanningDataforReliability
-from gtep.gtep_model_result import solve_expansion_model
-from gtep.gtep_data_reliability import reliability_data
+from gtep.contrib.gtep_model_cho3 import ExpansionPlanningModelwithReliability
+from gtep.contrib.gtep_data_cho import ExpansionPlanningDataforReliability
+from gtep.contrib.gtep_model_result import solve_expansion_model
+from gtep.contrib.gtep_data_reliability import reliability_data
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 from pyomo.environ import Var, Expression, SolverFactory
 import csv
+import more_itertools
 
 
 # Call dataset
@@ -30,6 +31,7 @@ mod_object = ExpansionPlanningModel(
     num_commit=num_commit_hour,
     num_dispatch=num_dispat_min,
 )
+
 
 # Solve expansion planning model without reliability
 # Export the results for the reliability-constrained model
@@ -79,7 +81,7 @@ mod_object_rel.create_model()
 
 # Calculate the probability of capacity failure state based on the probability of failure
 prob_state = {
-    (bus, state): []
+    (bus, state): 1
     for bus in mod_object_rel.model.criticalBuses
     for state in mod_object_rel.model.states
 }
@@ -89,82 +91,19 @@ failure = {
 }
 
 for bus in mod_object_rel.model.criticalBuses:
-    if len(mod_object_rel.model.criticalGenerators[bus]) == 3:
-        prob_state[bus, 1] = (
-            (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)])
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(3)])
-        )
-        prob_state[bus, 2] = (
-            failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(3)])
-        )
-        prob_state[bus, 3] = (
-            (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)])
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(3)])
-        )
-        prob_state[bus, 4] = (
-            (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)])
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(3)]
-        )
-        prob_state[bus, 5] = (
-            failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(3)])
-        )
-        prob_state[bus, 6] = (
-            failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-            * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(3)]
-        )
-        prob_state[bus, 7] = (
-            (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)])
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(3)]
-        )
-        prob_state[bus, 8] = (
-            failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(3)]
-        )
-
-    elif len(mod_object_rel.model.criticalGenerators[bus]) == 2:
-        prob_state[bus, 1] = (
-            1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-        ) * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-        prob_state[bus, 2] = failure[
-            mod_object_rel.model.criticalGenerators[bus].at(1)
-        ] * (1 - failure[mod_object_rel.model.criticalGenerators[bus].at(2)])
-        prob_state[bus, 3] = (
-            1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-        ) * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-        prob_state[bus, 4] = (
-            failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-            * failure[mod_object_rel.model.criticalGenerators[bus].at(2)]
-        )
-        prob_state[bus, 5] = 1
-        prob_state[bus, 6] = 1
-        prob_state[bus, 7] = 1
-        prob_state[bus, 8] = 1
-
-    elif len(mod_object_rel.model.criticalGenerators[bus]) == 1:
-        prob_state[bus, 1] = (
-            1 - failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-        )
-        prob_state[bus, 2] = failure[mod_object_rel.model.criticalGenerators[bus].at(1)]
-        prob_state[bus, 3] = 1
-        prob_state[bus, 4] = 1
-        prob_state[bus, 5] = 1
-        prob_state[bus, 6] = 1
-        prob_state[bus, 7] = 1
-        prob_state[bus, 8] = 1
-
-    else:
-        for state in mod_object_rel.model.states:
-            prob_state[bus, state] = 1
+    crit_generator_sets = list(
+        more_itertools.powerset(mod_object_rel.model.criticalGenerators[bus])
+    )
+    state_idx = 1
+    for cg_set in crit_generator_sets:
+        fail_rate = 1
+        for gen in mod_object_rel.model.criticalGenerators[bus]:
+            if gen in cg_set:
+                fail_rate *= failure[gen]
+            else:
+                fail_rate *= 1 - failure[gen]
+        prob_state[bus, state_idx] = fail_rate
+        state_idx += 1
 
 
 # Update probability of failure of capacity failure state
