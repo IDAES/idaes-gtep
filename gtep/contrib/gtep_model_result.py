@@ -1,5 +1,5 @@
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.contrib.gtep_data_reliability import ExpansionPlanningDataforReliability
+from gtep.gtep_data import ExpansionPlanningData
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
@@ -7,7 +7,7 @@ from pyomo.environ import SolverFactory, value
 
 # Call dataset
 data_path = "./gtep/data/5bus"
-data_object = ExpansionPlanningDataforReliability()
+data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
 num_planning_year = 2

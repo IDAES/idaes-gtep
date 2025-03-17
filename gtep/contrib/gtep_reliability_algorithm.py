@@ -1,6 +1,7 @@
 from gtep.gtep_model import ExpansionPlanningModel
+from gtep.gtep_solution import ExpansionPlanningSolution
+from gtep.gtep_data import ExpansionPlanningData
 from gtep.contrib.gtep_reliability_model import ExpansionPlanningModelwithReliability
-from gtep.contrib.gtep_data_reliability import ExpansionPlanningDataforReliability
 from gtep.contrib.gtep_model_result import solve_expansion_model
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
@@ -12,7 +13,7 @@ import more_itertools
 
 # Call dataset
 data_path = "./gtep/data/5bus"
-data_object = ExpansionPlanningDataforReliability()
+data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
 num_planning_year = 2
@@ -111,8 +112,8 @@ TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object_rel.mod
 TransformationFactory("gdp.bigm").apply_to(mod_object_rel.model)
 
 # Solve expansion planning model with reliability
-mod_object_rel_opt = SolverFactory("gurobi")
-mod_object_rel.results = mod_object_rel_opt.solve(mod_object_rel.model, tee=True)
+opt = Gurobi()
+mod_object_rel.results = opt.solve(mod_object_rel.model)
 
 
 # Export results
@@ -137,3 +138,7 @@ with open("optimal_variable_values_with_reliability.csv", "w", newline="") as fi
     writer.writerow(["Name", "Value"])  # Header row
     for row in results_rel:
         writer.writerow(row)
+
+sol_object = ExpansionPlanningSolution()
+sol_object.load_from_model(mod_object_rel)
+sol_object.dump_json("./gtep_reliability_solution.json")

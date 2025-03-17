@@ -102,6 +102,7 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
             self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
             self.md.data["elements"]["generator"][gen]["investment_cost"] = 235164
+            self.md.data["elements"]["generator"][gen]["failure_rate"] = 0.1
         for branch in self.md.data["elements"]["branch"]:
             self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
             self.md.data["elements"]["branch"][branch]["distance"] = 1

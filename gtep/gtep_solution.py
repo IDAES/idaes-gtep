@@ -40,12 +40,12 @@ class ExpansionPlanningSolution:
         pass
 
     def load_from_model(self, gtep_model):
-        if type(gtep_model) is not ExpansionPlanningModel:
-            logger.warning(
-                f"Solutions must be loaded from ExpansionPlanningModel objects, not %s"
-                % type(gtep_model)
-            )
-            raise ValueError
+        # if type(gtep_model) is not ExpansionPlanningModel:
+        #     logger.warning(
+        #         f"Solutions must be loaded from ExpansionPlanningModel objects, not %s"
+        #         % type(gtep_model)
+        #     )
+        #     raise ValueError
         if gtep_model.results is None:
             raise ValueError(
                 "ExpansionPlanningSolution objects loaded from model must have a results component."
