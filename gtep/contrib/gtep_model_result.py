@@ -103,11 +103,14 @@ def solve_expansion_model(mod_object):
                 average_capacity_factor[gen] = abs(
                     total_renewable_generation[gen]
                     / (
-                        mod_object.model.renewableCapacity[gen]
-                        * num_planning_year
-                        * num_rep_day
-                        * num_commit_hour
-                        * num_dispat_min
+                        max(
+                            0.001,
+                            mod_object.model.renewableCapacity[gen]
+                            * num_planning_year
+                            * num_rep_day
+                            * num_commit_hour
+                            * num_dispat_min,
+                        )
                     )
                 )
             else:

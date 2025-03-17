@@ -12,7 +12,7 @@ import more_itertools
 
 
 # Call dataset
-data_path = "./gtep/data/5bus"
+data_path = "./gtep/data/SanDiego"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
