@@ -1,6 +1,6 @@
-# Generation and Transmission Expansion Planning
+# Generation and Transmission Expansion Planning with Reliability Constraints
 # IDAES project
-# author: Kyle Skolfield
+# author: Kyle Skolfield and Seolhee Cho
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
@@ -20,7 +20,7 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config
+from gtep.config_options import _get_model_config
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
@@ -48,8 +48,8 @@ class VisitorConfig(object):
         return iter((self.subexpr, self.var_map, self.var_order))
 
 
-class ExpansionPlanningModel:
-    """A generalized generation and transmission expansion planning model."""
+class ExpansionPlanningModelwithReliability:
+    """A generalized generation and transmission expansion planning model with reliability."""
 
     def __init__(
         self,
@@ -61,6 +61,7 @@ class ExpansionPlanningModel:
         len_reps=24,
         num_commit=24,
         num_dispatch=4,
+        rel_data=None,
     ):
         """Initialize generation & expansion planning model object.
 
@@ -83,12 +84,14 @@ class ExpansionPlanningModel:
         self.num_dispatch = num_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
+        self.rel_data = rel_data
 
     def create_model(self):
-        """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
+        """Create concrete Pyomo model object associated with the ExpansionPlanningModel with reliability"""
 
         self.timer.tic("Creating GTEP Model")
         m = ConcreteModel()
+        m.reliability_model_data = self.rel_data
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
@@ -273,6 +276,44 @@ def add_investment_variables(
         within=NonNegativeReals, initialize=0, units=u.USD
     )
 
+    Upperbounds_productions = {}
+    for bus in m.buses:
+        for state in m.states:
+            Upperbounds_productions[bus, state] = (
+                sum(
+                    m.renewableCapacity[renewableGen]
+                    for renewableGen in m.renewableGenerators
+                )
+                + sum(
+                    m.thermalCapacity[thermalGen] for thermalGen in m.thermalGenerators
+                )
+                + sum(
+                    m.transmissionCapacity[line]
+                    for line in m.transmission
+                    if m.transmission[line]["to_bus"] == bus
+                )
+            )
+
+    b.ub_prod_state = Param(
+        m.buses,
+        m.states,
+        domain=NonNegativeReals,
+        initialize=Upperbounds_productions,
+        doc="Upper bounds of production level from states",
+    )
+
+    def prod_state_limit(b, bus, state):
+        return (0, b.ub_prod_state[bus, state])
+
+    # Variable related to reliability
+    b.prod_state = Var(
+        m.criticalBuses,
+        m.states,
+        domain=NonNegativeReals,
+        bounds=prod_state_limit,
+        doc="Estimated production level of critical buses at failure state",
+    )
+
 
 def add_investment_constraints(
     b,
@@ -280,7 +321,7 @@ def add_investment_constraints(
 ):
     """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
 
-    m = b.model()
+    m = b.model()  # block for investment (the outer or largest block)
 
     for gen in m.thermalGenerators:
         if (
@@ -366,6 +407,44 @@ def add_investment_constraints(
     #         else Constraint.Skip
     #     )
 
+    @b.Constraint(m.criticalBuses, m.states)
+    def available_production_state(b, bus, state):
+        return b.prod_state[bus, state] == sum(
+            m.averageCapacityFactor[gen]
+            * m.renewableCapacity[gen]
+            * (b.renewableOperational[gen] + b.renewableInstalled[gen])
+            for gen in m.noncriticalrenewableGenerators[bus]
+        ) + sum(
+            m.averageCapacityFactor[gen]
+            * m.thermalCapacity[gen]
+            * (
+                b.genOperational[gen].indicator_var.get_associated_binary()
+                + b.genInstalled[gen].indicator_var.get_associated_binary()
+            )
+            for gen in m.noncriticalthermalGenerators[bus]
+        ) + sum(
+            m.averageCapacityFactor[gen]
+            * m.renewableCapacity[gen]
+            * (b.renewableOperational[gen] + b.renewableInstalled[gen])
+            for gen in m.activeCriticalrenewableGenerators[bus, state]
+        ) + sum(
+            m.averageCapacityFactor[gen]
+            * m.thermalCapacity[gen]
+            * (
+                b.genOperational[gen].indicator_var.get_associated_binary()
+                + b.genInstalled[gen].indicator_var.get_associated_binary()
+            )
+            for gen in m.activeCriticalthermalGenerators[bus, state]
+        ) + sum(
+            m.transmissionCapacity[line]
+            * (
+                b.branchOperational[line].indicator_var.get_associated_binary()
+                + b.branchInstalled[line].indicator_var.get_associated_binary()
+            )
+            for line in m.transmission
+            if m.transmission[line]["to_bus"] == bus
+        )
+
     ## NOTE: The following constraints can be split into rep_per and invest_stage components if desired
 
     ## NOTE: Constraint (13) in the reference paper
@@ -403,6 +482,21 @@ def add_investment_constraints(
                     .operatingCostCommitment
                 )
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
+
+    # Reliability penalty for investment period
+    @b.Expression()
+    def reliabilityPenaltyInvestment(b):
+        reliabilityPenaltyRepresentative = 0
+        for rep_per in b.representativePeriods:
+            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+                reliabilityPenaltyRepresentative += (
+                    m.weights[rep_per]
+                    * m.commitmentPeriodLength
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .reliabilityPenaltyCommitment
+                )
+        return m.investmentFactor[investment_stage] * reliabilityPenaltyRepresentative
 
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
@@ -468,6 +562,20 @@ def add_investment_constraints(
             b.renewableCurtailmentInvestment
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
+
+    # # Curtailment penalties for investment period
+    # @b.Constraint()
+    # def renewable_curtailment_cost(b):
+    #     capacity_sum = 0
+    #     for rep_per in b.representativePeriods:
+    #         for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+    #             for dis_per in com_per.dispatchPeriods:
+    #                 capacity_sum += (
+    #                 b.representativePeriod[rep_per]
+    #                 .commitPeriod[com_per]
+    #                 .dispatchPeriod[dis_per]
+    #                 .capacity
+    #             )
 
 
 def add_dispatch_variables(
@@ -542,6 +650,31 @@ def add_dispatch_variables(
     def loadShedCost(b, bus):
         return b.loadShed[bus] * m.loadShedCost
 
+    # Variables for reliability
+    # These variables are indexed by investment, representative, and dispatch periods.
+    b.loleBuses = Var(
+        m.buses,
+        domain=NonNegativeReals,
+        doc="LOLE of each bus",
+        # TODO: unit should be added,
+    )
+
+    b.eensBuses = Var(
+        m.buses,
+        domain=NonNegativeReals,
+        doc="EENS of each bus",
+        # TODO: unit should be added,
+    )
+
+    # Reliability-related penalty
+    @b.Expression(m.buses)
+    def lole_penalty(b, bus):
+        return b.loleBuses[bus] * m.LOLEPenalty
+
+    @b.Expression(m.buses)
+    def eens_penalty(b, bus):
+        return b.eensBuses[bus] * m.EENSPenalty
+
     # Track total dispatch values and costs
     b.renewableSurplusDispatch = sum(b.renewableGenerationSurplus.values())
 
@@ -551,9 +684,15 @@ def add_dispatch_variables(
 
     b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
 
+    b.eensPenaltyDispatch = sum(b.eens_penalty.values())
+
+    b.lolePenaltyDispatch = sum(b.lole_penalty.values())
+
     b.operatingCostDispatch = (
         b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
     )
+
+    b.reliabilityPenaltyDispatch = b.eensPenaltyDispatch + b.lolePenaltyDispatch
 
     b.renewableCurtailmentDispatch = sum(
         b.renewableCurtailment[gen] for gen in m.renewableGenerators
@@ -680,6 +819,66 @@ def add_dispatch_variables(
             )
         )
 
+    def lole_limit(b, bus, state):
+        return (0, m.dispatchPeriodLength)
+
+    b.lole = Var(
+        m.criticalBuses,
+        m.states,
+        domain=NonNegativeReals,
+        bounds=lole_limit,
+        doc="LOLE at each capacity failure state",
+        # TODO: unit should be added,
+    )
+
+    def eens_limit(b, bus, state):
+        return (0, m.loads[bus])
+
+    b.eens = Var(
+        m.criticalBuses,
+        m.states,
+        domain=NonNegativeReals,
+        bounds=eens_limit,
+        doc="EENS at each capacity failure state",
+        # TODO: unit should be added,
+    )
+
+    # Disjunctions for reliability estimation at dispatch level
+    @b.Disjunct(m.criticalBuses, m.states)
+    def reliability_check_above(disj, bus, state):
+        @disj.Constraint()
+        def capacity_larger_than_limit(disj):
+            return i_p.prod_state[bus, state] >= m.loads[bus]
+
+        @disj.Constraint()
+        def lole_above(disj):
+            return b.lole[bus, state] == 0
+
+        @disj.Constraint()
+        def eens_above(disj):
+            return b.eens[bus, state] == 0
+
+    @b.Disjunct(m.criticalBuses, m.states)
+    def reliability_check_below(disj, bus, state):
+        @disj.Constraint()
+        def capacity_smaller_than_limit(disj):
+            return i_p.prod_state[bus, state] <= m.loads[bus]
+
+        @disj.Constraint()
+        def lole_below(disj):
+            return b.lole[bus, state] == m.dispatchPeriodLength
+
+        @disj.Constraint()
+        def eens_below(disj):
+            return b.eens[bus, state] == m.loads[bus] - i_p.prod_state[bus, state]
+
+    @b.Disjunction(m.criticalBuses, m.states)
+    def reliability_logic(disj, bus, state):
+        return [
+            disj.reliability_check_above[bus, state],
+            disj.reliability_check_below[bus, state],
+        ]
+
     # Define bounds on thermal generator spinning reserve supply
     def spinning_reserve_limits(b, thermalGen):
         return (
@@ -714,9 +913,15 @@ def add_dispatch_variables(
 def add_dispatch_constraints(b, disp_per):
     """Add dispatch-associated inequalities to representative period block."""
     m = b.model()
-    c_p = b.parent_block()
-    r_p = c_p.parent_block()
-    i_p = r_p.parent_block()
+    c_p = (
+        b.parent_block()
+    )  # commitment block (c_p) is a parent block of current dispatch block (b)
+    r_p = (
+        c_p.parent_block()
+    )  # representative block (r_p) is a parent block of commitment block (c_p)
+    i_p = (
+        r_p.parent_block()
+    )  # investment block (i_p) is a parent block of representative block (r_p)
 
     for key in m.loads.keys():
         m.loads[key] *= max(0, rng.normal(0.5, 0.2))
@@ -795,6 +1000,27 @@ def add_dispatch_constraints(b, disp_per):
     #         for bus in m.buses
     #         if m.md.data["elements"]["bus"][bus]["area"] == region
     #     )
+
+    # Constraints for reliability estimation
+    @b.Constraint(m.criticalBuses)
+    def lole_critical_node(b, bus):
+        return b.loleBuses[bus] == sum(
+            m.prob[bus, state] * b.lole[bus, state] for state in m.states
+        )
+
+    @b.Constraint(m.noncriticalBuses)
+    def lole_noncritical_node(b, bus):
+        return b.loleBuses[bus] == 0
+
+    @b.Constraint(m.criticalBuses)
+    def eens_critical_node(b, bus):
+        return b.eensBuses[bus] == sum(
+            m.prob[bus, state] * b.eens[bus, state] for state in m.states
+        )
+
+    @b.Constraint(m.noncriticalBuses)
+    def eens_noncritical_node(b, bus):
+        return b.eensBuses[bus] == 0
 
 
 def add_commitment_variables(b, commitment_period):
@@ -1038,6 +1264,14 @@ def add_commitment_constraints(
             for disp_per in b.dispatchPeriods
         )
 
+    # Reliability penalty in commitment level
+    @b.Expression()
+    def reliabilityPenaltyCommitment(b):
+        return sum(
+            b.dispatchPeriod[disp_per].reliabilityPenaltyDispatch
+            for disp_per in b.dispatchPeriods
+        )
+
 
 def commitment_period_rule(b, commitment_period):
     """Create commitment period block.
@@ -1097,7 +1331,7 @@ def commitment_period_rule(b, commitment_period):
             for load_n in m.md.data["elements"]["load"]
         }
         # Testing
-        # print(m.loads)
+        print(m.loads)
     else:
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -1452,10 +1686,19 @@ def create_objective_function(m):
             for stage in m.stages
         )
 
+        m.reliabilitypenaltyCost = sum(
+            m.investmentStage[stage].reliabilityPenaltyInvestment for stage in m.stages
+        )
+
     @m.Objective()
     def total_cost_objective_rule(m):
         if len(m.stages) > 1:
-            return m.operatingCost + m.expansionCost + m.penaltyCost
+            return (
+                m.operatingCost
+                + m.expansionCost
+                + m.penaltyCost
+                + m.reliabilitypenaltyCost
+            )
         else:
             return (
                 m.investmentStage[1].operatingCostInvestment
@@ -1464,84 +1707,8 @@ def create_objective_function(m):
                 * m.investmentFactor[1]
                 * m.investmentStage[1].quotaDeficit
                 + m.investmentStage[1].renewableCurtailmentInvestment
+                + m.investmentStage[1].reliabilityPenaltyInvestment
             )
-
-
-def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
-    """
-    Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
-
-    :m: Pyomo model object
-    :stages: Number of stages in investment horizon
-    """
-
-    m.buses = Set(
-        initialize=m.md.data["elements"]["bus"].keys(), doc="Individual buses"
-    )
-
-    m.regions = Set(
-        initialize=(
-            m.md.data["elements"]["bus"][bus]["area"]
-            for bus in m.md.data["elements"]["bus"]
-        ),
-        doc="Regions / clusters of buses",
-    )
-
-    ## TODO: Right now, this means that branches can only be specified entirely as standard
-    ## or as dc ... not mix-and-match
-    if len(m.md.data["elements"]["branch"]) == 0:
-        m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
-
-    m.transmission = {
-        branch: {
-            "from_bus": m.md.data["elements"]["branch"][branch]["from_bus"],
-            "to_bus": m.md.data["elements"]["branch"][branch]["to_bus"],
-            "reactance": m.md.data["elements"]["branch"][branch]["reactance"],
-        }
-        for branch in m.md.data["elements"]["branch"]
-    }
-
-    m.generators = Set(
-        initialize=m.md.data["elements"]["generator"].keys(),
-        doc="All generators",
-    )
-
-    m.thermalGenerators = Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"
-        ),
-        doc="Thermal generators; subset of all generators",
-    )
-
-    m.renewableGenerators = Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
-
-    ## NOTE: will want to cover baseline generator types in IDAES
-
-    if m.md.data["elements"].get("storage"):
-        m.storage = Set(
-            initialize=(batt for batt in m.md.data["elements"]["storage"]),
-            doc="Potential storage units",
-        )
-
-    ## TODO: make sure time units are both definable and consistent without being forced
-
-    m.stages = RangeSet(stages, doc="Set of planning periods")
-
-    m.representativePeriods = Set(
-        initialize=rep_per,
-        doc="Set of representative periods for each planning period",
-    )
 
 
 def model_data_references(m):
@@ -1786,6 +1953,192 @@ def model_data_references(m):
         ]
         == region
     }
+
+    # Parameters for reliability
+    m.failureRate = {
+        gen: m.md.data["elements"]["generator"][gen]["failure_rate"]
+        for gen in m.generators
+    }
+
+    m.prob = Param(m.criticalBuses, m.states, initialize=1, mutable=True)
+
+    m.EENSPenalty = Param(default=5)  # CAISO's VOLL
+    m.LOLEPenalty = Param(default=5)
+    # (cho) NOTE: LOLE is now penalized in the objective function, but it could be added as a constraint
+    # TODO: Correct value for LOLE penlaty should be collected
+    m.averageCapacityFactor = Param(
+        m.generators,
+        initialize=m.reliability_model_data["averageCapacityFactor"],
+        mutable=True,
+    )
+    # (cho) TODO: This average capacity factor should be updated depending on type of generators
+
+    # m.CriticalgeneratorProduction = Param(m.generators, default=0, mutable=True)
+
+
+def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
+    """
+    Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
+
+    :m: Pyomo model object
+    :stages: Number of stages in investment horizon
+    """
+
+    # Demand at each bus
+    m.loads = {
+        m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
+            load_n
+        ]["p_load"]
+        for load_n in m.md.data["elements"]["load"]
+    }
+    # Call load data first as it is required to define some sets
+
+    m.buses = Set(
+        initialize=m.md.data["elements"]["bus"].keys(), doc="Individual buses"
+    )
+
+    m.regions = Set(
+        initialize=(
+            m.md.data["elements"]["bus"][bus]["area"]
+            for bus in m.md.data["elements"]["bus"]
+        ),
+        doc="Regions / clusters of buses",
+    )
+
+    ## TODO: Right now, this means that branches can only be specified entirely as standard
+    ## or as dc ... not mix-and-match
+    if len(m.md.data["elements"]["branch"]) == 0:
+        m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
+
+    m.transmission = {
+        branch: {
+            "from_bus": m.md.data["elements"]["branch"][branch]["from_bus"],
+            "to_bus": m.md.data["elements"]["branch"][branch]["to_bus"],
+            "reactance": m.md.data["elements"]["branch"][branch]["reactance"],
+        }
+        for branch in m.md.data["elements"]["branch"]
+    }
+
+    m.generators = Set(
+        initialize=m.md.data["elements"]["generator"].keys(),
+        doc="All generators",
+    )
+
+    m.thermalGenerators = Set(
+        within=m.generators,
+        initialize=(
+            gen
+            for gen in m.generators
+            if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"
+        ),
+        doc="Thermal generators; subset of all generators",
+    )
+
+    m.renewableGenerators = Set(
+        within=m.generators,
+        initialize=(
+            gen
+            for gen in m.generators
+            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
+        ),
+        doc="Renewable generators; subset of all generators",
+    )
+
+    ## NOTE: will want to cover baseline generator types in IDAES
+
+    if m.md.data["elements"].get("storage"):
+        m.storage = Set(
+            initialize=(batt for batt in m.md.data["elements"]["storage"]),
+            doc="Potential storage units",
+        )
+
+    ## TODO: make sure time units are both definable and consistent without being forced
+
+    m.stages = RangeSet(stages, doc="Set of planning periods")
+
+    m.representativePeriods = Set(
+        initialize=rep_per,
+        doc="Set of representative periods for each planning period",
+    )
+
+    # Sets for reliability
+    # TODO: should be flexible depending on critical nodes and generators
+
+    m.criticalBuses = Set(
+        within=m.buses,
+        initialize=m.reliability_model_data["criticalBuses"],
+        doc="Critical buses; subset of buses",
+    )
+
+    m.noncriticalBuses = Set(
+        within=m.buses,
+        initialize=m.reliability_model_data["noncriticalBuses"],
+        doc="Non-critical buses; subset of buses, remaining sets",
+    )
+
+    m.criticalGenerators = Set(
+        m.criticalBuses,
+        within=m.generators,
+        initialize=m.reliability_model_data["criticalGenerators"],
+        doc="Critical generators; subset of all generators, initially empty",
+    )
+
+    m.criticalthermalGenerators = Set(
+        m.criticalBuses,
+        within=m.thermalGenerators,
+        initialize=m.reliability_model_data["criticalthermalGenerators"],
+        doc="Critical thermal generators; subset of all generators, initially empty",
+    )
+
+    m.criticalrenewableGenerators = Set(
+        m.criticalBuses,
+        within=m.renewableGenerators,
+        initialize=m.reliability_model_data["criticalrenewableGenerators"],
+        doc="Critical renewable generators; subset of all generators, initially empty",
+    )
+
+    m.noncriticalthermalGenerators = Set(
+        m.criticalBuses,
+        within=m.thermalGenerators,
+        initialize=m.reliability_model_data["noncriticalthermalGenerators"],
+        doc="Non-critical thermal generators; subset of all generators, initially empty",
+    )
+
+    m.noncriticalrenewableGenerators = Set(
+        m.criticalBuses,
+        within=m.renewableGenerators,
+        initialize=m.reliability_model_data["noncriticalrenewableGenerators"],
+        doc="Non-critical renewable generators; subset of all generators, initially empty",
+    )
+
+    ## FIXME: lol
+    m.criticalGenerators.pprint()
+    print(list(m.criticalGenerators[bus] for bus in m.criticalBuses))
+    print(list(m.criticalGenerators[bus].data() for bus in m.criticalBuses))
+    failure_state = list(
+        range(
+            1,
+            2 ** (max(len(m.criticalGenerators[bus].data()) for bus in m.criticalBuses))
+            + 1,
+        )
+    )
+    m.states = Set(initialize=failure_state, doc="capacity failure states")
+
+    m.activeCriticalthermalGenerators = Set(
+        m.criticalBuses,
+        m.states,
+        within=m.thermalGenerators,
+        initialize=m.reliability_model_data["activeCriticalthermalGenerators"],
+        doc="Active critical thermal generators in the state, initially empty",
+    )
+
+    m.activeCriticalrenewableGenerators = Set(
+        m.criticalBuses,
+        m.states,
+        within=m.renewableGenerators,
+        initialize=m.reliability_model_data["activeCriticalrenewableGenerators"],
+        doc="Active critical renewable generators in the state, initially empty",
+    )
 
 
 def model_create_investment_stages(m, stages):

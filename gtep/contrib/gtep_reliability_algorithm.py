@@ -1,8 +1,7 @@
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.contrib.gtep_model_cho3 import ExpansionPlanningModelwithReliability
-from gtep.contrib.gtep_data_cho import ExpansionPlanningDataforReliability
+from gtep.contrib.gtep_reliability_model import ExpansionPlanningModelwithReliability
+from gtep.contrib.gtep_data_reliability import ExpansionPlanningDataforReliability
 from gtep.contrib.gtep_model_result import solve_expansion_model
-from gtep.contrib.gtep_data_reliability import reliability_data
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
@@ -61,12 +60,6 @@ with open("optimal_variable_values_without_reliability.csv", "w", newline="") as
     for row in results_ref:
         writer.writerow(row)
 
-
-# Import reliability data
-reliability_model_data = reliability_data()
-# print(reliability_model_data)
-
-
 # Call expansion planning model with reliability
 mod_object_rel = ExpansionPlanningModelwithReliability(
     stages=num_planning_year,
@@ -75,6 +68,7 @@ mod_object_rel = ExpansionPlanningModelwithReliability(
     len_reps=length_rep_day,
     num_commit=num_commit_hour,
     num_dispatch=num_dispat_min,
+    rel_data=expansion_model_results,
 )
 mod_object_rel.create_model()
 
@@ -116,7 +110,7 @@ for bus in mod_object_rel.model.criticalBuses:
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object_rel.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object_rel.model)
 
-# Solve expansion planning model without reliability
+# Solve expansion planning model with reliability
 mod_object_rel_opt = SolverFactory("gurobi")
 mod_object_rel.results = mod_object_rel_opt.solve(mod_object_rel.model, tee=True)
 

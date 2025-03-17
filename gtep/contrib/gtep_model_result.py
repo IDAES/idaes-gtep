@@ -1,10 +1,9 @@
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.contrib.gtep_data_cho import ExpansionPlanningDataforReliability
+from gtep.contrib.gtep_data_reliability import ExpansionPlanningDataforReliability
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 from pyomo.environ import SolverFactory, value
-import gtep_result_save
 
 # Call dataset
 data_path = "./gtep/data/5bus"
@@ -179,58 +178,22 @@ def solve_expansion_model(mod_object):
 
     # ----------------------- Step 3: Capacity failure states -------------- #
     # Assign which critical generators are active in each failure state
-    failureStates = list(range(1, 9))
-    active_generator_state = {}
+    import more_itertools
+
+    failureStates = list(
+        range(1, 2 ** max(len(critical_bus_gen[bus]) for bus in critical_buses) + 1)
+    )
+    active_generator_state = {
+        (bus, state): [] for bus in critical_buses for state in failureStates
+    }
     for bus in critical_buses:
-        if len(critical_bus_gen[bus]) == 3:
-            active_generator_state[bus, 1] = [
-                critical_bus_gen[bus][0],
-                critical_bus_gen[bus][1],
-                critical_bus_gen[bus][2],
-            ]
-            active_generator_state[bus, 2] = [
-                critical_bus_gen[bus][1],
-                critical_bus_gen[bus][2],
-            ]
-            active_generator_state[bus, 3] = [
-                critical_bus_gen[bus][0],
-                critical_bus_gen[bus][2],
-            ]
-            active_generator_state[bus, 4] = [
-                critical_bus_gen[bus][0],
-                critical_bus_gen[bus][1],
-            ]
-            active_generator_state[bus, 5] = [critical_bus_gen[bus][2]]
-            active_generator_state[bus, 6] = [critical_bus_gen[bus][1]]
-            active_generator_state[bus, 7] = [critical_bus_gen[bus][0]]
-            active_generator_state[bus, 8] = []
+        crit_bus_gen_pset = list(more_itertools.powerset(critical_bus_gen[bus]))[1:]
+        # print(list(crit_bus_gen_pset))
 
-        elif len(critical_bus_gen[bus]) == 2:
-            active_generator_state[bus, 1] = [
-                critical_bus_gen[bus][0],
-                critical_bus_gen[bus][1],
-            ]
-            active_generator_state[bus, 2] = [critical_bus_gen[bus][1]]
-            active_generator_state[bus, 3] = [critical_bus_gen[bus][0]]
-            active_generator_state[bus, 4] = []
-            active_generator_state[bus, 5] = []
-            active_generator_state[bus, 6] = []
-            active_generator_state[bus, 7] = []
-            active_generator_state[bus, 8] = []
-
-        elif len(critical_bus_gen[bus]) == 1:
-            active_generator_state[bus, 1] = [critical_bus_gen[bus][0]]
-            active_generator_state[bus, 2] = []
-            active_generator_state[bus, 3] = []
-            active_generator_state[bus, 4] = []
-            active_generator_state[bus, 5] = []
-            active_generator_state[bus, 6] = []
-            active_generator_state[bus, 7] = []
-            active_generator_state[bus, 8] = []
-
-        else:
-            for state in failureStates:
-                active_generator_state[bus, state] = []
+        state_idx = 1
+        for gen_set in crit_bus_gen_pset:
+            active_generator_state[bus, state_idx] = list(gen_set)
+            state_idx += 1
 
     active_critical_gen = {
         (bus, state): [] for bus in critical_buses for state in failureStates
@@ -274,9 +237,7 @@ def solve_expansion_model(mod_object):
         "averageCapacityFactor": average_capacity_factor,
     }
 
-    gtep_result_save.results_sets = results_sets
-
-    return
+    return results_sets
 
 
 # expansion_planning_results = solve_expansion_model(mod_object)
