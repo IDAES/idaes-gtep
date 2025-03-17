@@ -7,13 +7,13 @@ from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 import gtep.validation
 
 
-data_path = "./gtep/data/5bus_jsc_flat"
+data_path = "./gtep/data/SanDiego"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
 
 mod_object = ExpansionPlanningModel(
-    stages=2,
+    stages=5,
     data=data_object.representative_data,
     num_reps=4,
     len_reps=1,
@@ -39,13 +39,18 @@ opt = Gurobi()
 
 mod_object.results = opt.solve(mod_object.model)
 t.toc("solved")
-import sys
 
-sys.exit()
 
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)
-sol_object.dump_json("./Sim Eng Viz/Hourly/GTEP/idaes_solution.json")
+sol_object.dump_json("./gtep/cec_validation/idaes_solution.json")
+
+sol_object.import_data_object(data_object)
+sol_object.plot_levels(save_dir="./gtep/cec_validation/plots/")
+
+import sys
+
+sys.exit()
 
 data_out_path = "./Sim Eng Viz/Hourly/Prescient/data"
 
