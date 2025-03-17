@@ -38,6 +38,11 @@ mod_object = ExpansionPlanningModel(
 expansion_model_results = solve_expansion_model(mod_object)
 
 
+sol_object = ExpansionPlanningSolution()
+sol_object.load_from_model(mod_object)
+sol_object.dump_json("./gtep_pre_reliability_solution.json")
+
+
 # Export the results of expansion planning without reliability
 results_ref = []
 for var in mod_object.model.component_objects(Var):

@@ -31,8 +31,8 @@ def solve_expansion_model(mod_object):
     mod_object.create_model()
     TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
     TransformationFactory("gdp.bigm").apply_to(mod_object.model)
-    mod_object_opt = SolverFactory("gurobi")
-    mod_object.results = mod_object_opt.solve(mod_object.model, tee=True)
+    mod_object_opt = Gurobi()
+    mod_object.results = mod_object_opt.solve(mod_object.model)
 
     # Update critical buses and generators
     # before running expansion planning model with reliability
