@@ -15,11 +15,11 @@ data_object.load_prescient(data_path)
 load_scaling_path = data_path + "/ERCOT-Adjusted-Forecast.xlsb"
 data_object.import_load_scaling(load_scaling_path)
 
-print(data_object)
-print(data_object.md)
+# print(data_object)
+# print(data_object.md)
 # print(data_object.representative_data)
-# for data in data_object.representative_data:
-#     print(data.data)
+for data in data_object.representative_data:
+    print(data.data["elements"]["generator"]["1"])
 # import sys
 # sys.exit()
 # Initial goal:
@@ -27,7 +27,7 @@ print(data_object.md)
 # 4 representative days (1 per season)
 # Hourly commitment and dispatch
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object.md, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
@@ -44,14 +44,16 @@ mod_object.timer.toc("double horrible")
 # sys.exit()
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 mod_object.timer.toc("triple horrible")
-# import sys
-# sys.exit()
-opt = SolverFactory("gurobi")
+
+import sys
+sys.exit()
+
+#opt = SolverFactory("gurobi")
 #opt = Gurobi()
-mod_object.timer.toc("why would this be stuck here -- pass off to gurobi?")
+mod_object.timer.toc("pass off to gurobi?")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
-#opt = Highs()
+opt = Highs()
 mod_object.timer.toc("let's start to solve")
 mod_object.results = opt.solve(mod_object.model, tee=True)
 
