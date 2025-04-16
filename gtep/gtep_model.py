@@ -35,6 +35,9 @@ u.load_definitions_from_strings(["USD = [currency]"])
 
 ## TODO: Egret features
 
+def data_update(investment_stage, storage_object, target_storage_object):
+    pass
+
 
 # This is only used for reporting potentially bad (i.e., large magnitude) coefficients
 # and thus only when that argument is passed
@@ -1052,6 +1055,7 @@ def commitment_period_rule(b, commitment_period):
 
     # update properties for this time period!!!!
     if m.data_list:
+        print("THIS SHOULD BE HAPPENING")
         m.md = m.data_list[i_p.representativePeriods.index(r_p.currentPeriod)]
 
     # Making an exception for cases where gens were candidates
@@ -1074,6 +1078,14 @@ def commitment_period_rule(b, commitment_period):
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
+    if m.config["scale_texas_loads"]:
+        m.loads = {
+            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
+                load_n
+            ]["p_load"]["values"][commitment_period - 1]
+            for load_n in m.md.data["elements"]["load"]
+        }
+
     if m.config["scale_loads"]:
         temp_scale = 3
         temp_scale = 10
@@ -1438,6 +1450,11 @@ def investment_stage_rule(b, investment_stage):
     """
     m = b.parent_block()
 
+    b.year = m.years[investment_stage-1]
+    if m.config["scale_texas_loads"]:
+        # for data in m.data_list:
+        #     print(data.load_scaling)
+        pass
     b.representativePeriods = [
         p
         for p in m.representativePeriods
@@ -1827,6 +1844,9 @@ def model_create_investment_stages(m, stages):
     :m: Pyomo model object
     :stages: Number of investment stages in planning horizon
     """
+
+    ## NOTE: temporary years handling for texas case study
+    m.years = [2025, 2030, 2035]
 
     m.investmentStage = Block(m.stages, rule=investment_stage_rule)
 

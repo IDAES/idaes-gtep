@@ -92,6 +92,8 @@ def _add_common_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare("scale_texas_loads", ConfigValue(default=False, domain=Bool, description = "but why"))
+
 
 def _add_investment_configs(CONFIG):
     CONFIG.declare(

@@ -8,6 +8,7 @@ from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 import datetime
+import pandas as pd
 
 
 class ExpansionPlanningData:
@@ -26,7 +27,7 @@ class ExpansionPlanningData:
         options_dict = {
             "data_path": data_path,
             "input_format": "rts-gmlc",
-            "start_date": "01-01-2020",
+            "start_date": "01-01-2019",
             "num_days": 365,
             "sced_horizon": 1,
             "sced_frequency_minutes": 60,
@@ -38,7 +39,7 @@ class ExpansionPlanningData:
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
-        x = datetime.datetime(2020, 1, 1)
+        x = datetime.datetime(2019, 1, 1)
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
@@ -65,25 +66,38 @@ class ExpansionPlanningData:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
 
+
         ## NOTE: Below is only for multiple representative periods and creates a list
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
         time_keys = self.md.data["system"]["time_keys"]
-        key_idx = time_keys.index("2020-01-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
-        data_list.append(self.md.clone_at_time_keys(time_key_set))
-        key_idx = time_keys.index("2020-04-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
-        data_list.append(self.md.clone_at_time_keys(time_key_set))
-        key_idx = time_keys.index("2020-07-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
-        data_list.append(self.md.clone_at_time_keys(time_key_set))
-        key_idx = time_keys.index("2020-10-01 00:00")
-        time_key_set = time_keys[key_idx : key_idx + 24]
-        data_list.append(self.md.clone_at_time_keys(time_key_set))
+        self.representative_dates = ["2019-01-28 00:00","2019-04-23 00:00","2019-07-05 00:00","2019-10-14 00:00"]
+
+        for date in self.representative_dates:
+            key_idx = time_keys.index(date)
+            time_key_set = time_keys[key_idx : key_idx + 24]
+            data_list.append(self.md.clone_at_time_keys(time_key_set))
+        
 
         self.representative_data = data_list
+
+    def import_load_scaling(self, load_file_name):
+        adjusted_forecast = pd.read_excel(load_file_name)
+        adjusted_forecast_by_period = adjusted_forecast[(adjusted_forecast["year"] == 2025) | (adjusted_forecast["year"] == 2030) | (adjusted_forecast["year"] == 2035)]
+        base_zones = ["base_economic_coast", "base_economic_east", "base_economic_fwest", "base_economic_ncent", "base_economic_north", "base_economic_scent", "base_economic_south", "base_economic_west"]
+        scaled_zones = ["coast_net", "east_net", "fwest_net", "ncent_net", "north_net", "scent_net", "south_net", "west_net"]
+        zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
+        cap_zones = [zone.upper() for zone in zones]
+        for i,zone in enumerate(zones):
+            adjusted_forecast_by_period["scaled_" + zone] = adjusted_forecast_by_period[scaled_zones[i]]/adjusted_forecast_by_period[base_zones[i]]
+        column_list = ["year", "month", "day", "hour", "scaled_coast", "scaled_east", "scaled_fwest", "scaled_ncent", "scaled_north", "scaled_scent", "scaled_south", "scaled_west"]
+        load_scaling_df = adjusted_forecast_by_period[column_list]
+        scaled_names = ["scaled_" + zone for zone in zones]
+        name_conversion_dict = dict(zip(scaled_names,cap_zones))
+        load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
+
+        self.load_scaling = load_scaling_df
 
     def load_default_data_settings(self):
         ## TODO: too many of these are hard coded; everything should check if it exists too.
@@ -107,3 +121,14 @@ class ExpansionPlanningData:
             self.md.data["elements"]["branch"][branch]["distance"] = 1
         self.md.data["system"]["min_operating_reserve"] = 0.1
         self.md.data["system"]["min_spinning_reserve"] = 0.1
+
+    def texas_case_study_updates(self):
+        
+
+
+
+
+
+
+        import sys
+        sys.exit()
