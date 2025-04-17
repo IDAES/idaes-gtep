@@ -6,6 +6,8 @@ from pyomo.environ import SolverFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 import gurobipy as gp
+import gc
+gc.disable()
 
 
 data_path = "./gtep/data/123_Bus_Coal"
