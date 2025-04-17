@@ -21,7 +21,7 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config, _add_common_configs
+from config_options import _get_model_config, _add_common_configs, _add_investment_configs
 
 
 # Define what a USD is for pyomo units purposes
@@ -89,6 +89,7 @@ class ExpansionPlanningModel:
         self.timer = TicTocTimer()
 
         _add_common_configs(self.config)
+        # _add_investment_configs(self.config)
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
@@ -273,7 +274,7 @@ def add_investment_variables(b, investment_stage):
 
     # Track and accumulate costs and penalties
     b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW * u.hr)
-    b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
+    # b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
     b.renewableCurtailmentInvestment = Var(
         within=NonNegativeReals, initialize=0, units=u.USD
     )
@@ -387,9 +388,9 @@ def add_investment_constraints(b, investment_stage):
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
-    @b.Constraint()
+    @b.Expression()
     def investment_cost(b):
-        return b.expansionCost == m.investmentFactor[investment_stage] * (
+        return m.investmentFactor[investment_stage] * (
             sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
@@ -1081,7 +1082,8 @@ def commitment_period_rule(b, commitment_period):
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
     b.load_scaling = r_p.load_scaling[r_p.load_scaling["hour"] == b.commitmentPeriod]
-    print(b.load_scaling)
+    # print(b.load_scaling)
+    
     if m.config["scale_texas_loads"]:
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -1089,6 +1091,8 @@ def commitment_period_rule(b, commitment_period):
             ]["p_load"]["values"][commitment_period - 1] * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
             for load_n in m.md.data["elements"]["load"]
         }
+        # print(m.loads)
+        
 
     if m.config["scale_loads"]:
         temp_scale = 3
@@ -1442,7 +1446,7 @@ def representative_period_rule(b, representative_period):
     b.month = int(broken_date[1])
     b.day = int(broken_date[2])
     b.load_scaling =  i_s.load_scaling[(i_s.load_scaling["month"] == b.month) & (i_s.load_scaling["day"] == b.day)]
-    print(b.load_scaling)
+    
 
     b.currentPeriod = representative_period
     if m.config["include_commitment"] or m.config["include_redispatch"]:
@@ -1463,23 +1467,31 @@ def investment_stage_rule(b, investment_stage):
 
     b.year = m.years[investment_stage-1]
     if m.config["scale_texas_loads"]:
-        print(b.year)
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
-        print(b.load_scaling)
 
+        
         ##TEXAS: lmao this is garbage; generalize this
         if investment_stage == 1:
-            b.fixedCost = m.fixedCost
-            b.varCost = m.varCost
-            b.fuelCost = m.fuelCost
+            b.fixedCost = Param(m.generators, initialize=m.fixedCost1)
+            b.varCost = Param(m.generators, initialize=m.varCost1)
+            b.fuelCost = Param(m.generators, initialize=m.fuelCost1)
+            thermalInvestmentCost = {gen: 1000*m.thermalCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.thermalGenerators}
+            renewableInvestmentCost = {gen: 1000*m.renewableCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.renewableGenerators}
+            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
         elif investment_stage == 2:
-            b.fixedCost = m.fixedCost2
-            b.varCost = m.varCost2
-            b.fuelCost = m.fuelCost2
+            b.fixedCost = Param(m.generators, initialize=m.fixedCost2)
+            b.varCost = Param(m.generators, initialize=m.varCost2)
+            b.fuelCost = Param(m.generators, initialize=m.fuelCost2)
+            thermalInvestmentCost = {gen: 1000*m.thermalCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex2"] for gen in m.thermalGenerators}
+            renewableInvestmentCost = {gen: 1000*m.renewableCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex2"] for gen in m.renewableGenerators}
+            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
         else:
-            b.fixedCost = m.fixedCost3
-            b.varCost = m.varCost3
-            b.fuelCost = m.fuelCost3
+            b.fixedCost = Param(m.generators, initialize=m.fixedCost3)
+            b.varCost = Param(m.generators, initialize=m.varCost3)
+            b.fuelCost = Param(m.generators, initialize=m.fuelCost3)
+            thermalInvestmentCost = {gen: 1000*m.thermalCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex3"] for gen in m.thermalGenerators}
+            renewableInvestmentCost = {gen: 1000*m.renewableCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex3"] for gen in m.renewableGenerators}
+            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
 
     b.representativePeriods = [
         p
@@ -1507,7 +1519,7 @@ def create_objective_function(m):
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
         m.expansionCost = sum(
-            m.investmentStage[stage].expansionCost for stage in m.stages
+            m.investmentStage[stage].investment_cost for stage in m.stages
         )
         m.penaltyCost = sum(
             m.deficitPenalty[stage]
@@ -1730,7 +1742,7 @@ def model_data_references(m):
     m.peakLoad = Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = Param(m.stages, default=0, units=u.MW)
-    m.weights = Param(m.representativePeriods, default=1)
+    m.weights = Param(m.representativePeriods, default=5*365/4)
     m.investmentFactor = Param(m.stages, default=1, mutable=True)
     ## NOTE: Lazy approx for NPV
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames
@@ -1746,26 +1758,26 @@ def model_data_references(m):
     }
 
     #TEXAS: make this a list per investment stage or whatever
-    fuelCost = {}
+    fuelCost1 = {}
     fuelCost2 = {}
     fuelCost3 = {}
     # Cost per unit of fuel at each generator
-    if "RTS-GMLC" in m.md.data["system"]["name"]:
+    if m.config["scale_texas_loads"]:
         for gen in m.thermalGenerators:
-            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost"]
-    elif m.config["scale_texas_loads"]:
-        for gen in m.thermalGenerators:
-            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost1"]
+            fuelCost1[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost1"]
             fuelCost2[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost2"]
             fuelCost3[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost3"]
+    elif "RTS-GMLC" in m.md.data["system"]["name"]:
+        for gen in m.thermalGenerators:
+            fuelCost[gen] = m.md.data["elements"]["generator"][gen]["fuel_cost"]
     else:
         for gen in m.thermalGenerators:
             fuelCost[gen] = m.md.data["elements"]["generator"][gen]["p_cost"]["values"][
                 1
             ]
 
-    m.fuelCost = Param(
-        m.thermalGenerators, initialize=fuelCost, units=u.USD / (u.MW * u.hr)
+    m.fuelCost1 = Param(
+        m.thermalGenerators, initialize=fuelCost1, units=u.USD / (u.MW * u.hr)
     )
     m.fuelCost2 = Param(
         m.thermalGenerators, initialize=fuelCost2, units=u.USD / (u.MW * u.hr)
@@ -1774,23 +1786,23 @@ def model_data_references(m):
         m.thermalGenerators, initialize=fuelCost3, units=u.USD / (u.MW * u.hr)
     )
 
-    fixedCost = {}
+    fixedCost1 = {}
     fixedCost2 = {}
     fixedCost3 = {}
-    varCost = {}
+    varCost1 = {}
     varCost2 = {}
     varCost3 = {}
     if m.config["scale_texas_loads"]:
         for gen in m.generators:
-            fixedCost[gen] = m.md.data["elements"]["generator"][gen]["fixed_ops1"]
+            fixedCost1[gen] = m.md.data["elements"]["generator"][gen]["fixed_ops1"]
             fixedCost2[gen] = m.md.data["elements"]["generator"][gen]["fixed_ops2"]
             fixedCost3[gen] = m.md.data["elements"]["generator"][gen]["fixed_ops3"]
-            varCost[gen] = m.md.data["elements"]["generator"][gen]["var_ops1"]
+            varCost1[gen] = m.md.data["elements"]["generator"][gen]["var_ops1"]
             varCost2[gen] = m.md.data["elements"]["generator"][gen]["var_ops2"]
             varCost3[gen] = m.md.data["elements"]["generator"][gen]["var_ops3"]
 
-    m.fixedCost = Param(
-        m.generators, initialize=fixedCost, units=u.USD / (u.MW * u.hr)
+    m.fixedCost1 = Param(
+        m.generators, initialize=fixedCost1, units=u.USD / (u.MW * u.hr)
     )
     m.fixedCost2 = Param(
         m.generators, initialize=fixedCost2, units=u.USD / (u.MW * u.hr)
@@ -1798,8 +1810,8 @@ def model_data_references(m):
     m.fixedCost3 = Param(
         m.generators, initialize=fixedCost3, units=u.USD / (u.MW * u.hr)
     )
-    m.varCost = Param(
-        m.generators, initialize=varCost, units=u.USD / (u.MW * u.hr)
+    m.varCost1 = Param(
+        m.generators, initialize=varCost1, units=u.USD / (u.MW * u.hr)
     )
     m.varCost2 = Param(
         m.generators, initialize=varCost2, units=u.USD / (u.MW * u.hr)
@@ -1812,11 +1824,11 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2 * max(value(item) for item in m.fuelCost.values()),
+        initialize=2 * max(value(item) for item in m.fuelCost1.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize=1000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize=100 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
@@ -1851,6 +1863,8 @@ def model_data_references(m):
         gen: m.md.data["elements"]["generator"][gen]["extension_multiplier"]
         for gen in m.generators
     }
+    if m.config["scale_texas_loads"]:
+        m.extensionMultiplier = {gen: 0.06 for gen in m.generators}
 
     # Cost of investment in each new generator
     m.generatorInvestmentCost = {

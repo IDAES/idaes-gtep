@@ -54,7 +54,6 @@ class ExpansionPlanningData:
             model=self.md,
         )
         # data_provider.populate_initial_state_data(options=prescient_options, model=md)
-
         self.load_default_data_settings()
 
         for gen in self.md.data["elements"]["generator"]:
@@ -103,7 +102,7 @@ class ExpansionPlanningData:
         ## TODO: too many of these are hard coded; everything should check if it exists too.
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
-            self.md.data["elements"]["generator"][gen]["lifetime"] = 3
+            self.md.data["elements"]["generator"][gen]["lifetime"] = 1
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
@@ -122,13 +121,15 @@ class ExpansionPlanningData:
         self.md.data["system"]["min_operating_reserve"] = 0.1
         self.md.data["system"]["min_spinning_reserve"] = 0.1
 
-    def texas_case_study_updates(self):
+    def texas_case_study_updates(self, data_path):
+        generator_update_path = data_path + "/gen.csv"
+        generator_df = pd.read_csv(generator_update_path)
+        bonus_feature_list = ["capex1","capex2","capex3","fuel_cost1","fuel_cost2","fuel_cost3","fixed_ops1", "fixed_ops2","fixed_ops3", "var_ops1", "var_ops2","var_ops3"]
+        for data_point in self.representative_data:
+            for col in bonus_feature_list:
+                for gen in data_point.data["elements"]["generator"]:
+                    if not data_point.data["elements"]["generator"][gen].get(col):
+                        data_point.data["elements"]["generator"][gen][col] = float(generator_df[generator_df["GEN UID"] == gen][col])
         
 
 
-
-
-
-
-        import sys
-        sys.exit()

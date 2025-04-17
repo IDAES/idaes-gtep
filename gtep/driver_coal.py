@@ -12,14 +12,17 @@ data_path = "./gtep/data/123_Bus_Coal"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
+# for data in data_object.representative_data:
+#     print(data.data["elements"]['load'])
+
 load_scaling_path = data_path + "/ERCOT-Adjusted-Forecast.xlsb"
 data_object.import_load_scaling(load_scaling_path)
 
-# print(data_object)
-# print(data_object.md)
-# print(data_object.representative_data)
-for data in data_object.representative_data:
-    print(data.data["elements"]["generator"]["1"])
+data_object.texas_case_study_updates(data_path)
+
+
+# for data in data_object.representative_data:
+#     print(data.data["elements"]['load'])
 # import sys
 # sys.exit()
 # Initial goal:
@@ -34,6 +37,8 @@ mod_object = ExpansionPlanningModel(
 # sys.exit()
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = True
+# mod_object.config["thermal_investment"] = True
+# mod_object.config["renewable_investment"] = True
 mod_object.create_model()
 mod_object.timer.toc("horrible")
 # import sys
@@ -45,23 +50,24 @@ mod_object.timer.toc("double horrible")
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 mod_object.timer.toc("triple horrible")
 
-import sys
-sys.exit()
+# import sys
+# sys.exit()
 
-#opt = SolverFactory("gurobi")
+opt = SolverFactory("gurobi")
 #opt = Gurobi()
-mod_object.timer.toc("pass off to gurobi?")
+mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
-opt = Highs()
-mod_object.timer.toc("let's start to solve")
-mod_object.results = opt.solve(mod_object.model, tee=True)
-
+# opt = Highs()
+mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
+mod_object.results = opt.solve(mod_object.model, tee=True, symbolic_solver_labels=True)
+mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
 
-sol_object = ExpansionPlanningSolution()
-sol_object.load_from_model(mod_object)
-sol_object.dump_json("./gtep_solution.json")
+
+# sol_object = ExpansionPlanningSolution()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json("./gtep_solution.json")
 
 #sol_object.import_data_object(data_object)
 
