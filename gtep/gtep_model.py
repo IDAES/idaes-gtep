@@ -1088,7 +1088,7 @@ def commitment_period_rule(b, commitment_period):
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
-            ]["p_load"]["values"][commitment_period - 1] * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
+            ]["p_load"]["values"][commitment_period - 1] *  b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
             for load_n in m.md.data["elements"]["load"]
         }
         # print(m.loads)
@@ -1828,7 +1828,7 @@ def model_data_references(m):
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize=100 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize=10000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
@@ -2003,20 +2003,20 @@ def model_create_investment_stages(m, stages):
                 )
 
         # Renewable generation (in MW) retirement relationships
-        if len(m.stages) > 1:
+        # if len(m.stages) > 1:
 
-            @m.Constraint(m.stages, m.renewableGenerators)
-            def renewable_retirement(m, stage, gen):
-                return sum(
-                    m.investmentStage[t_2].renewableInstalled[gen]
-                    for t_2 in m.stages
-                    if t_2 <= stage - m.lifetimes[gen]
-                ) <= sum(
-                    m.investmentStage[t_1].renewableRetired[gen]
-                    + m.investmentStage[t_1].renewableExtended[gen]
-                    for t_1 in m.stages
-                    if t_1 <= stage
-                )
+        #     @m.Constraint(m.stages, m.renewableGenerators)
+        #     def renewable_retirement(m, stage, gen):
+        #         return sum(
+        #             m.investmentStage[t_2].renewableInstalled[gen]
+        #             for t_2 in m.stages
+        #             if t_2 <= stage - m.lifetimes[gen]
+        #         ) <= sum(
+        #             m.investmentStage[t_1].renewableRetired[gen]
+        #             + m.investmentStage[t_1].renewableExtended[gen]
+        #             for t_1 in m.stages
+        #             if t_1 <= stage
+        #         )
 
         # Total renewable generation (in MW) operational at a given stage
         # is equal to what was operational and/or installed in the previous stage
@@ -2083,7 +2083,6 @@ def model_create_investment_stages(m, stages):
                 .genDisabled[gen]
                 .indicator_var.implies(
                     m.investmentStage[stage].genDisabled[gen].indicator_var
-                    | m.investmentStage[stage].genInstalled[gen].indicator_var
                 )
                 if stage != 1
                 else LogicalConstraint.Skip

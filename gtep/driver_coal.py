@@ -37,6 +37,7 @@ mod_object = ExpansionPlanningModel(
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
 # sys.exit()
+mod_object.config["include_investment"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = True
 # mod_object.config["thermal_investment"] = True
@@ -55,21 +56,21 @@ mod_object.timer.toc("triple horrible")
 # import sys
 # sys.exit()
 
-opt = SolverFactory("gurobi")
-#opt = Gurobi()
+#opt = SolverFactory("gurobi")
+opt = Gurobi()
 mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
 # opt = Highs()
 mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
-mod_object.results = opt.solve(mod_object.model, tee=True)
-mod_object.model.write('bad_sol.sol')
-# mod_object.results = opt.solve(mod_object.model)
+#mod_object.results = opt.solve(mod_object.model, tee=True)
+#mod_object.model.write('bad_sol.sol')
+mod_object.results = opt.solve(mod_object.model)
 
 
-# sol_object = ExpansionPlanningSolution()
-# sol_object.load_from_model(mod_object)
-# sol_object.dump_json("./gtep_solution.json")
+sol_object = ExpansionPlanningSolution()
+sol_object.load_from_model(mod_object)
+sol_object.dump_json("./gtep_solution.json")
 
 #sol_object.import_data_object(data_object)
 

@@ -102,7 +102,10 @@ class ExpansionPlanningData:
         ## TODO: too many of these are hard coded; everything should check if it exists too.
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
-            self.md.data["elements"]["generator"][gen]["lifetime"] = 1
+            if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
+                self.md.data["elements"]["generator"][gen]["lifetime"] = 1
+            else:
+                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
