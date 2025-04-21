@@ -1822,11 +1822,11 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2 * max(value(item) for item in m.fuelCost1.values()),
+        initialize=2000 * max(value(item) for item in m.fuelCost1.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize= 100000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize= 100 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
