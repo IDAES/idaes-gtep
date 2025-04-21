@@ -400,7 +400,6 @@ def add_investment_constraints(b, investment_stage):
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
-                * m.renewableCapacity[gen]
                 * b.renewableInstalled[gen]
                 for gen in m.renewableGenerators
             )
@@ -413,7 +412,6 @@ def add_investment_constraints(b, investment_stage):
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.extensionMultiplier[gen]
-                * m.renewableCapacity[gen]
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
@@ -1828,7 +1826,7 @@ def model_data_references(m):
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize=10000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize= 100000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
