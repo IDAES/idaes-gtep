@@ -1987,7 +1987,7 @@ def model_create_investment_stages(m, stages):
             def gen_retirement(m, stage, gen):
                 return sum(
                     m.investmentStage[t_2]
-                    .genInstalled[gen]
+                    .genOperational[gen]
                     .indicator_var.get_associated_binary()
                     for t_2 in m.stages
                     if t_2 <= stage - m.lifetimes[gen]
