@@ -1826,7 +1826,7 @@ def model_data_references(m):
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize= 100 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize= 10000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
@@ -1862,7 +1862,7 @@ def model_data_references(m):
         for gen in m.generators
     }
     if m.config["scale_texas_loads"]:
-        m.extensionMultiplier = {gen: 0.06 for gen in m.generators}
+        m.extensionMultiplier = {gen: 0.006 for gen in m.generators}
 
     # Cost of investment in each new generator
     m.generatorInvestmentCost = {
