@@ -5,6 +5,7 @@ from pyomo.core import TransformationFactory
 from pyomo.environ import SolverFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
+from pyomo.contrib.solver.solvers.gurobi_direct import GurobiDirect
 import gurobipy as gp
 import gc
 gc.disable()
@@ -57,16 +58,17 @@ mod_object.timer.toc("triple horrible")
 # import sys
 # sys.exit()
 
-#opt = SolverFactory("gurobi")
-opt = Gurobi()
+#opt = SolverFactory("gurobiv2")
+#opt = Gurobi()
+opt = GurobiDirect()
 mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
 # opt = Highs()
 mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
-#mod_object.results = opt.solve(mod_object.model, tee=True)
+mod_object.results = opt.solve(mod_object.model, tee=True)
 #mod_object.model.write('bad_sol.sol')
-mod_object.results = opt.solve(mod_object.model)
+#mod_object.results = opt.solve(mod_object.model)
 
 mod_object.timer.toc("we've solved, let's pull investment variables")
 import pyomo.environ as pyo
@@ -79,17 +81,17 @@ for var in mod_object.model.component_objects(pyo.Var, descend_into = True):
     for index in var:
         for name in valid_names:
             if name in var.name:
-                print(var, index, pyo.value(var[index]))
+                #print(var, index, pyo.value(var[index]))
                 if pyo.value(var[index]) >= 0.001:
-                    renewable_investments[var.name + str(index)] = pyo.value(var[index])
+                    renewable_investments[var.name + "." + str(index)] = pyo.value(var[index])
 for var in mod_object.model.component_objects(gdp.Disjunct, descend_into = True):
     for index in var:
         for name in valid_names:
             if name in var.name:
-                print(var.name)
-                print(var, index, pyo.value(var[index].indicator_var))
+                #print(var.name)
+                #print(var, index, pyo.value(var[index].indicator_var))
                 if pyo.value(var[index].indicator_var) == True:
-                    dispatchable_investments[var.name+str(index)] = pyo.value(var[index].indicator_var)
+                    dispatchable_investments[var.name + "." + str(index)] = pyo.value(var[index].indicator_var)
 
 import json 
 with open("renewable_investments.json","w") as fil:
