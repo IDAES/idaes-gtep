@@ -68,10 +68,40 @@ mod_object.timer.toc("let's start to solve -- this is really the start of the ha
 #mod_object.model.write('bad_sol.sol')
 mod_object.results = opt.solve(mod_object.model)
 
+mod_object.timer.toc("we've solved, let's pull investment variables")
+import pyomo.environ as pyo
+import pyomo.gdp as gdp
 
-sol_object = ExpansionPlanningSolution()
-sol_object.load_from_model(mod_object)
-sol_object.dump_json("./gtep_solution.json")
+valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
+renewable_investments = {}
+dispatchable_investments ={}
+for var in mod_object.model.component_objects(pyo.Var, descend_into = True):
+    for index in var:
+        for name in valid_names:
+            if name in var.name:
+                print(var, index, pyo.value(var[index]))
+                if pyo.value(var[index]) >= 0.001:
+                    renewable_investments[var.name + str(index)] = pyo.value(var[index])
+for var in mod_object.model.component_objects(gdp.Disjunct, descend_into = True):
+    for index in var:
+        for name in valid_names:
+            if name in var.name:
+                print(var.name)
+                print(var, index, pyo.value(var[index].indicator_var))
+                if pyo.value(var[index].indicator_var) == True:
+                    dispatchable_investments[var.name+str(index)] = pyo.value(var[index].indicator_var)
+
+import json 
+with open("renewable_investments.json","w") as fil:
+    json.dump(renewable_investments, fil)
+with open("dispatchable_investments.json","w") as fil:
+    json.dump(dispatchable_investments,fil)
+
+mod_object.timer.toc("we've dumped; get everybody and the stuff together")
+
+# sol_object = ExpansionPlanningSolution()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json("./gtep_solution.json")
 
 #sol_object.import_data_object(data_object)
 
@@ -97,5 +127,3 @@ sol_object.dump_json("./gtep_solution.json")
 # if plot_results:
 #     sol_object.plot_levels(save_dir="./plots/")
 
-
-pass

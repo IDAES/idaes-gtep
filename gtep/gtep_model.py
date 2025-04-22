@@ -419,7 +419,13 @@ def add_investment_constraints(b, investment_stage):
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
                 * b.renewableRetired[gen]
-                for gen in m.generators
+                for gen in m.renewableGenerators
+            )
+            +sum(
+                m.generatorInvestmentCost[gen]
+                * m.retirementMultiplier[gen]
+                * b.genRetired[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators
             )
             # JSC inprog (done?) - added branch investment costs here
             + sum(
