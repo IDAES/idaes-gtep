@@ -2101,7 +2101,8 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage - 1]
                 .genDisabled[gen]
                 .indicator_var.implies(
-                    m.investmentStage[stage].genDisabled[gen].indicator_var
+                    m.investmentStage[stage].genDisabled[gen].indicator_var |
+                    m.investmentStage[stage].genInstalled[gen].indicator_var
                 )
                 if stage != 1
                 else LogicalConstraint.Skip
