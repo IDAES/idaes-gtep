@@ -5,9 +5,10 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 import gurobipy as gp
+import pyomo.environ as pyo
 
 
-data_path = "./gtep/data/123_bus_coal"
+data_path = "./gtep/data/5bus_jsc"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
@@ -22,6 +23,11 @@ opt = Gurobi()
 #opt = Highs()
 # # mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model)
+
+for var in mod_object.component_objects(pyo.BooleanVar, descend_into = True):
+    print(var, pyo.value(var))
+import sys
+sys.exit()
 
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)
