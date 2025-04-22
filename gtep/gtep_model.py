@@ -1477,6 +1477,7 @@ def investment_stage_rule(b, investment_stage):
             thermalInvestmentCost = {gen: other_option*m.thermalCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.thermalGenerators}
             renewableInvestmentCost = {gen: other_option*m.renewableCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.renewableGenerators}
             m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
+            print(m.generatorInvestmentCost)
         elif investment_stage == 2:
             b.fixedCost = Param(m.generators, initialize=m.fixedCost2)
             b.varCost = Param(m.generators, initialize=m.varCost2)
@@ -1987,6 +1988,8 @@ def model_create_investment_stages(m, stages):
                 return sum(
                     m.investmentStage[t_2]
                     .genOperational[gen]
+                    .indicator_var.get_associated_binary() + m.investmentStage[t_2]
+                    .genInstalled[gen]
                     .indicator_var.get_associated_binary()
                     for t_2 in m.stages
                     if t_2 <= stage - m.lifetimes[gen]

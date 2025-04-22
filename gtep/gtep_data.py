@@ -109,7 +109,7 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
-            self.md.data["elements"]["generator"][gen]["extension_multiplier"] = 1
+            self.md.data["elements"]["generator"][gen]["extension_multiplier"] = 0
             self.md.data["elements"]["generator"][gen]["max_operating_reserve"] = 1
             self.md.data["elements"]["generator"][gen]["max_spinning_reserve"] = 1
             self.md.data["elements"]["generator"][gen]["max_quickstart_reserve"] = 1
