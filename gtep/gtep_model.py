@@ -534,9 +534,10 @@ def add_dispatch_variables(b, dispatch_period):
         return b.renewableCurtailment[renewableGen] * m.curtailmentCost
 
     # Per generator cost
+    ## TEXAS: added varCost below
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
-        return b.thermalGeneration[gen] * i_p.fuelCost[gen]
+        return b.thermalGeneration[gen] * (i_p.fuelCost[gen] + i_p.varCost)
 
     # * b.dispatchLength
 
@@ -1007,7 +1008,7 @@ def add_commitment_constraints(b, comm_per):
     ## costs considered need to be re-assessed and account for missing data
 
     # fixed cost units are WEIRD
-    fixed_cost_coefs = 1000*5/8760
+    fixed_cost_coefs = 1000/(5*8760)
     @b.Expression()
     def operatingCostCommitment(b):
         return (
@@ -1477,7 +1478,7 @@ def investment_stage_rule(b, investment_stage):
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 
         kw_to_mw_option = 1000
-        other_option = kw_to_mw_option
+        other_option = 1
         ##TEXAS: lmao this is garbage; generalize this
         if investment_stage == 1:
             b.fixedCost = Param(m.generators, initialize=m.fixedCost1)
