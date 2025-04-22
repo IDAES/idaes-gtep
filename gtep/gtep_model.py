@@ -415,6 +415,12 @@ def add_investment_constraints(b, investment_stage):
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
+            +sum(
+                m.generatorInvestmentCost[gen]
+                * m.retirementMultiplier[gen]
+                * b.renewableRetired[gen]
+                for gen in m.generators
+            )
             # JSC inprog (done?) - added branch investment costs here
             + sum(
                 m.branchInvestmentCost[branch]
@@ -999,6 +1005,9 @@ def add_commitment_constraints(b, comm_per):
     ## TODO: Replace this constraint with expressions using bounds transform
     ## NOTE: expressions are stored in gtep_cleanup branch
     ## costs considered need to be re-assessed and account for missing data
+
+    # fixed cost units are WEIRD
+    fixed_cost_coefs = 1000*5/8760
     @b.Expression()
     def operatingCostCommitment(b):
         return (
@@ -1468,7 +1477,7 @@ def investment_stage_rule(b, investment_stage):
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 
         kw_to_mw_option = 1000
-        other_option = 1
+        other_option = kw_to_mw_option
         ##TEXAS: lmao this is garbage; generalize this
         if investment_stage == 1:
             b.fixedCost = Param(m.generators, initialize=m.fixedCost1)
@@ -1865,6 +1874,7 @@ def model_data_references(m):
     }
     if m.config["scale_texas_loads"]:
         m.extensionMultiplier = {gen: 0.006 for gen in m.generators}
+    m.retirementMultiplier = {gen: 0.1 for gen in m.renewableGenerators}
 
     # Cost of investment in each new generator
     m.generatorInvestmentCost = {

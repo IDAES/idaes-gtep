@@ -24,7 +24,8 @@ data_object.texas_case_study_updates(data_path)
 
 
 # for data in data_object.representative_data:
-#     print(data.data["elements"]['load'])
+#     for gen in data.data["elements"]["generator"].keys():
+#         print(data.data["elements"]['generator'][gen]["lifetime"])
 # import sys
 # sys.exit()
 # Initial goal:
