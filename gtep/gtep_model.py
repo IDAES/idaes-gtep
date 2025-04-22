@@ -537,7 +537,7 @@ def add_dispatch_variables(b, dispatch_period):
     ## TEXAS: added varCost below
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
-        return b.thermalGeneration[gen] * (i_p.fuelCost[gen] + i_p.varCost)
+        return b.thermalGeneration[gen] * (i_p.fuelCost[gen] + i_p.varCost[gen])
 
     # * b.dispatchLength
 
