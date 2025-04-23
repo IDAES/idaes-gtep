@@ -66,7 +66,7 @@ mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogToConsole'] = 1
 # opt = Highs()
 mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
-mod_object.results = opt.solve(mod_object.model, tee=True, LogFile="basic_logging.log")
+mod_object.results = opt.solve(mod_object.model, tee=True, timer=mod_object.timer, solver_options={"LogFile":"basic_logging.log"})
 #mod_object.model.write('bad_sol.sol')
 #mod_object.results = opt.solve(mod_object.model)
 
