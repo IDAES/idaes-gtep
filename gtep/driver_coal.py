@@ -66,7 +66,7 @@ mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogToConsole'] = 1
 # opt = Highs()
 mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
-mod_object.results = opt.solve(mod_object.model, tee=True)
+mod_object.results = opt.solve(mod_object.model, tee=True, LogFile="basic_logging.log")
 #mod_object.model.write('bad_sol.sol')
 #mod_object.results = opt.solve(mod_object.model)
 
@@ -76,9 +76,13 @@ import pyomo.gdp as gdp
 
 valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
 renewable_investments = {}
-dispatchable_investments ={}
+dispatchable_investments = {}
+load_shed = {}
 for var in mod_object.model.component_objects(pyo.Var, descend_into = True):
     for index in var:
+        if "Shed" in var.name:
+            if pyo.value(var[index]) >= 0.001:
+                    load_shed[var.name + "." + str(index)] = pyo.value(var[index])
         for name in valid_names:
             if name in var.name:
                 #print(var, index, pyo.value(var[index]))
@@ -98,6 +102,8 @@ with open("renewable_investments.json","w") as fil:
     json.dump(renewable_investments, fil)
 with open("dispatchable_investments.json","w") as fil:
     json.dump(dispatchable_investments,fil)
+with open("load_shed.json","w") as fil:
+    json.dump(load_shed,fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 
