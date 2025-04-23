@@ -89,7 +89,7 @@ class ExpansionPlanningModel:
         self.timer = TicTocTimer()
 
         _add_common_configs(self.config)
-        # _add_investment_configs(self.config)
+        _add_investment_configs(self.config)
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
