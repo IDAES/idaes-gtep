@@ -42,6 +42,7 @@ mod_object = ExpansionPlanningModel(
 mod_object.config["include_investment"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = True
+mod_object.config["transmission"] = False
 # mod_object.config["thermal_investment"] = True
 # mod_object.config["renewable_investment"] = True
 mod_object.create_model()
@@ -75,6 +76,7 @@ import pyomo.environ as pyo
 import pyomo.gdp as gdp
 
 valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
+thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
 renewable_investments = {}
 dispatchable_investments = {}
 load_shed = {}
