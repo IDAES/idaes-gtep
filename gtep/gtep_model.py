@@ -107,7 +107,10 @@ class ExpansionPlanningModel:
             # If self.data is a list, it is a list of data for
             # representative periods
             m.data_list = self.data.representative_data
-            m.md = scale_ModelData_to_pu(m.data_list[0])
+            ##TEXAS: testing this for proper scaling
+            for data in m.data_list:
+                scale_ModelData_to_pu(data)
+            m.md = m.data_list[0]
             m.data = self.data
         else:
             # If self.data is an Egret model data object, representative periods will just copy it unchanged
@@ -1718,11 +1721,13 @@ def model_data_references(m):
 
     # Demand at each bus
     m.loads = {
-        m.md.data["elements"]["load"][load_n]["bus"]: (1/10)*m.md.data["elements"]["load"][
+        m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
             load_n
         ]["p_load"]
         for load_n in m.md.data["elements"]["load"]
     }
+    for key in m.loads.keys():
+        m.loads[key] *= 1/10
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
     # Per-distance-unit multiplicative loss rate for each transmission line
