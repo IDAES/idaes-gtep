@@ -1718,7 +1718,7 @@ def model_data_references(m):
 
     # Demand at each bus
     m.loads = {
-        m.md.data["elements"]["load"][load_n]["bus"]: (1/3)*m.md.data["elements"]["load"][
+        m.md.data["elements"]["load"][load_n]["bus"]: (1/10)*m.md.data["elements"]["load"][
             load_n
         ]["p_load"]
         for load_n in m.md.data["elements"]["load"]
