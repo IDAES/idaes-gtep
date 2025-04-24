@@ -730,8 +730,8 @@ def add_dispatch_constraints(b, disp_per):
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    for key in m.loads.keys():
-        m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
+    # for key in m.loads.keys():
+    #     m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
 
     # Energy balance constraint
     @b.Constraint(m.buses)
@@ -1106,7 +1106,7 @@ def commitment_period_rule(b, commitment_period):
             ]["p_load"]["values"][commitment_period - 1] *  b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
             for load_n in m.md.data["elements"]["load"]
         }
-        # print(m.loads)
+        print(sum(m.loads.values()))
         
 
     if m.config["scale_loads"]:
@@ -1648,6 +1648,8 @@ def model_data_references(m):
         for thermalGen in m.thermalGenerators
     }
 
+    # print(sum(m.thermalCapacity.values()))
+
     # Lifetime of each generator; needs units
     m.lifetimes = {
         gen: m.md.data["elements"]["generator"][gen]["lifetime"] for gen in m.generators
@@ -1670,6 +1672,8 @@ def model_data_references(m):
         )
         for renewableGen in m.renewableGenerators
     }
+
+    # print(sum(m.renewableCapacity.values()))
 
     # A fraction of renewableCapacity representing fraction of capacity
     # that can be reliably counted toward planning reserve requirement
@@ -1714,7 +1718,7 @@ def model_data_references(m):
 
     # Demand at each bus
     m.loads = {
-        m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
+        m.md.data["elements"]["load"][load_n]["bus"]: (1/3)*m.md.data["elements"]["load"][
             load_n
         ]["p_load"]
         for load_n in m.md.data["elements"]["load"]
