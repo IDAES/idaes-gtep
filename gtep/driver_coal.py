@@ -47,8 +47,8 @@ mod_object.config["transmission"] = False
 # mod_object.config["renewable_investment"] = True
 mod_object.create_model()
 mod_object.timer.toc("horrible")
-import sys
-sys.exit()
+# import sys
+# sys.exit()
 # TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 mod_object.timer.toc("double horrible")
 # import sys
