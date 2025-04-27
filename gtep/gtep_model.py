@@ -1488,7 +1488,7 @@ def investment_stage_rule(b, investment_stage):
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 
         kw_to_mw_option = 1000
-        other_option = 1/1000
+        other_option = 1
         ##TEXAS: lmao this is garbage; generalize this
         if investment_stage == 1:
             b.fixedCost = Param(m.generators, initialize=m.fixedCost1)
@@ -1497,7 +1497,8 @@ def investment_stage_rule(b, investment_stage):
             thermalInvestmentCost = {gen: other_option*m.thermalCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.thermalGenerators}
             renewableInvestmentCost = {gen: other_option*m.renewableCapacity[gen] * m.md.data["elements"]["generator"][gen]["capex1"] for gen in m.renewableGenerators}
             m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
-            #print(m.generatorInvestmentCost)
+            print("gen investment cost")
+            print(sum(m.generatorInvestmentCost.values()))
         elif investment_stage == 2:
             b.fixedCost = Param(m.generators, initialize=m.fixedCost2)
             b.varCost = Param(m.generators, initialize=m.varCost2)
@@ -1726,8 +1727,9 @@ def model_data_references(m):
         ]["p_load"]
         for load_n in m.md.data["elements"]["load"]
     }
-    # for key in m.loads.keys():
-    #     m.loads[key] *= 1/10
+    # for key, val in m.loads.items():
+    #     for i, v in enumerate(val['values']):
+    #         val['values'][i] *= 1/10
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
     # Per-distance-unit multiplicative loss rate for each transmission line
@@ -1850,11 +1852,11 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2000 * max(value(item) for item in m.fuelCost1.values()),
+        initialize=20 * max(value(item) for item in m.fuelCost1.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize= 10000 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
+        initialize= 10 * m.curtailmentCost, units=u.USD / (u.MW * u.hr)
     )
 
     # Full lifecycle CO_2 emission factor for each generator
