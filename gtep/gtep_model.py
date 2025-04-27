@@ -1112,7 +1112,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.loads.items():
             for i, v in enumerate(val['values']):
                 val['values'][i] *= 1/3
-        print(sum(m.loads.values()))
+        # print(sum(m.loads.values()))
         
 
     if m.config["scale_loads"]:
