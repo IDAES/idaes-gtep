@@ -1109,6 +1109,9 @@ def commitment_period_rule(b, commitment_period):
             ]["p_load"]["values"][commitment_period - 1] *  b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
             for load_n in m.md.data["elements"]["load"]
         }
+        for key, val in m.loads.items():
+            for i, v in enumerate(val['values']):
+                val['values'][i] *= 1/3
         print(sum(m.loads.values()))
         
 
