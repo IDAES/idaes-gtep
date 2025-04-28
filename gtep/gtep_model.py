@@ -546,6 +546,7 @@ def add_dispatch_variables(b, dispatch_period):
     ## TEXAS: added varCost below
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
+        return b.thermalGeneration[gen] * i_p.fuelCost[gen]
         return b.thermalGeneration[gen] * (i_p.fuelCost[gen] + i_p.varCost[gen])
 
     # * b.dispatchLength
@@ -1028,17 +1029,18 @@ def add_commitment_constraints(b, comm_per):
             )
             + sum(
                 i_p.fixedCost[gen]
-                * b.commitmentPeriodLength
-                * (
-                    b.genOn[gen].indicator_var.get_associated_binary()
-                    + b.genShutdown[gen].indicator_var.get_associated_binary()
-                    + b.genStartup[gen].indicator_var.get_associated_binary()
-                )
+                # * b.commitmentPeriodLength
+                # * (
+                #     b.genOn[gen].indicator_var.get_associated_binary()
+                #     + b.genShutdown[gen].indicator_var.get_associated_binary()
+                #     + b.genStartup[gen].indicator_var.get_associated_binary()
+                # )
                 for gen in m.thermalGenerators
             )
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
+            ## TEXAS: doing something wacky with those momentarily
             + sum(
-                i_p.fixedCost[gen] * b.commitmentPeriodLength
+                i_p.fixedCost[gen] * b.commitmentPeriodLength * min(1, i_p.renewableOperational[gen] + i_p.renewableInstalled + i_p.renewableExtended)
                 # * m.renewableCapacity[gen]
                 for gen in m.renewableGenerators
             )
