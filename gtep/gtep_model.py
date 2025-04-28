@@ -2070,6 +2070,10 @@ def model_create_investment_stages(m, stages):
                 if stage != 1
                 else Constraint.Skip
             )
+        
+        @m.Constraint(m.stages, m.renewableGenerators)
+        def renewable_capacity_enforcement(m, stage, gen):
+            return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] <= m.renewableCapacity[gen]
 
         # If a gen is online at time t, it must have been online or installed at time t-1
         @m.LogicalConstraint(m.stages, m.thermalGenerators)
