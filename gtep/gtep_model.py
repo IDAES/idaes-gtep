@@ -578,8 +578,9 @@ def add_dispatch_variables(b, dispatch_period):
 
     # Define bounds on transmission line capacity - restrictions on flow over
     # uninvested lines are enforced in a disjuction below
+    ## TEXAS 
     def power_flow_limits(b, branch):
-        return (-m.transmissionCapacity[branch], m.transmissionCapacity[branch])
+        return (-m.transmissionCapacity[branch] * 8, m.transmissionCapacity[branch]* 8)
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
