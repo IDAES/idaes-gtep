@@ -1040,7 +1040,7 @@ def add_commitment_constraints(b, comm_per):
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
             ## TEXAS: doing something wacky with those momentarily
             + sum(
-                i_p.fixedCost[gen] * b.commitmentPeriodLength * min(1, i_p.renewableOperational[gen] + i_p.renewableInstalled[gen] + i_p.renewableExtended[gen])
+                i_p.fixedCost[gen] * b.commitmentPeriodLength * (i_p.renewableOperational[gen] + i_p.renewableInstalled[gen] + i_p.renewableExtended[gen])
                 # * m.renewableCapacity[gen]
                 for gen in m.renewableGenerators
             )
