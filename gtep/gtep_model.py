@@ -1860,7 +1860,7 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=20 * max(value(item) for item in m.fuelCost1.values()),
+        initialize=2000 * max(value(item) for item in m.fuelCost1.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
