@@ -587,7 +587,7 @@ def add_dispatch_variables(b, dispatch_period):
     # uninvested lines are enforced in a disjuction below
     ## TEXAS 
     def power_flow_limits(b, branch):
-        return (-m.transmissionCapacity[branch] * 8, m.transmissionCapacity[branch]* 8)
+        return (-m.transmissionCapacity[branch] * 8, m.transmissionCapacity[branch])
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
@@ -1868,7 +1868,7 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2000 * max(value(item) for item in m.fuelCost1.values()),
+        initialize= 2 * max(value(item) for item in m.fuelCost1.values()),
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
