@@ -308,6 +308,11 @@ def add_investment_constraints(b, investment_stage):
         ):
             print(gen)
             b.renewableOperational[gen].fix(0)
+        elif (
+            m.md.data["elements"]["generator"][gen]["in_service"] == True
+            and investment_stage == 1
+        ):
+            b.renewableOperational[gen].fix(m.renewableCapacity[gen])
         
     if m.config["transmission"]:
         for branch in m.transmission:
@@ -789,6 +794,7 @@ def add_dispatch_constraints(b, disp_per):
             b.renewableGeneration[renewableGen]
             <= i_p.renewableInstalled[renewableGen]
             + i_p.renewableOperational[renewableGen]
+            + i_p.renewableExtended[renewableGen]
         )
 
     # RESERVE -- total operating (spinning + quickstart)
@@ -2076,14 +2082,15 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage].renewableOperational[gen]
                 == m.investmentStage[stage - 1].renewableOperational[gen]
                 + m.investmentStage[stage - 1].renewableInstalled[gen]
+                + m.investmentStage[stage - 1].renewableExtended[gen]
                 - m.investmentStage[stage - 1].renewableRetired[gen]
                 if stage != 1
                 else Constraint.Skip
             )
         
-        @m.Constraint(m.stages, m.renewableGenerators)
-        def renewable_capacity_enforcement(m, stage, gen):
-            return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] <= m.renewableCapacity[gen]
+        # @m.Constraint(m.stages, m.renewableGenerators)
+        # def renewable_capacity_enforcement(m, stage, gen):
+        #     return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] <= m.renewableCapacity[gen]
 
         # If a gen is online at time t, it must have been online or installed at time t-1
         @m.LogicalConstraint(m.stages, m.thermalGenerators)
