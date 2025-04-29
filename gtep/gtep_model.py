@@ -306,6 +306,7 @@ def add_investment_constraints(b, investment_stage):
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
         ):
+            print(gen)
             b.renewableOperational[gen].fix(0)
         
     if m.config["transmission"]:
@@ -576,8 +577,9 @@ def add_dispatch_variables(b, dispatch_period):
     b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
 
     b.operatingCostDispatch = (
-        b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
-    )
+        b.generationCostDispatch + b.loadShedCostDispatch)
+    #+ b.curtailmentCostDispatch
+    #)
 
     b.renewableCurtailmentDispatch = sum(
         b.renewableCurtailment[gen] for gen in m.renewableGenerators
@@ -1125,7 +1127,7 @@ def commitment_period_rule(b, commitment_period):
             m.loads[key] *= 1/8
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
-        print(sum(m.loads.values()))
+        # print(sum(m.loads.values()))
         
 
     if m.config["scale_loads"]:

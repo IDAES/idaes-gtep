@@ -99,6 +99,13 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into = True)
                 if pyo.value(var[index].indicator_var) == True:
                     dispatchable_investments[var.name + "." + str(index)] = pyo.value(var[index].indicator_var)
 
+costs = {}
+for exp in mod_object.model.component_objects(pyo.Expression):
+    if "operatingCost" in exp.name:
+        costs[var.name] = pyo.value(exp)
+    elif "investmentCost" in exp.name:
+        costs[var.name] = pyo.value(exp)
+
 import json 
 with open("renewable_investments.json","w") as fil:
     json.dump(renewable_investments, fil)
@@ -106,6 +113,8 @@ with open("dispatchable_investments.json","w") as fil:
     json.dump(dispatchable_investments,fil)
 with open("load_shed.json","w") as fil:
     json.dump(load_shed,fil)
+with open("cost_breakdown.json","w") as fil:
+    json.dump(costs, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 
