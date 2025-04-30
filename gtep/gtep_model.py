@@ -1919,7 +1919,9 @@ def model_data_references(m):
     }
     if m.config["scale_texas_loads"]:
         m.extensionMultiplier = {gen: 0.06 for gen in m.generators}
-    m.retirementMultiplier = {gen: 0.1 for gen in m.generators}
+    thermal_retirement = {gen: 0.1 for gen in m.thermalGenerators}
+    renewable_retirement = {gen: 1 for gen in m.renewableGenerators}
+    m.retirementMultiplier = thermal_retirement | renewable_retirement
 
     # Cost of investment in each new generator
     m.generatorInvestmentCost = {
