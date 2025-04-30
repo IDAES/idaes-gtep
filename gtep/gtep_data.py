@@ -71,7 +71,8 @@ class ExpansionPlanningData:
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
         time_keys = self.md.data["system"]["time_keys"]
-        self.representative_dates = ["2019-01-28 00:00","2019-04-23 00:00","2019-07-05 00:00","2019-10-14 00:00"]
+        self.representative_dates = ["2019-01-28 00:00","2019-04-23 00:00","2019-07-05 00:00", "2019-08-12 00:00", "2019-10-14 00:00"]
+        
 
         for date in self.representative_dates:
             key_idx = time_keys.index(date)

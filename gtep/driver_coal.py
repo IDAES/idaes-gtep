@@ -34,7 +34,7 @@ data_object.texas_case_study_updates(data_path)
 # 4 representative days (1 per season)
 # Hourly commitment and dispatch
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=5, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
@@ -107,13 +107,13 @@ for exp in mod_object.model.component_objects(pyo.Expression, descend_into = Tru
         costs[var.name] = pyo.value(exp)
 
 import json 
-with open("renewable_investments.json","w") as fil:
+with open("renewable_investments_extreme.json","w") as fil:
     json.dump(renewable_investments, fil)
-with open("dispatchable_investments.json","w") as fil:
+with open("dispatchable_investments_extreme.json","w") as fil:
     json.dump(dispatchable_investments,fil)
-with open("load_shed.json","w") as fil:
+with open("load_shed_extreme.json","w") as fil:
     json.dump(load_shed,fil)
-with open("cost_breakdown.json","w") as fil:
+with open("cost_breakdown_extreme.json","w") as fil:
     json.dump(costs, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
