@@ -274,6 +274,7 @@ def add_investment_variables(b, investment_stage):
     b.renewableExtended = Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
+    b.renewableDisabled = Var(m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW)
 
     # Track and accumulate costs and penalties
     b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW * u.hr)
@@ -308,6 +309,7 @@ def add_investment_constraints(b, investment_stage):
         ):
             print(gen)
             b.renewableOperational[gen].fix(0)
+            b.renewableDisabled[gen].fix(m.renewableCapacity[gen])
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -1916,7 +1918,7 @@ def model_data_references(m):
         for gen in m.generators
     }
     if m.config["scale_texas_loads"]:
-        m.extensionMultiplier = {gen: 0.006 for gen in m.generators}
+        m.extensionMultiplier = {gen: 0.06 for gen in m.generators}
     m.retirementMultiplier = {gen: 0.1 for gen in m.generators}
 
     # Cost of investment in each new generator
@@ -2088,6 +2090,13 @@ def model_create_investment_stages(m, stages):
                 else Constraint.Skip
             )
         
+        @m.Constraint(m.stages, m.renewableGenerators)
+        def renewable_more_stats_link(m, stage, gen):
+            return (m.investmentStage[stage].renewableDisabled[gen] 
+            == m.investmentStage[stage-1].renewableDisabled[gen]
+            + m.investmentStage[stage-1].renewableRetired[gen]
+            - m.investmentStage[stage-1].renewableInstalled[gen]
+            )
         # @m.Constraint(m.stages, m.renewableGenerators)
         # def renewable_capacity_enforcement(m, stage, gen):
         #     return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] <= m.renewableCapacity[gen]

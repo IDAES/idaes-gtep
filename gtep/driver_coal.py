@@ -100,7 +100,7 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into = True)
                     dispatchable_investments[var.name + "." + str(index)] = pyo.value(var[index].indicator_var)
 
 costs = {}
-for exp in mod_object.model.component_objects(pyo.Expression):
+for exp in mod_object.model.component_objects(pyo.Expression, descend_into = True):
     if "operatingCost" in exp.name:
         costs[var.name] = pyo.value(exp)
     elif "investmentCost" in exp.name:
