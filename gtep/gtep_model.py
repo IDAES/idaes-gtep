@@ -2096,6 +2096,8 @@ def model_create_investment_stages(m, stages):
             == m.investmentStage[stage-1].renewableDisabled[gen]
             + m.investmentStage[stage-1].renewableRetired[gen]
             - m.investmentStage[stage-1].renewableInstalled[gen]
+            if stage != 1
+            else Constraint.Skip
             )
         # @m.Constraint(m.stages, m.renewableGenerators)
         # def renewable_capacity_enforcement(m, stage, gen):
