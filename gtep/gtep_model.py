@@ -746,7 +746,6 @@ def add_dispatch_variables(b, dispatch_period):
         units=u.MW * u.hr,
     )
 
-
 def add_dispatch_constraints(b, disp_per):
     """Add dispatch-associated inequalities to representative period block."""
     m = b.model()
@@ -1129,7 +1128,7 @@ def commitment_period_rule(b, commitment_period):
         m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
-            ]["p_load"]["values"][commitment_period - 1] *  b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]]
+            ]["p_load"]["values"][commitment_period - 1] *  b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             for load_n in m.md.data["elements"]["load"]
         }
         for key, val in m.loads.items():
