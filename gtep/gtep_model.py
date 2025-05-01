@@ -302,6 +302,9 @@ def add_investment_constraints(b, investment_stage):
         ):
             b.genOperational[gen].indicator_var.fix(True)
             # b.genInstalled[gen].binary_indicator_var.fix(1)
+    for gen in m.thermalGenerators:
+        if m.md.data["elements"]["generator"][gen]["lifetime"] == 1 and investment_stage ==2:
+            b.genRetired[gen].indicator_var.fix(True)
     for gen in m.renewableGenerators:
         if (
             m.md.data["elements"]["generator"][gen]["in_service"] == False
@@ -1132,37 +1135,37 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            m.loads[key] *= 1/8
+            m.loads[key] *= 1/10
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
         # print(sum(m.loads.values()))
         
 
-    if m.config["scale_loads"]:
-        temp_scale = 3
-        temp_scale = 10
+    # if m.config["scale_loads"]:
+    #     temp_scale = 3
+    #     temp_scale = 10
 
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: (
-                temp_scale
-                * (
-                    1
-                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
-                )
-            )
-            * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
-            for load_n in m.md.data["elements"]["load"]
-        }
+    #     m.loads = {
+    #         m.md.data["elements"]["load"][load_n]["bus"]: (
+    #             temp_scale
+    #             * (
+    #                 1
+    #                 + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
+    #             )
+    #         )
+    #         * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+    #             commitment_period - 1
+    #         ]
+    #         for load_n in m.md.data["elements"]["load"]
+    #     }
 
-    else:
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            for load_n in m.md.data["elements"]["load"]
-        }
+    # else:
+    #     m.loads = {
+    #         m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
+    #             load_n
+    #         ]["p_load"]["values"][commitment_period - 1]
+    #         for load_n in m.md.data["elements"]["load"]
+    #     }
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
