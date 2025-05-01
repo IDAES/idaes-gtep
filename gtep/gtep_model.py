@@ -756,7 +756,7 @@ def add_dispatch_constraints(b, disp_per):
 
     # for key in m.loads.keys():
     #     m.loads[key] *= max(0, m.rng.normal(0.5, 0.2))
-
+    print(m.loads)
     # Energy balance constraint
     @b.Constraint(m.buses)
     def flow_balance(b, bus):
