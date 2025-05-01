@@ -65,36 +65,77 @@ class ExpansionPlanningData:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
 
-
         ## NOTE: Below is only for multiple representative periods and creates a list
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
         time_keys = self.md.data["system"]["time_keys"]
-        self.representative_dates = ["2019-01-28 00:00","2019-04-23 00:00","2019-07-05 00:00", "2019-10-14 00:00"]
-        
+        self.representative_dates = [
+            "2019-01-28 00:00",
+            "2019-04-23 00:00",
+            "2019-07-05 00:00",
+            "2019-08-12 00:00",
+            "2019-10-14 00:00",
+        ]
 
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + 24]
             data_list.append(self.md.clone_at_time_keys(time_key_set))
-        
 
         self.representative_data = data_list
 
     def import_load_scaling(self, load_file_name):
         adjusted_forecast = pd.read_excel(load_file_name)
-        adjusted_forecast_by_period = adjusted_forecast[(adjusted_forecast["year"] == 2025) | (adjusted_forecast["year"] == 2030) | (adjusted_forecast["year"] == 2035)]
-        base_zones = ["base_economic_coast", "base_economic_east", "base_economic_fwest", "base_economic_ncent", "base_economic_north", "base_economic_scent", "base_economic_south", "base_economic_west"]
-        scaled_zones = ["coast_net", "east_net", "fwest_net", "ncent_net", "north_net", "scent_net", "south_net", "west_net"]
+        adjusted_forecast_by_period = adjusted_forecast[
+            (adjusted_forecast["year"] == 2025)
+            | (adjusted_forecast["year"] == 2030)
+            | (adjusted_forecast["year"] == 2035)
+        ]
+        base_zones = [
+            "base_economic_coast",
+            "base_economic_east",
+            "base_economic_fwest",
+            "base_economic_ncent",
+            "base_economic_north",
+            "base_economic_scent",
+            "base_economic_south",
+            "base_economic_west",
+        ]
+        scaled_zones = [
+            "coast_net",
+            "east_net",
+            "fwest_net",
+            "ncent_net",
+            "north_net",
+            "scent_net",
+            "south_net",
+            "west_net",
+        ]
         zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
         cap_zones = [zone.upper() for zone in zones]
-        for i,zone in enumerate(zones):
-            adjusted_forecast_by_period["scaled_" + zone] = adjusted_forecast_by_period[scaled_zones[i]]/adjusted_forecast_by_period[base_zones[i]]
-        column_list = ["year", "month", "day", "hour", "scaled_coast", "scaled_east", "scaled_fwest", "scaled_ncent", "scaled_north", "scaled_scent", "scaled_south", "scaled_west"]
+        for i, zone in enumerate(zones):
+            adjusted_forecast_by_period["scaled_" + zone] = (
+                adjusted_forecast_by_period[scaled_zones[i]]
+                / adjusted_forecast_by_period[base_zones[i]]
+            )
+        column_list = [
+            "year",
+            "month",
+            "day",
+            "hour",
+            "scaled_coast",
+            "scaled_east",
+            "scaled_fwest",
+            "scaled_ncent",
+            "scaled_north",
+            "scaled_scent",
+            "scaled_south",
+            "scaled_west",
+        ]
         load_scaling_df = adjusted_forecast_by_period[column_list]
         scaled_names = ["scaled_" + zone for zone in zones]
-        name_conversion_dict = dict(zip(scaled_names,cap_zones))
+        name_conversion_dict = dict(zip(scaled_names, cap_zones))
         load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
 
         self.load_scaling = load_scaling_df
@@ -128,12 +169,24 @@ class ExpansionPlanningData:
     def texas_case_study_updates(self, data_path):
         generator_update_path = data_path + "/gen.csv"
         generator_df = pd.read_csv(generator_update_path)
-        bonus_feature_list = ["capex1","capex2","capex3","fuel_cost1","fuel_cost2","fuel_cost3","fixed_ops1", "fixed_ops2","fixed_ops3", "var_ops1", "var_ops2","var_ops3"]
+        bonus_feature_list = [
+            "capex1",
+            "capex2",
+            "capex3",
+            "fuel_cost1",
+            "fuel_cost2",
+            "fuel_cost3",
+            "fixed_ops1",
+            "fixed_ops2",
+            "fixed_ops3",
+            "var_ops1",
+            "var_ops2",
+            "var_ops3",
+        ]
         for data_point in self.representative_data:
             for col in bonus_feature_list:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
-                        data_point.data["elements"]["generator"][gen][col] = float(generator_df[generator_df["GEN UID"] == gen][col])
-        
-
-
+                        data_point.data["elements"]["generator"][gen][col] = float(
+                            generator_df[generator_df["GEN UID"] == gen][col]
+                        )
