@@ -8,6 +8,7 @@ from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 from pyomo.contrib.solver.solvers.gurobi_direct import GurobiDirect
 import gurobipy as gp
 import gc
+
 gc.disable()
 
 
@@ -59,17 +60,21 @@ mod_object.timer.toc("triple horrible")
 # import sys
 # sys.exit()
 
-#opt = SolverFactory("gurobiv2")
-#opt = Gurobi()
+# opt = SolverFactory("gurobiv2")
+# opt = Gurobi()
 opt = GurobiDirect()
 mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
 # opt = Highs()
-mod_object.timer.toc("let's start to solve -- this is really the start of the handoff to gurobi")
-mod_object.results = opt.solve(mod_object.model, tee=True, solver_options={"LogFile":"basic_logging.log"})
-#mod_object.model.write('bad_sol.sol')
-#mod_object.results = opt.solve(mod_object.model)
+mod_object.timer.toc(
+    "let's start to solve -- this is really the start of the handoff to gurobi"
+)
+mod_object.results = opt.solve(
+    mod_object.model, tee=True, solver_options={"LogFile": "basic_logging.log"}
+)
+# mod_object.model.write('bad_sol.sol')
+# mod_object.results = opt.solve(mod_object.model)
 
 mod_object.timer.toc("we've solved, let's pull investment variables")
 import pyomo.environ as pyo
@@ -80,41 +85,48 @@ thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
 renewable_investments = {}
 dispatchable_investments = {}
 load_shed = {}
-for var in mod_object.model.component_objects(pyo.Var, descend_into = True):
+for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Shed" in var.name:
             if pyo.value(var[index]) >= 0.001:
-                    load_shed[var.name + "." + str(index)] = pyo.value(var[index])
+                load_shed[var.name + "." + str(index)] = pyo.value(var[index])
         for name in valid_names:
             if name in var.name:
-                #print(var, index, pyo.value(var[index]))
+                # print(var, index, pyo.value(var[index]))
                 if pyo.value(var[index]) >= 0.001:
-                    renewable_investments[var.name + "." + str(index)] = pyo.value(var[index])
-for var in mod_object.model.component_objects(gdp.Disjunct, descend_into = True):
+                    renewable_investments[var.name + "." + str(index)] = pyo.value(
+                        var[index]
+                    )
+for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
     for index in var:
         for name in valid_names:
             if name in var.name:
-                #print(var.name)
-                #print(var, index, pyo.value(var[index].indicator_var))
+                # print(var.name)
+                # print(var, index, pyo.value(var[index].indicator_var))
                 if pyo.value(var[index].indicator_var) == True:
-                    dispatchable_investments[var.name + "." + str(index)] = pyo.value(var[index].indicator_var)
+                    dispatchable_investments[var.name + "." + str(index)] = pyo.value(
+                        var[index].indicator_var
+                    )
 
 costs = {}
-for exp in mod_object.model.component_objects(pyo.Expression, descend_into = True):
+for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
     if "operatingCost" in exp.name:
         costs[var.name] = pyo.value(exp)
     elif "investmentCost" in exp.name:
         costs[var.name] = pyo.value(exp)
 
-import json 
-with open("renewable_investments_retire.json","w") as fil:
+import json
+
+with open(
+    "retirement_allowed_no_extreme_fixed_load/renewable_investments.json", "w"
+) as fil:
     json.dump(renewable_investments, fil)
-with open("dispatchable_investments_retire.json","w") as fil:
-    json.dump(dispatchable_investments,fil)
-with open("load_shed_retire.json","w") as fil:
-    json.dump(load_shed,fil)
-with open("cost_breakdown_retire.json","w") as fil:
-    json.dump(costs, fil)
+with open(
+    "retirement_allowed_no_extreme_fixed_load/dispatchable_investments.json", "w"
+) as fil:
+    json.dump(dispatchable_investments, fil)
+with open("retirement_allowed_no_extreme_fixed_load/load_shed.json", "w") as fil:
+    json.dump(load_shed, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 
@@ -122,7 +134,7 @@ mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 # sol_object.load_from_model(mod_object)
 # sol_object.dump_json("./gtep_solution.json")
 
-#sol_object.import_data_object(data_object)
+# sol_object.import_data_object(data_object)
 
 # sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
 # sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
@@ -145,4 +157,3 @@ mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 # plot_results = False
 # if plot_results:
 #     sol_object.plot_levels(save_dir="./plots/")
-
