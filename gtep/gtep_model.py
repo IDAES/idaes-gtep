@@ -1149,7 +1149,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            m.loads[key] *= 1 / 10
+            m.loads[key] *= 1 / 2
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
         # print(sum(m.loads.values()))
