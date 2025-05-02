@@ -310,9 +310,9 @@ def add_investment_constraints(b, investment_stage):
         ):
             b.genOperational[gen].indicator_var.fix(True)
             # b.genInstalled[gen].binary_indicator_var.fix(1)
-    for gen in m.thermalGenerators:
-        if m.md.data["elements"]["generator"][gen]["lifetime"] == 1 and investment_stage ==2:
-            b.genRetired[gen].indicator_var.fix(True)
+    # for gen in m.thermalGenerators:
+    #     if m.md.data["elements"]["generator"][gen]["lifetime"] == 1 and investment_stage ==2:
+    #         b.genRetired[gen].indicator_var.fix(True)
     for gen in m.renewableGenerators:
         if (
             m.md.data["elements"]["generator"][gen]["in_service"] == False
@@ -2134,16 +2134,16 @@ def model_create_investment_stages(m, stages):
                 else Constraint.Skip
             )
 
-        @m.Constraint(m.stages, m.renewableGenerators)
-        def renewable_more_stats_link(m, stage, gen):
-            return (
-                m.investmentStage[stage].renewableDisabled[gen]
-                == m.investmentStage[stage - 1].renewableDisabled[gen]
-                + m.investmentStage[stage - 1].renewableRetired[gen]
-                - m.investmentStage[stage - 1].renewableInstalled[gen]
-                if stage != 1
-                else Constraint.Skip
-            )
+        # @m.Constraint(m.stages, m.renewableGenerators)
+        # def renewable_more_stats_link(m, stage, gen):
+        #     return (
+        #         m.investmentStage[stage].renewableDisabled[gen]
+        #         == m.investmentStage[stage - 1].renewableDisabled[gen]
+        #         + m.investmentStage[stage - 1].renewableRetired[gen]
+        #         - m.investmentStage[stage - 1].renewableInstalled[gen]
+        #         if stage != 1
+        #         else Constraint.Skip
+        #     )
 
         # @m.Constraint(m.stages, m.renewableGenerators)
         # def renewable_capacity_enforcement(m, stage, gen):

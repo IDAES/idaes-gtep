@@ -118,14 +118,14 @@ for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True)
 import json
 
 with open(
-    "retirement_forced_no_extreme_half_load/renewable_investments.json", "w"
+    "retirement_allowed_no_extreme_half_load/renewable_investments.json", "w"
 ) as fil:
     json.dump(renewable_investments, fil)
 with open(
-    "retirement_forced_no_extreme_half_load/dispatchable_investments.json", "w"
+    "retirement_allowed_no_extreme_half_load/dispatchable_investments.json", "w"
 ) as fil:
     json.dump(dispatchable_investments, fil)
-with open("retirement_forced_no_extreme_half_load/load_shed.json", "w") as fil:
+with open("retirement_allowed_no_extreme_half_load/load_shed.json", "w") as fil:
     json.dump(load_shed, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
