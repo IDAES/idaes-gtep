@@ -310,9 +310,9 @@ def add_investment_constraints(b, investment_stage):
         ):
             b.genOperational[gen].indicator_var.fix(True)
             # b.genInstalled[gen].binary_indicator_var.fix(1)
-    # for gen in m.thermalGenerators:
-    #     if m.md.data["elements"]["generator"][gen]["lifetime"] == 1 and investment_stage ==2:
-    #         b.genRetired[gen].indicator_var.fix(True)
+    for gen in m.thermalGenerators:
+        if m.md.data["elements"]["generator"][gen]["lifetime"] == 1 and investment_stage ==2:
+            b.genRetired[gen].indicator_var.fix(True)
     for gen in m.renewableGenerators:
         if (
             m.md.data["elements"]["generator"][gen]["in_service"] == False
