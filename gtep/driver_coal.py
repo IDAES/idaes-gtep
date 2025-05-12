@@ -35,7 +35,7 @@ data_object.texas_case_study_updates(data_path)
 # 4 representative days (1 per season)
 # Hourly commitment and dispatch
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=5, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
@@ -119,18 +119,18 @@ import json
 
 import os
 
-if not os.path.exists("retirement_allowed_no_extreme_half_load"):
+if not os.path.exists("retirement_allowed_extreme_half_load"):
     os.makedirs("retirement_allowed_no_extreme_half_load")
 
 with open(
-    "retirement_allowed_no_extreme_half_load/renewable_investments.json", "w"
+    "retirement_allowed_extreme_half_load/renewable_investments.json", "w"
 ) as fil:
     json.dump(renewable_investments, fil)
 with open(
-    "retirement_allowed_no_extreme_half_load/dispatchable_investments.json", "w"
+    "retirement_allowed_extreme_half_load/dispatchable_investments.json", "w"
 ) as fil:
     json.dump(dispatchable_investments, fil)
-with open("retirement_allowed_no_extreme_half_load/load_shed.json", "w") as fil:
+with open("retirement_allowed_extreme_half_load/load_shed.json", "w") as fil:
     json.dump(load_shed, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
