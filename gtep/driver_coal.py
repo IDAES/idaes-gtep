@@ -117,6 +117,11 @@ for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True)
 
 import json
 
+import os
+
+if not os.path.exists("retirement_allowed_no_extreme_half_load"):
+    os.makedirs("retirement_allowed_no_extreme_half_load")
+
 with open(
     "retirement_allowed_no_extreme_half_load/renewable_investments.json", "w"
 ) as fil:

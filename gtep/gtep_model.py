@@ -1923,7 +1923,7 @@ def model_data_references(m):
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize=100 * max(value(item) for item in m.fuelCost1.values()),
+        initialize=5000,
         units=u.USD / (u.MW * u.hr),
     )
 
