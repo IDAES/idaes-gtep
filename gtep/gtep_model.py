@@ -1149,7 +1149,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            m.loads[key] *= 1 / 10
+            m.loads[key] *= 1 / 2
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
         # print(sum(m.loads.values()))
@@ -2135,16 +2135,16 @@ def model_create_investment_stages(m, stages):
                 else Constraint.Skip
             )
 
-        @m.Constraint(m.stages, m.renewableGenerators)
-        def renewable_more_stats_link(m, stage, gen):
-            return (
-                m.investmentStage[stage].renewableDisabled[gen]
-                == m.investmentStage[stage - 1].renewableDisabled[gen]
-                + m.investmentStage[stage - 1].renewableRetired[gen]
-                - m.investmentStage[stage - 1].renewableInstalled[gen]
-                if stage != 1
-                else Constraint.Skip
-            )
+        # @m.Constraint(m.stages, m.renewableGenerators)
+        # def renewable_more_stats_link(m, stage, gen):
+        #     return (
+        #         m.investmentStage[stage].renewableDisabled[gen]
+        #         == m.investmentStage[stage - 1].renewableDisabled[gen]
+        #         + m.investmentStage[stage - 1].renewableRetired[gen]
+        #         - m.investmentStage[stage - 1].renewableInstalled[gen]
+        #         if stage != 1
+        #         else Constraint.Skip
+        #     )
 
         # @m.Constraint(m.stages, m.renewableGenerators)
         # def renewable_capacity_enforcement(m, stage, gen):
