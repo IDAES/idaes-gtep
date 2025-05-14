@@ -1061,12 +1061,12 @@ def add_commitment_constraints(b, comm_per):
             )
             + sum(
                 i_p.fixedCost[gen]
-                # * b.commitmentPeriodLength
-                # * (
-                #     b.genOn[gen].indicator_var.get_associated_binary()
-                #     + b.genShutdown[gen].indicator_var.get_associated_binary()
-                #     + b.genStartup[gen].indicator_var.get_associated_binary()
-                # )
+                * b.commitmentPeriodLength
+                * (
+                    b.genOn[gen].indicator_var.get_associated_binary()
+                    + b.genShutdown[gen].indicator_var.get_associated_binary()
+                    + b.genStartup[gen].indicator_var.get_associated_binary()
+                )
                 for gen in m.thermalGenerators
             )
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
@@ -1152,7 +1152,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            m.loads[key] *= 1 / 2
+            m.loads[key] *= 1
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
         # print(sum(m.loads.values()))

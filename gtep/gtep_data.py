@@ -74,8 +74,8 @@ class ExpansionPlanningData:
             "2019-01-28 00:00",
             "2019-04-23 00:00",
             "2019-07-05 00:00",
-            # "2019-08-12 00:00",
             "2019-10-14 00:00",
+            "2019-08-12 00:00",
         ]
 
         for date in self.representative_dates:
