@@ -119,16 +119,18 @@ import json
 
 import os
 
-if not os.path.exists("retirement_forced_extreme_full_load"):
-    os.makedirs("retirement_forced_extreme_full_load")
+if not os.path.exists("retirement_allowed_extreme_full_load"):
+    os.makedirs("retirement_allowed_extreme_full_load")
 
-with open("retirement_forced_extreme_full_load/renewable_investments.json", "w") as fil:
+with open(
+    "retirement_allowed_extreme_full_load/renewable_investments.json", "w"
+) as fil:
     json.dump(renewable_investments, fil)
 with open(
-    "retirement_forced_extreme_full_load/dispatchable_investments.json", "w"
+    "retirement_allowed_extreme_full_load/dispatchable_investments.json", "w"
 ) as fil:
     json.dump(dispatchable_investments, fil)
-with open("retirement_forced_extreme_full_load/load_shed.json", "w") as fil:
+with open("retirement_allowed_extreme_full_load/load_shed.json", "w") as fil:
     json.dump(load_shed, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
