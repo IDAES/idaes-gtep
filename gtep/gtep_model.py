@@ -57,6 +57,7 @@ class ExpansionPlanningModel:
         stages=1,
         formulation=None,
         data=None,
+        cost_data=None,
         num_reps=3,
         len_reps=24,
         num_commit=24,
@@ -67,6 +68,7 @@ class ExpansionPlanningModel:
         :param stages: integer number of investment periods
         :param formulation: Egret stuff, to be filled
         :param data: full set of model data
+        :param cost_data: full set of cost data for all generators
         :param num_reps: integer number of representative periods per investment period
         :param len_reps: (for now integer) length of each representative period (in hours)
         :param num_commit: integer number of commitment periods per representative period
@@ -77,6 +79,7 @@ class ExpansionPlanningModel:
         self.stages = stages
         self.formulation = formulation
         self.data = data
+        self.cost_data = cost_data
         self.num_reps = num_reps
         self.len_reps = len_reps
         self.num_commit = num_commit
@@ -104,6 +107,13 @@ class ExpansionPlanningModel:
             m.data_list = None
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
+        
+        # [ESR WIP: Add cost_data]
+        # TODO: Think about how to do some scaling in cost data
+        if self.cost_data is None:
+            raise
+        else:
+            m.mc = self.cost_data
 
         model_set_declaration(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
@@ -186,12 +196,15 @@ def add_investment_variables(
 
     m = b.model()
     b.investmentStage = investment_stage
-
-    # Thermal generator disjuncts (operational, installed, retired, disabled, extended)
+    
+    # Thermal generator disjuncts (operational, installed, retired,
+    # disabled, extended)
     @b.Disjunct(m.thermalGenerators)
     def genOperational(disj, gen):
         return
 
+    # ESR TODO: start adding constraints to installed generators. Not
+    # used for now.
     @b.Disjunct(m.thermalGenerators)
     def genInstalled(disj, gen):
         return
@@ -218,7 +231,8 @@ def add_investment_variables(
             disj.genExtended[gen],
         ]
 
-    # Line disjuncts. For now mimicking thermal generator disjuncts, though different states may need to be defined
+    # Line disjuncts. For now mimicking thermal generator disjuncts,
+    # though different states may need to be defined
     @b.Disjunct(m.transmission)
     def branchOperational(disj, branch):
         return
@@ -411,7 +425,11 @@ def add_investment_constraints(
     def investment_cost(b):
         return b.expansionCost == m.investmentFactor[investment_stage] * (
             sum(
+                # [ESR WIP: When including the disjunction
+                # investStatus, should we replace this with
+                # generatorInstallationCost?]
                 m.generatorInvestmentCost[gen]
+                # m.generatorInstallationCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -424,7 +442,11 @@ def add_investment_constraints(
                 for gen in m.renewableGenerators
             )
             + sum(
+                # [ESR WIP: When including the disjunction
+                # investStatus, should we replace this with
+                # generatorInstallationCost?]
                 m.generatorInvestmentCost[gen]
+                # m.generatorInstallationCost[gen]
                 * m.extensionMultiplier[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -997,6 +1019,9 @@ def add_commitment_constraints(
     ## TODO: Replace this constraint with expressions using bounds transform
     ## NOTE: expressions are stored in gtep_cleanup branch
     ## costs considered need to be re-assessed and account for missing data
+    
+    # [ESR WIP: Add costs from preprocessed data in
+    # gtep_data_preprocessing.py script].
     @b.Expression()
     def operatingCostCommitment(b):
         return (
@@ -1007,8 +1032,8 @@ def add_commitment_constraints(
                 for disp_per in b.dispatchPeriods
             )
             + sum(
-                m.fixedOperatingCost[gen]
-                # * m.thermalCapacity[gen]
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength # added
                 * (
                     b.genOn[gen].indicator_var.get_associated_binary()
                     + b.genShutdown[gen].indicator_var.get_associated_binary()
@@ -1016,9 +1041,18 @@ def add_commitment_constraints(
                 )
                 for gen in m.thermalGenerators
             )
-            ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
+            ## FIXME: how do we do assign fixed operating costs to
+            ## renewables; flat per location or per MW
+            # [ESR WIP: Add costs for renewable from preprocessed
+            # data]
             + sum(
-                m.fixedOperatingCost[gen]
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * (
+                    i_p.renewableOperational[gen]
+                    + i_p.renewableInstalled[gen]
+                    + i_p.renewableExtended[gen]
+                )
                 # * m.renewableCapacity[gen]
                 for gen in m.renewableGenerators
             )
@@ -1049,6 +1083,7 @@ def commitment_period_rule(b, commitment_period):
     i_p = r_p.parent_block()
 
     b.commitmentPeriod = commitment_period
+    b.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
     b.dispatchPeriods = RangeSet(m.numDispatchPeriods[r_p.currentPeriod])
     b.carbonTax = Param(default=0)
     b.dispatchPeriod = Block(b.dispatchPeriods)
@@ -1415,12 +1450,116 @@ def investment_stage_rule(
     """
     m = b.parent_block()
 
+    b.year = m.years[investment_stage - 1]
+    print(f'b.year = {b.year}')
+
+    ##########
+    # [ESR WIP: Save lists with all relevant costs (fixed and variable
+    # operating costs, fuel costs, and investment costs) for thermal
+    # and renewable generators. (Please refer to
+    # gtep_data_processing.py script for more details about the
+    # preprocessing of this data.) NOTES: The "capex" in the
+    # investment costs already include the interest rate for each
+    # generator. Also, note that this data only covers three years:
+    # 2025, 2030, and 2035. If more investment years are needed, more
+    # data should be included in the data file for data
+    # processing.
+
+    # [ESR WIP: Assume we have two types of generators: thermal "CT"
+    # (with gas fuel) and renewable "PV" (with "sun" as fuel).]
+
+    gen_thermal_type = 'CT'
+    gen_renewable_type = 'PV'
+
+    m.genThermalInvCost = []
+    m.genThermalFuelCost = []
+    m.genThermalFixOpCost = []
+    m.genThermalVarOpCost = []
+    m.genRenewableInvCost = []
+    m.genRenewableFuelCost = []
+    m.genRenewableFixOpCost = []
+    m.genRenewableVarOpCost = []
+    for index, row in m.mc.gen_data_target.iterrows():
+        if row['Unit Type'].startswith(gen_thermal_type):
+
+            # print(f"Found {gen_thermal_type} in row number {index}")
+            m.genThermalInvCost.append(row[f'capex_{b.year}'])
+            m.genThermalFixOpCost.append(row[f'fixed_ops_{b.year}'])
+            m.genThermalVarOpCost.append(row[f'var_ops_{b.year}'])
+            m.genThermalFuelCost.append(row[f'fuel_costs_{b.year}'])
+                    
+        elif row['Unit Type'].startswith(gen_renewable_type):
+
+            # print(f"Found {gen_renewable_type} in row number {index}")
+            m.genRenewableInvCost.append(row[f'capex_{b.year}'])
+            m.genRenewableFixOpCost.append(row[f'fixed_ops_{b.year}'])
+            m.genRenewableVarOpCost.append(row[f'var_ops_{b.year}'])
+            m.genRenewableFuelCost.append(row[f'fuel_costs_{b.year}'])
+            
+        else:
+            continue
+
+    # [ESR WIP: Add for debugging purposes]
+    # print(f'genThermalInvCost for gen thermal in year {b.year}={m.genThermalInvCost}')
+    # print(f'genThermalFixOpCost for gen thermal in year {b.year}={m.genThermalFixOpCost}')
+    # print(f'genThermalVarOpCost for gen thermal in year {b.year}={m.genThermalVarOpCost}')
+    # print(f'genThermalFuelCost for gen thermal in year {b.year}={m.genThermalFuelCost}')
+    # print(f'genRenewableInvCost for gen renewable in year {b.year}={m.genRenewableInvCost}')
+    # print(f'genRenewableFixOpCost for gen renewable in year {b.year}={m.genRenewableFixOpCost}')
+    # print(f'genRenewableVarOpCost for gen renewable in year {b.year}={m.genRenewableVarOpCost}')
+    # print(f'genRenewableFuelCost for gen renewable in year {b.year}={m.genRenewableFuelCost}')
+
+    m.fixedCost = {
+        gen:m.genThermalFixOpCost[0]
+        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
+        else m.genRenewableFixOpCost[0] # for renewable
+        for gen in m.generators
+    }
+    m.varCost = {
+        gen:m.genThermalVarOpCost[0]
+        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
+        else m.genRenewableVarOpCost[0] # for renewable
+        for gen in m.generators
+    }
+    m.generatorInvestmentCost = {
+        gen:m.genThermalInvCost[0] * m.thermalCapacity[gen]
+        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
+        else m.genRenewableInvCost[0] * m.renewableCapacity[gen] # for renewable
+        for gen in m.generators
+    }
+
+    # [ESR WIP: Add for debugging purposes]
+    # print(sum(m.generatorInvestmentCost.values()))
+
+
+    # [ESR WIP: Add fuel costs from preprocessed data. Commented for
+    # now.]
+    # m.fuelCost = {
+    #     gen:m.genThermalFuelCost[0]
+    #     if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
+    #     else m.genRenewableFuelCost[0] # for renewable
+    #     for gen in m.generators
+    # }
+
+    # [ESR WIP: Add curtailment and load shed costs here since they
+    # depend on the FuelCost value (these were originally in the
+    # function model_data_reference after fuelCost definition).]
+    
+    # Cost per MW of curtailed renewable energy
+    # NOTE: what should this be valued at?  This being both
+    # curtailment and load shed.
+    m.curtailmentCost = 2 * max(m.fuelCost.values())
+    m.loadShedCost = 1000 * m.curtailmentCost
+
+    ##########
+    
     b.representativePeriods = [
         p
         for p in m.representativePeriods
         # if m.representativePeriodStage[p] == investment_stage
     ]
-    add_investment_variables(b, investment_stage)
+    add_investment_variables(b, investment_stage)   
+
     b.representativePeriod = Block(
         b.representativePeriods, rule=representative_period_rule
     )
@@ -1668,20 +1807,30 @@ def model_data_references(m):
     m.renewableQuota = Param(m.stages, default=0, units=u.MW)
     m.weights = Param(m.representativePeriods, default=1)
     m.investmentFactor = Param(m.stages, default=1, mutable=True)
+    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / u.MW)
+
     ## NOTE: Lazy approx for NPV
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames
     for stage in m.stages:
         m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
-    m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD)
-    m.deficitPenalty = Param(m.stages, default=1, units=u.USD / u.MW)
+ 
+    # [ESR WIP: Replace original fixedOperatingCost with costs from
+    # preprocessed data. These costs are now included in the function
+    # investment_stage_rule considering the investment year.]
+    # m.fixedOperatingCost = Param(m.generators, default=1, units=u.USD)
 
-    # Amount of fuel required to be consumed for startup process for each generator
+    # Amount of fuel required to be consumed for startup process for
+    # each generator
     m.startFuel = {
         gen: m.md.data["elements"]["generator"][gen]["start_fuel"]
         for gen in m.generators
     }
 
     # Cost per unit of fuel at each generator
+
+    # [ESR WIP: Original Fuel cost. This is redefined in function
+    # investment_stage_rule with values from preprocessed data. That
+    # new redefinition is commented for now.]
     if "RTS-GMLC" in m.md.data["system"]["name"]:
         m.fuelCost = {
             gen: m.md.data["elements"]["generator"][gen]["fuel_cost"]
@@ -1692,13 +1841,7 @@ def model_data_references(m):
             gen: m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
             for gen in m.thermalGenerators
         }
-
-    # Cost per MW of curtailed renewable energy
-    # NOTE: what should this be valued at?  This being both curtailment and load shed.
-    # TODO: update valuations
-    m.curtailmentCost = 2 * max(m.fuelCost.values())
-    m.loadShedCost = 1000 * m.curtailmentCost
-
+    
     # Full lifecycle CO_2 emission factor for each generator
     m.emissionsFactor = {
         gen: m.md.data["elements"]["generator"][gen]["emissions_factor"]
@@ -1717,33 +1860,37 @@ def model_data_references(m):
             for gen in m.generators
         }
 
-    # (Arbitrary) multiplier for new generator investments corresponds to depreciation schedules
-    # for individual technologies; higher values are indicative of slow depreciation
+    # (Arbitrary) multiplier for new generator investments corresponds
+    # to depreciation schedules for individual technologies; higher
+    # values are indicative of slow depreciation
     m.capitalMultiplier = {
         gen: m.md.data["elements"]["generator"][gen]["capital_multiplier"]
         for gen in m.generators
     }
 
-    # Cost of life extension for each generator, expressed as a fraction of initial investment cost
+    # Cost of life extension for each generator, expressed as a
+    # fraction of initial investment cost
     m.extensionMultiplier = {
         gen: m.md.data["elements"]["generator"][gen]["extension_multiplier"]
         for gen in m.generators
     }
 
-    # Cost of investment in each new generator
+    # [ESR WIP: Replace original generator investment costs with costs
+    # from preprocessed data. These are fixed to 0 here but re-defined
+    # in the function investment_stage_rule.]
     m.generatorInvestmentCost = {
-        # gen: m.md.data["elements"]["generator"][gen]["investment_cost"]
-        # for gen in m.generators]
-        gen: 0
+        gen:0
         for gen in m.generators
     }
 
-    # Minimum operating reserve, expressed as a fraction of load within a region
+    # Minimum operating reserve, expressed as a fraction of load
+    # within a region
     m.minOperatingReserve = {
         region: m.md.data["system"]["min_operating_reserve"] for region in m.regions
     }
 
-    # Minimum spinning reserve, expressed as a fraction of load within a region
+    # Minimum spinning reserve, expressed as a fraction of load within
+    # a region
     m.minSpinningReserve = {
         region: m.md.data["system"]["min_spinning_reserve"] for region in m.regions
     }
@@ -1796,6 +1943,9 @@ def model_create_investment_stages(m, stages):
     :stages: Number of investment stages in planning horizon
     """
 
+    # [ESR WIP: Add years]
+    m.years = [2025, 2030, 2035]
+    
     m.investmentStage = Block(m.stages, rule=investment_stage_rule)
 
     # Retirement/extension relationships over investment periods -- C&P'd
