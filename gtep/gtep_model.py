@@ -1846,7 +1846,7 @@ def model_data_references(m):
     m.peakLoad = Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = Param(m.stages, default=0, units=u.MW)
-    m.weights = Param(m.representativePeriods, default=5 * 365 / 4)
+    m.weights = Param(m.representativePeriods, initialize=m.data.representative_weights, default=5 * 365 / 4)
     m.investmentFactor = Param(m.stages, default=1, mutable=True)
     ## NOTE: Lazy approx for NPV
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames

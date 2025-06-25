@@ -35,7 +35,7 @@ data_object.texas_case_study_updates(data_path)
 # 4 representative days (1 per season)
 # Hourly commitment and dispatch
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=5, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
