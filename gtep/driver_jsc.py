@@ -18,7 +18,7 @@ from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 
 # data_path = "./data/5bus"
-data_path = "./data/5bus_jsc"
+data_path = "./gtep/data/123_Bus_Coal"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 # mod_object = ExpansionPlanningModel(
