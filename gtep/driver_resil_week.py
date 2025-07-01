@@ -34,6 +34,10 @@ data_object.texas_case_study_updates(data_path)
 # 3 investment periods (now, 5 years, 10 years)
 # 4 representative days (1 per season)
 # Hourly commitment and dispatch
+
+## RMA:
+## Change num_reps from 4 to 5 to include extreme days
+
 mod_object = ExpansionPlanningModel(
     stages=3, data=data_object, num_reps=5, len_reps=24, num_commit=24, num_dispatch=1
 )
@@ -111,6 +115,9 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
                         var[index].indicator_var
                     )
 
+## RMA:
+## You may want to save a few more things from the Expressions
+
 costs = {}
 for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
     if "operatingCost" in exp.name:
@@ -119,49 +126,28 @@ for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True)
         costs[var.name] = pyo.value(exp)
 
 import json
-
 import os
 
-if not os.path.exists("retirement_allowed_no_extreme_full_load"):
-    os.makedirs("retirement_allowed_no_extreme_full_load")
+## RMA:
+## You can change where results are saved down here
 
-with open(
-    "retirement_allowed_no_extreme_full_load/renewable_investments.json", "w"
-) as fil:
+folder_name = "resilience_week_run_no_extreme"
+renewable_investment_name = folder_name + "renewable_investments.json"
+dispatchable_investment_name = folder_name + "dispatchable_investments.json"
+load_shed_name = folder_name + "load_shed.json"
+costs_name = folder_name + "costs.json"
+
+if not os.path.exists(folder_name):
+    os.makedirs(folder_name)
+
+with open(renewable_investment_name, "w") as fil:
     json.dump(renewable_investments, fil)
-with open(
-    "retirement_allowed_no_extreme_full_load/dispatchable_investments.json", "w"
-) as fil:
+with open(dispatchable_investment_name, "w") as fil:
     json.dump(dispatchable_investments, fil)
-with open("retirement_allowed_no_extreme_full_load/load_shed.json", "w") as fil:
+with open(load_shed_name, "w") as fil:
     json.dump(load_shed, fil)
+with open(costs_name, "w") as fil:
+    json.dump(costs, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
 
-# sol_object = ExpansionPlanningSolution()
-# sol_object.load_from_model(mod_object)
-# sol_object.dump_json("./gtep_solution.json")
-
-# sol_object.import_data_object(data_object)
-
-# sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
-# sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
-# sol_object.read_json("./gtep_solution.json")
-# sol_object.read_json("./updated_gtep_solution_test.json")
-# sol_object.read_json("./gtep_wiggles.json")
-# sol_object.plot_levels(save_dir="./plots/")
-
-# save_numerical_results = False
-# if save_numerical_results:
-
-#     sol_object = ExpansionPlanningSolution()
-
-#     sol_object.load_from_model(mod_object)
-#     sol_object.dump_json()
-# load_numerical_results = False
-# if load_numerical_results:
-#     # sol_object.read_json("./gtep_solution.json")
-#     sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
-# plot_results = False
-# if plot_results:
-#     sol_object.plot_levels(save_dir="./plots/")

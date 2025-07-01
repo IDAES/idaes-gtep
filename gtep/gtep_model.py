@@ -968,6 +968,11 @@ def add_commitment_variables(b, commitment_period):
                 <= m.thermalMin[generator]
             )
 
+        ## RMA:
+        ## We may need to turn off ramp down constraints for feasibility purposes
+        ## We will need to think about this for future work, but commenting this out 
+        ## is probably fine for the purposes of this paper 
+
         # Ramp down constraints for generators shutting down
         @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
         def ramp_down_limits(disj, dispatchPeriod, generator):
@@ -1028,6 +1033,12 @@ def add_commitment_variables(b, commitment_period):
                 i_p.genExtended[generator].indicator_var,
             )
         )
+    
+    ## RMA:
+    ## Here's where we'll fix commitment status to Off for thermal generators in outaged areas
+    ## And we'll fix renewableGeneration to 0 for the dispatch periods here
+
+
 
 
 def add_commitment_constraints(b, comm_per):

@@ -69,6 +69,10 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
+
+        ## RMA:
+        ## Change the last date for whatever extreme day is needed based on the given run(s)
+        
         time_keys = self.md.data["system"]["time_keys"]
         self.representative_dates = [
             "2019-01-28 00:00",
