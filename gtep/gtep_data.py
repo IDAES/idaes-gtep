@@ -72,7 +72,7 @@ class ExpansionPlanningData:
 
         ## RMA:
         ## Change the last date for whatever extreme day is needed based on the given run(s)
-        
+
         time_keys = self.md.data["system"]["time_keys"]
         self.representative_dates = [
             "2019-01-28 00:00",
@@ -175,6 +175,7 @@ class ExpansionPlanningData:
         for branch in self.md.data["elements"]["branch"]:
             self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
             self.md.data["elements"]["branch"][branch]["distance"] = 1
+            self.md.data["elements"]["branch"][branch]["capital_cost"] = 10000000
         self.md.data["system"]["min_operating_reserve"] = 0.1
         self.md.data["system"]["min_spinning_reserve"] = 0.1
 

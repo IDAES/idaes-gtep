@@ -460,18 +460,18 @@ def add_investment_constraints(b, investment_stage):
                 for gen in m.thermalGenerators
             )
             # JSC inprog (done?) - added branch investment costs here
-            # + sum(
-            #     m.branchInvestmentCost[branch]
-            #     * m.branchCapitalMultiplier[branch]
-            #     * b.branchInstalled[branch].indicator_var.get_associated_binary()
-            #     for branch in m.transmission
-            # )
-            # + sum(
-            #     m.branchInvestmentCost[branch]
-            #     * m.branchExtensionMultiplier[branch]
-            #     * b.branchExtended[branch].indicator_var.get_associated_binary()
-            #     for branch in m.transmission
-            # )
+            + sum(
+                m.branchInvestmentCost[branch]
+                * m.branchCapitalMultiplier[branch]
+                * b.branchInstalled[branch].indicator_var.get_associated_binary()
+                for branch in m.transmission
+            )
+            + sum(
+                m.branchInvestmentCost[branch]
+                * m.branchExtensionMultiplier[branch]
+                * b.branchExtended[branch].indicator_var.get_associated_binary()
+                for branch in m.transmission
+            )
         )
 
     # Curtailment penalties for investment period
