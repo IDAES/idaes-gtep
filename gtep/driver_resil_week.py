@@ -56,8 +56,6 @@ mod_object.config["flow_model"] = "DC"
 # mod_object.config["thermal_investment"] = True
 # mod_object.config["renewable_investment"] = True
 mod_object.create_model()
-import sys
-sys.exit()
 mod_object.timer.toc("horrible")
 # import sys
 # sys.exit()
@@ -135,7 +133,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "resilience_week_run_no_extreme"
+folder_name = "resilience_week_run_may_24"
 renewable_investment_name = folder_name + "renewable_investments.json"
 dispatchable_investment_name = folder_name + "dispatchable_investments.json"
 load_shed_name = folder_name + "load_shed.json"
