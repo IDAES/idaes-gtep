@@ -80,6 +80,7 @@ mod_object.results = opt.solve(
 # mod_object.results = opt.solve(mod_object.model)
 
 mod_object.timer.toc("we've solved, let's pull investment variables")
+
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
 

@@ -79,7 +79,7 @@ class ExpansionPlanningData:
             "2019-04-23 00:00",
             "2019-07-05 00:00",
             "2019-10-14 00:00",
-            "2019-08-12 00:00",
+            "2019-05-24 00:00",
         ]
 
         ## FIXME:
@@ -151,6 +151,25 @@ class ExpansionPlanningData:
         load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
 
         self.load_scaling = load_scaling_df
+
+    def import_outage_data(self, load_file_name):
+        outage_list = pd.read_csv(load_file_name)
+        percentile_threshold = 0.9
+        threshold_value = outage_list['case_4b_prob'].quantile(percentile_threshold)
+        filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
+        import re
+        filtered_outages['hour'] = filtered_outages['lim_timestamp'].str.extract(r" (\d+):")
+        filtered_outages = filtered_outages[["fips_code", "hour"]]
+        county_to_fips = pd.read_csv("./gtep/data/123_Bus_Resil_Week/county_fips_match.csv")
+        bus_to_county = pd.read_csv("./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv")
+        county_to_fips = county_to_fips[["County", "FIPS"]]
+        bus_to_county = bus_to_county[["Bus Number", "County"]]
+        bus_to_county = bus_to_county.merge(county_to_fips, how='inner', on='County')
+        bus_hours = pd.merge(filtered_outages, bus_to_county, left_on="fips_code", right_on="FIPS", how="left")
+        bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
+        bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
+        self.bus_hours = bus_hours[["hour","Bus Number"]]
+        self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
         ## TODO: too many of these are hard coded; everything should check if it exists too.

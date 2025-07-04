@@ -974,21 +974,22 @@ def add_commitment_variables(b, commitment_period):
         ## is probably fine for the purposes of this paper 
 
         # Ramp down constraints for generators shutting down
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
-        def ramp_down_limits(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= max(
-                    m.thermalMin[generator],
-                    m.rampDownRates[generator]
-                    * b.dispatchPeriod[dispatchPeriod].periodLength,
-                )
-                ##FIXME: I don't think this parenthesis is correct -- thermal capacity should go inside with the second term.  Or do I need to make this two constraints?
-                * m.thermalCapacity[generator]
-                if dispatchPeriod != 1
-                else Constraint.Skip
-            )
+        ## FIXME: uncomment out this stuff
+        # @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        # def ramp_down_limits(disj, dispatchPeriod, generator):
+        #     return (
+        #         b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+        #         - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+        #         <= max(
+        #             m.thermalMin[generator],
+        #             m.rampDownRates[generator]
+        #             * b.dispatchPeriod[dispatchPeriod].periodLength,
+        #         )
+        #         ##FIXME: I don't think this parenthesis is correct -- thermal capacity should go inside with the second term.  Or do I need to make this two constraints?
+        #         * m.thermalCapacity[generator]
+        #         if dispatchPeriod != 1
+        #         else Constraint.Skip
+        #     )
 
     @b.Disjunct(m.thermalGenerators)
     def genOff(disj, generator):
@@ -1038,6 +1039,21 @@ def add_commitment_variables(b, commitment_period):
     ## Here's where we'll fix commitment status to Off for thermal generators in outaged areas
     ## And we'll fix renewableGeneration to 0 for the dispatch periods here
 
+    ## Note: I am guessing that the may 20 date is the .05 cutoff and the may 24 date is the .2 cutoff
+    # we're going to lazily hard code this for now because oh lawd deadlines
+    target_month = 5
+    target_day = 24
+    if r_p.month == target_month and r_p.day == target_day:
+        # okay now for hourly
+        current_hour_bus_outage_list = m.data.bus_hours[m.data.bus_hours["hour"] == b.commitmentPeriod - 1]
+        bus_outages = current_hour_bus_outage_list.to_dict('list')["Bus Number"]
+        for gen in m.thermalGenerators:
+            if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
+                b.genOff[gen].indicator_var.fix(True)
+        for gen in m.renewableGenerators:
+            if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
+                b.dispatchPeriod[1].renewableGeneration[gen].fix(0)
+        
 
 
 
@@ -1515,8 +1531,8 @@ def representative_period_rule(b, representative_period):
     m = b.model()
     i_s = b.parent_block()
 
-    representative_date = m.data.representative_dates[representative_period - 1]
-    broken_date = list(re.split(r"[-: ]", representative_date))
+    b.representative_date = m.data.representative_dates[representative_period - 1]
+    broken_date = list(re.split(r"[-: ]", b.representative_date))
     b.month = int(broken_date[1])
     b.day = int(broken_date[2])
     b.load_scaling = i_s.load_scaling[

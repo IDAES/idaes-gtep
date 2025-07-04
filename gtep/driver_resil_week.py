@@ -21,6 +21,8 @@ data_object.load_prescient(data_path)
 
 load_scaling_path = data_path + "/ERCOT-Adjusted-Forecast.xlsb"
 data_object.import_load_scaling(load_scaling_path)
+outage_path = data_path + "/may_24.csv"
+data_object.import_outage_data(outage_path)
 
 data_object.texas_case_study_updates(data_path)
 
@@ -54,6 +56,8 @@ mod_object.config["flow_model"] = "DC"
 # mod_object.config["thermal_investment"] = True
 # mod_object.config["renewable_investment"] = True
 mod_object.create_model()
+import sys
+sys.exit()
 mod_object.timer.toc("horrible")
 # import sys
 # sys.exit()
