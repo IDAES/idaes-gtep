@@ -1,0 +1,150 @@
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 13:59:09 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC24.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 51902 rows, 28294 columns and 136469 nonzeros
+Model fingerprint: 0xac9922ea
+Model has 5760 quadratic constraints
+Variable types: 15759 continuous, 12535 integer (12535 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 47911 rows and 25196 columns
+Presolve time: 0.05s
+Presolved: 10903 rows, 4827 columns, 30725 nonzeros
+Presolved model has 1728 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 4105 continuous, 722 integer (722 binary)
+Performing another presolve...
+Presolve removed 3488 rows and 4389 columns
+Presolve time: 0.20s
+Found heuristic solution: objective 574033.75429
+Found heuristic solution: objective 573944.40591
+Found heuristic solution: objective 563232.91964
+
+Root relaxation: interrupted, 181 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0          -    0      563232.920 563207.829  0.00%     -    0s
+
+Explored 1 nodes (181 simplex iterations) in 0.32 seconds (0.21 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 563233 573944 574034 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 5.632329196393e+05, best bound 5.632078289740e+05, gap 0.0045%
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 16:08:44 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC24.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 51902 rows, 28294 columns and 136469 nonzeros
+Model fingerprint: 0xac9922ea
+Model has 5760 quadratic constraints
+Variable types: 15759 continuous, 12535 integer (12535 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 47911 rows and 25196 columns
+Presolve time: 0.04s
+Presolved: 10903 rows, 4827 columns, 30725 nonzeros
+Presolved model has 1728 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 4105 continuous, 722 integer (722 binary)
+Performing another presolve...
+Presolve removed 3488 rows and 4389 columns
+Presolve time: 0.19s
+Found heuristic solution: objective 574033.75429
+Found heuristic solution: objective 573944.40591
+Found heuristic solution: objective 563232.91964
+
+Root relaxation: interrupted, 181 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0          -    0      563232.920 563207.829  0.00%     -    0s
+
+Explored 1 nodes (181 simplex iterations) in 0.28 seconds (0.21 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 563233 573944 574034 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 5.632329196393e+05, best bound 5.632078289740e+05, gap 0.0045%
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 18:16:42 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC24.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 51902 rows, 28294 columns and 136469 nonzeros
+Model fingerprint: 0xac9922ea
+Model has 5760 quadratic constraints
+Variable types: 15759 continuous, 12535 integer (12535 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 47911 rows and 25196 columns
+Presolve time: 0.04s
+Presolved: 10903 rows, 4827 columns, 30725 nonzeros
+Presolved model has 1728 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 4105 continuous, 722 integer (722 binary)
+Performing another presolve...
+Presolve removed 3488 rows and 4389 columns
+Presolve time: 0.17s
+Found heuristic solution: objective 574033.75429
+Found heuristic solution: objective 573944.40591
+Found heuristic solution: objective 563232.91964
+
+Root relaxation: interrupted, 181 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0          -    0      563232.920 563207.829  0.00%     -    0s
+
+Explored 1 nodes (181 simplex iterations) in 0.26 seconds (0.21 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 563233 573944 574034 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 5.632329196393e+05, best bound 5.632078289740e+05, gap 0.0045%

@@ -1,0 +1,147 @@
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 14:00:29 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC36.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 78014 rows, 42454 columns and 206021 nonzeros
+Model fingerprint: 0x7cdd43c0
+Model has 8640 quadratic constraints
+Variable types: 23631 continuous, 18823 integer (18823 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 70061 rows and 36495 columns
+Presolve time: 0.12s
+Presolved: 19185 rows, 8552 columns, 58505 nonzeros
+Presolved model has 2592 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 7052 continuous, 1500 integer (1500 binary)
+Performing another presolve...
+Presolve removed 8482 rows and 7871 columns
+Presolve time: 0.26s
+Found heuristic solution: objective 974040.74095
+Found heuristic solution: objective 939331.17993
+
+Root relaxation: objective 9.109677e+05, 299 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0    910967.72206 910967.722  0.00%     -    0s
+
+Explored 1 nodes (299 simplex iterations) in 0.45 seconds (0.32 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 910968 939331 974041 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 9.109677220596e+05, best bound 9.109677220596e+05, gap 0.0000%
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 16:10:07 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC36.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 78014 rows, 42454 columns and 206021 nonzeros
+Model fingerprint: 0x7cdd43c0
+Model has 8640 quadratic constraints
+Variable types: 23631 continuous, 18823 integer (18823 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 70061 rows and 36495 columns
+Presolve time: 0.12s
+Presolved: 19185 rows, 8552 columns, 58505 nonzeros
+Presolved model has 2592 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 7052 continuous, 1500 integer (1500 binary)
+Performing another presolve...
+Presolve removed 8482 rows and 7871 columns
+Presolve time: 0.28s
+Found heuristic solution: objective 974040.74095
+Found heuristic solution: objective 939331.17993
+
+Root relaxation: objective 9.109677e+05, 299 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0    910967.72206 910967.722  0.00%     -    0s
+
+Explored 1 nodes (299 simplex iterations) in 0.47 seconds (0.32 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 910968 939331 974041 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 9.109677220596e+05, best bound 9.109677220596e+05, gap 0.0000%
+
+Gurobi 12.0.0 (win64) logging started Thu Apr  3 18:18:03 2025
+
+Set parameter LogFile to value "logfile12AC5BusJSC__S1_NC36.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 78014 rows, 42454 columns and 206021 nonzeros
+Model fingerprint: 0x7cdd43c0
+Model has 8640 quadratic constraints
+Variable types: 23631 continuous, 18823 integer (18823 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 8e+02]
+  QMatrix range    [3e+00, 2e+02]
+  QLMatrix range   [1e+00, 4e+03]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+03]
+  RHS range        [4e-03, 2e+02]
+  QRHS range       [1e+03, 4e+03]
+Presolve removed 70061 rows and 36495 columns
+Presolve time: 0.12s
+Presolved: 19185 rows, 8552 columns, 58505 nonzeros
+Presolved model has 2592 bilinear constraint(s)
+
+Solving non-convex MIQCP
+
+Variable types: 7052 continuous, 1500 integer (1500 binary)
+Performing another presolve...
+Presolve removed 8482 rows and 7871 columns
+Presolve time: 0.27s
+Found heuristic solution: objective 974040.74095
+Found heuristic solution: objective 939331.17993
+
+Root relaxation: objective 9.109677e+05, 299 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0    910967.72206 910967.722  0.00%     -    0s
+
+Explored 1 nodes (299 simplex iterations) in 0.46 seconds (0.32 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 3: 910968 939331 974041 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 9.109677220596e+05, best bound 9.109677220596e+05, gap 0.0000%

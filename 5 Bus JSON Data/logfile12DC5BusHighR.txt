@@ -1,0 +1,37 @@
+
+Gurobi 12.0.0 (win64) logging started Mon Feb 10 21:09:26 2025
+
+Set parameter LogFile to value "logfile12DC5BusHighR.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 36534 rows, 12702 columns and 100263 nonzeros
+Model fingerprint: 0xf95494b8
+Variable types: 4815 continuous, 7887 integer (7887 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 2e+02]
+  Objective range  [4e-01, 2e+03]
+  Bounds range     [4e-03, 1e+00]
+  RHS range        [4e-03, 2e+02]
+Presolve removed 33308 rows and 12092 columns
+Presolve time: 0.23s
+Presolved: 3226 rows, 610 columns, 13064 nonzeros
+Variable types: 321 continuous, 289 integer (289 binary)
+Found heuristic solution: objective 507181.02954
+
+Root relaxation: objective 4.909160e+05, 886 iterations, 0.04 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0    490915.95321 490915.953  0.00%     -    0s
+
+Explored 1 nodes (886 simplex iterations) in 0.32 seconds (0.35 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 2: 490916 507181 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 4.909159532116e+05, best bound 4.909159532116e+05, gap 0.0000%

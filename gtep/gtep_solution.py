@@ -1238,37 +1238,37 @@ class ExpansionPlanningSolution:
                     save_dir,
                 )
 
-                for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
-                    if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.primals_tree[
-                            this_root_level_key
-                        ][this_inv_level_key]
-                        parent_key_string = (
-                            f"{this_root_level_key}_{this_inv_level_key}"
-                        )
-                        self._level_plot_workhorse(
-                            "commitmentPeriod",
-                            representative_level_cut,
-                            parent_key_string,
-                            save_dir,
-                        )
+    #             for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
+    #                 if "representativePeriod" in this_inv_level_key:
+    #                     representative_level_cut = self.primals_tree[
+    #                         this_root_level_key
+    #                     ][this_inv_level_key]
+    #                     parent_key_string = (
+    #                         f"{this_root_level_key}_{this_inv_level_key}"
+    #                     )
+    #                     self._level_plot_workhorse(
+    #                         "commitmentPeriod",
+    #                         representative_level_cut,
+    #                         parent_key_string,
+    #                         save_dir,
+    #                     )
 
-                        for this_rep_level_key in self.primals_tree[
-                            this_root_level_key
-                        ][this_inv_level_key].keys():
-                            if "commitmentPeriod" in this_rep_level_key:
-                                commitment_level_cut = self.primals_tree[
-                                    this_root_level_key
-                                ][this_inv_level_key][this_rep_level_key]
+    #                     for this_rep_level_key in self.primals_tree[
+    #                         this_root_level_key
+    #                     ][this_inv_level_key].keys():
+    #                         if "commitmentPeriod" in this_rep_level_key:
+    #                             commitment_level_cut = self.primals_tree[
+    #                                 this_root_level_key
+    #                             ][this_inv_level_key][this_rep_level_key]
 
-                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+    #                             parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
-                                self._level_plot_workhorse(
-                                    "dispatchPeriod",
-                                    commitment_level_cut,
-                                    parent_key_string,
-                                    save_dir,
-                                )
+    #                             self._level_plot_workhorse(
+    #                                 "dispatchPeriod",
+    #                                 commitment_level_cut,
+    #                                 parent_key_string,
+    #                                 save_dir,
+    #                             )
 
         # # plot or represent expressions
         # self._expressions_plot_workhorse(

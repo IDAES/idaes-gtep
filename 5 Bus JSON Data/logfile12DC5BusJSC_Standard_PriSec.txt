@@ -1,0 +1,60 @@
+
+Gurobi 12.0.0 (win64) logging started Tue Feb 25 12:43:47 2025
+
+Set parameter LogFile to value "logfile12DC5BusJSC_Standard_PriSec.txt"
+Gurobi Optimizer version 12.0.0 build v12.0.0rc1 (win64 - Windows 10.0 (19045.2))
+
+CPU model: AMD Ryzen 7 3700X 8-Core Processor, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+
+Optimize a model with 133792 rows, 48846 columns and 361995 nonzeros
+Model fingerprint: 0x5df62f30
+Variable types: 17913 continuous, 30933 integer (30933 binary)
+Coefficient statistics:
+  Matrix range     [1e-02, 4e+04]
+  Objective range  [3e-01, 2e+03]
+  Bounds range     [4e-03, 1e+00]
+  RHS range        [3e-03, 4e+04]
+Presolve removed 117093 rows and 44036 columns
+Presolve time: 0.76s
+Presolved: 16699 rows, 4810 columns, 55685 nonzeros
+Variable types: 3642 continuous, 1168 integer (1168 binary)
+Found heuristic solution: objective 1518344.2776
+Found heuristic solution: objective 1476685.4056
+Performing another presolve...
+Presolve removed 13193 rows and 3991 columns
+Presolve time: 1.08s
+Found heuristic solution: objective 1297422.3439
+
+Root relaxation: objective 1.155300e+06, 2007 iterations, 0.10 seconds (0.13 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 1155300.08    0  153 1297422.34 1155300.08  11.0%     -    2s
+H    0     0                    1164063.3007 1155300.08  0.75%     -    2s
+H    0     0                    1160212.0896 1158984.70  0.11%     -    2s
+     0     0 1158984.70    0  235 1160212.09 1158984.70  0.11%     -    2s
+     0     0 1159651.61    0   90 1160212.09 1159651.61  0.05%     -    2s
+     0     0 1159656.71    0   90 1160212.09 1159656.71  0.05%     -    2s
+
+Cutting planes:
+  Gomory: 4
+  Cover: 5
+  Implied bound: 79
+  Clique: 14
+  MIR: 151
+  StrongCG: 1
+  Flow cover: 22
+  Zero half: 2
+  RLT: 12
+  Relax-and-lift: 14
+  BQP: 3
+
+Explored 1 nodes (2952 simplex iterations) in 2.55 seconds (2.78 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 6: 1.16021e+06 1.16406e+06 1.29742e+06 ... 1.51834e+06
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 1.160212089562e+06, best bound 1.160098403653e+06, gap 0.0098%
