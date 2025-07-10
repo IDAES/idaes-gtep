@@ -27,7 +27,7 @@ class ExpansionPlanningData:
         options_dict = {
             "data_path": data_path,
             "input_format": "rts-gmlc",
-            "start_date": "01-01-2019",
+            "start_date": "01-01-2020",
             "num_days": 365,
             "sced_horizon": 1,
             "sced_frequency_minutes": 60,
@@ -39,7 +39,7 @@ class ExpansionPlanningData:
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
-        x = datetime.datetime(2019, 1, 1)
+        x = datetime.datetime(2020, 1, 1)
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
@@ -75,12 +75,12 @@ class ExpansionPlanningData:
 
         time_keys = self.md.data["system"]["time_keys"]
         self.representative_dates = [
-            "2019-01-28 00:00",
-            "2019-04-23 00:00",
-            "2019-07-05 00:00",
-            "2019-10-14 00:00",
-            "2019-05-20 00:00",
-        ]
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+            "2020-07-05 00:00",
+            "2020-10-14 00:00",
+            #"2020-05-20 00:00",
+        ]   
 
         ## FIXME:
         ## RESIL WEEK ONLY
@@ -89,7 +89,7 @@ class ExpansionPlanningData:
             self.representative_weights = {1:91, 2:91, 3:91, 4:91, 5:1}
         else:
             self.representative_weights = {1:91, 2:91, 3:91, 4:91}
-
+        #self.representative_weights = {1:1}
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + 24]
