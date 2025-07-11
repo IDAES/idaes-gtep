@@ -121,8 +121,8 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
 ## You may want to save a few more things from the Expressions
 
 costs = {}
-for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
-    costs[var.name] = pyo.value(exp)
+# for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
+#     costs[var.name] = pyo.value(exp)
 
 import json
 import os
