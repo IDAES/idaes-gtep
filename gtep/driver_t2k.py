@@ -49,7 +49,7 @@ mod_object = ExpansionPlanningModel(
 mod_object.config["include_investment"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = True
-mod_object.config["transmission"] = False
+mod_object.config["transmission"] = True
 
 mod_object.config["flow_model"] = "DC"
 
@@ -80,7 +80,7 @@ mod_object.timer.toc(
     "let's start to solve -- this is really the start of the handoff to gurobi"
 )
 mod_object.results = opt.solve(
-    mod_object.model, tee=True, solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.001}
+    mod_object.model, tee=True, solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.001}
 )
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
