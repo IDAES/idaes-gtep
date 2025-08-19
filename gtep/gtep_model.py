@@ -113,8 +113,8 @@ class ExpansionPlanningModel:
             # representative periods
             m.data_list = self.data.representative_data
             ##TEXAS: testing this for proper scaling
-            for data in m.data_list:
-                scale_ModelData_to_pu(data)
+            # for data in m.data_list:
+            #     scale_ModelData_to_pu(data)
             m.md = m.data_list[0]
             m.data = self.data
         else:

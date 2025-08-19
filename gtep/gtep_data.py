@@ -27,7 +27,7 @@ class ExpansionPlanningData:
         options_dict = {
             "data_path": data_path,
             "input_format": "rts-gmlc",
-            "start_date": "01-01-2019",
+            "start_date": "01-01-2016",
             "num_days": 365,
             "sced_horizon": 1,
             "sced_frequency_minutes": 60,
@@ -39,7 +39,7 @@ class ExpansionPlanningData:
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
-        x = datetime.datetime(2019, 1, 1)
+        x = datetime.datetime(2016, 1, 1)
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
@@ -75,10 +75,10 @@ class ExpansionPlanningData:
 
         time_keys = self.md.data["system"]["time_keys"]
         self.representative_dates = [
-            "2019-01-28 00:00",
-            "2019-04-23 00:00",
-            "2019-07-05 00:00",
-            "2019-10-14 00:00",
+            "2016-01-28 00:00",
+            "2016-04-23 00:00",
+            "2016-07-05 00:00",
+            "2016-10-14 00:00",
         ]   
 
         ## FIXME:
@@ -143,6 +143,63 @@ class ExpansionPlanningData:
             "scaled_scent",
             "scaled_south",
             "scaled_west",
+        ]
+        load_scaling_df = adjusted_forecast_by_period[column_list]
+        scaled_names = ["scaled_" + zone for zone in zones]
+        name_conversion_dict = dict(zip(scaled_names, cap_zones))
+        load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
+
+        self.load_scaling = load_scaling_df
+
+    def import_load_scaling(self, load_file_name):
+        adjusted_forecast = pd.read_excel(load_file_name)
+        adjusted_forecast_by_period = adjusted_forecast[
+            (adjusted_forecast["year"] == 2025)
+            | (adjusted_forecast["year"] == 2030)
+            | (adjusted_forecast["year"] == 2035)
+        ]
+        base_zones = [
+            "base_economic_coast",
+            "base_economic_east",
+            "base_economic_fwest",
+            "base_economic_ncent",
+            "base_economic_north",
+            "base_economic_scent",
+            "base_economic_south",
+            "base_economic_west",
+        ]
+        scaled_zones = [
+            "coast_net",
+            "east_net",
+            "fwest_net",
+            "ncent_net",
+            "north_net",
+            "scent_net",
+            "south_net",
+            "west_net",
+        ]
+        # zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
+        # cap_zones = [zone.upper() for zone in zones]
+        zones = ["1","2","3","4",'5','6','7','8']
+        cap_zones = ['1','2','3','4','5','6','7','8']
+        for i, zone in enumerate(zones):
+            adjusted_forecast_by_period["scaled_" + zone] = (
+                adjusted_forecast_by_period[scaled_zones[i]]
+                / adjusted_forecast_by_period[base_zones[i]]
+            )
+        column_list = [
+            "year",
+            "month",
+            "day",
+            "hour",
+            "scaled_1",
+            "scaled_2",
+            "scaled_3",
+            "scaled_4",
+            "scaled_5",
+            "scaled_6",
+            "scaled_7",
+            "scaled_8",
         ]
         load_scaling_df = adjusted_forecast_by_period[column_list]
         scaled_names = ["scaled_" + zone for zone in zones]
