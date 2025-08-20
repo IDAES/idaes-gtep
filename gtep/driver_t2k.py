@@ -130,7 +130,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "resilience_week_run_base"
+folder_name = "t2k_base_x3"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
