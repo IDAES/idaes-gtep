@@ -1177,12 +1177,12 @@ def commitment_period_rule(b, commitment_period):
             for load_n in m.md.data["elements"]["load"]
         }
         for key, val in m.loads.items():
-            # print(f"{key=}")
-            # print(f"{val=}")
+            print(f"{key=}")
+            print(f"{val=}")
             m.loads[key] *= 1
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/3
-        # print(sum(m.loads.values()))
+        print(sum(m.loads.values()))
 
     # if m.config["scale_loads"]:
     #     temp_scale = 3
@@ -1949,7 +1949,7 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=2 * max(value(item) for item in m.fuelCost1.values()) * 0,
+        initialize=10000,
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
