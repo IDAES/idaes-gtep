@@ -56,6 +56,12 @@ class ExpansionPlanningData:
         # data_provider.populate_initial_state_data(options=prescient_options, model=md)
         self.load_default_data_settings()
 
+        # print(self.md.data['elements']['bus'])
+        # print(self.md.data["elements"]['load'])
+        # print(self.md.data['elements']['area'])
+        # import sys
+        # sys.exit()
+
         for gen in self.md.data["elements"]["generator"]:
             if "-c" in gen:  # key/Gen UID in csv file; -c = candidate?
                 self.md.data["elements"]["generator"][gen]["in_service"] = False
@@ -205,7 +211,6 @@ class ExpansionPlanningData:
         scaled_names = ["scaled_" + zone for zone in zones]
         name_conversion_dict = dict(zip(scaled_names, cap_zones))
         load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
-
         self.load_scaling = load_scaling_df
 
     def import_outage_data(self, load_file_name):

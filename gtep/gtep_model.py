@@ -771,7 +771,7 @@ def add_dispatch_constraints(b, disp_per):
     @b.Constraint(m.buses)
     def flow_balance(b, bus):
         balance = 0
-        load = m.loads.get(bus) or 0
+        load = c_p.loads.get(bus) or 0
         end_points = [
             line for line in m.transmission if m.transmission[line]["from_bus"] == bus
         ]
@@ -1166,23 +1166,32 @@ def commitment_period_rule(b, commitment_period):
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
     b.load_scaling = r_p.load_scaling[r_p.load_scaling["hour"] == b.commitmentPeriod]
-    # print(b.load_scaling)
+    # print(b.load_scaling.head())
 
     if m.config["scale_texas_loads"]:
-        m.loads = {
+        false_loads = []
+        for load in m.md.data['elements']['load']:
+            if type(m.md.data['elements']['load'][load]) == float:
+                false_loads.append(load)
+        for load in false_loads:
+            del m.md.data['elements']['load'][load]
+            # del m.loads[load]
+        # print(m.loads)
+        b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
             ]["p_load"]["values"][commitment_period - 1]
             * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             for load_n in m.md.data["elements"]["load"]
         }
-        for key, val in m.loads.items():
-            print(f"{key=}")
-            print(f"{val=}")
-            m.loads[key] *= 1
+        # print(m.loads)
+        for key, val in b.loads.items():
+            # print(f"{key=}")
+            # print(f"{val=}")
+            b.loads[key] *= 1/300
             # for i, v in enumerate(val['values']):
-            #     val['values'][i] *= 1/3
-        print(sum(m.loads.values()))
+            #     val['values'][i] *= 1/300
+        # print(sum(m.loads.values()))
 
     # if m.config["scale_loads"]:
     #     temp_scale = 3
