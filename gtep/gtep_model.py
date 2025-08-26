@@ -549,7 +549,7 @@ def add_dispatch_variables(b, dispatch_period):
 
     # Fix hydro when we don't have a time series
     for gen in m.renewableGenerators:
-        if m.md.data["elements"]["generator"][gen]['Fuel'] == 'H':
+        if m.md.data["elements"]["generator"][gen]['fuel'] == 'H':
             m.renewableGeneration[gen].fix(m.renewableCapacity[gen])
 
     # Define bounds on renewable generator curtailment
@@ -1171,7 +1171,7 @@ def commitment_period_rule(b, commitment_period):
     
     ## TEXAS: solar is too small what's up with that?
     for gen in m.renewableGenerators:
-        if m.md.data['elements']['generator'][gen]['Fuel'] == 'S':
+        if m.md.data['elements']['generator'][gen]['fuel'] == 'S':
             m.renewableCapacity[gen] *= 10
 
     ## TODO: Redesign load scaling and allow nature of it as argument
