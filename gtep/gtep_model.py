@@ -302,7 +302,7 @@ def add_investment_constraints(b, investment_stage):
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
         ):
-            b.genDisabled[gen].indicator_var.fix(True)
+            b.genOperational[gen].indicator_var.fix(False)
             # b.genDisabled[gen].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
@@ -323,7 +323,7 @@ def add_investment_constraints(b, investment_stage):
         ):
             # print(gen)
             b.renewableOperational[gen].fix(0)
-            b.renewableDisabled[gen].fix(m.renewableCapacity[gen])
+            #b.renewableDisabled[gen].fix(m.renewableCapacity[gen])
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -546,6 +546,11 @@ def add_dispatch_variables(b, dispatch_period):
         initialize=0,
         units=u.MW,
     )
+
+    # Fix hydro when we don't have a time series
+    for gen in m.renewableGenerators:
+        if m.md.data["elements"]["generator"][gen]['Fuel'] == 'H':
+            m.renewableGeneration[gen].fix(m.renewableCapacity[gen])
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(b, renewableGen):
@@ -1098,17 +1103,18 @@ def add_commitment_constraints(b, comm_per):
             )
             ## FIXME: how do we do assign fixed operating costs to renewables; flat per location or per MW
             ## TEXAS: doing something wacky with those momentarily
-            + sum(
-                i_p.fixedCost[gen]
-                * b.commitmentPeriodLength
-                * (
-                    i_p.renewableOperational[gen]
-                    + i_p.renewableInstalled[gen]
-                    + i_p.renewableExtended[gen]
-                )
-                # * m.renewableCapacity[gen]
-                for gen in m.renewableGenerators
-            )
+            ## TEXAS FOR REAL WHAT LSAKDFJALWKERJ
+            # + sum(
+            #     i_p.fixedCost[gen]
+            #     * b.commitmentPeriodLength
+            #     * (
+            #         i_p.renewableOperational[gen]
+            #         + i_p.renewableInstalled[gen]
+            #         + i_p.renewableExtended[gen]
+            #     )
+            #     # * m.renewableCapacity[gen]
+            #     for gen in m.renewableGenerators
+            # )
             + sum(
                 m.startupCost[gen]
                 * b.genStartup[gen].indicator_var.get_associated_binary()
@@ -1958,7 +1964,7 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=10000,
+        initialize=100,
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
