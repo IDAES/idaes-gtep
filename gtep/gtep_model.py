@@ -548,7 +548,7 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     # Fix hydro when we don't have a time series
-    for gen in b.renewableGenerators:
+    for gen in m.renewableGenerators:
         if m.md.data["elements"]["generator"][gen]['fuel'] == 'H':
             b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
 
