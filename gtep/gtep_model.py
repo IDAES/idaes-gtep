@@ -1168,6 +1168,11 @@ def commitment_period_rule(b, commitment_period):
         )
         for renewableGen in m.renewableGenerators
     }
+    
+    ## TEXAS: solar is too small what's up with that?
+    for gen in m.renewableGenerators:
+        if m.md.data['elements']['generator'][gen]['Fuel'] == 'S':
+            m.renewableCapacity[gen] *= 10
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
