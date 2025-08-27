@@ -53,10 +53,15 @@ class ExpansionPlanningData:
             start_time=x,
             model=self.md,
         )
+        
         # data_provider.populate_initial_state_data(options=prescient_options, model=md)
         self.load_default_data_settings()
 
-        # print(self.md.data['elements']['bus'])
+        # for gen in self.md.data['elements']['generator']:
+        #     if self.md.data['elements']['generator'][gen]['fuel'] == 'H':
+        #         print(self.md.data['elements']['generator'][gen])
+        # import sys
+        # sys.exit()
         # print(self.md.data["elements"]['load'])
         # print(self.md.data['elements']['area'])
         # import sys
@@ -237,7 +242,10 @@ class ExpansionPlanningData:
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
             if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
-                self.md.data["elements"]["generator"][gen]["lifetime"] = 1
+                if self.md.data["elements"]["generator"][gen]["in_service"] == False:
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 1
+                else:
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 2
             else:
                 self.md.data["elements"]["generator"][gen]["lifetime"] = 3
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1

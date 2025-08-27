@@ -551,6 +551,9 @@ def add_dispatch_variables(b, dispatch_period):
     for gen in m.renewableGenerators:
         if m.md.data["elements"]["generator"][gen]['fuel'] == 'H':
             b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
+            print(m.renewableCapacity[gen])
+            import sys
+            sys.exit()
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(b, renewableGen):
@@ -1206,9 +1209,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in m.thermalCapacity.items():
             if m.md.data["elements"]["generator"][key]["fuel"] == 'G':
                 m.thermalCapacity[key] *= 1/10
-                print(m.thermalCapacity[key])
-                import sys
-                sys.exit()
+                
 
     # if m.config["scale_loads"]:
     #     temp_scale = 3
