@@ -82,7 +82,7 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.001},
+    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01},
 )
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
