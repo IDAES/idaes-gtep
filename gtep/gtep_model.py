@@ -1203,6 +1203,12 @@ def commitment_period_rule(b, commitment_period):
             # for i, v in enumerate(val['values']):
             #     val['values'][i] *= 1/300
         # print(sum(m.loads.values()))
+        for key, val in m.thermalCapacity.items():
+            if m.md.data["elements"]["generator"][key]["fuel"] == 'G':
+                m.thermalCapacity[key] *= 1/10
+                print(m.thermalCapacity[key])
+                import sys
+                sys.exit()
 
     # if m.config["scale_loads"]:
     #     temp_scale = 3
