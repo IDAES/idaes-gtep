@@ -551,9 +551,9 @@ def add_dispatch_variables(b, dispatch_period):
     for gen in m.renewableGenerators:
         if m.md.data["elements"]["generator"][gen]['fuel'] == 'H':
             b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
-            print(m.renewableCapacity[gen])
-            import sys
-            sys.exit()
+            # print(m.renewableCapacity[gen])
+            # import sys
+            # sys.exit()
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(b, renewableGen):
