@@ -132,7 +132,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "t2k_reduced_ct_plus_hydro"
+folder_name = "t2k_hydro"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
