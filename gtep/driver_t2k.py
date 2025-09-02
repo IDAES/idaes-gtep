@@ -97,8 +97,7 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01},
-    timelimit = 10
+    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01}
 )
 
 snapshot = tracemalloc.take_snapshot()
@@ -106,8 +105,8 @@ snapshot.dump('mem_trace/post_gurobi.snap')
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
 
-import sys
-sys.exit()
+# import sys
+# sys.exit()
 
 mod_object.timer.toc("we've solved, let's pull investment variables")
 import pyomo.environ as pyo
