@@ -1728,7 +1728,7 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["lifetime"]
                     for gen in m.generators},
         mutable=True,
-        # units=u.year,
+        units=u.year,
         doc="Lifetime of each generator"
     )
 
@@ -1897,8 +1897,8 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["fuel_cost"] if "RTS-GMLC" in m.md.data["system"]["name"]
                     else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
                     for gen in m.thermalGenerators},
-        mutable=True,
-        # units=,
+        mutable=False,
+        # units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator"
     )
     
@@ -1991,9 +1991,9 @@ def model_data_references(m):
         m.thermalGenerators,
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]
                     for thermalGen in m.thermalGenerators},
+        mutable=False,
         # # units=u.MW * u.min,
         # units=u.MW / u.min,
-        mutable=True,
         doc="Ramp up rates for each generator expressed as a fraction of maximum generator output"
     )
 
@@ -2001,6 +2001,7 @@ def model_data_references(m):
         m.thermalGenerators,
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
          for thermalGen in m.thermalGenerators},
+        mutable=False,
         # # units=u.MW * u.min,
         # units=u.MW / u.min,
         doc="Ramp down rates for each generator expressed as a fraction of maximum generator output"
@@ -2079,13 +2080,17 @@ def model_create_investment_stages(m, stages):
 
     # Renewable generation (in MW) retirement relationships
     if len(m.stages) > 1:
+        # [ESR WIP: Consider one stage = one year. This way lifetimes
+        # units are consistent in the if statement below.]
 
         @m.Constraint(m.stages, m.renewableGenerators)
         def renewable_retirement(m, stage, gen):
             return sum(
                 m.investmentStage[t_2].renewableInstalled[gen]
                 for t_2 in m.stages
-                if t_2 <= stage - m.lifetimes[gen]
+                # [ESR WIP: Only take the value of it so avoid errors
+                # but always make sure the units makes sense.]
+                if t_2 <= stage - value(m.lifetimes[gen])
             ) <= sum(
                 m.investmentStage[t_1].renewableRetired[gen]
                 + m.investmentStage[t_1].renewableExtended[gen]
