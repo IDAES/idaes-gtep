@@ -4,6 +4,7 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
+import pyomo.environ as pyo
 from pyomo.environ import * 
 from pyomo.environ import units as u
 
@@ -267,24 +268,51 @@ def add_investment_variables(
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators,
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.MW
     )
     b.renewableInstalled = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators,
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.MW
     )
     b.renewableRetired = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators,
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.MW
     )
     b.renewableExtended = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0
+        m.renewableGenerators,
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.MW
+
     )
 
     # Track and accumulate costs and penalties
-    b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW)
-    b.operatingCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
-    b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
+    b.quotaDeficit = Var(
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.MW
+    )
+    b.operatingCostInvestment = Var(
+        within=Reals,
+        initialize=0,
+        units=u.USD
+    )
+    b.expansionCost = Var(
+        within=Reals,
+        initialize=0,
+        units=u.USD
+    )
     b.renewableCurtailmentInvestment = Var(
-        within=NonNegativeReals, initialize=0, units=u.USD
+        within=NonNegativeReals,
+        initialize=0,
+        units=u.USD
     )
 
 
@@ -418,27 +446,29 @@ def add_investment_constraints(
                 )
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
 
-    # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
-    @b.Constraint()
+    @b.Constraint(doc="Investment costs for investment period in $")
     def investment_cost(b):
-        return b.expansionCost == m.investmentFactor[investment_stage] * (
+        return b.expansionCost == m.investmentFactor[investment_stage] *(
             sum(
                 # [ESR WIP: When including the disjunction
                 # investStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen]
+                * m.thermalCapacity[gen] # in MW
                 # m.generatorInstallationCost[gen]
                 * m.capitalMultiplier[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
+                * b.genInstalled[gen].indicator_var.get_associated_binary() 
                 for gen in m.thermalGenerators
             )
+            # [ESR WIP: Comment the Nameplate capacity since it is
+            # already included in the calculation of
+            # generatorINvestmentCost.]
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
-                * m.renewableCapacityNameplate[gen]
-                * b.renewableInstalled[gen]
+                * b.renewableInstalled[gen] # in MW
                 for gen in m.renewableGenerators
             )
             + sum(
@@ -448,13 +478,15 @@ def add_investment_constraints(
                 m.generatorInvestmentCost[gen]
                 # m.generatorInstallationCost[gen]
                 * m.extensionMultiplier[gen]
+                # [ESR WIP: Term added for unit consistency]
+                * m.thermalCapacity[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.extensionMultiplier[gen]
-                * m.renewableCapacityNameplate[gen]
+                # * m.renewableCapacityNameplate[gen]
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
@@ -482,12 +514,10 @@ def add_investment_constraints(
                 renewableCurtailmentRep += (
                     m.weights[rep_per]
                     * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .renewableCurtailmentCommitment
-                )
+                    * b.representativePeriod[rep_per].commitmentPeriod[com_per].renewableCurtailmentCommitment
+                ) # units are in MW * h
         return (
-            b.renewableCurtailmentInvestment
+            b.renewableCurtailmentInvestment # in $
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
@@ -516,7 +546,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=thermal_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Define bounds on renewable generator active generation
@@ -530,7 +560,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=renewable_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Define bounds on renewable generator curtailment
@@ -542,7 +572,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=curtailment_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     # Per generator surplus
@@ -552,45 +582,88 @@ def add_dispatch_variables(
             b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
         )
 
-    # Per generator curtailment cost
-    @b.Expression(m.renewableGenerators)
+    # [ESR WIP: The units are not consistent, [MW] * [$/MWh]. Needs
+    # the dispatch length. I added it for now]
+    @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
-        return b.renewableCurtailment[renewableGen] * m.curtailmentCost
+        return (
+            b.renewableCurtailment[renewableGen]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.curtailmentCost
+        )            
 
-    # Per generator cost
-    @b.Expression(m.thermalGenerators)
-    def generatorCost(b, gen):
-        return b.thermalGeneration[gen] * m.fuelCost[gen]
+    # [ESR WIP: The units are not consistent, [MW] * [$/MWh]. Needs
+    # the dispatch length. I added it for now]
+    @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
+    def thermalGeneratorCost(b, gen):
+        return (
+            b.thermalGeneration[gen]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            # * m.fuelCost[gen]
+            * (m.fixedCost[gen] + m.varCost[gen])
+        )
+
+    @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
+    def renewableGeneratorCost(b, gen):
+        return (
+            b.renewableGeneration[gen]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.fixedCost[gen]
+        )
 
     # Load shed per bus
     b.loadShed = Var(
         m.buses,
         domain=NonNegativeReals,
         initialize=0,
-        units=u.MW * u.hr
+        units=u.MW
     )
 
-    # Per bus load shed cost
-    @b.Expression(m.buses)
+    # [ESR WIP: The units are not consistent, [MW] * [$/MWh]. Needs
+    # the dispatch length. I added it for now]
+    @b.Expression(m.buses, doc="Load shed cost per bus in $")
     def loadShedCost(b, bus):
-        return b.loadShed[bus] * m.loadShedCost
+        return (
+            b.loadShed[bus]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.loadShedCostperCurtailment # $/MWh
+        )
 
     # Track total dispatch values and costs
-    b.renewableSurplusDispatch = sum(b.renewableGenerationSurplus.values())
+    @b.Expression(doc="Total surplus power for renewable generators in MW")
+    def renewableSurplusDispatch(b):
+        return sum(b.renewableGenerationSurplus[gen] for gen in m.renewableGenerators)
+    
+    @b.Expression()
+    def thermalGenerationCostDispatch(b):
+        return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
 
-    b.generationCostDispatch = sum(b.generatorCost.values())
+    @b.Expression()
+    def renewableGenerationCostDispatch(b):
+        return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
-    b.loadShedCostDispatch = sum(b.loadShedCost.values())
+    @b.Expression()
+    def loadShedCostDispatch(b):
+        return sum(b.loadShedCost[bus] for bus in m.buses)
 
-    b.curtailmentCostDispatch = sum(b.renewableCurtailmentCost.values())
+    @b.Expression()
+    def curtailmentCostDispatch(b):
+        return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
-    b.operatingCostDispatch = (
-        b.generationCostDispatch + b.loadShedCostDispatch + b.curtailmentCostDispatch
-    )
+    @b.Expression(doc="Total cost for dispatch in $")
+    def operatingCostDispatch(b):
+        return (
+            b.thermalGenerationCostDispatch
+            + b.renewableGenerationCostDispatch
+            + b.loadShedCostDispatch
+            + b.curtailmentCostDispatch
+        )
 
-    b.renewableCurtailmentDispatch = sum(
-        b.renewableCurtailment[gen] for gen in m.renewableGenerators
-    )
+    @b.Expression()
+    def renewableCurtailmentDispatch(b):
+        return sum(
+            b.renewableCurtailment[gen] for gen in m.renewableGenerators
+        )
 
     # Define bounds on transmission line capacity - restrictions on flow over
     # uninvested lines are enforced in a disjuction below
@@ -606,7 +679,7 @@ def add_dispatch_variables(
         domain=Reals,
         bounds=power_flow_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     @b.Disjunct(m.transmission)
@@ -716,7 +789,7 @@ def add_dispatch_variables(
     # Define bounds on thermal generator spinning reserve supply
     def spinning_reserve_limits(b, thermalGen):
         return (
-            0*u.MW*u.hr,
+            0*u.MW,
             m.spinningReserveFraction[thermalGen] * m.thermalCapacity[thermalGen],
         )
 
@@ -726,14 +799,14 @@ def add_dispatch_variables(
         bounds=spinning_reserve_limits,
         initialize=0,
         # [ESR: Change units.]
-        # units=u.MW,
-        units=u.MW * u.hr 
+        units=u.MW,
+        # units=u.MW * u.hr 
     )
 
     # Define bounds on thermal generator quickstart reserve supply
     def quickstart_reserve_limits(b, thermalGen):
         return (
-            0*u.MW*u.hr,
+            0*u.MW,
             m.quickstartReserveFraction[thermalGen] * m.thermalCapacity[thermalGen],
         )
 
@@ -743,8 +816,8 @@ def add_dispatch_variables(
         bounds=quickstart_reserve_limits,
         initialize=0,
         # [ESR WIP: Change units]
-        # units=u.MW,
-        units=u.MW*u.hr,
+        units=u.MW,
+        # units=u.MW*u.hr,
     )
 
 
@@ -1025,11 +1098,14 @@ def add_commitment_constraints(
     r_p = b.parent_block()
     i_p = r_p.parent_block()
 
-    # Define total renewable surplus/deficit for commitment block
-    @b.Expression()
+    # [ESR WIP: Q: Do we need the two periods, dispatch and
+    # commitment? Search where rnewableSurplusDispatch is used nd the
+    # commitment period is there.]
+    @b.Expression(doc="Total renewable surplus/deficit for commitment block")
     def renewableSurplusCommitment(b):
         return sum(
-            m.dispatchPeriodLength * b.dispatchPeriod[disp_per].renewableSurplusDispatch
+            m.dispatchPeriodLength ### ESR: Confirm that my units are consistent here
+            * b.dispatchPeriod[disp_per].renewableSurplusDispatch # in MW
             for disp_per in b.dispatchPeriods
         )
 
@@ -1038,49 +1114,27 @@ def add_commitment_constraints(
     ## NOTE: expressions are stored in gtep_cleanup branch
     ## costs considered need to be re-assessed and account for missing data
     
-    # [ESR WIP: Added fixed costs for thermal and renewable generators
-    # from preprocessed data (using gtep_data_preprocessing).]
+    # [ESR WIP: The fixed costs for thermal and renewable generators
+    # are included in the dispatch stage.]
     @b.Expression()
     def operatingCostCommitment(b):
         return (
             sum(
                 ## FIXME: update test objective value when this changes; ready to uncomment
                 # (m.dispatchPeriodLength / 60) *
-                b.dispatchPeriod[disp_per].operatingCostDispatch
+                # [ESR WIP: This term includes the op cost for each
+                # 15-min dispatch period.]
+                b.dispatchPeriod[disp_per].operatingCostDispatch # in $
                 for disp_per in b.dispatchPeriods
             )
             + sum(
-                m.fixedCost[gen]
-                * b.commitmentPeriodLength # added
-                * (
-                    b.genOn[gen].indicator_var.get_associated_binary()
-                    + b.genShutdown[gen].indicator_var.get_associated_binary()
-                    + b.genStartup[gen].indicator_var.get_associated_binary()
-                )
-                for gen in m.thermalGenerators
-            )
-            ## FIXME: how do we do assign fixed operating costs to
-            ## renewables; flat per location or per MW
-            + sum(
-                m.fixedCost[gen]
-                * b.commitmentPeriodLength
-                * (
-                    i_p.renewableOperational[gen]
-                    + i_p.renewableInstalled[gen]
-                    + i_p.renewableExtended[gen]
-                )
-                # * m.renewableCapacityNameplate[gen]
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                m.startupCost[gen]
+                m.startupCost[gen] # in $
                 * b.genStartup[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
         )
 
-    # Define total curtailment for commitment block
-    @b.Expression()
+    @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):
         return sum(
             b.dispatchPeriod[disp_per].renewableCurtailmentDispatch
@@ -1502,15 +1556,15 @@ def investment_stage_rule(
     m.genRenewableVarOpCost = []
     for index, row in m.mc.gen_data_target.iterrows():
         if row['Unit Type'].startswith(gen_thermal_type):
-            m.genThermalInvCost.append(row[f'capex_{b.year}'])
-            m.genThermalFixOpCost.append(row[f'fixed_ops_{b.year}'])
-            m.genThermalVarOpCost.append(row[f'var_ops_{b.year}'])
+            m.genThermalInvCost.append(row[f'capex_{b.year}']) # in $/kW
+            m.genThermalFixOpCost.append(row[f'fixed_ops_{b.year}']) # in $/kW-yr
+            m.genThermalVarOpCost.append(row[f'var_ops_{b.year}']) # $/MWh
             m.genThermalFuelCost.append(row[f'fuel_costs_{b.year}'])
                     
         elif row['Unit Type'].startswith(gen_renewable_type):
-            m.genRenewableInvCost.append(row[f'capex_{b.year}'])
-            m.genRenewableFixOpCost.append(row[f'fixed_ops_{b.year}'])
-            m.genRenewableVarOpCost.append(row[f'var_ops_{b.year}'])
+            m.genRenewableInvCost.append(row[f'capex_{b.year}']) # in $/kW
+            m.genRenewableFixOpCost.append(row[f'fixed_ops_{b.year}']) # in $/kW-yr
+            m.genRenewableVarOpCost.append(row[f'var_ops_{b.year}']) # $/MWh
             m.genRenewableFuelCost.append(row[f'fuel_costs_{b.year}'])
             
         else:
@@ -1526,46 +1580,57 @@ def investment_stage_rule(
     # print(f'genRenewableVarOpCost for gen renewable in year {b.year}={m.genRenewableVarOpCost}')
     # print(f'genRenewableFuelCost for gen renewable in year {b.year}={m.genRenewableFuelCost}')
 
-    m.fixedCost = {
-        gen:m.genThermalFixOpCost[0]
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
-        else m.genRenewableFixOpCost[0] # for renewable
-        for gen in m.generators
-    }
-    m.varCost = {
-        gen:m.genThermalVarOpCost[0]
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
-        else m.genRenewableVarOpCost[0] # for renewable
-        for gen in m.generators
-    }
-    
-    m.generatorInvestmentCost = Param(
-        m.generators,
-        initialize={gen:m.genThermalInvCost[0] * m.thermalCapacity[gen] if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
-                    else m.genRenewableInvCost[0] * m.renewableCapacityNameplate[gen] # for renewable
-                    # else m.genRenewableInvCost[0] * m.renewableCapacityNameplate[gen] # is this for candidate gens?
-                    for gen in m.generators},
-        # units=
-    )
+    # [ESR WIP: Update data for fixed and variable costs here since
+    # they depend on the investment year. Also, convert the units to
+    # be consistent.]
 
-    # [ESR WIP: Add fuel costs from preprocessed data. Commented for
-    # now since the new values change the optimal solution.]
-    # m.fuelCost = {
-    #     gen:m.genThermalFuelCost[0]
-    #     if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"        
-    #     else m.genRenewableFuelCost[0] # for renewable
-    #     for gen in m.generators
-    # }
+    units_fixed_cost = u.USD / (u.kW * u.year)
+    units_var_cost = u.USD / (u.MW * u.hr)
+    units_inv_cost = u.USD / u.kW
+    units_fuel_cost = u.USD / (u.MW * u.hr)
+    for gen in m.generators:
+        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
+            m.fixedCost[gen] = pyo.units.convert(m.genThermalFixOpCost[0] * units_fixed_cost,
+                                                 to_units= u.USD / (u.MW * u.hr)) 
 
-    # [ESR WIP: Move "curtailmentCost" and "loadShedCost" here since
-    # they depend on the "fuelCost". NOTE: These were originally in
-    # the function model_data_reference after "fuelCost" was defined.]
+            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
+
+            m.generatorInvestmentCost[gen] = pyo.units.convert(
+                m.genThermalInvCost[0] * units_inv_cost,
+                to_units=u.USD/u.MW
+            )
+
+            # [ESR WIP: Add fuel costs from preprocessed
+            # data. Consider this cost is for Natural Gas generators,
+            # not coal.]
+            m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
+        else:
+            # For renewable
+            m.fixedCost[gen] = pyo.units.convert(m.genRenewableFixOpCost[0] * units_fixed_cost, 
+                                                 to_units= u.USD / (u.MW * u.hr)) 
+            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
+
+            m.generatorInvestmentCost[gen] = pyo.units.convert(
+                m.genRenewableInvCost[0] * units_inv_cost,
+                to_units=u.USD/u.MW
+            )
+
+    # Final units are:
+    # fixed cost = $/ MWh
+    # var cost = $/MWh
+    # inv cost = $/Mw
+    # fuel cost = $/MWh
     
+    # [ESR WIP: Recalculate "curtailmentCost" and
+    # "loadShedCostperCurtailment" (formerly "loadShedCost") since
+    # they depend on "fuelCost". NOTE: These were originally in the
+    # function model_data_reference after "fuelCost" was defined.]
+
     # Cost per MW of curtailed renewable energy
     # NOTE: what should this be valued at?  This being both
     # curtailment and load shed.
-    m.curtailmentCost = 2 * max(m.fuelCost.values())
-    m.loadShedCost = 1000 * m.curtailmentCost
+    m.curtailmentCost = 2 * max(value(m.fuelCost[gen]) for gen in m.thermalGenerators)
+    m.loadShedCostperCurtailment = 1000 * m.curtailmentCost
 
     ##########
     
@@ -1610,7 +1675,11 @@ def create_objective_function(m):
     @m.Objective()
     def total_cost_objective_rule(m):
         if len(m.stages) > 1:
-            return m.operatingCost + m.expansionCost + m.penaltyCost
+            return (
+                m.operatingCost
+                + m.expansionCost
+                + m.penaltyCost
+            )
         else:
             return (
                 m.investmentStage[1].operatingCostInvestment
@@ -1718,7 +1787,7 @@ def model_data_references(m):
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["p_max"]
                     for thermalGen in m.thermalGenerators},
         mutable=True,
-        units=u.MW * u.hr,
+        units=u.MW,
         doc="Maximum output of each thermal generator"
     )
 
@@ -1737,7 +1806,7 @@ def model_data_references(m):
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["p_min"]
                     for thermalGen in m.thermalGenerators},
         mutable=True,
-        units=u.MW * u.hr,
+        units=u.MW,
         doc="Minimum output of each thermal generator"
     )
 
@@ -1749,7 +1818,7 @@ def model_data_references(m):
                                    else max(m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]))
                     for renewableGen in m.renewableGenerators},
         mutable=True,
-        units=u.MW * u.hr,
+        units=u.MW,
         doc="Maximum output of each renewable generator"
     )
 
@@ -1765,16 +1834,21 @@ def model_data_references(m):
                                    # / max(1, m.renewableCapacityNameplate[renewableGen]))
                     for renewableGen in m.renewableGenerators},
         mutable=True,
-        units=u.MW * u.hr,
+        units=u.dimensionless,
         doc="Fraction of generation capacity that can be reliably counted toward planning reserve"
     )
-    
+
+    # [ESR WIP: Confirm units for rating_long_term. Q: where is the
+    # data coming from and what are the units? If Amperes, equation to
+    # calculate capacity in MW is: A * Voltage * 1e-2. The 1e-2 is the
+    # per units conversion. Assuming the value is already the product
+    # of A * V.]
     m.transmissionCapacity = Param(
         m.lines, 
         initialize={transmissionLine: m.md.data["elements"]["branch"][transmissionLine]["rating_long_term"]
                     for transmissionLine in m.lines},
         mutable=True,
-        units=u.MW * u.hr,
+        units=u.MW,
         doc="Long term thermal rating of each transmission line"
     )
     
@@ -1803,14 +1877,17 @@ def model_data_references(m):
     }
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
-    m.lossRate = Param(
-        m.transmission,
-        initialize={branch: (m.md.data["elements"]["branch"][branch].get("loss_rate") or 0)
-                    for branch in m.transmission},
-        mutable=True,
-        # units=,
-        doc="Per-distance-unit multiplicative loss rate for each transmission line"
-    )
+
+    # [ESR WIP: Commented for now since it is not use in this case but
+    # might be used in the future when considering ACOPF]
+    # m.lossRate = Param(
+    #     m.transmission,
+    #     initialize={branch: (m.md.data["elements"]["branch"][branch].get("loss_rate") or 0)
+    #                 for branch in m.transmission},
+    #     mutable=True,
+    #     # units=,
+    #     doc="Per-distance-unit multiplicative loss rate for each transmission line"
+    # )
 
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
@@ -1830,7 +1907,7 @@ def model_data_references(m):
         initialize={branch: (m.md.data["elements"]["branch"][branch].get("capital_cost") or 0)
                     for branch in m.transmission},
         mutable=True,
-        # units=,
+        units=u.USD,
         doc="Investment cost for each new branch"
     )
 
@@ -1878,7 +1955,8 @@ def model_data_references(m):
     # Amount of fuel required to be consumed for startup process for
     # each generator
     
-    # # [ESR WIP: Commented since we don't use it in the model.]
+    # [ESR WIP: Commented for now but depends on the type of data we
+    # are using for generators.]
     # m.startFuel = Param(
     #     m.generators,
     #     initialize={gen: m.md.data["elements"]["generator"][gen]["start_fuel"]
@@ -1897,8 +1975,8 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["fuel_cost"] if "RTS-GMLC" in m.md.data["system"]["name"]
                     else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
                     for gen in m.thermalGenerators},
-        mutable=False,
-        # units=u.USD / (u.MW * u.hr),
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator"
     )
     
@@ -1917,7 +1995,7 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["non_fuel_startup_cost"]
                     for gen in m.thermalGenerators},
         mutable=True,
-        # units=,
+        units=u.USD,
         doc="Flat startup cost for each generator"
     )
 
@@ -1947,26 +2025,29 @@ def model_data_references(m):
     # in the function investment_stage_rule.]
     m.generatorInvestmentCost = Param(
         m.generators,
-        initialize=0,
+        initialize={gen:1 for gen in m.generators},
         mutable=True,
-        # units=,
-        doc="Investment cost of generators"
+        # [ESR WIP: Confirm this since this term is multiplying a
+        # binary for thermal generators and a capacity (in MWh) for
+        # renewables.]
+        units=u.USD / u.MW,
+        doc="Investment cost for all generators"
     )
 
     m.minOperatingReserve = Param(
         m.regions,
         initialize={region: m.md.data["system"]["min_operating_reserve"] for region in m.regions},
         mutable=True,
-        units=u.MW * u.hr,
-        doc="Minimum operating reserve expressed as a fraction of load within a region"
+        units=u.dimensionless,
+        doc="Minimum operating reserve as a fraction of load within a region"
     )
 
     m.minSpinningReserve = Param(
         m.regions,
         initialize={region: m.md.data["system"]["min_spinning_reserve"] for region in m.regions},
         mutable=True,
-        units=u.MW * u.hr,
-        doc="Minimum spinning reserve expressed as a fraction of load within a region"
+        units=u.dimensionless,
+        doc="Minimum spinning reserve as a fraction of load within a region"
     )
 
     m.maxSpinningReserve = Param(
@@ -1974,8 +2055,8 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["max_spinning_reserve"]
                     for gen in m.thermalGenerators},
         mutable=True,
-        units=u.MW * u.hr,
-        doc="Maximum spinning reserve available for each generator expressed as a fraction maximum generator output"
+        units=u.dimensionless,
+        doc="Maximum spinning reserve available for each generator as a fraction maximum generator output"
     )
 
     m.maxQuickstartReserve = Param(
@@ -1983,8 +2064,8 @@ def model_data_references(m):
         initialize={gen: m.md.data["elements"]["generator"][gen]["max_quickstart_reserve"]
                     for gen in m.thermalGenerators},
         mutable=True,
-        units=u.MW * u.hr,
-        doc="Maximum quickstart reserve available for each generator expressed as a fraction maximum generator output"
+        units=u.dimensionless,
+        doc="Maximum quickstart reserve available for each generator as a fraction maximum generator output"
     )
     
     m.rampUpRates = Param(
@@ -1994,7 +2075,7 @@ def model_data_references(m):
         mutable=False,
         # # units=u.MW * u.min,
         # units=u.MW / u.min,
-        doc="Ramp up rates for each generator expressed as a fraction of maximum generator output"
+        doc="Ramp up rates for each generator as a fraction of maximum generator output"
     )
 
     m.rampDownRates = Param(
@@ -2004,7 +2085,7 @@ def model_data_references(m):
         mutable=False,
         # # units=u.MW * u.min,
         # units=u.MW / u.min,
-        doc="Ramp down rates for each generator expressed as a fraction of maximum generator output"
+        doc="Ramp down rates for each generator as a fraction of maximum generator output"
     )
         
 
@@ -2019,6 +2100,44 @@ def model_data_references(m):
         ]
         == region
     }
+
+    #[ESR WIP: Declare fixed and operating costs here to avoid
+    #multiple declarations of the same parameter. Set the value to 1
+    #for now and then update it.]
+    m.fixedCost = Param(
+        m.generators,
+        initialize={gen:1 for gen in m.generators},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Fixed operating costs"
+    )
+    m.varCost = Param(
+        m.generators,
+        initialize={gen:1 for gen in m.generators},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Variable costs"
+    )
+
+    # [ESR WIP: Declare and initialize curtailment and load shed costs
+    # as parameters. These are re-calculated in
+    # investment_stage_rule. Also, note that th original
+    # "loadShedCost" was renamed "loadShedCostperCurtailment" to avoid
+    # its repetition. ]
+    m.curtailmentCost = Param(
+        initialize=1,
+        units=u.USD / (u.MW * u.hr),
+        mutable=True,
+        doc="Curtailment cost"
+    )
+    m.loadShedCostperCurtailment = Param(
+        initialize=1000,
+        units=u.USD / (u.MW * u.hr),
+        mutable=True,
+    )
+
+
+
 
 
 def model_create_investment_stages(m, stages):
