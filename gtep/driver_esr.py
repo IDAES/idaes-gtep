@@ -40,6 +40,7 @@ mod_object = ExpansionPlanningModel(
     len_reps=1,
     num_commit=6,
     num_dispatch=4,
+    duration_dispatch=15 # in min by default, for now
 )
 
 mod_object.create_model()

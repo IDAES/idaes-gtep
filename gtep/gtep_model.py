@@ -63,6 +63,7 @@ class ExpansionPlanningModel:
         len_reps=24,
         num_commit=24,
         num_dispatch=4,
+        duration_dispatch=15,
     ):
         """Initialize generation & expansion planning model object.
 
@@ -85,6 +86,7 @@ class ExpansionPlanningModel:
         self.len_reps = len_reps
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
+        self.duration_dispatch = duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
 
@@ -120,7 +122,10 @@ class ExpansionPlanningModel:
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
         m.representativePeriodLength = Param(
-            m.representativePeriods, within=PositiveReals, default=24, units=u.hr
+            m.representativePeriods,
+            within=PositiveReals,
+            default=24,
+            units=u.hr
         )
         m.numCommitmentPeriods = Param(
             m.representativePeriods,
@@ -134,9 +139,19 @@ class ExpansionPlanningModel:
             default=2,
             initialize=self.num_dispatch,
         )
-        m.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
-        # TODO: index by dispatch period? Certainly index by commitment period
-        m.dispatchPeriodLength = Param(within=PositiveReals, default=15, units=u.min)
+        m.commitmentPeriodLength = Param(
+            within=PositiveReals,
+            default=1,
+            units=u.hr
+        )
+
+        # TODO: index by dispatch period? Certainly index by
+        # commitment period
+        m.dispatchPeriodLength = Param(
+            within=PositiveReals,
+            initialize=self.duration_dispatch,
+            units=u.min
+        )
 
         model_data_references(m)
         model_create_investment_stages(m, self.stages)
