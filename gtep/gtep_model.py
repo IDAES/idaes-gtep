@@ -426,8 +426,7 @@ def add_investment_constraints(
     ## NOTE: The following constraints can be split into rep_per and invest_stage components if desired
 
     ## NOTE: Constraint (13) in the reference paper
-    # Minimum per-stage renewable generation requirement
-    @b.Constraint()
+    @b.Constraint(doc="Minimum per-stage renewable generation requirement")
     def renewable_generation_requirement(b):
         renewableSurplusRepresentative = 0
         ## TODO: preprocess loads for the appropriate sum here
@@ -448,8 +447,7 @@ def add_investment_constraints(
             >= m.renewableQuota[investment_stage] * ed # [ESR WIP: Q: ed is 0 here, is that correct?] 
         )
 
-    # Operating costs for investment period
-    @b.Expression()
+    @b.Expression(doc="Operating costs for investment period")
     def operatingCostInvestment(b):
         operatingCostRepresentative = 0
         for rep_per in b.representativePeriods:
@@ -518,8 +516,7 @@ def add_investment_constraints(
             )
         )
 
-    # Curtailment penalties for investment period
-    @b.Constraint()
+    @b.Constraint(doc="Curtailment penalties for investment period")
     def renewable_curtailment_cost(b):
         renewableCurtailmentRep = 0
         for rep_per in b.representativePeriods:
@@ -548,8 +545,8 @@ def add_dispatch_variables(
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    # Define bounds on thermal generator active generation
-    def thermal_generation_limits(b, thermalGen):
+    def thermal_generation_limits(b, thermalGen,
+                                  doc="Bounds on active generation of thermal generators"):
         return (0, m.thermalCapacity[thermalGen])
 
     b.thermalGeneration = Var(
@@ -558,12 +555,12 @@ def add_dispatch_variables(
         bounds=thermal_generation_limits,
         initialize=0,
         units=u.MW,
+        doc="Thermal generation"
     )
 
-    # Define bounds on renewable generator active generation
-
     # [ESR WIP: Still deciding if this should be Nameplate]
-    def renewable_generation_limits(b, renewableGen):
+    def renewable_generation_limits(b, renewableGen,
+                                    doc="Bounds on active generation of renewable generator in MW"):
         return (0, m.renewableCapacityNameplate[renewableGen])
 
     b.renewableGeneration = Var(
@@ -572,10 +569,11 @@ def add_dispatch_variables(
         bounds=renewable_generation_limits,
         initialize=0,
         units=u.MW,
+        doc="Renewable generation"
     )
 
-    # Define bounds on renewable generator curtailment
-    def curtailment_limits(b, renewableGen):
+    def curtailment_limits(b, renewableGen,
+                           doc="Bounds on renewable generator curtailment in MW"):
         return (0, m.renewableCapacityNameplate[renewableGen])
 
     b.renewableCurtailment = Var(
@@ -584,10 +582,11 @@ def add_dispatch_variables(
         bounds=curtailment_limits,
         initialize=0,
         units=u.MW,
+        doc="Curtailment of renewable generators"
     )
 
-    # Per generator surplus
-    @b.Expression(m.renewableGenerators)
+    @b.Expression(m.renewableGenerators,
+                  doc="Surplus generation per renewable generator in MW")
     def renewableGenerationSurplus(b, renewableGen):
         return (
             b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
@@ -619,12 +618,12 @@ def add_dispatch_variables(
             * m.fixedCost[gen]
         )
 
-    # Load shed per bus
     b.loadShed = Var(
         m.buses,
         domain=NonNegativeReals,
         initialize=0,
-        units=u.MW
+        units=u.MW,
+        doc="Load shed per bus"
     )
 
     # [ESR WIP: Add the dispatch period length.]
@@ -640,23 +639,18 @@ def add_dispatch_variables(
     @b.Expression(doc="Total surplus power for renewable generators in MW")
     def renewableSurplusDispatch(b):
         return sum(b.renewableGenerationSurplus[gen] for gen in m.renewableGenerators)
-    
     @b.Expression()
     def thermalGenerationCostDispatch(b):
         return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
-
     @b.Expression()
     def renewableGenerationCostDispatch(b):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
-
     @b.Expression()
     def loadShedCostDispatch(b):
         return sum(b.loadShedCost[bus] for bus in m.buses)
-
     @b.Expression()
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
-
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
         return (
@@ -672,29 +666,30 @@ def add_dispatch_variables(
             b.renewableCurtailment[gen] for gen in m.renewableGenerators
         )
 
-    # Define bounds on transmission line capacity - restrictions on flow over
-    # uninvested lines are enforced in a disjuction below
-    def power_flow_limits(b, branch):
+    # Restrictions on flow over uninvested lines are enforced in a
+    # disjuction below
+    def power_flow_limits(b, branch, doc="Bounds on transmission line capacity"):
         return (
             -m.transmissionCapacity[branch],
             m.transmissionCapacity[branch],
         )
 
-    # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
+    # (Original) NOTE: this is an abuse of units and needs to be fixed for
+    # variable temporal resolution
     b.powerFlow = Var(
         m.transmission,
         domain=Reals,
         bounds=power_flow_limits,
         initialize=0,
         units=u.MW,
+        doc="Power flow in MW"
     )
 
     @b.Disjunct(m.transmission)
     def branchInUse(disj, branch):
         b = disj.parent_block()
 
-        # Voltage angle
-        def bus_angle_bounds(disj, bus):
+        def bus_angle_bounds(disj, bus, doc="Voltage angle"):
             return (-math.pi / 6, math.pi / 6)
 
         # Only create bus angle variables for the buses associated with this
@@ -712,17 +707,16 @@ def add_dispatch_variables(
             disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds
         )
 
-        # Voltage angle
-        def delta_bus_angle_bounds(disj, bus):
+        def delta_bus_angle_bounds(disj, bus, doc="Voltage angle"):
             return (-math.pi / 6, math.pi / 6)
 
-        # Rule for maximum bus angle discrepancy
-        def delta_bus_angle_rule(disj):
+        def delta_bus_angle_rule(disj, doc="Maximum bus angle discrepancy"):
             fb = m.transmission[branch]["from_bus"]
             tb = m.transmission[branch]["to_bus"]
             return disj.busAngle[tb] - disj.busAngle[fb]
 
-        # @KyleSkolfield - I think this var is unused and commented it out, can we delete?
+        # @KyleSkolfield - I think this var is unused and commented it
+        # out, can we delete?
         disj.deltaBusAngle = Var(
             domain=Reals, bounds=delta_bus_angle_bounds, rule=delta_bus_angle_rule
         )
@@ -793,10 +787,10 @@ def add_dispatch_variables(
             )
         )
 
-    # Define bounds on thermal generator spinning reserve supply
-    def spinning_reserve_limits(b, thermalGen):
+    def spinning_reserve_limits(b, thermalGen,
+                                doc="Bounds on thermal generator spinning reserve supply"):
         return (
-            0*u.MW,
+            0 * u.MW,
             m.spinningReserveFraction[thermalGen] * m.thermalCapacity[thermalGen],
         )
 
@@ -805,15 +799,13 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=spinning_reserve_limits,
         initialize=0,
-        # [ESR: Change units.]
         units=u.MW,
-        # units=u.MW * u.hr 
     )
 
-    # Define bounds on thermal generator quickstart reserve supply
-    def quickstart_reserve_limits(b, thermalGen):
+    def quickstart_reserve_limits(b, thermalGen,
+                                  doc="Bounds on thermal generator quickstart reserve supply"):
         return (
-            0*u.MW,
+            0 * u.MW,
             m.quickstartReserveFraction[thermalGen] * m.thermalCapacity[thermalGen],
         )
 
@@ -822,7 +814,7 @@ def add_dispatch_variables(
         domain=NonNegativeReals,
         bounds=quickstart_reserve_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW
     )
 
 
@@ -839,9 +831,8 @@ def add_dispatch_constraints(b, disp_per):
     # for key in m.loads.keys():
     #     m.loads[key] *= max(0, rng.normal(0.5, 0.2))
 
-    # Energy balance constraint
     units_load = u.MW
-    @b.Constraint(m.buses)
+    @b.Constraint(m.buses, doc="Energy balance")
     def flow_balance(b, bus):
         balance = 0
         load = value(m.loads.get(bus)) or 0
@@ -866,7 +857,8 @@ def add_dispatch_constraints(b, disp_per):
         balance += b.loadShed[bus]
         return balance == 0 * u.MW
 
-    # NOTE: In comparison to reference work, this is *per renewable generator*
+    # NOTE: In comparison to reference work, this is *per renewable
+    # generator*
     @b.Constraint(m.renewableGenerators, doc="Capacity factor")
     def capacity_factor(b, renewableGen):
         return (
@@ -928,16 +920,14 @@ def add_commitment_variables(b, commitment_period):
         ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         b = disj.parent_block()
 
-        # Minimum operating Limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return (
                 m.thermalMin[generator]
                 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
             )
 
-        # Maximum operating limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
         def operating_limit_max(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -945,8 +935,8 @@ def add_commitment_variables(b, commitment_period):
                 <= m.thermalCapacity[generator]
             )
 
-        # Ramp up limit constraints for fully on generators
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators,
+                         doc="Ramp up limits for fully-on thermal generators")
         def ramp_up_limits(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -959,8 +949,8 @@ def add_commitment_variables(b, commitment_period):
             )
 
 
-        # Ramp down limit constraints for fully on generators
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators,
+                         doc="Ramp down limits for fully-on thermal generators")
         def ramp_down_limits(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
@@ -972,10 +962,9 @@ def add_commitment_variables(b, commitment_period):
                 else Constraint.Skip
             )
                     
-
-        # Maximum spinning reserve constraint
         ##NOTE: maxSpiningReserve is a percentage of thermalCapacity
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators,
+                         doc="Maximum spinning reserve")
         def max_spinning_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
@@ -986,14 +975,13 @@ def add_commitment_variables(b, commitment_period):
     def genStartup(disj, generator):
         b = disj.parent_block()
 
-        # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
-        @disj.Constraint(b.dispatchPeriods)
+        # (Original) NOTE: Reminder: thermalMin is a percentage of
+        # thermalCapacity
+        @disj.Constraint(b.dispatchPeriods, doc="Operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return 0 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
 
-        # Maximum operating limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
         def operating_limit_max(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -1001,9 +989,10 @@ def add_commitment_variables(b, commitment_period):
                 <= m.thermalMin[generator]
             )
 
-        # Ramp up constraints for generators starting up
-        ## TODO: is this max necessary? I would like to remove
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        # (Original) TODO: is this max necessary? I would like to
+        # remove
+        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators,
+                         doc="Ramp up constraints for generators starting up")
         def ramp_up_limits(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
