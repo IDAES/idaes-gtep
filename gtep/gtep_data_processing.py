@@ -12,6 +12,7 @@ References
 
 [1] https://atb.nrel.gov/electricity/2024/data 
 
+
 """
 
 
@@ -137,10 +138,16 @@ class DataProcessing:
                             costs[f'capex_{year}'].append(float(bus_capex_df[bus_capex_df["Bus Name"] == bus_name][year].iloc[0]))
                         
                     elif var == "Heat Rate  (MMBtu/MWh)":
-
                         if gen == "Natural Gas_FE":
                             # Henry Hub forecast prices for natural
-                            # gas
+                            # gas. [ESR WIP: Units for this metric are
+                            # in USD/MMBtu. To convert it to $/MWh,
+                            # multiply factor by the heat rate. In
+                            # this case, we use a heat rate value from
+                            # [1] assuming a NG Combustion Turbine
+                            # (F-Frame), Moderate, for the Base Year
+                            # 2022. The units are in MMBtu/MWh.]
+                            heat_rate = 9.717
                             hh_ng_costs = {
                                 2025: 3.49,
                                 2030: 2.91,
@@ -148,7 +155,9 @@ class DataProcessing:
                             }
 
                             for year in years_list:
-                                costs[f'fuel_costs_{year}'].append(hh_ng_costs[year] * float(bus_capex_df[bus_capex_df["Bus Name"] == bus_name][year].iloc[0]))
+                                # [ESR WIP: Comment original equation]
+                                # costs[f'fuel_costs_{year}'].append(hh_ng_costs[year] * float(bus_capex_df[bus_capex_df["Bus Name"] == bus_name][year].iloc[0]))
+                                costs[f'fuel_costs_{year}'].append(hh_ng_costs[year] * heat_rate) # units in USD/MWh
                             
                         else:
                             for year in years_list:
