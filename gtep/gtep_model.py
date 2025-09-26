@@ -150,7 +150,7 @@ class ExpansionPlanningModel:
         m.dispatchPeriodLength = Param(
             within=PositiveReals,
             initialize=self.duration_dispatch,
-            units=u.min
+            units=u.minutes
         )
 
         model_data_references(m)
@@ -704,7 +704,10 @@ def add_dispatch_variables(
         ]
 
         disj.busAngle = Var(
-            disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds
+            disj.branch_buses,
+            domain=Reals,
+            initialize=0,
+            bounds=bus_angle_bounds
         )
 
         def delta_bus_angle_bounds(disj, bus, doc="Voltage angle"):
@@ -718,7 +721,9 @@ def add_dispatch_variables(
         # @KyleSkolfield - I think this var is unused and commented it
         # out, can we delete?
         disj.deltaBusAngle = Var(
-            domain=Reals, bounds=delta_bus_angle_bounds, rule=delta_bus_angle_rule
+            domain=Reals,
+            bounds=delta_bus_angle_bounds,
+            rule=delta_bus_angle_rule
         )
 
         ## FIXME
@@ -802,8 +807,11 @@ def add_dispatch_variables(
         units=u.MW,
     )
 
-    def quickstart_reserve_limits(b, thermalGen,
-                                  doc="Bounds on thermal generator quickstart reserve supply"):
+    def quickstart_reserve_limits(
+            b,
+            thermalGen,
+            doc="Bounds on thermal generator quickstart reserve supply"
+    ):
         return (
             0 * u.MW,
             m.quickstartReserveFraction[thermalGen] * m.thermalCapacity[thermalGen],
@@ -831,11 +839,17 @@ def add_dispatch_constraints(b, disp_per):
     # for key in m.loads.keys():
     #     m.loads[key] *= max(0, rng.normal(0.5, 0.2))
 
-    units_load = u.MW
+    # units_load = u.MW
     @b.Constraint(m.buses, doc="Energy balance")
     def flow_balance(b, bus):
         balance = 0
-        load = value(m.loads.get(bus)) or 0
+
+        # [ESR WIP: Comment load and call all the loads as a parameter
+        # instead of the original dictionary. Also, note that the
+        # loads are now declared for all the buses in m.buses, and set
+        # to 0 for the buses that are not in m.load_buses.]
+        # load = value(m.loads.get(bus)) or 0
+        
         end_points = [
             line for line in m.transmission if m.transmission[line]["from_bus"] == bus
         ]
@@ -853,7 +867,7 @@ def add_dispatch_constraints(b, disp_per):
         balance += sum(
             b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
         )
-        balance -= load * units_load
+        balance -= m.loads[bus] # remove units_load since the parameter already has units
         balance += b.loadShed[bus]
         return balance == 0 * u.MW
 
@@ -998,7 +1012,7 @@ def add_commitment_variables(b, commitment_period):
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                 <= max(value(m.thermalMin[generator]),
-                       value(m.rampUpRates[generator])
+                       value(m.rampUpRates[generator]) # make sure the time units are consistent
                        * value(b.dispatchPeriod[dispatchPeriod].periodLength),
                        ) * m.thermalCapacity[generator]
                 if dispatchPeriod != 1
@@ -1032,7 +1046,7 @@ def add_commitment_variables(b, commitment_period):
                 - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 <= max(
                     value(m.thermalMin[generator]),
-                    m.rampDownRates[generator]
+                    value(m.rampDownRates[generator]) # make sure the time units are consistent
                     * b.dispatchPeriod[dispatchPeriod].periodLength,
                 )
                 * m.thermalCapacity[generator]
@@ -1179,32 +1193,24 @@ def commitment_period_rule(b, commitment_period):
             b.renewableCapacityExpected[renewableGen] = m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][commitment_period - 1] * units_renewable_capacity
     
     ## TODO: Redesign load scaling and allow nature of it as argument
+
     # Demand at each bus
     temp_scale = 3
     temp_scale = 10
 
     scale_loads = True
     if scale_loads:
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: (
+        for load_n in m.load_buses:
+            m.loads[load_n] = (
                 temp_scale
                 * (
                     1
                     + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
                 )
-            )
-            * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
-            for load_n in m.md.data["elements"]["load"]
-        }
+            ) * m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1]
     else:
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            for load_n in m.md.data["elements"]["load"]
-        }
+        for load_n in m.load_buses:
+            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1]
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -1821,7 +1827,7 @@ def model_data_references(m):
         m.lines, 
         initialize={transmissionLine: m.md.data["elements"]["branch"][transmissionLine]["rating_long_term"]
                     for transmissionLine in m.lines},
-        mutable=True,
+        # mutable=True,
         units=u.MW,
         doc="Long term thermal rating of each transmission line"
     )
@@ -1839,16 +1845,29 @@ def model_data_references(m):
         m.thermalGenerators,
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["quickstart_reserve_frac"]
                     for thermalGen in m.thermalGenerators},
-        mutable=True,
+        # mutable=True,
         units=u.dimensionless,
         doc="Maximum fraction of maximum thermal generation output that can be supplied as quickstart reserve"
     )
 
-    # Demand at each bus
-    m.loads = {
-        m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][load_n]["p_load"]
-        for load_n in m.md.data["elements"]["load"]
-    }
+    # [ESR WIP: When creating a Param for loads, an error occurs since
+    # the load at each bus is a dictionary. To avoid this, I
+    # initialized a m.loads parameter with a value of 0 and scaled it
+    # with the right value in commitment_period_rule. I also created a
+    # new set for the buses that have loads.]
+    m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
+    m.loads = pyo.Param(
+        m.buses,
+        initialize={load_n: 0 for load_n in m.buses},
+        mutable=True,
+        units=u.MW,
+        doc="Demand at each bus"
+    )
+    # m.loads = {
+    #     m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][load_n]["p_load"]
+    #     # for load_n in m.md.data["elements"]["load"]
+    #     for load_n in m.load_buses
+    # }
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
 
@@ -2024,7 +2043,7 @@ def model_data_references(m):
         m.thermalGenerators,
         initialize={gen: m.md.data["elements"]["generator"][gen]["max_quickstart_reserve"]
                     for gen in m.thermalGenerators},
-        mutable=True,
+        # mutable=True,
         units=u.dimensionless,
         doc="Maximum quickstart reserve available for each generator as a fraction maximum generator output"
     )
@@ -2034,7 +2053,7 @@ def model_data_references(m):
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]
                     for thermalGen in m.thermalGenerators},
         # mutable=True,
-        # units=u.MW / u.min,
+        units=u.MW / u.minutes,
         doc="Ramp up rates for each generator as a fraction of maximum generator output"
     )
 
@@ -2043,7 +2062,7 @@ def model_data_references(m):
         initialize={thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
                     for thermalGen in m.thermalGenerators},
         # mutable=True,
-        # units=u.MW / u.min,
+        units=u.MW / u.minutes,
         doc="Ramp down rates for each generator as a fraction of maximum generator output"
     )
 
