@@ -8,7 +8,7 @@ import gurobipy as gp
 import pyomo.environ as pyo
 
 
-data_path = "./gtep/data/5bus_jsc"
+data_path = "./data/5bus_jsc"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
