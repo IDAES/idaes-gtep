@@ -75,6 +75,7 @@ class ExpansionPlanningModel:
         :param len_reps: (for now integer) length of each representative period (in hours)
         :param num_commit: integer number of commitment periods per representative period
         :param num_dispatch: integer number of dispatch periods per commitment period
+        :param duration_dispatch: integer number of the duration of each dispatch period
         :return: Pyomo model for full GTEP
         """
 
@@ -111,8 +112,8 @@ class ExpansionPlanningModel:
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
         
-        # [ESR WIP: Add cost_data]
-        # TODO: Think about how to do some scaling in cost data
+        # [ESR WIP: Add cost_data. TODO: Think about how to do some
+        # scaling in this data.]
         if self.cost_data is None:
             raise
         else:
@@ -219,8 +220,8 @@ def add_investment_variables(
     def genOperational(disj, gen):
         return
 
-    # ESR TODO: start adding constraints to installed generators. Not
-    # used for now.
+    # [ESR TODO: Start adding constraints to installed generators. Not
+    # used for now.]
     @b.Disjunct(m.thermalGenerators)
     def genInstalled(disj, gen):
         return
@@ -442,7 +443,7 @@ def add_investment_constraints(
                 )
         return (
             # [ESR WIP: Change quotas to be in MWh to be consistent
-            # with the lrs of the equation.]
+            # with the LHS of the equation.]
             renewableSurplusRepresentative + b.quotaDeficit
             >= m.renewableQuota[investment_stage] * ed # [ESR WIP: Q: ed is 0 here, is that correct?] 
         )
@@ -592,7 +593,7 @@ def add_dispatch_variables(
             b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
         )
 
-    # [ESR WIP: Add the dispatch period length.]
+    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
         return (
@@ -601,7 +602,7 @@ def add_dispatch_variables(
             * m.curtailmentCost
         )            
 
-    # [ESR WIP: Add the dispatch period length.]
+    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
         return (
@@ -610,6 +611,7 @@ def add_dispatch_variables(
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
+    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
         return (
@@ -839,15 +841,15 @@ def add_dispatch_constraints(b, disp_per):
     # for key in m.loads.keys():
     #     m.loads[key] *= max(0, rng.normal(0.5, 0.2))
 
-    # units_load = u.MW
     @b.Constraint(m.buses, doc="Energy balance")
     def flow_balance(b, bus):
-        balance = 0
+        balance = 0 * u.MW
 
-        # [ESR WIP: Comment load and call all the loads as a parameter
-        # instead of the original dictionary. Also, note that the
-        # loads are now declared for all the buses in m.buses, and set
-        # to 0 for the buses that are not in m.load_buses.]
+        # [ESR WIP: Comment load below and call all the loads as a
+        # parameter instead of the original dictionary. Also, note
+        # that the loads are now declared for all the buses in
+        # m.buses, and set to 0 for the buses that are not in
+        # m.load_buses.]
         # load = value(m.loads.get(bus)) or 0
         
         end_points = [
@@ -1178,7 +1180,7 @@ def commitment_period_rule(b, commitment_period):
     # knowledge of the future outputs of a candidate... could be captured by scenarios?)
     # Maximum output of each renewable generator
 
-    # [WIP: Corrected to be in the block "b", not in "m". Also,
+    # [ESR WIP: Corrected to be in the block "b", not in "m". Also,
     # changed its original name "renewableCapacity" to include the
     # word "Expected" since there are two different
     # "renewableCapacity" parameters (the second one is included in
@@ -1207,10 +1209,10 @@ def commitment_period_rule(b, commitment_period):
                     1
                     + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
                 )
-            ) * m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1]
+            ) * m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1] * u.MW
     else:
         for load_n in m.load_buses:
-            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1]
+            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][commitment_period - 1] * u.MW
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -1229,6 +1231,7 @@ def add_representative_period_variables(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
 
+    # [ESR WIP: This variable is never used. Should we remove it?]
     b.renewableSurplusRepresentative = Var(within=Reals, initialize=0, units=u.USD)
 
 
@@ -1659,7 +1662,6 @@ def create_objective_function(m):
             for stage in m.stages
         )
 
-    ##### units problem
     @m.Objective()
     def total_cost_objective_rule(m):
         if len(m.stages) > 1:
@@ -1794,8 +1796,8 @@ def model_data_references(m):
         doc="Minimum output of each thermal generator"
     )
 
-    # [WIP: Rename since the name was repeated in the
-    # commitment_period_rule function. Check if this is correct.]    
+    # [ESR WIP: Rename since the name was repeated in the
+    # commitment_period_rule function. Check if this is correct.]
     m.renewableCapacityNameplate = Param(
         m.renewableGenerators,
         initialize={renewableGen: (0 if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
@@ -1863,13 +1865,6 @@ def model_data_references(m):
         units=u.MW,
         doc="Demand at each bus"
     )
-    # m.loads = {
-    #     m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][load_n]["p_load"]
-    #     # for load_n in m.md.data["elements"]["load"]
-    #     for load_n in m.load_buses
-    # }
-
-    ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
 
     # [ESR WIP: Commented for now since it is not use in this case but
     # might be used in the future when considering ACOPF]
@@ -2066,10 +2061,6 @@ def model_data_references(m):
         doc="Ramp down rates for each generator as a fraction of maximum generator output"
     )
 
-    # for gen in m.thermalGenerators:
-    #     print(f'm.rampUpRates[{gen}]={value(m.rampUpRates[gen])}')
-    #     print(f'm.rampDownRates[{gen}]={value(m.rampDownRates[gen])}')
-    
     # Matching for each generator to the region containing the bus at which the generator
     # is located
     m.gensAtRegion = {
@@ -2082,9 +2073,9 @@ def model_data_references(m):
         == region
     }
 
-    #[ESR WIP: Declare fixed and operating costs here to avoid
-    #multiple declarations of the same parameter. Set the value to 1
-    #for now and then update it.]
+    # [ESR WIP: Declare fixed and operating costs here to avoid
+    # multiple declarations of the same parameter. Set the value to 1
+    # for now and updated in function investment_stage_rule.]
     m.fixedCost = Param(
         m.generators,
         initialize={gen:1 for gen in m.generators},
@@ -2102,9 +2093,9 @@ def model_data_references(m):
 
     # [ESR WIP: Declare and initialize curtailment and load shed costs
     # as parameters. These are re-calculated in
-    # investment_stage_rule. Also, note that th original
+    # investment_stage_rule. Also, note that the original
     # "loadShedCost" was renamed "loadShedCostperCurtailment" to avoid
-    # its repetition. ]
+    # repetition. ]
     m.curtailmentCost = Param(
         initialize=1,
         units=u.USD / (u.MW * u.hr),
