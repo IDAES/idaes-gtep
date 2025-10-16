@@ -25,13 +25,20 @@ data_object.load_prescient(data_path)
 
 bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
 cost_data_path = "data/costs/2022 v3 Annual Technology Baseline Workbook Mid-year update 2-15-2023 Clean.xlsx"
-candidate_gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV", "Land-Based Wind"]
+candidate_gens = [
+    "Natural Gas_CT",
+    "Natural Gas_FE",
+    "Solar - Utility PV",
+    "Land-Based Wind",
+]
 
 data_processing_object = DataProcessing()
-data_processing_object.load_gen_data(bus_data_path=bus_data_path,
-                                     cost_data_path=cost_data_path,
-                                     candidate_gens=candidate_gens,
-                                     save_csv=True)
+data_processing_object.load_gen_data(
+    bus_data_path=bus_data_path,
+    cost_data_path=cost_data_path,
+    candidate_gens=candidate_gens,
+    save_csv=True,
+)
 
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
@@ -42,7 +49,8 @@ mod_object = ExpansionPlanningModel(
     len_reps=1,
     num_commit=6,
     num_dispatch=4,
-    duration_dispatch=15 # in min by default, for now
+    # [ESR: in min by default, for now]
+    duration_dispatch=15,
 )
 mod_object.create_model()
 
