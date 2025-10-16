@@ -1,3 +1,7 @@
+import pyomo.environ as pyo
+from pyomo.contrib.appsi.solvers.highs import Highs
+from pyomo.contrib.appsi.solvers.gurobi import Gurobi
+
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
@@ -5,11 +9,8 @@ from gtep_model import ExpansionPlanningModel
 from gtep_data import ExpansionPlanningData
 from gtep_data_processing import DataProcessing
 from gtep_solution import ExpansionPlanningSolution
-from pyomo.core import TransformationFactory
-from pyomo.contrib.appsi.solvers.highs import Highs
-from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 
-
+# Add data
 data_path = "./data/5bus"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
@@ -32,6 +33,7 @@ data_processing_object.load_gen_data(bus_data_path=bus_data_path,
                                      candidate_gens=candidate_gens,
                                      save_csv=True)
 
+# Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
     stages=2,
     data=data_object.md,
@@ -42,12 +44,14 @@ mod_object = ExpansionPlanningModel(
     num_dispatch=4,
     duration_dispatch=15 # in min by default, for now
 )
-
 mod_object.create_model()
 
-TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
-TransformationFactory("gdp.bigm").apply_to(mod_object.model)
-# opt = SolverFactory("gurobi")
+# Apply transformations to logical terms
+pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+
+# Add solver
+# opt = pyo.SolverFactory("gurobi")
 opt = Gurobi()
 # opt = Highs()
 # mod_object.results = opt.solve(mod_object.model, tee=True)
