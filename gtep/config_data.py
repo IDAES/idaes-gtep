@@ -3,6 +3,7 @@
 
 # author: Soraya Rawlings and Kyle Skolfield
 
+
 class ConfigData:
 
     # Generator data
@@ -75,9 +76,8 @@ class ConfigData:
             "fuel_type": "H",
             "up_time": 0,
             "down_time": 0,
-        }
+        },
     }
-
 
     def __init__(self):
 
