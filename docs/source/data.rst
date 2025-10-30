@@ -3,9 +3,9 @@
 Data
 ====
 
-The `ExpansionPlanningData()` class storages standard data for the
-IDAES-GTEP model. Within, it includes a function to load data
-structure using the Prescient data loader.
+The :class:`ExpansionPlanningData<gtep.gtep_data.ExpansionPlanningData>` class stores data for the
+IDAES-GTEP model. It includes a function to load data
+structured using the Prescient data loader.
 
 .. code-block::
 
@@ -25,12 +25,12 @@ structure using the Prescient data loader.
       prescient_options = PrescientConfig()
       prescient_options.set_value(options_dict)
 
-All the data is stored within the `ExpansionPlanningModel()` class and
+All the data is stored within the :class:`ExpansionPlanningModel<gtep.gtep_model.ExpansionPlanningModel>` class and
 used for the solution of the model. Table 1 shows a detailed
 description of the relevant parameters included.
 
 .. table:: Table 1: Data needed per component in the
-           `ExpansionPlanningModel()` class
+           :class:`ExpansionPlanningModel<gtep.gtep_model.ExpansionPlanningModel>` class
    :widths: 25 10 10 30
 	    
    ============================ ========= ============= ============================================

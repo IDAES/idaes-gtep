@@ -3,14 +3,14 @@
 Modeling 
 =========
 
-The `ExpansionPlanningModel()` class implements a modular Generalized
+The :class:`ExpansionPlanningModel<gtep.gtep_model.ExpansionPlanningModel>` class implements a modular Generalized
 Disjunctive Programming (GDP) formulation to produce a generalized
 model for generation, transmission, and expansion planning (GTEP) for
 power infrastructure problems. This formulation is represented as a
 dispatch problem integrated within a unit commitment and an investment
 problem for a specified representative period. Each of these problems
 is considered a "stage" in this formulation and is defined using a
-Pyomo component `Block`.
+Pyomo `Block` component.
 
 Figure 1 shows a graphical representation of these stages, including
 the relevant model components (variables and constraints), and the
@@ -142,61 +142,61 @@ by example code).
         across the transmission network.
     (2) **Length of Commitment and Dispatch Periods**, which defines
         the duration of each commitment and dispatch periods. These
-        allow to model the time intervals during which generators can
+        allow us to model the time intervals during which generators can
         change their status (on, off, etc.) and evaluate operational
         decisions made during the power dispatch stage.
 
     .. code-block::
 
        def create_model(self):
-       """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
+           """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
 
-       self.timer.tic("Creating GTEP Model")
-       m = ConcreteModel()
-
-       if self.data is None:
-           raise
-       elif type(self.data) is list:
-           m.data_list = self.data
-           m.md = scale_ModelData_to_pu(self.data[0])
-        
-       model_set_declaration(
-           m, self.stages, 
-           rep_per=[i for i in range(1, self.num_reps + 1)]
-       )
-       m.representativePeriodLength = Param(
-           m.representativePeriods, 
-           within=PositiveReals, 
-           default=24, 
-           units=u.hr
-       ) 
-       m.numCommitmentPeriods = Param(
-           m.representativePeriods,
-           within=PositiveIntegers,
-           default=2,
-           initialize=self.num_commit,
-       )
-       m.numDispatchPeriods = Param(
-           m.representativePeriods,
-           within=PositiveIntegers,
-           default=2,
-           initialize=self.num_dispatch,
-       )
-       m.commitmentPeriodLength = Param(
-           within=PositiveReals, 
-           default=1, 
-           units=u.hr
-       )
-       m.dispatchPeriodLength = Param(
-           within=PositiveReals, 
-           default=15, 
-           units=u.min
-       )
+           self.timer.tic("Creating GTEP Model")
+           m = ConcreteModel()
+    
+           if self.data is None:
+               raise
+           elif type(self.data) is list:
+               m.data_list = self.data
+               m.md = scale_ModelData_to_pu(self.data[0])
+            
+           model_set_declaration(
+               m, self.stages, 
+               rep_per=[i for i in range(1, self.num_reps + 1)]
+           )
+           m.representativePeriodLength = Param(
+               m.representativePeriods, 
+               within=PositiveReals, 
+               default=24, 
+               units=u.hr
+           ) 
+           m.numCommitmentPeriods = Param(
+               m.representativePeriods,
+               within=PositiveIntegers,
+               default=2,
+               initialize=self.num_commit,
+           )
+           m.numDispatchPeriods = Param(
+               m.representativePeriods,
+               within=PositiveIntegers,
+               default=2,
+               initialize=self.num_dispatch,
+           )
+           m.commitmentPeriodLength = Param(
+               within=PositiveReals, 
+               default=1, 
+               units=u.hr
+           )
+           m.dispatchPeriodLength = Param(
+               within=PositiveReals, 
+               default=15, 
+               units=u.min
+           )
 
 (d) Create and label data in the model using a data pre-processing
     function. This function ties the input data directly to the model
-    by assigning values to all parameters. Refer to :ref:`Data` in
-    this documentation to know more details about this procedure.
+    by assigning values to all parameters. Look at the :ref:`Data` section for
+    more information.
 
     .. code-block::
 
@@ -205,12 +205,12 @@ by example code).
  
 **Step 2:** Define Investment Stage
 
-(a) We define the investment stage using the Pyomo component
-    `Block`. Once defined, in this block, we include all relevant cost
+(a) We define the investment stage using a Pyomo `Block` component.
+    This block includes all relevant cost
     variables and constraints associated with generation and
     transmission equipment including operating, expansion,
     maintenance, and penalty costs. Additionally, it incorporates a
-    discrete decision using the Pyomo component `Disjunction` to
+    discrete decision using a Pyomo.GDP `Disjunction` component to
     define the operational status of generation and transmission
     equipment, while considering a series of linking constraints to
     monitor the operational, installed, and retired states of the
@@ -226,8 +226,8 @@ by example code).
 
     During the calculation of the operating costs in this stage, we
     establish a connection with the commitment and dispatch
-    stages. For this, we define a second Pyomo component `Block`
-    specifically dedicated to the commitment stage. Figure 2
+    stages. For this, we define a second Pyomo `Block` component
+    for the commitment stage. Figure 2
     illustrates this interconnection and how these relationships
     propagate throughout the formulation.
     
@@ -258,14 +258,14 @@ by example code).
        `renewableCurtailmentInvestment`     Variable                    Curtailment penalties for investment stage
        `operatingCostInvestment`            Expression                  Operating cost for investment period
        `investStatus`                       Disjunction                 Discrete decision to determine the status for generation investment. The
-                                                                        alternatives, expressed as `disjuncts` in the model are: `genOPerational`,
+                                                                        alternatives, expressed as `disjuncts` in the model are: `genOperational`,
                                                                         `genInstalled`, `genRetired`, `genDisabled`, and `genExtended`
-       `branchinvestStatus`                 Disjunction                 Discrete decision to determine the status for the transmission equipment
+       `branchInvestStatus`                 Disjunction                 Discrete decision to determine the status for the transmission equipment
                                                                         investment. The alternatives (as disjuncts) are: `branchOPerational`,
 									`branchInstalled`, `branchRetired`, `branchDisabled`, and `branchExtended`
        `gen_stats_link`                     Constraint                  Propagate the thermal generators status considering their previous state
        `renewable_stats_link`               Constraint                  Propagate the renewable generators status considering their previous state
-       `renewable retirement`               Constraint                  Propagate the renewable generation retirement status based on previous state
+       `renewable_retirement`               Constraint                  Propagate the renewable generation retirement status based on previous state
                                                                         and lifetime of renewable equipment
        `consistent_extended`                Logical constraint          If a generator is extended at time `t`, it must stay extended or retired at
 	                                                                time `t`
@@ -295,8 +295,8 @@ by example code).
     with their designated statuses. During this stage, we also
     introduce cost and operational constraints that are contingent
     upon the commitment decisions and the outcomes of the dispatch
-    stage. Table 3 provides a detailed overview of these components in
-    the stage model formulation.
+    stage. Table 2 provides a detailed overview of the components in
+    the commitment stage of the model formulation.
 
     Figure 3 illustrates the various components utilized in this
     stage, highlighting the terms that connect to the dispatch
@@ -336,7 +336,7 @@ by example code).
 **Step 4:** Define Dispatch Stage
 
 (a) This stage incorporates all key variables and constraints
-    associated to the dispatch problem, including operational limits
+    associated with the dispatch problem, including operational limits
     for generation and curtailment, as well as definitions for load
     shedding and surplus dispatch. Additionally, this stage outlines
     the costs associated with these variables. Table 3 and Figure 4
@@ -373,7 +373,8 @@ by example code).
        ================================ =================== =========================================================================================
 
 
-(5) Once the data and blocks for the different stages are
+**Step 5:** Define objective function
+    Once the data and blocks for the different stages are
     incorporated, we define the total cost as the objective function
     using the Pyomo `Objective` component. The total cost includes not
     only investment costs, but also operating, expansion, and penalty
