@@ -1,17 +1,9 @@
-name: GitHub CI
+name: GitHub Branch CI
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
   workflow_dispatch:
     inputs:
       git-ref:
@@ -57,7 +49,6 @@ jobs:
 
   build:
     name: ${{ matrix.os }}/${{ matrix.python }}
-    needs: [code-formatting, spell-check]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -67,7 +58,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
+      
       - name: Set up Miniconda Python
         uses: conda-incubator/setup-miniconda@v3
         with:
