@@ -7,11 +7,12 @@ prescient_options = {
     "simulate_out_of_sample": True,
     "run_sced_with_persistent_forecast_errors": True,
     "output_directory": "Prescient/results",
-    "start_date": "08-10-2035",
-    "num_days": 3,
-    "sced_horizon": 1,
+    "start_date": "06-01-2035",
+    "num_days": 120,
+    "sced_horizon": 24,
     "ruc_mipgap": 0.01,
     "deterministic_ruc_solver": "gurobi_persistent",
+    "deterministic_ruc_solver_options": "TimeLimit=120",
     "sced_solver": "gurobi",
     "sced_frequency_minutes": 60,
     "ruc_horizon": 48,
@@ -26,7 +27,6 @@ prescient_options = {
     "enforce_sced_shutdown_ramprate": False,
     "reserve_factor": 0,
     "day_ahead_pricing": "LMP",
-    "print_sced": True
 }
 # run the simulator
 Prescient().simulate(**prescient_options)

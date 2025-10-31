@@ -17,22 +17,27 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 
-# data_path = "./data/5bus"
-data_path = "./data/5bus_jsc"
+data_path = "./gtep/data/5bus"
+# data_path = "./gtep/data/123_Bus_Coal"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 # mod_object = ExpansionPlanningModel(
 #    data=data_object.md, num_reps=2, len_reps=1, stages=2, num_commit=24, num_dispatch=12
 # )
 mod_object = ExpansionPlanningModel(
-    data=data_object.md, num_reps=1, len_reps=1, stages=1, num_commit=24, num_dispatch=2
+    data=data_object, num_reps=1, len_reps=1, stages=3, num_commit=24, num_dispatch=2
 )
+mod_object.config["scale_texas_loads"] = True
+mod_object.config["transmission"] = True
+data_object.import_load_scaling("./gtep/data/123_Bus_Coal/ERCOT-Adjusted-Forecast.xlsb")
 mod_object.create_model()
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
-opt = Highs()
+
+
+#opt = Highs()
 # opt = SolverFactory("gurobi", solver_io="python")
-# opt = Gurobi()
+opt = Gurobi()
 # mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model)
 
@@ -46,7 +51,7 @@ if save_numerical_results:
     sol_object.dump_json()
 load_numerical_results = True
 if load_numerical_results:
-    sol_object.read_json("./gtep_solution_jscTest.json")
+    sol_object.read_json("./gtep_solution_branch_test.json")
     # sol_object.read_json("./gtep_solution.json")
     # sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
 plot_results = True
