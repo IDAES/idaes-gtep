@@ -502,26 +502,22 @@ def add_investment_constraints(b, investment_stage):
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
     @b.Expression()
     def investment_cost(b):
-        return m.investmentFactor[investment_stage] * (
-            sum(
+        baseline_cost = sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
-            )
-            + sum(
+                ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.renewableInstalled[gen]
                 for gen in m.renewableGenerators
-            )
-            + sum(
+            ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.extensionMultiplier[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
-            )
-            + sum(
+            ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.extensionMultiplier[gen]
                 * b.renewableExtended[gen]
@@ -533,20 +529,17 @@ def add_investment_constraints(b, investment_stage):
                 * m.batteryCapitalMultiplier[bat]
                 * b.batInstalled[bat].indicator_var.get_associated_binary()
                 for bat in m.batteryStorageSystems
-            )
-            + sum(
+            ) + sum(
                 m.batteryInvestmentCost[bat]
                 * m.batteryExtensionMultiplier[bat]
                 * b.batExtended[bat].indicator_var.get_associated_binary()
                 for bat in m.batteryStorageSystems
-            )
-            + sum(
+            ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
                 * b.renewableRetired[gen]
                 for gen in m.renewableGenerators
-            )
-            + sum(
+            ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
                 * b.genRetired[gen].indicator_var.get_associated_binary()
@@ -571,14 +564,13 @@ def add_investment_constraints(b, investment_stage):
                 * m.branchCapitalMultiplier[branch]
                 * b.branchInstalled[branch].indicator_var.get_associated_binary()
                 for branch in m.transmission
-            )
-            + sum(
+            ) + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchExtensionMultiplier[branch]
                 * b.branchExtended[branch].indicator_var.get_associated_binary()
                 for branch in m.transmission
             )
-        )
+        return m.investmentFactor[investment_stage] * baseline_cost
 
     # Curtailment penalties for investment period
     @b.Constraint()
@@ -2269,10 +2261,10 @@ def add_representative_period_constraints(b, rep_per):
              ) 
         
         
-def representative_period_rule(
-    b,
-    representative_period,
-):
+# def representative_period_rule(
+#     b,
+#     representative_period,
+# ):
         ##FIXME: is this constraint necessary?
         # @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
         # def consistent_commitment_start_after_downtime(b, commitmentPeriod, thermalGen):
@@ -3167,24 +3159,24 @@ def model_create_investment_stages(m, stages):
 
     # TODO: Do we need these for branches and storage? Would guess yes, but branches seemed to work without it?
     # Linking generator investment status constraints
-    @m.Constraint(m.stages, m.thermalGenerators)
-    def gen_stats_link(m, stage, gen):
-        return (
-            m.investmentStage[stage]
-            .genOperational[gen]
-            .indicator_var.get_associated_binary()
-            == m.investmentStage[stage - 1]
-            .genOperational[gen]
-            .indicator_var.get_associated_binary()
-            + m.investmentStage[stage - 1]
-            .genInstalled[gen]
-            .indicator_var.get_associated_binary()
-            - m.investmentStage[stage - 1]
-            .genRetired[gen]
-            .indicator_var.get_associated_binary()
-            if stage != 1
-            else Constraint.Skip
-        )
+        @m.Constraint(m.stages, m.thermalGenerators)
+        def gen_stats_link(m, stage, gen):
+            return (
+                m.investmentStage[stage]
+                .genOperational[gen]
+                .indicator_var.get_associated_binary()
+                == m.investmentStage[stage - 1]
+                .genOperational[gen]
+                .indicator_var.get_associated_binary()
+                + m.investmentStage[stage - 1]
+                .genInstalled[gen]
+                .indicator_var.get_associated_binary()
+                - m.investmentStage[stage - 1]
+                .genRetired[gen]
+                .indicator_var.get_associated_binary()
+                if stage != 1
+                else Constraint.Skip
+            )
 
     """ Battery investment stage state change logic """
     @m.Constraint(m.stages, m.batteryStorageSystems)
