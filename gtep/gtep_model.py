@@ -2559,9 +2559,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
-    else:
-        m.storage=Set()
-
+    
     ## TODO: make sure time units are both definable and consistent without being forced
 
     m.stages = RangeSet(stages, doc="Set of planning periods")
