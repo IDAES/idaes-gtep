@@ -110,10 +110,7 @@ class ExpansionPlanningModel:
 
         # [ESR WIP: Add cost_data. TODO: Think about how to do some
         # scaling in this data.]
-        if self.cost_data is None:
-            raise
-        else:
-            m.mc = self.cost_data
+        m.mc = self.cost_data
 
         model_set_declaration(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
