@@ -527,7 +527,7 @@ def add_investment_constraints(b, investment_stage):
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
-            """ Added Battery Storage cost to total investment cost expression"""
+            # Add Battery Storage cost to total investment cost expression
             + sum(
                 m.batteryInvestmentCost[bat]
                 * m.batteryCapitalMultiplier[bat]
@@ -552,7 +552,7 @@ def add_investment_constraints(b, investment_stage):
                 * b.genRetired[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
-            #""" Added Battery Storage cost to total investment cost expression"""
+            # Add storage extension cost
             + sum(
                 m.storageInvestmentCost[bat]
                 * m.storageCapitalMultiplier[bat]
