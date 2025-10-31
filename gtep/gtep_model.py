@@ -4,20 +4,19 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
+import math
+import json
+from math import ceil
+import numpy as np
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from pyomo.common.timing import TicTocTimer
+from pyomo.repn.linear import LinearRepnVisitor
 
 from egret.data.model_data import ModelData
 from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
-from pyomo.common.timing import TicTocTimer
-from pyomo.repn.linear import LinearRepnVisitor
-import json
-import numpy as np
 
-import math
-
-
-from math import ceil
 from config_options import _get_model_config
 
 # Define what a USD is for pyomo units purposes
@@ -72,7 +71,7 @@ class ExpansionPlanningModel:
         :param len_reps: (for now integer) length of each representative period (in hours)
         :param num_commit: integer number of commitment periods per representative period
         :param num_dispatch: integer number of dispatch periods per commitment period
-        :param duration_dispatch: integer number of the duration of each dispatch period
+        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
         :return: Pyomo model for full GTEP
         """
 
@@ -104,7 +103,8 @@ class ExpansionPlanningModel:
             m.data_list = self.data
             m.md = scale_ModelData_to_pu(self.data[0])
         else:
-            # If self.data is an Egret model data object, representative periods will just copy it unchanged
+            # If self.data is an Egret model data object,
+            # representative periods will just copy it unchanged
             m.data_list = None
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
@@ -162,7 +162,8 @@ class ExpansionPlanningModel:
     def report_large_coefficients(self, outfile, magnitude_cutoff=1e5):
         """Dump very large magnitude (>= 1e5) coefficients to a json file.
 
-        :outfile: should accept filename or open file and write there; see how we do this in pyomo elsewhere
+        :outfile: should accept filename or open file and write there;
+                  (see how we do this in pyomo elsewhere)
         :magnitude_cutoff: magnitude above which to report coefficients
         """
         var_coef_dict = {}
@@ -299,7 +300,10 @@ def add_investment_constraints(
     b,
     investment_stage,
 ):
-    """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
+    """Add standard inequalities (i.e., those not involving disjunctions)
+    to investment stage block.
+
+    """
 
     m = b.model()
 
@@ -387,7 +391,8 @@ def add_investment_constraints(
     #         else pyo.Constraint.Skip
     #     )
 
-    ## NOTE: The following constraints can be split into rep_per and invest_stage components if desired
+    ## NOTE: The following constraints can be split into rep_per and
+    ## invest_stage components if desired
 
     ## NOTE: Constraint (13) in the reference paper
     @b.Constraint(doc="Minimum per-stage renewable generation requirement")
@@ -414,12 +419,12 @@ def add_investment_constraints(
             * ed  # [ESR WIP: Q: ed is 0 here, is that correct?]
         )
 
-    @b.Expression(doc="Operating costs for investment period")
-    def operatingCostInvestment(b):
-        operatingCostRepresentative = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                operatingCostRepresentative += (
+    @b.Constraint(doc="Operating costs for investment period")
+    def rule_operatingCostInvestment(b):
+        return b.operatingCostInvestment == (
+            m.investmentFactor[investment_stage]
+            * sum(
+                sum(
                     m.weights[rep_per]
                     # [ESR WIP: Commented since we are including the
                     # period during dispatch stage.]
@@ -427,8 +432,11 @@ def add_investment_constraints(
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .operatingCostCommitment
+                    for com_per in b.representativePeriod[rep_per].commitmentPeriods
                 )
-        return m.investmentFactor[investment_stage] * operatingCostRepresentative
+                for rep_per in b.representativePeriods
+            )
+        )
 
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
@@ -846,7 +854,7 @@ def add_dispatch_constraints(b, disp_per):
         balance += sum(
             b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
         )
-        # [ESR WIP: The parameter already has units so no ned to add
+        # [ESR WIP: The parameter already has units so no need to add
         # any other units here.]
         balance -= m.loads[bus]
         balance += b.loadShed[bus]
@@ -1020,7 +1028,7 @@ def add_commitment_variables(b, commitment_period):
         ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit_min(d, dispatchPeriod):
-            return 0 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            return b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator] >= 0 * u.MW
 
         # Maximum operating limits
         @disj.Constraint(b.dispatchPeriods)
@@ -1057,7 +1065,7 @@ def add_commitment_variables(b, commitment_period):
         ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit_max(disj, dispatchPeriod):
-            return b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator] <= 0
+            return b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator] <= 0 * u.MW
 
         # Maximum quickstart reserve constraint
         ## NOTE: maxQuickstartReserve is a percentage of thermalCapacity
@@ -1883,7 +1891,7 @@ def model_data_references(m):
         },
         mutable=True,
         units=u.dimensionless,
-        doc="Maximum fraction maximum thermal generation output that can be supplied as spinning reserve",
+        doc="Maximum fraction of maximum thermal generation output that can be supplied as spinning reserve",
     )
 
     m.quickstartReserveFraction = pyo.Param(
