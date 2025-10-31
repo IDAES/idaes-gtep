@@ -507,7 +507,7 @@ def add_investment_constraints(b, investment_stage):
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
-                ) + sum(
+            ) + sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.renewableInstalled[gen]
@@ -522,9 +522,7 @@ def add_investment_constraints(b, investment_stage):
                 * m.extensionMultiplier[gen]
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
-            )
-            # Add Battery Storage cost to total investment cost expression
-            + sum(
+            ) + sum( 
                 m.batteryInvestmentCost[bat]
                 * m.batteryCapitalMultiplier[bat]
                 * b.batInstalled[bat].indicator_var.get_associated_binary()
@@ -544,22 +542,17 @@ def add_investment_constraints(b, investment_stage):
                 * m.retirementMultiplier[gen]
                 * b.genRetired[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
-            )
-            # Add storage extension cost
-            + sum(
+            ) + sum(
                 m.storageInvestmentCost[bat]
                 * m.storageCapitalMultiplier[bat]
                 * b.storInstalled[bat].indicator_var.get_associated_binary()
                 for bat in m.storage
-            )
-            + sum(
+            ) + sum(
                 m.storageInvestmentCost[bat]
                 * m.storageExtensionMultiplier[bat]
                 * b.storExtended[bat].indicator_var.get_associated_binary()
                 for bat in m.storage
-            )
-            # JSC inprog (done?) - added branch investment costs here
-            + sum(
+            ) + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchCapitalMultiplier[branch]
                 * b.branchInstalled[branch].indicator_var.get_associated_binary()
