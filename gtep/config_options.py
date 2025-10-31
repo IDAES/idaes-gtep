@@ -21,7 +21,7 @@ def _get_model_config():
     CONFIG = ConfigBlock("GTEPModelConfig")
 
     CONFIG.declare(
-        "include_planning",
+        "include_investment",
         ConfigValue(
             default=True,
             domain=Bool,
@@ -39,11 +39,11 @@ def _get_model_config():
     )
 
     CONFIG.declare(
-        "include_dispatch",
+        "include_redispatch",
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Include economic dispatch formulation (i.e., OPF).",
+            description="Include economic redispatch formulation (i.e., >1 dispatch period per commitment period).",
         ),
     )
 
@@ -66,7 +66,7 @@ def _get_model_config():
     CONFIG.declare(
         "time_period_dict",
         ConfigDict(
-            description=r"Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
+            description="Time period dict, specified as \{(investment period #, length): \{(representative period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
 
@@ -86,11 +86,13 @@ def _add_common_configs(CONFIG):
     CONFIG.declare(
         "scale_loads",
         ConfigValue(
-            default=False,
+            default=True,
             domain=Bool,
             description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
         ),
     )
+
+    CONFIG.declare("scale_texas_loads", ConfigValue(default=False, domain=Bool, description = "but why"))
 
 
 def _add_investment_configs(CONFIG):
@@ -124,6 +126,7 @@ def _add_investment_configs(CONFIG):
             description="Include transmission investment options",
         ),
     )
+    CONFIG.declare("transmission_switching", ConfigValue(default=False, domain=Bool, description="Allow transmission switching during dispatch"))
 
 
 def _add_solver_configs(CONFIG):

@@ -13,21 +13,18 @@ data_object.load_prescient(data_path)
 
 
 mod_object = ExpansionPlanningModel(
-    stages=1, data=data_object.md, num_reps=1, len_reps=1, num_commit=24, num_dispatch=4
+    stages=1, data=data_object, num_reps=1, len_reps=1, num_commit=24, num_dispatch=4
 )
 
 for k, v in mod_object.config.items():
     print(f"k: {k}", f"v: {v}")
 
-
-exit()
-
+mod_object.config["include_investment"] = False
 mod_object.create_model()
 
 ic(mod_object)
+exit()
 
-
-quit()
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 # opt = SolverFactory("gurobi")
@@ -36,18 +33,18 @@ opt = Gurobi()
 # # mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model)
 
-sol_object = ExpansionPlanningSolution()
-sol_object.load_from_model(mod_object)
-sol_object.dump_json("./gtep_solution.json")
+# sol_object = ExpansionPlanningSolution()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json("./gtep_solution.json")
 
-sol_object.import_data_object(data_object)
+# sol_object.import_data_object(data_object)
 
-# sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
-# sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
-# sol_object.read_json("./gtep_solution.json")
-# sol_object.read_json("./updated_gtep_solution_test.json")
-# sol_object.read_json("./gtep_wiggles.json")
-sol_object.plot_levels(save_dir="./plots/")
+# # sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
+# # sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
+# # sol_object.read_json("./gtep_solution.json")
+# # sol_object.read_json("./updated_gtep_solution_test.json")
+# # sol_object.read_json("./gtep_wiggles.json")
+# sol_object.plot_levels(save_dir="./plots/")
 
 # save_numerical_results = False
 # if save_numerical_results:
