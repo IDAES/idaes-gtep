@@ -1,0 +1,89 @@
+name: GitHub Branch CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Hash (Optional)
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # -l: login shell, needed when using Conda run:
+    shell: bash -l {0}
+
+jobs:
+  code-formatting:
+    name: Check code formatting (Black)
+    # OS and/or Python version don't make a difference, so we choose ubuntu and 3.10 for performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Black
+        run: |
+          pip install black
+      - name: Run Black to verify that the committed code is formatted
+        run: |
+          black --check --diff .
+
+  spell-check:
+    name: Check Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Run Spell Checker
+        uses: crate-ci/typos@master
+        with: 
+          config: ./.github/workflows/typos.toml
+
+  build:
+    name: ${{ matrix.os }}/${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: 
+        os: [ubuntu-latest, windows-latest]
+        python: [3.9, '3.10', '3.11', '3.12']
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      
+      - name: Set up Miniconda Python
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install Python packages (conda)
+        run: |
+          # Set up environment
+          conda config --set always_yes yes
+          conda config --set auto_update_conda false
+          conda config --remove channels defaults
+          conda config --append channels nodefaults
+          conda config --append channels conda-forge
+          
+          echo "Install Python packages"
+          conda install --yes --quiet pip setuptools wheel
+          conda install --yes --quiet scipy pyomo pytest highspy
+          
+          echo "Final conda environment:"
+          conda list | sed 's/^/    /'
+
+      - name: Install idaes-gtep
+        run: |
+          pip install -e .
+          
+      - name: Run Tests
+        run: |
+          pytest -v gtep

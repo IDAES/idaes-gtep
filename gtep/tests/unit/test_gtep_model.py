@@ -103,7 +103,8 @@ class TestGTEP(unittest.TestCase):
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model)
-        modObject.model.pprint()
+
+        # previous successful objective values: 9207.95, 6078.86
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 6078.86, places=1
         )
@@ -111,3 +112,13 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
+
+    def test_no_investment(self):
+        md = read_debug_model()
+        modObject = ExpansionPlanningModel(
+            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        )
+        modObject.config["include_investment"] = False
+        modObject.create_model()
+
+        pass

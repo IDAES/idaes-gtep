@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
   workflow_dispatch:
     inputs:
       git-ref:
@@ -29,18 +34,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: Install Black
-        # unlike the other jobs, we don't need to install IDAES and/or all the dev dependencies,
-        # but we still want to specify the Black version to use in requirements-dev.txt for local development
-        # so we extract the relevant line and pass it to a simple `pip install`
         run: |
           pip install black
       - name: Run Black to verify that the committed code is formatted
         run: |
-          black --check .
+          black --check --diff .
 
   spell-check:
     name: Check Spelling
@@ -58,25 +60,39 @@ jobs:
     needs: [code-formatting, spell-check]
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix: 
         os: [ubuntu-latest, windows-latest]
-        python: [3.9, '3.10', '3.11']
+        python: [3.9, '3.10', '3.11', '3.12']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+
+      - name: Set up Miniconda Python
+        uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python }}
-      - name: Install Pyomo
+
+      - name: Install Python packages (conda)
         run: |
-          pip install git+https://github.com/Pyomo/pyomo.git
+          # Set up environment
+          conda config --set always_yes yes
+          conda config --set auto_update_conda false
+          conda config --remove channels defaults
+          conda config --append channels nodefaults
+          conda config --append channels conda-forge
+          
+          echo "Install Python packages"
+          conda install --yes --quiet pip setuptools wheel
+          conda install --yes --quiet scipy pyomo pytest highspy
+          
+          echo "Final conda environment:"
+          conda list | sed 's/^/    /'
+
       - name: Install idaes-gtep
         run: |
-          python setup.py develop
+          pip install -e .
+          
       - name: Run Tests
         run: |
-          pip install pytest
-          pip install highspy
           pytest -v gtep
-          
