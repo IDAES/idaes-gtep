@@ -134,61 +134,6 @@ class ExpansionPlanningData:
             "south_net",
             "west_net",
         ]
-        zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
-        cap_zones = [zone.upper() for zone in zones]
-        for i, zone in enumerate(zones):
-            adjusted_forecast_by_period["scaled_" + zone] = (
-                adjusted_forecast_by_period[scaled_zones[i]]
-                / adjusted_forecast_by_period[base_zones[i]]
-            )
-        column_list = [
-            "year",
-            "month",
-            "day",
-            "hour",
-            "scaled_coast",
-            "scaled_east",
-            "scaled_fwest",
-            "scaled_ncent",
-            "scaled_north",
-            "scaled_scent",
-            "scaled_south",
-            "scaled_west",
-        ]
-        load_scaling_df = adjusted_forecast_by_period[column_list]
-        scaled_names = ["scaled_" + zone for zone in zones]
-        name_conversion_dict = dict(zip(scaled_names, cap_zones))
-        load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
-
-        self.load_scaling = load_scaling_df
-
-    def import_load_scaling(self, load_file_name):
-        adjusted_forecast = pd.read_excel(load_file_name)
-        adjusted_forecast_by_period = adjusted_forecast[
-            (adjusted_forecast["year"] == 2025)
-            | (adjusted_forecast["year"] == 2030)
-            | (adjusted_forecast["year"] == 2035)
-        ]
-        base_zones = [
-            "base_economic_coast",
-            "base_economic_east",
-            "base_economic_fwest",
-            "base_economic_ncent",
-            "base_economic_north",
-            "base_economic_scent",
-            "base_economic_south",
-            "base_economic_west",
-        ]
-        scaled_zones = [
-            "coast_net",
-            "east_net",
-            "fwest_net",
-            "ncent_net",
-            "north_net",
-            "scent_net",
-            "south_net",
-            "west_net",
-        ]
         # zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
         # cap_zones = [zone.upper() for zone in zones]
         zones = ["1","2","3","4",'5','6','7','8']
