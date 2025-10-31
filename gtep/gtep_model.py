@@ -759,6 +759,7 @@ def add_dispatch_variables(b, dispatch_period):
 
         # Voltage angle
         def bus_angle_bounds(disj, bus):
+            return (-1000,1000)
             return (-math.pi / 6, math.pi / 6)
 
         # Only create bus angle variables for the buses associated with this
@@ -779,6 +780,7 @@ def add_dispatch_variables(b, dispatch_period):
 
         # Voltage angle
         def delta_bus_angle_bounds(disj, bus):
+            return (-1000,1000)
             return (-math.pi / 6, math.pi / 6)
 
         # Rule for maximum bus angle discrepancy
@@ -2511,7 +2513,7 @@ def model_data_references(m):
     }
 
     m.storageInvestmentCost = {
-        bat: 0
+        bat: 1
         for bat in m.storage
         } # Future not real cost: idealized DoE 10-yr targets or something
 
