@@ -13,6 +13,8 @@ Welcome to idaes-gtep's documentation!
    modeling
    data
    solving
+   installation
+   tutorial
 
 
 
