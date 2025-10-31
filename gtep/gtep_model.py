@@ -784,7 +784,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=spinning_reserve_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
     def quickstart_reserve_limits(
@@ -800,7 +800,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=quickstart_reserve_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
     )
 
 
