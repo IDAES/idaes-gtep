@@ -6,7 +6,6 @@ from pyomo.environ import SolverFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 from pyomo.contrib.appsi.solvers.ipopt import Ipopt
-from icecream import ic
 
 data_path = "./gtep/data/9bus"
 data_object = ExpansionPlanningData()
