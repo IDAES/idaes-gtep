@@ -252,7 +252,7 @@ by example code).
        `renewableOperational`               Variable                    Power provided to the grid by renewable generator at operation
        `renewableInstalled`                 Variable                    Power provided to the grid by renewable generator at installation
        `renewableRetired`                   Variable                    Power removed from the grid if renewable generator is retired
-       `renewableExtended`                  Variable                    Extended power for renewable generator
+       `renewableExtended`                  Variable                    Power provided to the grid if renewable generator lifetime is extended
        `quotaDeficit`                       Variable                    Deficit for investment stage                   
        `expansionCost`                      Variable                    Cost of investment for new installed generators and transmission lines
        `renewableCurtailmentInvestment`     Variable                    Curtailment penalties for investment stage
