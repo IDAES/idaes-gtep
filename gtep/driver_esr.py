@@ -24,7 +24,7 @@ data_object.load_prescient(data_path)
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
 
 bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "data/costs/2022 v3 Annual Technology Baseline Workbook Mid-year update 2-15-2023 Clean.xlsx"
+cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 candidate_gens = [
     "Natural Gas_CT",
     "Natural Gas_FE",
