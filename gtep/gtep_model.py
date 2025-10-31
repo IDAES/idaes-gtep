@@ -18,14 +18,13 @@ import math
 
 
 from math import ceil
-from config_options import _get_model_config
+from gtep.config_options import _get_model_config
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
 # based on automatic pyomo unit transformations
 u.load_definitions_from_strings(["USD = [currency]"])
 
-rng = np.random.default_rng(seed=123186)
 
 ####################################
 ########## New Work Here ###########
@@ -190,10 +189,7 @@ class ExpansionPlanningModel:
 ####################################
 
 
-def add_investment_variables(
-    b,
-    investment_stage,
-):
+def add_investment_variables(b, investment_stage):
     """Add variables to investment stage block.
 
     :param b: Investment block
@@ -295,10 +291,7 @@ def add_investment_variables(
     )
 
 
-def add_investment_constraints(
-    b,
-    investment_stage,
-):
+def add_investment_constraints(b, investment_stage):
     """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
 
     m = b.model()
@@ -504,10 +497,7 @@ def add_investment_constraints(
         )
 
 
-def add_dispatch_variables(
-    b,
-    dispatch_period,
-):
+def add_dispatch_variables(b, dispatch_period):
     """Add dispatch-associated variables to representative period block."""
 
     m = b.model()
@@ -745,10 +735,7 @@ def add_dispatch_variables(
     # provide the basis for transmission switching in the future
     @b.Disjunction(m.transmission)
     def branchInUseStatus(disj, branch):
-        return [
-            disj.branchInUse[branch],
-            disj.branchNotInUse[branch],
-        ]
+        return [disj.branchInUse[branch], disj.branchNotInUse[branch]]
 
     # JSC update - If a branch is in use, it must be active
     # Update this when switching is implemented
@@ -786,7 +773,7 @@ def add_dispatch_variables(
         domain=pyo.NonNegativeReals,
         bounds=spinning_reserve_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     def quickstart_reserve_limits(
@@ -802,7 +789,7 @@ def add_dispatch_variables(
         domain=pyo.NonNegativeReals,
         bounds=quickstart_reserve_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
 
@@ -861,6 +848,7 @@ def add_dispatch_constraints(b, disp_per):
             == c_p.renewableCapacityExpected[renewableGen]
         )
 
+    ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
         return (
@@ -1093,10 +1081,7 @@ def add_commitment_variables(b, commitment_period):
         )
 
 
-def add_commitment_constraints(
-    b,
-    comm_per,
-):
+def add_commitment_constraints(b, comm_per):
     """Add commitment-associated disjunctions and constraints to representative period block."""
     m = b.model()
     r_p = b.parent_block()
@@ -1506,10 +1491,7 @@ def add_representative_period_constraints(b, rep_per):
         )
 
 
-def representative_period_rule(
-    b,
-    representative_period,
-):
+def representative_period_rule(b, representative_period):
     """Create representative period block.
 
     :b: Representative period block
@@ -1527,10 +1509,7 @@ def representative_period_rule(
     add_representative_period_constraints(b, representative_period)
 
 
-def investment_stage_rule(
-    b,
-    investment_stage,
-):
+def investment_stage_rule(b, investment_stage):
     """Creates investment stage block.
 
     :b: Investment block

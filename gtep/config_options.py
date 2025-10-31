@@ -19,6 +19,34 @@ _supported_flows = {
 
 def _get_model_config():
     CONFIG = ConfigBlock("GTEPModelConfig")
+
+    CONFIG.declare(
+        "include_planning",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Enable inclusion of any investment options.",
+        ),
+    )
+
+    CONFIG.declare(
+        "include_commitment",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Include unit commitment formulation.",
+        ),
+    )
+
+    CONFIG.declare(
+        "include_dispatch",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description="Include economic dispatch formulation (i.e., OPF).",
+        ),
+    )
+
     CONFIG.declare(
         "flow_model",
         ConfigValue(
@@ -27,25 +55,42 @@ def _get_model_config():
             description="Power flow approximation to use.",
         ),
     )
+
+    CONFIG.declare(
+        "time_period_subsets",
+        ConfigList(
+            description="Time period counts for fixed-length and fixed-subset periods."
+        ),
+    )
+
     CONFIG.declare(
         "time_period_dict",
         ConfigDict(
-            description="Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
+            description=r"Time period dict, specified as \{(investment period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
         ),
     )
+
     CONFIG.declare(
-        "dispatch_randomizations",
+        "dispatch_randomization",
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Introduces random dispatch information rather than having fixed values per-commitment period.",
+            description="Introduces random dispatch information rather than having fixed values per commitment period.",
         ),
     )
     return CONFIG
 
 
 def _add_common_configs(CONFIG):
-    pass
+
+    CONFIG.declare(
+        "scale_loads",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
+        ),
+    )
 
 
 def _add_investment_configs(CONFIG):
@@ -79,7 +124,6 @@ def _add_investment_configs(CONFIG):
             description="Include transmission investment options",
         ),
     )
-    pass
 
 
 def _add_solver_configs(CONFIG):
