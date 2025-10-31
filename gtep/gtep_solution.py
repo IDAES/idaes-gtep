@@ -438,7 +438,7 @@ class ExpansionPlanningSolution:
         )
         plt.close()
 
-    def _plot_workhose_binaries(
+    def _plot_workhorse_binaries(
         self,
         level_key,
         df,
@@ -576,7 +576,7 @@ class ExpansionPlanningSolution:
                 if matched_config_override:
                     vars = config["order_branch_invest_state"]
 
-            self._plot_workhose_binaries(
+            self._plot_workhorse_binaries(
                 level_key, df, keys, vars, parent_key_string, pretty_title, save_dir
             )
 

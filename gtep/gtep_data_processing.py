@@ -110,7 +110,7 @@ class DataProcessing:
             else:
                 gens_of_interest_unfilt.append(gen)
 
-        # Since we can use two diferent natural gas generators, add a
+        # Since we can use two different natural gas generators, add a
         # filter to remove the repeated natural gas generator (this
         # because we only have cost data for the "_FE" kind).
         gens_of_interest = []
