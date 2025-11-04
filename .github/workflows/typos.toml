@@ -10,8 +10,8 @@ ND = "ND"
 nd = "nd"
 # Ignore opf
 opf = "opf"
-# Ignore ACTIVS
-ACTIVS = "ACTIVS"
+# Ignore ACTIV
+ACTIV = "ACTIV"
 
 # Places in the Texas_2000 case
 # Ignore BUDA
