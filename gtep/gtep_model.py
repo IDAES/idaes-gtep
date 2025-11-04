@@ -894,23 +894,6 @@ def add_dispatch_variables(b, dispatch_period):
         # def max_delta_bus_angle(disj):
         #     return abs(disj.deltaBusAngle) <= math.pi/6
 
-        @disj.Constraint()
-        def dc_power_flow(disj):
-            fb = m.transmission[branch]["from_bus"]
-            tb = m.transmission[branch]["to_bus"]
-            reactance = m.md.data["elements"]["branch"][branch]["reactance"]
-            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
-                reactance *= m.md.data["elements"]["branch"][branch][
-                    "transformer_tap_ratio"
-                ]
-                shift = m.md.data["elements"]["branch"][branch][
-                    "transformer_phase_shift"
-                ]
-            else:
-                shift = 0
-            return b.powerFlow[branch] == (-1 / reactance) * (
-                disj.busAngle[tb] - disj.busAngle[fb] + shift
-            )
         
         if m.config["flow_model"] == "ACP":
             fb = m.transmission[branch]["from_bus"]
