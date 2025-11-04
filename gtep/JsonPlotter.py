@@ -32,7 +32,7 @@ sol_object.import_data_object(data_object)
 
 load_numerical_results = True
 if load_numerical_results:
-#     # sol_object.read_json("./gtep_solution.json")
+    #     # sol_object.read_json("./gtep_solution.json")
     sol_object.read_json("./gtep_solution_DC_9busSanityTest.json")
 plot_results = True
 if plot_results:

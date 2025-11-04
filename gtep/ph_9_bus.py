@@ -9,7 +9,6 @@ from forestlib.ph import stochastic_program
 from forestlib.ph import ProgressiveHedgingSolver
 
 
-
 def model_builder(scen, scen_args):
     model = pyo.ConcreteModel(scen["ID"])
     if scen["ID"] == "BelowAverageScenario":
@@ -62,6 +61,7 @@ def model_builder(scen, scen_args):
 
     return model
 
+
 model_data = {
     "scenarios": [
         {
@@ -94,6 +94,8 @@ model_data_gtep = {
         }
     ]
 }
+
+
 def model_builder_wrapper(scen, scen_args):
     data_path = "./data/9bus"
     data_object = ExpansionPlanningData()
@@ -108,24 +110,28 @@ def model_builder_wrapper(scen, scen_args):
         num_dispatch=2,
     )
     mod_object.create_model()
-    TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model) 
+    TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
     TransformationFactory("gdp.bigm").apply_to(mod_object.model)
     return mod_object.model
 
 
 opt = Gurobi()
-#opt = Highs()
-GTEP_SP = stochastic_program(first_stage_variables=["investmentStage[1].genOperational[G3].binary_indicator_var"])
-GTEP_SP.initialize_model(model_data=model_data_gtep, model_builder=model_builder_wrapper)
+# opt = Highs()
+GTEP_SP = stochastic_program(
+    first_stage_variables=["investmentStage[1].genOperational[G3].binary_indicator_var"]
+)
+GTEP_SP.initialize_model(
+    model_data=model_data_gtep, model_builder=model_builder_wrapper
+)
 ph = ProgressiveHedgingSolver()
-#embed()
+# embed()
 results = ph.solve(GTEP_SP, max_iterations=10, solver="gurobi", rho=10)
 
-#mod_object.results = opt.solve(mod_object.model) 
-#sol_object = ExpansionPlanningSolution()
-#sol_object.load_from_model(mod_object)
-#sol_object.dump_json("./gtep_solution.json")
+# mod_object.results = opt.solve(mod_object.model)
+# sol_object = ExpansionPlanningSolution()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json("./gtep_solution.json")
 
-#sol_object.import_data_object(data_object)
+# sol_object.import_data_object(data_object)
 
-#sol_object.plot_levels(save_dir="./plots/")
+# sol_object.plot_levels(save_dir="./plots/")

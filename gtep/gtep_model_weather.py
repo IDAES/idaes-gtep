@@ -4,9 +4,10 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
-from pyomo.environ import * 
+from pyomo.environ import *
 from pyomo.environ import units as u
 from IPython import embed
+
 # from pyomo.gdp import *
 
 from egret.data.model_data import ModelData

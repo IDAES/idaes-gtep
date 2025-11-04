@@ -15,8 +15,7 @@ _supported_flows = {
     "DC": ("gtep.dcopf", "DC power flow approximation"),
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
-    "ACR": ("gtep.acr", "AC power flow in rectangular formulation")
-
+    "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
 }
 
 
@@ -95,7 +94,10 @@ def _add_common_configs(CONFIG):
         ),
     )
 
-    CONFIG.declare("scale_texas_loads", ConfigValue(default=False, domain=Bool, description = "but why"))
+    CONFIG.declare(
+        "scale_texas_loads",
+        ConfigValue(default=False, domain=Bool, description="but why"),
+    )
 
 
 def _add_investment_configs(CONFIG):
@@ -129,7 +131,14 @@ def _add_investment_configs(CONFIG):
             description="Include transmission investment options",
         ),
     )
-    CONFIG.declare("transmission_switching", ConfigValue(default=False, domain=Bool, description="Allow transmission switching during dispatch"))
+    CONFIG.declare(
+        "transmission_switching",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Allow transmission switching during dispatch",
+        ),
+    )
 
 
 def _add_solver_configs(CONFIG):

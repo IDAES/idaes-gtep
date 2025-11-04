@@ -101,7 +101,7 @@ class TestGTEP(unittest.TestCase):
         if not opt.available():
             print("Ack, no Highs?")
             print(f"{opt.available() = }")
-            raise AssertionError 
+            raise AssertionError
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
         modObject.results = opt.solve(modObject.model)
@@ -113,4 +113,5 @@ class TestGTEP(unittest.TestCase):
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
 
-#md=read_debug_model()
+
+# md=read_debug_model()

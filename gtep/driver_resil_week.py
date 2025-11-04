@@ -80,7 +80,9 @@ mod_object.timer.toc(
     "let's start to solve -- this is really the start of the handoff to gurobi"
 )
 mod_object.results = opt.solve(
-    mod_object.model, tee=True, solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.001}
+    mod_object.model,
+    tee=True,
+    solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.001},
 )
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
@@ -90,7 +92,7 @@ import pyomo.environ as pyo
 import pyomo.gdp as gdp
 
 valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
-#thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
+# thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
 renewable_investments = {}
 dispatchable_investments = {}
 load_shed = {}
@@ -149,4 +151,3 @@ with open(costs_name, "w") as fil:
     json.dump(costs, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
-

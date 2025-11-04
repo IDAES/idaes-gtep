@@ -31,19 +31,18 @@ for bus in mod_object.data.data["elements"]["bus"].keys():
     mod_object.data.data["elements"]["bus"][bus]["longitude"] = longitude
 
 
-TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model) 
-TransformationFactory("gdp.bigm").apply_to(mod_object.model) 
-#embed()
+TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+# embed()
 opt = Gurobi()
-#opt = Highs()
+# opt = Highs()
 
-mod_object.results = opt.solve(mod_object.model) 
-#embed()
-#sol_object = ExpansionPlanningSolution()
-#sol_object.load_from_model(mod_object)
-#sol_object.dump_json("./gtep_solution.json")
+mod_object.results = opt.solve(mod_object.model)
+# embed()
+# sol_object = ExpansionPlanningSolution()
+# sol_object.load_from_model(mod_object)
+# sol_object.dump_json("./gtep_solution.json")
 
-#sol_object.import_data_object(data_object)
+# sol_object.import_data_object(data_object)
 
-#sol_object.plot_levels(save_dir="./plots/")
-
+# sol_object.plot_levels(save_dir="./plots/")

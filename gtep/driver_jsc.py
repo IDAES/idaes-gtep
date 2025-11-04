@@ -35,7 +35,7 @@ TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
 
-#opt = Highs()
+# opt = Highs()
 # opt = SolverFactory("gurobi", solver_io="python")
 opt = Gurobi()
 # mod_object.results = opt.solve(mod_object.model, tee=True)
