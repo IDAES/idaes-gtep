@@ -853,7 +853,7 @@ def add_commitment_variables(b, commitment_period):
             )
 
         # Maximum spinning reserve constraint
-        ##NOTE: maxSpiningReserve is a percentage of thermalCapacity
+        ##NOTE: maxSpinningReserve is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
         def max_spinning_reserve(disj, dispatchPeriod, generator):
             return (

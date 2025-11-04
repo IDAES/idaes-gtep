@@ -10,3 +10,21 @@ ND = "ND"
 nd = "nd"
 # Ignore opf
 opf = "opf"
+# Ignore ACTIVS
+ACTIVS = "ACTIVS"
+
+# Places in the Texas_2000 case
+# Ignore BUDA
+BUDA = "BUDA"
+# Ignore DEVINE
+DEVINE = "DEVINE"
+# Ignore DAMON
+DAMON = "DAMON"
+
+[type.jupyter]
+extend-ignore-re = [
+    # Jupyter notebooks: ignore hexadecimal values in "id" cell metadata field
+    "\"id\": \".*\"",
+    # ser is used as a variable name for pd.Series, so we exclude it when followed by a dot
+    "ser[.].*",
+]
