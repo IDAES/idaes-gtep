@@ -11,16 +11,10 @@ import gc
 
 gc.disable()
 
-import tracemalloc
-
-tracemalloc.start()
-
 data_path = "./gtep/data/Texas_2000"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
-snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/data_load.snap')
 
 # for data in data_object.representative_data:
 #     print(data.data["elements"]['load'])
@@ -31,9 +25,6 @@ data_object.import_load_scaling(load_scaling_path)
 # data_object.import_outage_data(outage_path)
 
 data_object.texas_case_study_updates(data_path)
-
-snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/scaled_data.snap')
 
 # for data in data_object.representative_data:
 #     for gen in data.data["elements"]["generator"].keys():
@@ -49,7 +40,7 @@ snapshot.dump('mem_trace/scaled_data.snap')
 ## Change num_reps from 4 to 5 to include extreme days
 
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=5, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
@@ -66,9 +57,6 @@ mod_object.config["flow_model"] = "DC"
 mod_object.create_model()
 mod_object.timer.toc("horrible")
 
-snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/model_build.snap')
-
 # import sys
 # sys.exit()
 # TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
@@ -77,9 +65,6 @@ mod_object.timer.toc("double horrible")
 # sys.exit()
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 mod_object.timer.toc("triple horrible")
-
-snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/model_transform.snap')
 
 # import sys
 # sys.exit()
@@ -97,11 +82,10 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01}
+    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.001},
 )
 
-snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/post_gurobi.snap')
+
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
 
@@ -144,8 +128,13 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
 ## You may want to save a few more things from the Expressions
 
 costs = {}
-# for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
-#     costs[var.name] = pyo.value(exp)
+for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
+    if "Cost" in exp.name or "cost" in exp.name:
+        if type(exp) is ScalarExpression:
+            costs[exp.name] = pyo.value(exp)
+        if type(exp) is IndexedExpression:
+            for e in exp:
+                costs[exp[e].name] = pyo.value(exp[e])
 
 import json
 import os
@@ -153,7 +142,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "mem_trace"
+folder_name = "informs_optimization_results"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
