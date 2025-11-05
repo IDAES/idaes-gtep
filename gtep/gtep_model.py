@@ -236,35 +236,35 @@ def add_investment_variables(b, investment_stage):
     """ Energy Storage Investment States"""
 
     # Energy Storage (Battery) disjuncts. For now mimicking thermal generators
-    @b.Disjunct(m.batteryStorageSystems)
-    def batOperational(disj, bat):
-        return
+    # @b.Disjunct(m.batteryStorageSystems)
+    # def batOperational(disj, bat):
+    #     return
 
-    @b.Disjunct(m.batteryStorageSystems)
-    def batInstalled(disj, bat):
-        return
+    # @b.Disjunct(m.batteryStorageSystems)
+    # def batInstalled(disj, bat):
+    #     return
 
-    @b.Disjunct(m.batteryStorageSystems)
-    def batRetired(disj, bat):
-        return
+    # @b.Disjunct(m.batteryStorageSystems)
+    # def batRetired(disj, bat):
+    #     return
 
-    @b.Disjunct(m.batteryStorageSystems)
-    def batDisabled(disj, bat):
-        return
+    # @b.Disjunct(m.batteryStorageSystems)
+    # def batDisabled(disj, bat):
+    #     return
 
-    @b.Disjunct(m.batteryStorageSystems)
-    def batExtended(disj, bat):
-        return
+    # @b.Disjunct(m.batteryStorageSystems)
+    # def batExtended(disj, bat):
+    #     return
 
-    @b.Disjunction(m.batteryStorageSystems)
-    def batInvestStatus(disj, bat):
-        return [
-            disj.batOperational[bat],
-            disj.batInstalled[bat],
-            disj.batRetired[bat],
-            disj.batDisabled[bat],
-            disj.batExtended[bat],
-        ]
+    # @b.Disjunction(m.batteryStorageSystems)
+    # def batInvestStatus(disj, bat):
+    #     return [
+    #         disj.batOperational[bat],
+    #         disj.batInstalled[bat],
+    #         disj.batRetired[bat],
+    #         disj.batDisabled[bat],
+    #         disj.batExtended[bat],
+    #     ]
 
     if m.config["transmission"]:
         # Line disjuncts. For now mimicking thermal generator disjuncts, though different states may need to be defined
@@ -344,18 +344,18 @@ def add_investment_constraints(b, investment_stage):
             b.genInstalled[gen].indicator_var.fix(True)
 
     """ Energy Storage: Fixing In-Service batteries initial investment state based on input"""
-    for bat in m.batteryStorageSystems:
-        if (
-            m.md.data["elements"]["storage"][bat]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.batDisabled[bat].indicator_var.fix(True)
-        elif (
-            m.md.data["elements"]["storage"][bat]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.batInstalled[bat].indicator_var.fix(True)
-            # Also initialize storage level
+    # for bat in m.batteryStorageSystems:
+    #     if (
+    #         m.md.data["elements"]["storage"][bat]["in_service"] == False
+    #         and investment_stage == 1
+    #     ):
+    #         b.batDisabled[bat].indicator_var.fix(True)
+    #     elif (
+    #         m.md.data["elements"]["storage"][bat]["in_service"] == True
+    #         and investment_stage == 1
+    #     ):
+    #         b.batInstalled[bat].indicator_var.fix(True)
+    #         # Also initialize storage level
 
     for branch in m.transmission:
         b.genOperational[gen].indicator_var.fix(True)
@@ -515,18 +515,18 @@ def add_investment_constraints(b, investment_stage):
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
-            + sum(
-                m.batteryInvestmentCost[bat]
-                * m.batteryCapitalMultiplier[bat]
-                * b.batInstalled[bat].indicator_var.get_associated_binary()
-                for bat in m.batteryStorageSystems
-            )
-            + sum(
-                m.batteryInvestmentCost[bat]
-                * m.batteryExtensionMultiplier[bat]
-                * b.batExtended[bat].indicator_var.get_associated_binary()
-                for bat in m.batteryStorageSystems
-            )
+            # + sum(
+            #     m.batteryInvestmentCost[bat]
+            #     * m.batteryCapitalMultiplier[bat]
+            #     * b.batInstalled[bat].indicator_var.get_associated_binary()
+            #     for bat in m.batteryStorageSystems
+            # )
+            # + sum(
+            #     m.batteryInvestmentCost[bat]
+            #     * m.batteryExtensionMultiplier[bat]
+            #     * b.batExtended[bat].indicator_var.get_associated_binary()
+            #     for bat in m.batteryStorageSystems
+            # )
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
@@ -674,48 +674,48 @@ def add_dispatch_variables(b, dispatch_period):
 
     """ Battery Parameters """
 
-    def battery_capacity_limits(b, bat):
-        return (
-            m.minBatteryChargeLevel[bat],
-            m.batteryCapacity[bat],
-        )  # The lower bound should be > 0 - data input
+    # def battery_capacity_limits(b, bat):
+    #     return (
+    #         m.minBatteryChargeLevel[bat],
+    #         m.batteryCapacity[bat],
+    #     )  # The lower bound should be > 0 - data input
 
-    # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
-    def init_battery_capacity(b, bat):
-        return m.initBatteryChargeLevel[bat]
+    # # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
+    # def init_battery_capacity(b, bat):
+    #     return m.initBatteryChargeLevel[bat]
 
-    b.batteryChargeLevel = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_capacity_limits,
-        initialize=init_battery_capacity,
-        units=u.MW,
-    )
+    # b.batteryChargeLevel = Var(
+    #     m.batteryStorageSystems,
+    #     domain=NonNegativeReals,
+    #     bounds=battery_capacity_limits,
+    #     initialize=init_battery_capacity,
+    #     units=u.MW,
+    # )
 
     # Define bounds on charging/discharging capability. Note that constraints
     # enforce that there are min & max charge/discharge levels if the bat is in
     # the charging or discharging state
-    def battery_charge_limits(b, bat):
-        return (0, m.chargeMax[bat])
+    # def battery_charge_limits(b, bat):
+    #     return (0, m.chargeMax[bat])
 
-    def battery_discharge_limits(b, bat):
-        return (0, m.dischargeMax[bat])
+    # def battery_discharge_limits(b, bat):
+    #     return (0, m.dischargeMax[bat])
 
-    b.batteryCharged = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_charge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+    # b.batteryCharged = Var(
+    #     m.batteryStorageSystems,
+    #     domain=NonNegativeReals,
+    #     bounds=battery_charge_limits,
+    #     initialize=0,
+    #     units=u.MW,
+    # )
 
-    b.batteryDischarged = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_discharge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+    # b.batteryDischarged = Var(
+    #     m.batteryStorageSystems,
+    #     domain=NonNegativeReals,
+    #     bounds=battery_discharge_limits,
+    #     initialize=0,
+    #     units=u.MW,
+    # )
 
     # # Define bounds on thermal generator reactive generation
     # def thermal_reactive_generation_limits(b, thermalGen):

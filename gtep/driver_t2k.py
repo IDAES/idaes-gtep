@@ -143,7 +143,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "informs_optimization_results"
+folder_name = "informs_optimization_results_bus_weighted"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
