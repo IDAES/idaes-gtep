@@ -470,20 +470,20 @@ def add_investment_constraints(b, investment_stage):
 
     """ Energy Storage Cost """
 
-    @b.Expression()
-    def storageCostInvestment(b):
-        storageCostRepresentative = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                storageCostRepresentative += (
-                    m.weights[rep_per]
-                    * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .storageCostCommitment
-                )
+    # @b.Expression()
+    # def storageCostInvestment(b):
+    #     storageCostRepresentative = 0
+    #     for rep_per in b.representativePeriods:
+    #         for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+    #             storageCostRepresentative += (
+    #                 m.weights[rep_per]
+    #                 * m.commitmentPeriodLength
+    #                 * b.representativePeriod[rep_per]
+    #                 .commitmentPeriod[com_per]
+    #                 .storageCostCommitment
+    #             )
 
-        return m.investmentFactor[investment_stage] * storageCostRepresentative
+    #     return m.investmentFactor[investment_stage] * storageCostRepresentative
 
     # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
@@ -2441,9 +2441,9 @@ def create_objective_function(m):
         m.operatingCost = sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
-        m.storageCost = sum(
-            m.investmentStage[stage].storageCostInvestment for stage in m.stages
-        )
+        # m.storageCost = sum(
+        #     m.investmentStage[stage].storageCostInvestment for stage in m.stages
+        # )
         m.expansionCost = sum(
             m.investmentStage[stage].investment_cost for stage in m.stages
         )
@@ -2458,11 +2458,10 @@ def create_objective_function(m):
     @m.Objective()
     def total_cost_objective_rule(m):
         if len(m.stages) > 1:
-            return m.operatingCost + m.storageCost + m.expansionCost + m.penaltyCost
+            return m.operatingCost + m.expansionCost + m.penaltyCost
         else:
             return (
-                m.investmentStage[1].operatingCostInvestment
-                + m.investmentStage[1].storageCostInvestment  # JSC Addn
+                m.investmentStage[1].operatingCostInvestment # JSC Addn
                 + m.investmentStage[1].expansionCost
                 + m.deficitPenalty[1]
                 * m.investmentFactor[1]
