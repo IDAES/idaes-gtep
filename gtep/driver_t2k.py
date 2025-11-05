@@ -49,7 +49,7 @@ mod_object = ExpansionPlanningModel(
 mod_object.config["include_investment"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = True
-mod_object.config["transmission"] = False
+mod_object.config["transmission"] = True
 
 mod_object.config["flow_model"] = "DC"
 
