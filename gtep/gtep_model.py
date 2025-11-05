@@ -783,9 +783,9 @@ def add_dispatch_variables(b, dispatch_period):
     # * b.dispatchLength
 
     # Per generator reactive power cost
-    @b.Expression(m.thermalGenerators)
-    def reactiveGeneratorCost(b, gen):
-        return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+    # @b.Expression(m.thermalGenerators)
+    # def reactiveGeneratorCost(b, gen):
+    #     return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
 
     # Load shed per bus
     b.loadShed = Var(m.buses, domain=NonNegativeReals, initialize=0, units=u.MW * u.hr)
