@@ -21,7 +21,7 @@ data_object.load_prescient(data_path)
 
 load_scaling_path = data_path + "/ERCOT-Adjusted-Forecast.xlsb"
 data_object.import_load_scaling(load_scaling_path)
-outage_path = data_path + "/may_20.csv"
+outage_path = data_path + "/june_27.csv"
 data_object.import_outage_data(outage_path)
 
 data_object.texas_case_study_updates(data_path)
@@ -143,7 +143,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "informs_optimization_results_no_weighted"
+folder_name = "informs_optimization_results_mw_weighted"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
