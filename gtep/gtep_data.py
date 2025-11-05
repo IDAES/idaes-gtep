@@ -171,7 +171,7 @@ class ExpansionPlanningData:
         threshold_value = outage_list["case_5b_prob"].quantile(percentile_threshold)
         filtered_outages = outage_list[outage_list["case_5b_prob"] >= threshold_value]
         print(filtered_outages)
-        bus_to_fips = pd.read_csv("./gtep/data/texas_2000/bus_fips_map.csv")
+        bus_to_fips = pd.read_csv("./gtep/data/Texas_2000/bus_fips_map.csv")
         import re
 
         filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
