@@ -90,7 +90,7 @@ class ExpansionPlanningData:
             "2016-04-23 00:00",
             "2016-07-05 00:00",
             "2016-10-14 00:00",
-            "",
+            "2016-02-10 00:00",
         ]
 
         ## FIXME:
@@ -166,36 +166,31 @@ class ExpansionPlanningData:
 
     def import_outage_data(self, load_file_name):
         outage_list = pd.read_csv(load_file_name)
-        percentile_threshold = 0.9
-        threshold_value = outage_list["prob"].quantile(percentile_threshold)
-        filtered_outages = outage_list[outage_list["prob"] >= threshold_value]
-        # import re
+        percentile_threshold = 0.99
+        print(outage_list)
+        threshold_value = outage_list["case_5b_prob"].quantile(percentile_threshold)
+        filtered_outages = outage_list[outage_list["case_5b_prob"] >= threshold_value]
+        print(filtered_outages)
+        bus_to_fips = pd.read_csv("./gtep/data/texas_2000/bus_fips_map.csv")
+        import re
 
-        # filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
-        #     r" (\d+):"
-        # )
-        # filtered_outages = filtered_outages[["fips_code", "hour"]]
-        # county_to_fips = pd.read_csv(
-        #     "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
-        # )
-        # bus_to_county = pd.read_csv(
-        #     "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
-        # )
-        # county_to_fips = county_to_fips[["County", "FIPS"]]
-        # bus_to_county = bus_to_county[["Bus Number", "County"]]
-        # bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
-        # bus_hours = pd.merge(
-        #     filtered_outages,
-        #     bus_to_county,
-        #     left_on="fips_code",
-        #     right_on="FIPS",
-        #     how="left",
-        # )
+        filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
+            r" (\d+):"
+        )
+        filtered_outages = filtered_outages[["fips_code", "hour"]]
+        bus_hours = pd.merge(
+            filtered_outages,
+            bus_to_fips,
+            left_on="fips_code",
+            right_on="fips_code",
+            how="inner",
+        )
 
-        bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
-        bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
-        self.bus_hours = bus_hours[["hour", "Bus Number"]]
+        bus_hours = bus_hours[bus_hours["bus_num"].notna()]
+        self.bus_hours = bus_hours[["hour", "bus_num"]]
         self.bus_hours = self.bus_hours.astype(int)
+        self.bus_hours = self.bus_hours.drop_duplicates()
+        print(self.bus_hours)
 
     def load_default_data_settings(self):
         ## TODO: too many of these are hard coded; everything should check if it exists too.
