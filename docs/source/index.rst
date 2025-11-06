@@ -14,8 +14,7 @@ Welcome to idaes-gtep's documentation!
    data
    solving
    installation
-   tutorial
-   gtep/tutorial.ipynb
+   ../../gtep/tutorial.ipynb
 
 
 Indices and tables
