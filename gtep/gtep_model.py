@@ -1609,10 +1609,11 @@ def add_commitment_constraints(
         bus_outages = current_hour_bus_outage_list.to_dict("list")["Bus Number"]
         for gen in m.thermalGenerators:
             if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
-                b.dispatchPeriod[1].thermalGeneration[gen].fix(0)
+                b.genOff[gen].indicator_var.fix(True)
         for gen in m.renewableGenerators:
             if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
-                b.dispatchPeriod[1].renewableGeneration[gen].fix(0)
+                if m.md.data["elements"]["generator"][gen]["fuel"] != "H":
+                    b.dispatchPeriod[1].renewableGeneration[gen].fix(0)
 
 
 def add_commitment_constraints(b, comm_per):
@@ -2461,7 +2462,7 @@ def create_objective_function(m):
             return m.operatingCost + m.expansionCost + m.penaltyCost
         else:
             return (
-                m.investmentStage[1].operatingCostInvestment # JSC Addn
+                m.investmentStage[1].operatingCostInvestment  # JSC Addn
                 + m.investmentStage[1].expansionCost
                 + m.deficitPenalty[1]
                 * m.investmentFactor[1]
@@ -2721,7 +2722,7 @@ def model_data_references(m):
 
     # m.batteryInvestmentCost = {
     #     bat: 0 for bat in m.batteryStorageSystems
-    #}  # Future not real cost: idealized DoE 10-yr targets or something
+    # }  # Future not real cost: idealized DoE 10-yr targets or something
 
     # # Maximum reactive power output of each thermal generator
     # m.thermalReactiveCapacity = {
@@ -3398,12 +3399,8 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage]
                 .branchOperational[branch]
                 .indicator_var.implies(
-                    m.investmentStage[stage - 1]
-                    .branchOperational[branch]
-                    .indicator_var
-                    | m.investmentStage[stage - 1]
-                    .branchInstalled[branch]
-                    .indicator_var
+                    m.investmentStage[stage - 1].branchOperational[branch].indicator_var
+                    | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
                 )
                 if stage != 1
                 else LogicalConstraint.Skip
