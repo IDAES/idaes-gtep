@@ -1598,8 +1598,8 @@ def add_commitment_constraints(
     ## And we'll fix renewableGeneration to 0 for the dispatch periods here
 
     ## Note: May 20 is mw weight, 2/10 is bus weight, 6/27 is no weight
-    target_month = 5
-    target_day = 20
+    target_month = 6
+    target_day = 27
     if r_p.month == target_month and r_p.day == target_day:
         # okay now for hourly
         current_hour_bus_outage_list = m.data.bus_hours[
