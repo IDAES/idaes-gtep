@@ -851,7 +851,7 @@ def add_dispatch_variables(b, dispatch_period):
     @b.Expression(m.thermalGenerators)
     def generatorCost(b, gen):
         return b.thermalGeneration[gen] * m.fuelCost[gen]
-        return b.thermalGeneration[gen] * (m.fuelCost[gen] + m.varCost[gen])
+        # return b.thermalGeneration[gen] * (m.fuelCost[gen] + m.varCost[gen])
 
     # * b.dispatchLength
 
