@@ -6,4 +6,5 @@ anyio==3.1
 pint
 sphinx
 sphinx-rtd-theme
+sphinx-collections
 nbsphinx

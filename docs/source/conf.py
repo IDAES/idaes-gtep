@@ -23,6 +23,7 @@ release = "0.1"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
+    "sphinx_collections",
     "nbsphinx",
 ]
 
@@ -41,3 +42,12 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_rtd_theme
 
     # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+collections = {
+    "notebooks": {
+        "driver": "copy_folder",
+        "source": "../../gtep/",
+        "target": "notebooks/",
+        "ignore": ["*.py"],
+    }
+}

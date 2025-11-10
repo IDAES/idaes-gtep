@@ -1,4 +1,5 @@
 IDAES-GTEP Tutorial Notebook
 ============================
 
-.. notebook:: ../../gtep/tutorial.ipynb
+.. toctree::
+    _collections/notebooks/tutorial
