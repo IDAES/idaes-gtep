@@ -10,7 +10,6 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../.."))
-sys.path.insert(0, os.path.abspath("../../gtep"))
 
 project = "idaes-gtep"
 copyright = "2024, Kyle Skolfield"
@@ -43,6 +42,10 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 
     # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
+
+# sphinx_collections is used to include notebooks from the main gtep directory
+# in the Sphinx documentation. When the docs are built, this will copy all
+# notebooks into a _collections/notebooks directory where Sphinx can find them.
 collections = {
     "notebooks": {
         "driver": "copy_folder",

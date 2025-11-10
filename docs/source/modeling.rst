@@ -1,7 +1,7 @@
 .. _Modeling:
 
 Modeling 
-=========
+========
 
 The :class:`ExpansionPlanningModel<gtep.gtep_model.ExpansionPlanningModel>` class implements a modular Generalized
 Disjunctive Programming (GDP) formulation to produce a generalized

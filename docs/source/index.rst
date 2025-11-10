@@ -10,10 +10,10 @@ Welcome to idaes-gtep's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   installation
    modeling
    data
    solving
-   installation
    tutorial
 
 
