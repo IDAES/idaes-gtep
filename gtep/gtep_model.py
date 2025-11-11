@@ -2631,11 +2631,11 @@ def model_data_references(m):
     # NOTE: what should this be valued at?  This being both curtailment and load shed.
     # TODO: update valuations
     m.curtailmentCost = Param(
-        initialize=100,
+        initialize=0,
         units=u.USD / (u.MW * u.hr),
     )
     m.loadShedCost = Param(
-        initialize=5000,
+        initialize=9000,
         units=u.USD / (u.MW * u.hr),
     )
 
