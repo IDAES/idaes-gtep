@@ -197,9 +197,9 @@ class ExpansionPlanningData:
         for gen in self.md.data["elements"]["generator"]:
             if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
                 if self.md.data["elements"]["generator"][gen]["in_service"] == False:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 1
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 3
                 else:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 2
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 3
             else:
                 self.md.data["elements"]["generator"][gen]["lifetime"] = 3
                 self.md.data["elements"]["generator"][gen]["lifetime"] = 3

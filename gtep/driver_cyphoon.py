@@ -78,11 +78,11 @@ mod_object.results = opt.solve(
     # solver_options={"LogFile": "cyphoon_troubleshooting.log", "MIPGap": 0.001},
 )
 
-import pyomo.contrib.iis.iis as iis
+# import pyomo.contrib.iis.iis as iis
 
-iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
+# iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
 
-mod_object.model.write("bad_sol.mps")
+# mod_object.model.write("bad_sol.mps")
 # mod_object.results = opt.solve(mod_object.model)
 
 # import sys

@@ -392,7 +392,7 @@ def add_investment_constraints(b, investment_stage):
                 m.md.data["elements"]["storage"][bat]["in_service"] == True
                 and investment_stage == 1
             ):
-                b.storInstalled[bat].indicator_var.fix(True)
+                b.storOperational[bat].indicator_var.fix(True)
         # TODO: Also initialize storage level (state of charge)
     """@b.Constraint()
     def planning_reserve_requirement(b):
