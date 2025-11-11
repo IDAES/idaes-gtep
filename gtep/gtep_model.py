@@ -337,37 +337,13 @@ def add_investment_constraints(b, investment_stage):
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
         ):
-            b.genOperational[gen].indicator_var.fix(False)
-            # b.genDisabled[gen].binary_indicator_var.fix(1)
+            b.genDisabled[gen].indicator_var.fix(True)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
-            b.genInstalled[gen].indicator_var.fix(True)
+            b.genOperational[gen].indicator_var.fix(True)
 
-    """ Energy Storage: Fixing In-Service batteries initial investment state based on input"""
-    for bat in m.batteryStorageSystems:
-        if (
-            m.md.data["elements"]["storage"][bat]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.batDisabled[bat].indicator_var.fix(True)
-        elif (
-            m.md.data["elements"]["storage"][bat]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.batInstalled[bat].indicator_var.fix(True)
-            # Also initialize storage level
-
-    for branch in m.transmission:
-        b.genOperational[gen].indicator_var.fix(True)
-        # b.genInstalled[gen].binary_indicator_var.fix(1)
-    # for gen in m.thermalGenerators:
-    #     if (
-    #         m.md.data["elements"]["generator"][gen]["lifetime"] == 1
-    #         and investment_stage == 2
-    #     ):
-    #         b.genRetired[gen].indicator_var.fix(True)
     for gen in m.renewableGenerators:
         if (
             m.md.data["elements"]["generator"][gen]["in_service"] == False
@@ -532,18 +508,6 @@ def add_investment_constraints(b, investment_stage):
                 for gen in m.renewableGenerators
             )
             + sum(
-                m.batteryInvestmentCost[bat]
-                * m.batteryCapitalMultiplier[bat]
-                * b.batInstalled[bat].indicator_var.get_associated_binary()
-                for bat in m.batteryStorageSystems
-            )
-            + sum(
-                m.batteryInvestmentCost[bat]
-                * m.batteryExtensionMultiplier[bat]
-                * b.batExtended[bat].indicator_var.get_associated_binary()
-                for bat in m.batteryStorageSystems
-            )
-            + sum(
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
                 * b.renewableRetired[gen]
@@ -702,49 +666,6 @@ def add_dispatch_variables(b, dispatch_period):
 
     """ Battery Parameters """
 
-    def battery_capacity_limits(b, bat):
-        return (
-            m.minBatteryChargeLevel[bat],
-            m.batteryCapacity[bat],
-        )  # The lower bound should be > 0 - data input
-
-    # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
-    def init_battery_capacity(b, bat):
-        return m.initBatteryChargeLevel[bat]
-
-    b.batteryChargeLevel = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_capacity_limits,
-        initialize=init_battery_capacity,
-        units=u.MW,
-    )
-
-    # Define bounds on charging/discharging capability. Note that constraints
-    # enforce that there are min & max charge/discharge levels if the bat is in
-    # the charging or discharging state
-    def battery_charge_limits(b, bat):
-        return (0, m.chargeMax[bat])
-
-    def battery_discharge_limits(b, bat):
-        return (0, m.dischargeMax[bat])
-
-    b.batteryCharged = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_charge_limits,
-        initialize=0,
-        units=u.MW,
-    )
-
-    b.batteryDischarged = Var(
-        m.batteryStorageSystems,
-        domain=NonNegativeReals,
-        bounds=battery_discharge_limits,
-        initialize=0,
-        units=u.MW,
-    )
-
     """ Battery --> Storage Parameters """
 
     def storage_capacity_limits(b, bat):
@@ -870,17 +791,6 @@ def add_dispatch_variables(b, dispatch_period):
 
     """ Per-Battery Operational cost variables"""
 
-    @b.Expression(m.batteryStorageSystems)
-    def batteryChargingCost(b, bat):
-        return b.batteryCharged[bat] * m.chargingCost[bat]
-
-    # JSC addn Per Battery Discharging Cost
-    @b.Expression(m.batteryStorageSystems)
-    def batteryDischargingCost(b, bat):
-        return b.batteryDischarged[bat] * m.dischargingCost[bat]
-
-    """ Per-Battery Operational cost variables"""
-
     @b.Expression(m.storage)
     def storageChargingCost(b, bat):
         return b.storageCharged[bat] * m.chargingCost[bat]
@@ -910,15 +820,6 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     """ Per-Battery Operational costs """
-    b.chargingCostDispatch = sum(b.batteryChargingCost.values())
-
-    b.dischargingCostDispatch = sum(b.batteryDischargingCost.values())
-
-    b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
-    b.operatingCostDispatch = b.generationCostDispatch + b.loadShedCostDispatch
-    # + b.curtailmentCostDispatch
-    # )
-    """ Per-Battery Operational costs """
     b.chargingCostDispatch = sum(b.storageChargingCost.values())
 
     b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
@@ -933,7 +834,7 @@ def add_dispatch_variables(b, dispatch_period):
     # uninvested lines are enforced in a disjuction below
     ## TEXAS
     def power_flow_limits(b, branch):
-        return (-m.transmissionCapacity[branch] * 8, m.transmissionCapacity[branch])
+        return (-m.transmissionCapacity[branch], m.transmissionCapacity[branch])
 
     # NOTE: this is an abuse of units and needs to be fixed for variable temporal resolution
     b.powerFlow = Var(
@@ -948,11 +849,6 @@ def add_dispatch_variables(b, dispatch_period):
     def branchInUse(disj, branch):
         b = disj.parent_block()
 
-        # Voltage angle
-        def bus_angle_bounds(disj, bus):
-            return (-1000, 1000)
-            return (-math.pi / 6, math.pi / 6)
-
         # Only create bus angle variables for the buses associated with this
         # branch that is in use
         disj.branch_buses = [
@@ -966,12 +862,11 @@ def add_dispatch_variables(b, dispatch_period):
 
         ##FIXME: we need this for all buses all the time
         disj.busAngle = Var(
-            disj.branch_buses, domain=Reals, initialize=0, bounds=bus_angle_bounds
+            disj.branch_buses, domain=Reals, initialize=0, bounds=(-1000, 1000)
         )
 
         # Voltage angle
         def delta_bus_angle_bounds(disj, bus):
-            return (-1000, 1000)
             return (-math.pi / 6, math.pi / 6)
 
         # Rule for maximum bus angle discrepancy
@@ -1845,7 +1740,7 @@ def commitment_period_rule(b, commitment_period):
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
-    b.load_scaling = r_p.load_scaling[r_p.load_scaling["hour"] == b.commitmentPeriod]
+    # b.load_scaling = r_p.load_scaling[r_p.load_scaling["hour"] == b.commitmentPeriod]
     # print(b.load_scaling.head())
 
     if m.config["scale_texas_loads"]:
@@ -2178,202 +2073,6 @@ def add_representative_period_constraints(b, rep_per):
     # repetitive. Can we make a variable for the particular periods we need
     # for cleaner code?
     """ Link battery charge level in consecutive commitment periods """
-
-    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
-    def consistent_battery_charge_level_commitment(b, commitmentPeriod, bat):
-        if commitmentPeriod != 1:
-            return (
-                # Charge Level in last dispatch period of previous commitment period
-                # less losses from inefficient retention
-                m.batteryRetentionRate[bat]
-                * (
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .dispatchPeriod[
-                        b.commitmentPeriod[commitmentPeriod - 1].dispatchPeriods.last()
-                    ]
-                    .batteryChargeLevel[bat]
-                )
-                +
-                # Amount charged in first dispatch period of new commitment period
-                (
-                    m.batteryChargingEfficiency[bat]
-                    * (
-                        b.commitmentPeriod[commitmentPeriod]
-                        .dispatchPeriod[
-                            b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                        ]
-                        .batteryCharged[bat]
-                    )
-                )
-                -
-                # Amount discharged in first dispatch period of new commitment period
-                (
-                    b.commitmentPeriod[commitmentPeriod]
-                    .dispatchPeriod[
-                        b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                    ]
-                    .batteryDischarged[bat]
-                )
-                ==
-                # Charge level in first dispatch period of new commitment period
-                b.commitmentPeriod[commitmentPeriod]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                ]
-                .batteryChargeLevel[bat]
-            )
-
-        else:
-            # Initial value for each representative period.
-            # Will constraints linking the representative period force
-            # a small amount of charging to offset the retention drop?
-            return (
-                # Initial charge level (data input)
-                m.initBatteryChargeLevel[bat] +
-                # Amount charged in first dispatch period of new commitment period
-                (
-                    m.batteryChargingEfficiency[bat]
-                    * (
-                        b.commitmentPeriod[commitmentPeriod]
-                        .dispatchPeriod[
-                            b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                        ]
-                        .batteryCharged[bat]
-                    )
-                )
-                -
-                # Amount discharged in first dispatch period of new commitment period
-                (
-                    b.commitmentPeriod[commitmentPeriod]
-                    .dispatchPeriod[
-                        b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                    ]
-                    .batteryDischarged[bat]
-                )
-                == (
-                    b.commitmentPeriod[commitmentPeriod]
-                    .dispatchPeriod[
-                        b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                    ]
-                    .batteryChargeLevel[bat]
-                )
-            )
-
-    """ Link battery charge level in consecutive charging commitment periods """
-    """ Ramp Up """
-
-    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
-    def consistent_battery_charge_charge_ramp_up_commitment(b, commitmentPeriod, bat):
-
-        return (
-            (
-                b.commitmentPeriod[commitmentPeriod]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                ]
-                .batteryCharged[bat]
-            )
-            - (
-                b.commitmentPeriod[commitmentPeriod - 1]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod - 1].dispatchPeriods.last()
-                ]
-                .batteryCharged[bat]
-            )
-            <= m.batteryChargingRampUpRates[bat]
-            if commitmentPeriod != 1
-            and b.commitmentPeriod[commitmentPeriod].batCharging[bat]
-            and b.commitmentPeriod[commitmentPeriod - 1].batCharging[bat]
-            else Constraint.Skip
-        )
-
-    """ Link battery charge level in consecutive charging commitment periods """
-    """ Ramp Down """
-
-    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
-    def consistent_battery_charge_charge_ramp_down_commitment(b, commitmentPeriod, bat):
-
-        return (
-            (
-                b.commitmentPeriod[commitmentPeriod - 1]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod - 1].dispatchPeriods.last()
-                ]
-                .batteryCharged[bat]
-            )
-            - (
-                b.commitmentPeriod[commitmentPeriod]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                ]
-                .batteryCharged[bat]
-            )
-            <= m.batteryChargingRampDownRates[bat]
-            if commitmentPeriod != 1
-            and b.commitmentPeriod[commitmentPeriod].batCharging[bat]
-            and b.commitmentPeriod[commitmentPeriod - 1].batCharging[bat]
-            else Constraint.Skip
-        )
-
-    """ Link battery discharge level in consecutive discharging commitment periods """
-    """ Ramp Up """
-
-    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
-    def consistent_battery_discharge_discharge_ramp_up_commitment(
-        b, commitmentPeriod, bat
-    ):
-
-        return (
-            (
-                b.commitmentPeriod[commitmentPeriod]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                ]
-                .batteryDischarged[bat]
-            )
-            - (
-                b.commitmentPeriod[commitmentPeriod - 1]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod - 1].dispatchPeriods.last()
-                ]
-                .batteryDischarged[bat]
-            )
-            <= m.batteryDischargingRampUpRates[bat]
-            if commitmentPeriod != 1
-            and b.commitmentPeriod[commitmentPeriod].batDischarging[bat]
-            and b.commitmentPeriod[commitmentPeriod - 1].batDischarging[bat]
-            else Constraint.Skip
-        )
-
-    """ Link battery discharge level in consecutive discharging commitment periods """
-    """ Ramp Down """
-
-    @b.Constraint(b.commitmentPeriods, m.batteryStorageSystems)
-    def consistent_battery_discharge_discharge_ramp_down_commitment(
-        b, commitmentPeriod, bat
-    ):
-
-        return (
-            (
-                b.commitmentPeriod[commitmentPeriod - 1]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod - 1].dispatchPeriods.last()
-                ]
-                .batteryDischarged[bat]
-            )
-            - (
-                b.commitmentPeriod[commitmentPeriod]
-                .dispatchPeriod[
-                    b.commitmentPeriod[commitmentPeriod].dispatchPeriods.first()
-                ]
-                .batteryDischarged[bat]
-            )
-            <= m.batteryDischargingRampDownRates[bat]
-            if commitmentPeriod != 1
-            and b.commitmentPeriod[commitmentPeriod].batDischarging[bat]
-            and b.commitmentPeriod[commitmentPeriod - 1].batDischarging[bat]
-            else Constraint.Skip
-        )
 
 
 # def representative_period_rule(
@@ -2717,108 +2416,6 @@ def model_data_references(m):
         thermalGen: m.md.data["elements"]["generator"][thermalGen]["p_min"]
         for thermalGen in m.thermalGenerators
     }
-
-    """ Battery Storage properties read-in from data """
-    m.batteryCapacity = {
-        bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
-        for bat in m.batteryStorageSystems
-    }  # maximum storage capacity
-
-    m.initBatteryChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
-        for bat in m.batteryStorageSystems
-    }  # initial storage capacity
-
-    m.minBatteryChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
-        for bat in m.batteryStorageSystems
-    }  # minimum storage capacity
-
-    m.chargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
-        for bat in m.batteryStorageSystems
-    }  # cost to charge per unit electricity
-
-    m.dischargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-        for bat in m.batteryStorageSystems
-    }  # cost to discharge per unit electricity
-
-    m.dischargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
-        for bat in m.batteryStorageSystems
-    }  # minimum amount to discharge per dispatch period when discharging
-
-    m.dischargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount to discharge per dispatch period when discharging
-
-    m.chargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
-        for bat in m.batteryStorageSystems
-    }  # minimum amount to charge per dispatch period when charging
-
-    m.chargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount to charge per dispatch period when charging
-
-    m.batteryDischargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount of ramp up between dispatch periods when discharging.
-    # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
-
-    m.batteryDischargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount of ramp down between dispatch periods when discharging.
-
-    m.batteryChargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount of ramp up between dispatch periods when charging.
-
-    m.batteryChargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
-        for bat in m.batteryStorageSystems
-    }  # maximum amount of ramp down between dispatch periods when charging.
-
-    m.batteryDischargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
-        for bat in m.batteryStorageSystems
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies with in dispatch periods and which is usable in the flow balance
-
-    m.batteryChargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
-        for bat in m.batteryStorageSystems
-    }  # proportion of energy charged that is not lost to technological
-    # inefficiencies within dispatch periods and which is usable in the flow balance
-
-    m.batteryRetentionRate = {
-        bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
-        for bat in m.batteryStorageSystems
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies between dispatch periods and which is usable in the flow balance
-
-    # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
-    # for individual technologies; higher values are indicative of slow depreciation
-    m.batteryCapitalMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
-        for bat in m.batteryStorageSystems
-    }
-
-    # Cost of life extension for each battery, expressed as a fraction of initial investment cost
-    m.batteryExtensionMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
-        for bat in m.batteryStorageSystems
-    }
-
-    m.batteryInvestmentCost = {
-        bat: 0 for bat in m.batteryStorageSystems
-    }  # Future not real cost: idealized DoE 10-yr targets or something
 
     # Maximum reactive power output of each thermal generator
     m.thermalReactiveCapacity = {
@@ -3317,25 +2914,6 @@ def model_create_investment_stages(m, stages):
             )
 
     """ Battery investment stage state change logic """
-
-    @m.Constraint(m.stages, m.batteryStorageSystems)
-    def bat_stats_link(m, stage, bat):
-        return (
-            m.investmentStage[stage]
-            .batOperational[bat]
-            .indicator_var.get_associated_binary()
-            == m.investmentStage[stage - 1]
-            .batOperational[bat]
-            .indicator_var.get_associated_binary()
-            + m.investmentStage[stage - 1]
-            .batInstalled[bat]
-            .indicator_var.get_associated_binary()
-            - m.investmentStage[stage - 1]
-            .batRetired[bat]
-            .indicator_var.get_associated_binary()
-            if stage != 1
-            else Constraint.Skip
-        )
 
     @m.Constraint(m.stages, m.transmission)
     def branch_stats_link(m, stage, branch):
