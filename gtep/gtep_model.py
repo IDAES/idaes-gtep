@@ -970,8 +970,8 @@ def add_commitment_variables(b, commitment_period):
 
         ## RMA:
         ## We may need to turn off ramp down constraints for feasibility purposes
-        ## We will need to think about this for future work, but commenting this out 
-        ## is probably fine for the purposes of this paper 
+        ## We will need to think about this for future work, but commenting this out
+        ## is probably fine for the purposes of this paper
 
         # Ramp down constraints for generators shutting down
         ## FIXME: uncomment out this stuff
@@ -1034,27 +1034,27 @@ def add_commitment_variables(b, commitment_period):
                 i_p.genExtended[generator].indicator_var,
             )
         )
-    
+
     ## RMA:
     ## Here's where we'll fix commitment status to Off for thermal generators in outaged areas
     ## And we'll fix renewableGeneration to 0 for the dispatch periods here
 
     ## Note: I am guessing that the may 20 date is the .05 cutoff and the may 24 date is the .2 cutoff
     # we're going to lazily hard code this for now because oh lawd deadlines
-    target_month = 5
-    target_day = 20
+    target_month = 7
+    target_day = 06
     if r_p.month == target_month and r_p.day == target_day:
         # okay now for hourly
-        current_hour_bus_outage_list = m.data.bus_hours[m.data.bus_hours["hour"] == b.commitmentPeriod - 1]
-        bus_outages = current_hour_bus_outage_list.to_dict('list')["Bus Number"]
+        current_hour_bus_outage_list = m.data.bus_hours[
+            m.data.bus_hours["hour"] == b.commitmentPeriod - 1
+        ]
+        bus_outages = current_hour_bus_outage_list.to_dict("list")["Bus Number"]
         for gen in m.thermalGenerators:
             if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
                 b.genOff[gen].indicator_var.fix(True)
         for gen in m.renewableGenerators:
             if m.md.data["elements"]["generator"][gen]["bus"] in bus_outages:
                 b.dispatchPeriod[1].renewableGeneration[gen].fix(0)
-        
-
 
 
 def add_commitment_constraints(b, comm_per):
@@ -1873,7 +1873,11 @@ def model_data_references(m):
     m.peakLoad = Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = Param(m.stages, default=0, units=u.MW)
-    m.weights = Param(m.representativePeriods, initialize=m.data.representative_weights, default=5 * 365 / 4)
+    m.weights = Param(
+        m.representativePeriods,
+        initialize=m.data.representative_weights,
+        default=5 * 365 / 4,
+    )
     m.investmentFactor = Param(m.stages, default=1, mutable=True)
     ## NOTE: Lazy approx for NPV
     ## TODO: don't lazily approx NPV, add it into unit handling and calculate from actual time frames

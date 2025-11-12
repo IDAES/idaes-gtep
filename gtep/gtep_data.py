@@ -79,16 +79,17 @@ class ExpansionPlanningData:
             "2019-04-23 00:00",
             "2019-07-05 00:00",
             "2019-10-14 00:00",
-        ]   
+            "2019-07-06 00:00",
+        ]
 
         ## FIXME:
         ## RESIL WEEK ONLY
         ## but we'll want something similar just less insane in the future
         if len(self.representative_dates) == 5:
-            self.representative_weights = {1:91, 2:91, 3:91, 4:91, 5:1}
+            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91, 5: 1}
         else:
-            self.representative_weights = {1:91, 2:91, 3:91, 4:91}
-        #self.representative_weights = {1:1}
+            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91}
+        # self.representative_weights = {1:1}
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + 24]
@@ -154,20 +155,33 @@ class ExpansionPlanningData:
     def import_outage_data(self, load_file_name):
         outage_list = pd.read_csv(load_file_name)
         percentile_threshold = 0.9
-        threshold_value = outage_list['case_4b_prob'].quantile(percentile_threshold)
+        threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
         filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
         import re
-        filtered_outages['hour'] = filtered_outages['lim_timestamp'].str.extract(r" (\d+):")
+
+        filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
+            r" (\d+):"
+        )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
-        county_to_fips = pd.read_csv("./gtep/data/123_Bus_Resil_Week/county_fips_match.csv")
-        bus_to_county = pd.read_csv("./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv")
+        county_to_fips = pd.read_csv(
+            "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
+        )
+        bus_to_county = pd.read_csv(
+            "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
+        )
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
-        bus_to_county = bus_to_county.merge(county_to_fips, how='inner', on='County')
-        bus_hours = pd.merge(filtered_outages, bus_to_county, left_on="fips_code", right_on="FIPS", how="left")
+        bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
+        bus_hours = pd.merge(
+            filtered_outages,
+            bus_to_county,
+            left_on="fips_code",
+            right_on="FIPS",
+            how="left",
+        )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
         bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
-        self.bus_hours = bus_hours[["hour","Bus Number"]]
+        self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
