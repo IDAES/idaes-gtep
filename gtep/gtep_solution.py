@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 # [TODO] inject units into plots
 class ExpansionPlanningSolution:
+    """A class that stores the solution to the ExpansionPlanningModel class for writing and visualization."""
+
     def __init__(self):
         # PopPop the Power Optimization Possum says ౿ᓕ ̤Ꜥ·> --- "eat trash, heck __init__, hold me"
         pass
@@ -193,7 +195,10 @@ class ExpansionPlanningSolution:
         self.expressions_tree = results_dict["expressions_tree"]
 
         # mint the final dictionary to save
-        out_dict = {"data": self.data.data, "results": results_dict}
+        out_dict = {
+            "data": self.data.representative_data[0].data,
+            "results": results_dict,
+        }
 
         self.primals_tree = results_dict["primals_tree"]
 
@@ -1223,69 +1228,69 @@ class ExpansionPlanningSolution:
                     save_dir,
                 )
 
-                for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
-                    if "representativePeriod" in this_inv_level_key:
-                        representative_level_cut = self.primals_tree[
-                            this_root_level_key
-                        ][this_inv_level_key]
-                        parent_key_string = (
-                            f"{this_root_level_key}_{this_inv_level_key}"
-                        )
-                        self._level_plot_workhorse(
-                            "commitmentPeriod",
-                            representative_level_cut,
-                            parent_key_string,
-                            save_dir,
-                        )
+    #             for this_inv_level_key in self.primals_tree[this_root_level_key].keys():
+    #                 if "representativePeriod" in this_inv_level_key:
+    #                     representative_level_cut = self.primals_tree[
+    #                         this_root_level_key
+    #                     ][this_inv_level_key]
+    #                     parent_key_string = (
+    #                         f"{this_root_level_key}_{this_inv_level_key}"
+    #                     )
+    #                     self._level_plot_workhorse(
+    #                         "commitmentPeriod",
+    #                         representative_level_cut,
+    #                         parent_key_string,
+    #                         save_dir,
+    #                     )
 
-                        for this_rep_level_key in self.primals_tree[
-                            this_root_level_key
-                        ][this_inv_level_key].keys():
-                            if "commitmentPeriod" in this_rep_level_key:
-                                commitment_level_cut = self.primals_tree[
-                                    this_root_level_key
-                                ][this_inv_level_key][this_rep_level_key]
+    #                     for this_rep_level_key in self.primals_tree[
+    #                         this_root_level_key
+    #                     ][this_inv_level_key].keys():
+    #                         if "commitmentPeriod" in this_rep_level_key:
+    #                             commitment_level_cut = self.primals_tree[
+    #                                 this_root_level_key
+    #                             ][this_inv_level_key][this_rep_level_key]
 
-                                parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+    #                             parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
-                                self._level_plot_workhorse(
-                                    "dispatchPeriod",
-                                    commitment_level_cut,
-                                    parent_key_string,
-                                    save_dir,
-                                )
+    #                             self._level_plot_workhorse(
+    #                                 "dispatchPeriod",
+    #                                 commitment_level_cut,
+    #                                 parent_key_string,
+    #                                 save_dir,
+    #                             )
 
-        # # plot or represent expressions
-        # self._expressions_plot_workhorse(
-        #     "investmentStage", self.expressions_tree, 'investmentStage', save_dir
-        # )
-        # for this_root_level_key in self.expressions_tree:
-        #     if "investmentStage" in this_root_level_key:
-        #         investment_level_cut = self.expressions_tree[this_root_level_key]
-        #         parent_key_string = f"{this_root_level_key}"
-        #         self._expressions_plot_workhorse(
-        #             "representativePeriod", investment_level_cut, parent_key_string, save_dir
-        #         )
+    # # plot or represent expressions
+    # self._expressions_plot_workhorse(
+    #     "investmentStage", self.expressions_tree, 'investmentStage', save_dir
+    # )
+    # for this_root_level_key in self.expressions_tree:
+    #     if "investmentStage" in this_root_level_key:
+    #         investment_level_cut = self.expressions_tree[this_root_level_key]
+    #         parent_key_string = f"{this_root_level_key}"
+    #         self._expressions_plot_workhorse(
+    #             "representativePeriod", investment_level_cut, parent_key_string, save_dir
+    #         )
 
-        #         for this_inv_level_key in self.expressions_tree[this_root_level_key].keys():
-        #             if "representativePeriod" in this_inv_level_key:
-        #                 representative_level_cut = self.expressions_tree[this_root_level_key][this_inv_level_key]
-        #                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
-        #                 self._expressions_plot_workhorse(
-        #                     "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
-        #                 )
+    #         for this_inv_level_key in self.expressions_tree[this_root_level_key].keys():
+    #             if "representativePeriod" in this_inv_level_key:
+    #                 representative_level_cut = self.expressions_tree[this_root_level_key][this_inv_level_key]
+    #                 parent_key_string = f"{this_root_level_key}_{this_inv_level_key}"
+    #                 self._expressions_plot_workhorse(
+    #                     "commitmentPeriod", representative_level_cut, parent_key_string, save_dir
+    #                 )
 
-        #                 for this_rep_level_key in self.expressions_tree[
-        #                     this_root_level_key
-        #                 ][this_inv_level_key].keys():
-        #                     if "commitmentPeriod" in this_rep_level_key:
-        #                         commitment_level_cut = self.expressions_tree[
-        #                             this_root_level_key
-        #                         ][this_inv_level_key][this_rep_level_key]
+    #                 for this_rep_level_key in self.expressions_tree[
+    #                     this_root_level_key
+    #                 ][this_inv_level_key].keys():
+    #                     if "commitmentPeriod" in this_rep_level_key:
+    #                         commitment_level_cut = self.expressions_tree[
+    #                             this_root_level_key
+    #                         ][this_inv_level_key][this_rep_level_key]
 
-        #                         parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
+    #                         parent_key_string = f"{this_root_level_key}_{this_inv_level_key}_{this_rep_level_key}"
 
-        #                         self._expressions_plot_workhorse(
-        #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
-        #                         )
-        # pass
+    #                         self._expressions_plot_workhorse(
+    #                             "dispatchPeriod",commitment_level_cut, parent_key_string, save_dir
+    #                         )
+    # pass
