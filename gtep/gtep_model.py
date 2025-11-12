@@ -1042,7 +1042,7 @@ def add_commitment_variables(b, commitment_period):
     ## Note: I am guessing that the may 20 date is the .05 cutoff and the may 24 date is the .2 cutoff
     # we're going to lazily hard code this for now because oh lawd deadlines
     target_month = 7
-    target_day = 06
+    target_day = 6
     if r_p.month == target_month and r_p.day == target_day:
         # okay now for hourly
         current_hour_bus_outage_list = m.data.bus_hours[
