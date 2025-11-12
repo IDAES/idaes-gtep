@@ -8,6 +8,7 @@ import math
 import json
 from math import ceil
 import numpy as np
+import re
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -17,10 +18,6 @@ from pyomo.repn.linear import LinearRepnVisitor
 from egret.data.model_data import ModelData
 from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
 
-import math
-
-
-from math import ceil
 from gtep.config_options import (
     _get_model_config,
     _add_common_configs,
