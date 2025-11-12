@@ -3474,6 +3474,26 @@ def model_create_investment_stages(m, stages):
             else pyo.Constraint.Skip
         )
 
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_retirement_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableRetired[gen]
+            == m.investmentStage[stage - 1].renewableRetired[gen]
+            - m.investmentStage[stage - 1].renewableDisabled[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
+
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_extension_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableExtended[gen]
+            == m.investmentStage[stage - 1].renewableExtended[gen]
+            - m.investmentStage[stage - 1].renewableRetired[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
+
     # If a gen is online at time t, it must have been online or installed at time t-1
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
     def consistent_operation(m, stage, gen):
