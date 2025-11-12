@@ -287,7 +287,7 @@ def add_investment_variables(b, investment_stage):
 
     if m.config["transmission"]:
         # Line disjuncts. For now mimicking thermal generator disjuncts,
-    # though different states may need to be defined
+        # though different states may need to be defined
         @b.Disjunct(m.transmission)
         def branchOperational(disj, branch):
             return
@@ -336,7 +336,6 @@ def add_investment_variables(b, investment_stage):
     b.renewableDisabled = pyo.Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
-
 
     # Track and accumulate costs and penalties
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
@@ -526,8 +525,7 @@ def add_investment_constraints(
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 operatingCostRepresentative += (
-                    m.weights[rep_per]
-                    * m.commitmentPeriodLength
+                    m.weights[rep_per] * m.commitmentPeriodLength
                     # [ESR WIP: Commented since we are including the
                     # period during dispatch stage.]
                     # * m.commitmentPeriodLength
@@ -635,7 +633,7 @@ def add_investment_constraints(
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 renewableCurtailmentRep += (
-                    m.weights[rep_per] 
+                    m.weights[rep_per]
                     * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
@@ -922,7 +920,7 @@ def add_dispatch_variables(b, dispatch_period):
             * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
-    
+
     # Per generator reactive power cost
     @b.Expression(m.thermalGenerators)
     def reactiveGeneratorCost(b, gen):
@@ -984,12 +982,10 @@ def add_dispatch_variables(b, dispatch_period):
     def operatingCostDispatch(b):
         return (
             b.thermalGenerationCostDispatch
-           
-        + b.reactiveGenerationCostDispatch
-        + b.renewableGenerationCostDispatch
+            + b.reactiveGenerationCostDispatch
+            + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
-           
-        + b.curtailmentCostDispatch
+            + b.curtailmentCostDispatch
         )
 
     """ Per-Battery Operational costs """
@@ -1064,7 +1060,7 @@ def add_dispatch_variables(b, dispatch_period):
             fb = m.transmission[branch]["from_bus"]
             tb = m.transmission[branch]["to_bus"]
             return disj.busAngle[tb] - disj.busAngle[fb]
-        
+
         disj.deltaBusAngle = pyo.Var(
             domain=pyo.Reals,
             bounds=delta_bus_angle_bounds,
@@ -1072,59 +1068,59 @@ def add_dispatch_variables(b, dispatch_period):
         )
 
     if m.config["flow_model"] == "ACP":
-            fb = m.transmission[branch]["from_bus"]
-            tb = m.transmission[branch]["to_bus"]
-            resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
-            reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6)
+        fb = m.transmission[branch]["from_bus"]
+        tb = m.transmission[branch]["to_bus"]
+        resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
+        reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6)
 
-            # Transformer tap ratio and phase shift
-            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
-                reactance *= m.md.data["elements"]["branch"][branch][
-                    "transformer_tap_ratio"
-                ]
-                phase_shift = m.md.data["elements"]["branch"][branch][
-                    "transformer_phase_shift"
-                ]
-            else:
-                phase_shift = 0
+        # Transformer tap ratio and phase shift
+        if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
+            reactance *= m.md.data["elements"]["branch"][branch][
+                "transformer_tap_ratio"
+            ]
+            phase_shift = m.md.data["elements"]["branch"][branch][
+                "transformer_phase_shift"
+            ]
+        else:
+            phase_shift = 0
 
-            admittance = 1 / complex(resistance, reactance)
-            G = admittance.real
-            B = admittance.imag
+        admittance = 1 / complex(resistance, reactance)
+        G = admittance.real
+        B = admittance.imag
 
-            # Define voltage magnitude variables for from and to buses
-            disj.voltage_from = Var(bounds=(0, 2))
-            disj.voltage_to = Var(bounds=(0, 2))
+        # Define voltage magnitude variables for from and to buses
+        disj.voltage_from = Var(bounds=(0, 2))
+        disj.voltage_to = Var(bounds=(0, 2))
 
-            # Define active and reactive power flow variables
-            disj.P_flow = Var(bounds=(-1000, 1000))
-            disj.Q_flow = Var(bounds=(-1000, 1000))
+        # Define active and reactive power flow variables
+        disj.P_flow = Var(bounds=(-1000, 1000))
+        disj.Q_flow = Var(bounds=(-1000, 1000))
 
-            # Polar Active Power Flow Constraint
-            @disj.Constraint()
-            def ac_power_flow_p(disj):
-                return disj.P_flow == (
-                    disj.voltage_from**2 * G
-                    - disj.voltage_from
-                    * disj.voltage_to
-                    * (
-                        G * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                        + B * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                    )
+        # Polar Active Power Flow Constraint
+        @disj.Constraint()
+        def ac_power_flow_p(disj):
+            return disj.P_flow == (
+                disj.voltage_from**2 * G
+                - disj.voltage_from
+                * disj.voltage_to
+                * (
+                    G * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                    + B * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                 )
+            )
 
-            # Polar Reactive Power Flow Constraint
-            @disj.Constraint()
-            def ac_power_flow_q(disj):
-                return disj.Q_flow == (
-                    -disj.voltage_from**2 * B
-                    - disj.voltage_from
-                    * disj.voltage_to
-                    * (
-                        G * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                        - B * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                    )
+        # Polar Reactive Power Flow Constraint
+        @disj.Constraint()
+        def ac_power_flow_q(disj):
+            return disj.Q_flow == (
+                -disj.voltage_from**2 * B
+                - disj.voltage_from
+                * disj.voltage_to
+                * (
+                    G * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                    - B * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                 )
+            )
 
     if m.config["flow_model"] == "ACR":
         fb = m.transmission[branch]["from_bus"]
@@ -1912,21 +1908,8 @@ def add_commitment_constraints(b, comm_per):
     @b.Expression()
     def storageCostCommitment(b):
         return sum(
-            ## FIXME: update test objective value when this changes; ready to uncomment
-            # (m.dispatchPeriodLength / 60) *
             b.dispatchPeriod[disp_per].storageCostDispatch
             for disp_per in b.dispatchPeriods
-        return sum(
-            ## FIXME: update test objective value when this changes; ready to uncomment
-            # (m.dispatchPeriodLength / 60) *
-            # [ESR WIP: This term includes the op cost for each
-            # 15-min dispatch period.]
-            b.dispatchPeriod[disp_per].operatingCostDispatch  # in $
-            for disp_per in b.dispatchPeriods
-        ) + sum(
-            m.startupCost[gen]  # in $
-            * b.genStartup[gen].indicator_var.get_associated_binary()
-            for gen in m.thermalGenerators
         )
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
@@ -1986,7 +1969,6 @@ def commitment_period_rule(b, commitment_period):
                 * units_renewable_capacity
             )
 
-
     ## TODO: Redesign load scaling and allow nature of it as argument
 
     # Demand at each bus
@@ -2017,12 +1999,12 @@ def commitment_period_rule(b, commitment_period):
             # del m.loads[load]
         # print(m.loads)
         b.loads = {
-        m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-            load_n
-        ]["p_load"]["values"][commitment_period - 1]
-        * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
-        for load_n in m.md.data["elements"]["load"]
-    }
+            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
+                load_n
+            ]["p_load"]["values"][commitment_period - 1]
+            * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
+            for load_n in m.md.data["elements"]["load"]
+        }
         # Testing
         # print(m.loads)
     else:
@@ -3220,7 +3202,7 @@ def model_data_references(m):
         ]
         == region
     }
-    """ Battery Storage properties read-in from data """ 
+    """ Battery Storage properties read-in from data """
     m.storageCapacity = {
         bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
         for bat in m.storage
@@ -3402,7 +3384,7 @@ def model_create_investment_stages(m, stages):
     """
 
     # [ESR WIP: Add investment years]
-    m.years = [2025, 2030, 2035] 
+    m.years = [2025, 2030, 2035]
 
     m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
 
@@ -3429,7 +3411,7 @@ def model_create_investment_stages(m, stages):
     #             if t_1 <= stage
     #         )
     if m.config["include_investment"]:
-    # Linking generator investment status constraints
+        # Linking generator investment status constraints
         @m.Constraint(m.stages, m.thermalGenerators)
         def gen_stats_link(m, stage, gen):
             return (
@@ -3453,31 +3435,30 @@ def model_create_investment_stages(m, stages):
     if len(m.stages) > 1:
         # [ESR WIP: Consider one stage = one year. This way lifetimes
         # units are consistent in the if statement below.]
-        if len(m.stages) > 1:
-            ##FIXME Rewrite as logic
-            @m.Constraint(m.stages, m.thermalGenerators)
-            def gen_retirement(m, stage, gen):
-                return sum(
-                    m.investmentStage[t_2]
-                    .genOperational[gen]
-                    .indicator_var.get_associated_binary()
-                    + m.investmentStage[t_2]
-                    .genInstalled[gen]
-                    .indicator_var.get_associated_binary()
-                    for t_2 in m.stages
-                    # [ESR WIP: Only take the value of it so avoid errors
+        ##FIXME Rewrite as logic
+        @m.Constraint(m.stages, m.thermalGenerators)
+        def gen_retirement(m, stage, gen):
+            return sum(
+                m.investmentStage[t_2]
+                .genOperational[gen]
+                .indicator_var.get_associated_binary()
+                + m.investmentStage[t_2]
+                .genInstalled[gen]
+                .indicator_var.get_associated_binary()
+                for t_2 in m.stages
+                # [ESR WIP: Only take the value of it so avoid errors
                 # but always make sure the units makes sense.]
                 if t_2 <= stage - pyo.value(m.lifetimes[gen])
-                ) <= sum(
-                    m.investmentStage[t_1]
-                    .genRetired[gen]
-                    .indicator_var.get_associated_binary()
-                    + m.investmentStage[t_1]
-                    .genExtended[gen]
-                    .indicator_var.get_associated_binary()
-                    for t_1 in m.stages
-                    if t_1 <= stage
-                )
+            ) <= sum(
+                m.investmentStage[t_1]
+                .genRetired[gen]
+                .indicator_var.get_associated_binary()
+                + m.investmentStage[t_1]
+                .genExtended[gen]
+                .indicator_var.get_associated_binary()
+                for t_1 in m.stages
+                if t_1 <= stage
+            )
 
     # Total renewable generation (in MW) operational at a given stage
     # is equal to what was operational and/or installed in the previous stage
@@ -3576,109 +3557,105 @@ def model_create_investment_stages(m, stages):
             else pyo.LogicalConstraint.Skip
         )
 
-        # Storage Constraints same as gen constraints
-        # If a storage device is online at time t, it must have been online or installed at time t-1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_stor(m, stage, gen):
+    # Storage Constraints same as gen constraints
+    # If a storage device is online at time t, it must have been online or installed at time t-1
+    @m.LogicalConstraint(m.stages, m.storage)
+    def consistent_operation_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage]
+            .storOperational[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage - 1].storOperational[gen].indicator_var
+                | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a gen is online at time t, it must be online, extended, or retired at time t+1
+    @m.LogicalConstraint(m.stages, m.storage)
+    def consistent_operation_future_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .storOperational[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].storOperational[gen].indicator_var
+                | m.investmentStage[stage].storExtended[gen].indicator_var
+                | m.investmentStage[stage].storRetired[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # Retirement in period t-1 implies disabled in period t
+    @m.LogicalConstraint(m.stages, m.storage)
+    def full_retirement_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .storRetired[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].storDisabled[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a gen is disabled at time t-1, it must stay disabled  at time t
+    ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
+    @m.LogicalConstraint(m.stages, m.storage)
+    def consistent_disabled_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .storDisabled[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].storDisabled[gen].indicator_var
+                | m.investmentStage[stage].storInstalled[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # If a gen is extended at time t-1, it must stay extended or be retired at time t
+    @m.LogicalConstraint(m.stages, m.storage)
+    def consistent_extended_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .storExtended[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].storExtended[gen].indicator_var
+                | m.investmentStage[stage].storRetired[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    # Installation in period t-1 implies operational in period t
+    @m.LogicalConstraint(m.stages, m.storage)
+    def full_investment_stor(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .storInstalled[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].storOperational[gen].indicator_var
+            )
+            if stage != 1
+            else LogicalConstraint.Skip
+        )
+
+    if m.config["transmission"]:
+        # If a branch is online at time t, it must have been online or installed at time t-1
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_operation(m, stage, branch):
             return (
                 m.investmentStage[stage]
-                .storOperational[gen]
+                .branchOperational[branch]
                 .indicator_var.implies(
-                    m.investmentStage[stage - 1].storOperational[gen].indicator_var
-                    | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
+                    m.investmentStage[stage - 1].branchOperational[branch].indicator_var
+                    | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
                 )
                 if stage != 1
                 else LogicalConstraint.Skip
             )
-
-        # If a gen is online at time t, it must be online, extended, or retired at time t+1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_future_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storOperational[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
-                    | m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
-                )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
-
-        # Retirement in period t-1 implies disabled in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_retirement_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storRetired[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
-                )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
-
-        # If a gen is disabled at time t-1, it must stay disabled  at time t
-        ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_disabled_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storDisabled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
-                    | m.investmentStage[stage].storInstalled[gen].indicator_var
-                )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
-
-        # If a gen is extended at time t-1, it must stay extended or be retired at time t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_extended_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storExtended[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
-                )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
-
-        # Installation in period t-1 implies operational in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_investment_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storInstalled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
-                )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
-
-        if m.config["transmission"]:
-            # If a branch is online at time t, it must have been online or installed at time t-1
-            @m.LogicalConstraint(m.stages, m.transmission)
-            def consistent_branch_operation(m, stage, branch):
-                return (
-                    m.investmentStage[stage]
-                    .branchOperational[branch]
-                    .indicator_var.implies(
-                        m.investmentStage[stage - 1]
-                        .branchOperational[branch]
-                        .indicator_var
-                        | m.investmentStage[stage - 1]
-                        .branchInstalled[branch]
-                        .indicator_var
-                    )
-                    if stage != 1
-                    else LogicalConstraint.Skip
-                )
 
     # If a branch is online at time t, it must be online, extended, or retired at time t+1
     @m.LogicalConstraint(m.stages, m.transmission)
