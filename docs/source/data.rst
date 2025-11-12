@@ -117,8 +117,6 @@ description of the relevant parameters included.
 
 .. currentmodule:: gtep.gtep_data
 
-.. automodule:: gtep
-    :members:
 
 .. automodule:: gtep.gtep_data
     :members: 

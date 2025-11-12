@@ -8,7 +8,7 @@ import gurobipy as gp
 import pyomo.environ as pyo
 
 
-data_path = "./gtep/data/5bus_jsc"
+data_path = "./data/5bus_jsc"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
@@ -20,13 +20,14 @@ TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 # opt = SolverFactory("gurobi")
 opt = Gurobi()
-#opt = Highs()
+# opt = Highs()
 # # mod_object.results = opt.solve(mod_object.model, tee=True)
 mod_object.results = opt.solve(mod_object.model)
 
-for var in mod_object.component_objects(pyo.BooleanVar, descend_into = True):
+for var in mod_object.component_objects(pyo.BooleanVar, descend_into=True):
     print(var, pyo.value(var))
 import sys
+
 sys.exit()
 
 sol_object = ExpansionPlanningSolution()

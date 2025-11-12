@@ -53,19 +53,11 @@ class ExpansionPlanningData:
             start_time=x,
             model=self.md,
         )
-        
+
         # data_provider.populate_initial_state_data(options=prescient_options, model=md)
         self.load_default_data_settings()
 
-        # for gen in self.md.data['elements']['generator']:
-        #     if self.md.data['elements']['generator'][gen]['fuel'] == 'H':
-        #         print(self.md.data['elements']['generator'][gen])
-        # import sys
-        # sys.exit()
-        # print(self.md.data["elements"]['load'])
-        # print(self.md.data['elements']['area'])
-        # import sys
-        # sys.exit()
+        self.load_storage_csv(data_path)
 
         for gen in self.md.data["elements"]["generator"]:
             if "-c" in gen:  # key/Gen UID in csv file; -c = candidate?
@@ -75,6 +67,10 @@ class ExpansionPlanningData:
         for branch in self.md.data["elements"]["branch"]:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
+
+        for stor in self.md.data["elements"]["storage"]:
+            if "-c" in stor:  # key/Branch UID
+                self.md.data["elements"]["storage"][stor]["in_service"] = False
 
         ## NOTE: Below is only for multiple representative periods and creates a list
         ## of modelData objects, not just a single modelData object
@@ -90,16 +86,16 @@ class ExpansionPlanningData:
             "2016-04-23 00:00",
             "2016-07-05 00:00",
             "2016-10-14 00:00",
-        ]   
+        ]
 
         ## FIXME:
         ## RESIL WEEK ONLY
         ## but we'll want something similar just less insane in the future
         if len(self.representative_dates) == 5:
-            self.representative_weights = {1:91, 2:91, 3:91, 4:91, 5:1}
+            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91, 5: 1}
         else:
-            self.representative_weights = {1:91, 2:91, 3:91, 4:91}
-        #self.representative_weights = {1:1}
+            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91}
+        # self.representative_weights = {1:1}
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + 24]
@@ -136,8 +132,8 @@ class ExpansionPlanningData:
         ]
         # zones = ["coast", "east", "fwest", "ncent", "north", "scent", "south", "west"]
         # cap_zones = [zone.upper() for zone in zones]
-        zones = ["1","2","3","4",'5','6','7','8']
-        cap_zones = ['1','2','3','4','5','6','7','8']
+        zones = ["1", "2", "3", "4", "5", "6", "7", "8"]
+        cap_zones = ["1", "2", "3", "4", "5", "6", "7", "8"]
         for i, zone in enumerate(zones):
             adjusted_forecast_by_period["scaled_" + zone] = (
                 adjusted_forecast_by_period[scaled_zones[i]]
@@ -166,20 +162,33 @@ class ExpansionPlanningData:
     def import_outage_data(self, load_file_name):
         outage_list = pd.read_csv(load_file_name)
         percentile_threshold = 0.9
-        threshold_value = outage_list['case_4b_prob'].quantile(percentile_threshold)
+        threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
         filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
         import re
-        filtered_outages['hour'] = filtered_outages['lim_timestamp'].str.extract(r" (\d+):")
+
+        filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
+            r" (\d+):"
+        )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
-        county_to_fips = pd.read_csv("./gtep/data/123_Bus_Resil_Week/county_fips_match.csv")
-        bus_to_county = pd.read_csv("./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv")
+        county_to_fips = pd.read_csv(
+            "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
+        )
+        bus_to_county = pd.read_csv(
+            "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
+        )
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
-        bus_to_county = bus_to_county.merge(county_to_fips, how='inner', on='County')
-        bus_hours = pd.merge(filtered_outages, bus_to_county, left_on="fips_code", right_on="FIPS", how="left")
+        bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
+        bus_hours = pd.merge(
+            filtered_outages,
+            bus_to_county,
+            left_on="fips_code",
+            right_on="FIPS",
+            how="left",
+        )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
         bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
-        self.bus_hours = bus_hours[["hour","Bus Number"]]
+        self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
@@ -193,6 +202,7 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["generator"][gen]["lifetime"] = 2
             else:
                 self.md.data["elements"]["generator"][gen]["lifetime"] = 3
+                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
             self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
             self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
@@ -204,13 +214,30 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
             self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
             self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
-            self.md.data["elements"]["generator"][gen]["investment_cost"] = 235164
+            self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
         for branch in self.md.data["elements"]["branch"]:
             self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
             self.md.data["elements"]["branch"][branch]["distance"] = 1
             self.md.data["elements"]["branch"][branch]["capital_cost"] = 10000000
         self.md.data["system"]["min_operating_reserve"] = 0.1
         self.md.data["system"]["min_spinning_reserve"] = 0.1
+
+    def load_storage_csv(self, data_path):
+        try:
+            storage_path = data_path + "/storage.csv"
+            storage_df = pd.read_csv(storage_path)
+
+            storage_data = {}
+            for _, row in storage_df.iterrows():
+                name = row["name"]
+                storage_data[name] = row.drop("name").to_dict()
+
+            self.md.data["elements"]["storage"] = storage_data
+        except FileNotFoundError:
+            print(
+                f"Warning: The file '{storage_path}' does not exist. Skipping loading storage data."
+            )
+            self.md.data["elements"]["storage"] = {}
 
     def texas_case_study_updates(self, data_path):
         generator_update_path = data_path + "/gen.csv"

@@ -20,7 +20,7 @@ data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
 snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/data_load.snap')
+snapshot.dump("mem_trace/data_load.snap")
 
 # for data in data_object.representative_data:
 #     print(data.data["elements"]['load'])
@@ -33,7 +33,7 @@ data_object.import_load_scaling(load_scaling_path)
 data_object.texas_case_study_updates(data_path)
 
 snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/scaled_data.snap')
+snapshot.dump("mem_trace/scaled_data.snap")
 
 # for data in data_object.representative_data:
 #     for gen in data.data["elements"]["generator"].keys():
@@ -67,7 +67,7 @@ mod_object.create_model()
 mod_object.timer.toc("horrible")
 
 snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/model_build.snap')
+snapshot.dump("mem_trace/model_build.snap")
 
 # import sys
 # sys.exit()
@@ -79,7 +79,7 @@ TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 mod_object.timer.toc("triple horrible")
 
 snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/model_transform.snap')
+snapshot.dump("mem_trace/model_transform.snap")
 
 # import sys
 # sys.exit()
@@ -97,11 +97,11 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01}
+    solver_options={"LogFile": "t2k_logging.log", "MIPGap": 0.01},
 )
 
 snapshot = tracemalloc.take_snapshot()
-snapshot.dump('mem_trace/post_gurobi.snap')
+snapshot.dump("mem_trace/post_gurobi.snap")
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
 
