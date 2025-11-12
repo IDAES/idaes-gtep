@@ -7,7 +7,7 @@ from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 import gurobipy as gp
 import gc
-import pyomo as pyo
+from pyomo.core import ScalarExpression, IndexedExpression
 
 
 gc.disable()
@@ -123,9 +123,21 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
 ## RMA:
 ## You may want to save a few more things from the Expressions
 
+
 costs = {}
-# for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
-#     costs[var.name] = pyo.value(exp)
+for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
+    if "Cost" in exp.name or "cost" in exp.name:
+        if type(exp) is ScalarExpression:
+            costs[exp.name] = pyo.value(exp)
+        if type(exp) is IndexedExpression:
+            for e in exp:
+                costs[exp[e].name] = pyo.value(exp[e])
+
+            costs[exp.name] = pyo.value(exp)
+        if type(exp) is IndexedExpression:
+            for e in exp:
+                costs[exp[e].name] = pyo.value(exp[e])
+
 
 import json
 import os

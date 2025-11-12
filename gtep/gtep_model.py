@@ -2272,7 +2272,6 @@ def create_objective_function(m):
                 * m.investmentFactor[1]
                 * m.investmentStage[1].quotaDeficit
                 + m.investmentStage[1].renewableCurtailmentInvestment
-                + m.investmentStage[1].storageCostInvestment
             )
 
 
@@ -2830,7 +2829,7 @@ def model_data_references(m):
     }
 
     m.storageInvestmentCost = {
-        bat: 1 for bat in m.storage
+        bat: m.md.data["elements"]["storage"][bat]["investment_cost"] for bat in m.storage
     }  # Future not real cost: idealized DoE 10-yr targets or something
 
 
@@ -2985,22 +2984,33 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage].renewableOperational[gen]
                 == m.investmentStage[stage - 1].renewableOperational[gen]
                 + m.investmentStage[stage - 1].renewableInstalled[gen]
-                + m.investmentStage[stage - 1].renewableExtended[gen]
+                - m.investmentStage[stage - 1].renewableExtended[gen]
                 - m.investmentStage[stage - 1].renewableRetired[gen]
                 if stage != 1
                 else Constraint.Skip
             )
 
-        # @m.Constraint(m.stages, m.renewableGenerators)
-        # def renewable_more_stats_link(m, stage, gen):
-        #     return (
-        #         m.investmentStage[stage].renewableDisabled[gen]
-        #         == m.investmentStage[stage - 1].renewableDisabled[gen]
-        #         + m.investmentStage[stage - 1].renewableRetired[gen]
-        #         - m.investmentStage[stage - 1].renewableInstalled[gen]
-        #         if stage != 1
-        #         else Constraint.Skip
-        #     )
+        @m.Constraint(m.stages, m.renewableGenerators)
+        def renewable_more_stats_link(m, stage, gen):
+            return (
+                m.investmentStage[stage].renewableDisabled[gen]
+                == m.investmentStage[stage - 1].renewableDisabled[gen]
+                + m.investmentStage[stage - 1].renewableRetired[gen]
+                if stage != 1
+                else Constraint.Skip
+            )
+        
+        @m.Constraint(m.stages, m.renewableGenerators)
+        def renewable_more_more_stats_link(m, stage, gen):
+            return (
+                m.investmentStage[stage].renewableExtended[gen]
+                == m.investmentStage[stage - 1].renewableExtended[gen]
+                - m.investmentStage[stage - 1].renewableRetired[gen]
+                if stage != 1
+                else Constraint.Skip
+            )
+        
+        
 
         # @m.Constraint(m.stages, m.renewableGenerators)
         # def renewable_capacity_enforcement(m, stage, gen):
