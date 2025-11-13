@@ -4,24 +4,20 @@
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
-from pyomo.environ import *
-from pyomo.environ import units as u
-from IPython import embed
-
-# from pyomo.gdp import *
-
-from egret.data.model_data import ModelData
-from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
-from pyomo.common.timing import TicTocTimer
-from pyomo.repn.linear import LinearRepnVisitor
+import math
 import json
+from math import ceil
 import numpy as np
 import re
 
-import math
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+from pyomo.common.timing import TicTocTimer
+from pyomo.repn.linear import LinearRepnVisitor
 
+from egret.data.model_data import ModelData
+from egret.model_library.transmission.tx_utils import scale_ModelData_to_pu
 
-from math import ceil
 from gtep.config_options import (
     _get_model_config,
     _add_common_configs,
@@ -67,30 +63,36 @@ class ExpansionPlanningModel:
         stages=1,
         formulation=None,
         data=None,
+        cost_data=None,
         num_reps=3,
         len_reps=24,
         num_commit=24,
         num_dispatch=4,
+        duration_dispatch=15,
     ):
         """Initialize generation & expansion planning model object.
 
         :param stages: integer number of investment periods
         :param formulation: Egret stuff, to be filled
         :param data: full set of model data
+        :param cost_data: full set of cost data for all generators
         :param num_reps: integer number of representative periods per investment period
         :param len_reps: (for now integer) length of each representative period (in hours)
         :param num_commit: integer number of commitment periods per representative period
         :param num_dispatch: integer number of dispatch periods per commitment period
+        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
         :return: Pyomo model for full GTEP
         """
 
         self.stages = stages
         self.formulation = formulation
         self.data = data
+        self.cost_data = cost_data
         self.num_reps = num_reps
         self.len_reps = len_reps
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
+        self.duration_dispatch = duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
 
@@ -101,9 +103,7 @@ class ExpansionPlanningModel:
         """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
 
         self.timer.tic("Creating GTEP Model")
-        m = ConcreteModel()
-        m.config = self.config
-        m.rng = np.random.default_rng(seed=123186)
+        m = pyo.ConcreteModel()
 
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
@@ -119,32 +119,43 @@ class ExpansionPlanningModel:
             m.md = m.data_list[0]
             m.data = self.data
         else:
-            # If self.data is an Egret model data object, representative periods will just copy it unchanged
+            # If self.data is an Egret model data object,
+            # representative periods will just copy it unchanged
             m.data_list = None
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
 
+        # [ESR WIP: Add cost_data. TODO: Think about how to do some
+        # scaling in this data.]
+        m.mc = self.cost_data
+
         model_set_declaration(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
-        m.representativePeriodLength = Param(
-            m.representativePeriods, within=PositiveReals, default=24, units=u.hr
+        m.representativePeriodLength = pyo.Param(
+            m.representativePeriods, within=pyo.PositiveReals, default=24, units=u.hr
         )
-        m.numCommitmentPeriods = Param(
+        m.numCommitmentPeriods = pyo.Param(
             m.representativePeriods,
-            within=PositiveIntegers,
+            within=pyo.PositiveIntegers,
             default=2,
             initialize=self.num_commit,
         )
-        m.numDispatchPeriods = Param(
+        m.numDispatchPeriods = pyo.Param(
             m.representativePeriods,
-            within=PositiveIntegers,
+            within=pyo.PositiveIntegers,
             default=2,
             initialize=self.num_dispatch,
         )
-        m.commitmentPeriodLength = Param(within=PositiveReals, default=1, units=u.hr)
-        # TODO: index by dispatch period? Certainly index by commitment period
-        m.dispatchPeriodLength = Param(within=PositiveReals, default=0.25, units=u.hr)
+        m.commitmentPeriodLength = pyo.Param(
+            within=pyo.PositiveReals, default=1, units=u.hr
+        )
+
+        # TODO: index by dispatch period? Certainly index by
+        # commitment period
+        m.dispatchPeriodLength = pyo.Param(
+            within=pyo.PositiveReals, initialize=self.duration_dispatch, units=u.minutes
+        )
 
         model_data_references(m)
 
@@ -165,7 +176,8 @@ class ExpansionPlanningModel:
     def report_large_coefficients(self, outfile, magnitude_cutoff=1e5):
         """Dump very large magnitude (>= 1e5) coefficients to a json file.
 
-        :outfile: should accept filename or open file and write there; see how we do this in pyomo elsewhere
+        :outfile: should accept filename or open file and write there;
+                  (see how we do this in pyomo elsewhere)
         :magnitude_cutoff: magnitude above which to report coefficients
         """
         var_coef_dict = {}
@@ -204,11 +216,14 @@ def add_investment_variables(b, investment_stage):
     m = b.model()
     b.investmentStage = investment_stage
 
-    # Thermal generator disjuncts (operational, installed, retired, disabled, extended)
+    # Thermal generator disjuncts (operational, installed, retired,
+    # disabled, extended)
     @b.Disjunct(m.thermalGenerators)
     def genOperational(disj, gen):
         return
 
+    # [ESR TODO: Start adding constraints to installed generators. Not
+    # used for now.]
     @b.Disjunct(m.thermalGenerators)
     def genInstalled(disj, gen):
         return
@@ -268,7 +283,8 @@ def add_investment_variables(b, investment_stage):
             ]
 
     if m.config["transmission"]:
-        # Line disjuncts. For now mimicking thermal generator disjuncts, though different states may need to be defined
+        # Line disjuncts. For now mimicking thermal generator disjuncts,
+        # though different states may need to be defined
         @b.Disjunct(m.transmission)
         def branchOperational(disj, branch):
             return
@@ -302,33 +318,40 @@ def add_investment_variables(b, investment_stage):
             ]
 
     # Renewable generator MW values (operational, installed, retired, extended)
-    b.renewableOperational = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
+    b.renewableOperational = pyo.Var(
+        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
-    b.renewableInstalled = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
+    b.renewableInstalled = pyo.Var(
+        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
-    b.renewableRetired = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
+    b.renewableRetired = pyo.Var(
+        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
-    b.renewableExtended = Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
+    b.renewableExtended = pyo.Var(
+        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
-    b.renewableDisabled = Var(
+    b.renewableDisabled = pyo.Var(
         m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
     )
 
     # Track and accumulate costs and penalties
-    b.quotaDeficit = Var(within=NonNegativeReals, initialize=0, units=u.MW * u.hr)
-    # b.expansionCost = Var(within=Reals, initialize=0, units=u.USD)
-    b.renewableCurtailmentInvestment = Var(
-        within=NonNegativeReals, initialize=0, units=u.USD
+    b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
+    b.operatingCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.expansionCost = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.renewableCurtailmentInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
     b.storageCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
 
 
-def add_investment_constraints(b, investment_stage):
-    """Add standard inequalities (i.e., those not involving disjunctions) to investment stage block."""
+def add_investment_constraints(
+    b,
+    investment_stage,
+):
+    """Add standard inequalities (i.e., those not involving disjunctions)
+    to investment stage block.
+
+    """
 
     m = b.model()
 
@@ -337,7 +360,8 @@ def add_investment_constraints(b, investment_stage):
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
         ):
-            b.genDisabled[gen].indicator_var.fix(True)
+            b.genOperational[gen].indicator_var.fix(False)
+            # b.genDisabled[gen].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -434,16 +458,39 @@ def add_investment_constraints(b, investment_stage):
     # def maximum_renewable_investment(b, region):
     #     return (
     #         sum(
-    #             m.renewableCapacity[gen]
+    #             m.renewableCapacityNameplate[gen]
     #             * b.genInstalled[gen].indicator_var.get_associated_binary()
     #             for gen in m.renewableGenerators & m.gensAtRegion[region]
     #         )
     #         <= b.maxRenewableInvestment[region]
     #         if m.renewableGenerators & m.gensAtRegion[region]
-    #         else Constraint.Skip
+    #         else pyo.Constraint.Skip
     #     )
 
-    ## NOTE: The following constraints can be split into rep_per and invest_stage components if desired
+    ## NOTE: The following constraints can be split into rep_per and
+    ## invest_stage components if desired
+
+    ## NOTE: Constraint (13) in the reference paper
+    @b.Constraint(doc="Minimum per-stage renewable generation requirement")
+    def renewable_generation_requirement(b):
+        renewableSurplusRepresentative = 0
+        ## TODO: preprocess loads for the appropriate sum here
+        ed = 0
+        for rep_per in b.representativePeriods:
+            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+                operatingCostRepresentative += (
+                    m.weights[rep_per]
+                    # [ESR WIP: Commented since we are including the
+                    # period during dispatch stage.]
+                    # * m.commitmentPeriodLength
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .renewableSurplusCommitment
+                )
+        return (
+            renewableSurplusRepresentative + b.quotaDeficit
+            >= m.renewableQuota[investment_stage] * ed
+        )
 
     # Operating costs for investment period
     @b.Expression()
@@ -452,39 +499,29 @@ def add_investment_constraints(b, investment_stage):
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 operatingCostRepresentative += (
-                    m.weights[rep_per]
+                    m.weights[rep_per] * m.commitmentPeriodLength
+                    # [ESR WIP: Commented since we are including the
+                    # period during dispatch stage.]
+                    # * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .operatingCostCommitment
+                    for com_per in b.representativePeriod[rep_per].commitmentPeriods
                 )
 
         return m.investmentFactor[investment_stage] * operatingCostRepresentative
 
-    """ Energy Storage Cost """
-
-    @b.Expression()
-    def storageCostInvestment(b):
-        storageCostRepresentative = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                storageCostRepresentative += (
-                    m.weights[rep_per]
-                    * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .storageCostCommitment
-                )
-
-        return m.investmentFactor[investment_stage] * storageCostRepresentative
-
-    # Investment costs for investment period
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
-    @b.Expression()
+    @b.Constraint(doc="Investment costs for investment period in $")
     def investment_cost(b):
         baseline_cost = (
             sum(
-                m.generatorInvestmentCost[gen]
+                # [ESR WIP: When including the disjunction
+                # investStatus, think if we should replace this cost
+                # with generatorInstallationCost.]
+                m.generatorInvestmentCost[gen] * m.thermalCapacity[gen]  # in MW
+                # m.generatorInstallationCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -492,12 +529,18 @@ def add_investment_constraints(b, investment_stage):
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.capitalMultiplier[gen]
-                * b.renewableInstalled[gen]
+                * b.renewableInstalled[gen]  # in MW
                 for gen in m.renewableGenerators
             )
             + sum(
+                # [ESR WIP: When including the disjunction
+                # investStatus, think if we should replace this cost
+                # with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen]
+                # m.generatorInstallationCost[gen]
                 * m.extensionMultiplier[gen]
+                # [ESR WIP: Term added for unit consistency]
+                * m.thermalCapacity[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -546,8 +589,7 @@ def add_investment_constraints(b, investment_stage):
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
-    # Curtailment penalties for investment period
-    @b.Constraint()
+    @b.Constraint(doc="Curtailment penalties for investment period")
     def renewable_curtailment_cost(b):
         renewableCurtailmentRep = 0
         for rep_per in b.representativePeriods:
@@ -557,10 +599,12 @@ def add_investment_constraints(b, investment_stage):
                     * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
-                    .renewableCurtailmentCommitment
-                )
+                    .renewableCurtailmentCommitment  # in MW
+                    # [ESR WIP: Q: Do we need to include this term here?]
+                    * m.curtailmentCost
+                )  # units are in $
         return (
-            b.renewableCurtailmentInvestment
+            b.renewableCurtailmentInvestment  # in $
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
