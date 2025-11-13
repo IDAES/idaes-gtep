@@ -19,7 +19,12 @@ release = "0.1"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.mathjax"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.mathjax",
+    "sphinx_collections",
+    "nbsphinx",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -35,4 +40,17 @@ on_rtd = os.environ.get("READTHEDOCS", None) == "True"
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_rtd_theme
 
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+    # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+
+# sphinx_collections is used to include notebooks from the main gtep directory
+# in the Sphinx documentation. When the docs are built, this will copy all
+# notebooks into a _collections/notebooks directory where Sphinx can find them.
+collections = {
+    "notebooks": {
+        "driver": "copy_folder",
+        "source": "../../gtep/",
+        "target": "notebooks/",
+        "ignore": ["*.py"],
+    }
+}
