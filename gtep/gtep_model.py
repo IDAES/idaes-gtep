@@ -725,7 +725,7 @@ def add_dispatch_variables(b, dispatch_period):
 
     # Define bounds on renewable generator active generation
     def renewable_generation_limits(b, renewableGen):
-        return (0, m.renewableCapacity[renewableGen])
+        return (0, c_p.renewableCapacityCommitment[renewableGen])
 
     b.renewableGeneration = Var(
         m.renewableGenerators,
@@ -745,7 +745,7 @@ def add_dispatch_variables(b, dispatch_period):
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(b, renewableGen):
-        return (0, m.renewableCapacity[renewableGen])
+        return (0, c_p.renewableCapacityCommitment[renewableGen])
 
     b.renewableCurtailment = Var(
         m.renewableGenerators,
@@ -867,6 +867,7 @@ def add_dispatch_variables(b, dispatch_period):
 
         # Voltage angle
         def delta_bus_angle_bounds(disj, bus):
+            return (-1000,1000)
             return (-math.pi / 6, math.pi / 6)
 
         # Rule for maximum bus angle discrepancy
@@ -1117,7 +1118,7 @@ def add_dispatch_constraints(b, disp_per):
             balance = 0
             # load = m.loads.get(bus) or 0
             buses = [b for b in m.buses]
-            loads = [l for l in m.loads]
+            loads = [l for l in b.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage]
             balance += sum(
@@ -1130,7 +1131,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(m.loads[l] for l in loads)
+            balance -= sum(b.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -1140,7 +1141,7 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses)
         def flow_balance(b, bus):
             balance = 0
-            load = m.loads.get(bus) or 0
+            load = c_p.loads.get(bus) or 0
             end_points = [
                 line
                 for line in m.transmission
@@ -1182,7 +1183,7 @@ def add_dispatch_constraints(b, disp_per):
     def capacity_factor(b, renewableGen):
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == m.renewableCapacity[renewableGen]
+            == c_p.renewableCapacityCommitment[renewableGen]
         )
 
     ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
@@ -1722,7 +1723,7 @@ def commitment_period_rule(b, commitment_period):
     # different way to handle candidate renewable data because this assumes
     # knowledge of the future outputs of a candidate... could be captured by scenarios?)
     # Maximum output of each renewable generator
-    m.renewableCapacity = {
+    b.renewableCapacityCommitment = {
         renewableGen: (
             0
             if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
@@ -1734,9 +1735,9 @@ def commitment_period_rule(b, commitment_period):
     }
 
     ## TEXAS: solar is too small what's up with that?
-    for gen in m.renewableGenerators:
-        if m.md.data["elements"]["generator"][gen]["fuel"] == "S":
-            m.renewableCapacity[gen] *= 10
+    # for gen in m.renewableGenerators:
+    #     if m.md.data["elements"]["generator"][gen]["fuel"] == "S":
+    #         m.renewableCapacity[gen] *= 10
 
     ## TODO: Redesign load scaling and allow nature of it as argument
     # Demand at each bus
@@ -1771,7 +1772,7 @@ def commitment_period_rule(b, commitment_period):
         #     if m.md.data["elements"]["generator"][key]["fuel"] == 'G':
         #         m.thermalCapacity[key] *= 1/10
 
-    # if m.config["scale_loads"]:
+    # elif m.config["scale_loads"]:
     #     temp_scale = 3
     #     temp_scale = 10
 
@@ -1789,15 +1790,18 @@ def commitment_period_rule(b, commitment_period):
     #         for load_n in m.md.data["elements"]["load"]
     #     }
 
-    if False:
-        pass
     else:
-        m.loads = {
+        b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
             ]["p_load"]["values"][commitment_period - 1]
             for load_n in m.md.data["elements"]["load"]
         }
+        # for key, val in b.loads.items():
+        #     # print(f"{key=}")
+        #     # print(f"{val=}")
+        #     b.loads[key] *= 1/3
+        print(f'total load at time period = {sum(b.loads.values())}')
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -2403,7 +2407,7 @@ def model_data_references(m):
         for thermalGen in m.thermalGenerators
     }
 
-    print(sum(m.thermalCapacity.values()))
+    print(f'total thermal capacity = {sum(m.thermalCapacity.values())}')
 
     # Lifetime of each generator; needs units
     m.lifetimes = {
@@ -2438,7 +2442,7 @@ def model_data_references(m):
     # Maximum output of each renewable generator
     m.renewableCapacity = {
         renewableGen: (
-            0
+            m.md.data["elements"]["generator"][renewableGen]["p_max"]
             if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
             else max(
                 m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
@@ -2447,22 +2451,24 @@ def model_data_references(m):
         for renewableGen in m.renewableGenerators
     }
 
-    # print(sum(m.renewableCapacity.values()))
+    print(f'total renewable capacity = {sum(m.renewableCapacity.values())}')
+
+    print(f'total potential capacity = {sum(m.thermalCapacity.values()) + sum(m.renewableCapacity.values())}')
 
     # A fraction of renewableCapacity representing fraction of capacity
     # that can be reliably counted toward planning reserve requirement
     # TODO: WHAT HAVE I DONE HERE I HATE IT
-    m.renewableCapacityValue = {
-        renewableGen: (
-            0
-            if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
-            else min(
-                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
-            )
-            / max(1, m.renewableCapacity[renewableGen])
-        )
-        for renewableGen in m.renewableGenerators
-    }
+    # m.renewableCapacityValue = {
+    #     renewableGen: (
+    #         0
+    #         if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float
+    #         else min(
+    #             m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
+    #         )
+    #         / max(1, m.renewableCapacity[renewableGen])
+    #     )
+    #     for renewableGen in m.renewableGenerators
+    # }
 
     # Long term thermal rating of each transmission line
     m.transmissionCapacity = {
@@ -2499,7 +2505,7 @@ def model_data_references(m):
     }
     # for key, val in m.loads.items():
     #     for i, v in enumerate(val['values']):
-    #         val['values'][i] *= 1/10
+    #         val['values'][i] *= 1/2
 
     ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
     # Per-distance-unit multiplicative loss rate for each transmission line
@@ -3012,9 +3018,9 @@ def model_create_investment_stages(m, stages):
         
         
 
-        # @m.Constraint(m.stages, m.renewableGenerators)
-        # def renewable_capacity_enforcement(m, stage, gen):
-        #     return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] <= m.renewableCapacity[gen]
+        @m.Constraint(m.stages, m.renewableGenerators)
+        def renewable_capacity_enforcement(m, stage, gen):
+            return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] + m.investmentStage[stage].renewableExtended[gen] + m.investmentStage[stage].renewableRetired[gen] + m.investmentStage[stage].renewableRetired[gen]<= m.renewableCapacity[gen]
 
         # If a gen is online at time t, it must have been online or installed at time t-1
         @m.LogicalConstraint(m.stages, m.thermalGenerators)
