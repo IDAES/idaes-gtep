@@ -25,6 +25,7 @@ data_object.load_prescient(data_path)
 # for data in data_object.representative_data:
 #     for gen in data.data["elements"]["storage"].keys():
 #         print(f'{data.data["elements"]["storage"][gen]}')
+#         print(f'{data.data["elements"]["storage"][gen]['bus']}')
 # raise SystemExit
 
 
@@ -52,6 +53,7 @@ mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = False
 mod_object.config["transmission"] = True
 mod_object.config["storage"] = True
+mod_object.config["include_commitment"] = True
 
 mod_object.config["flow_model"] = "DC"
 
@@ -92,7 +94,7 @@ mod_object.results = opt.solve(
 
 # iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
 
-# mod_object.model.write("bad_sol.mps")
+# mod_object.model.write("bad_sol.lp")
 # mod_object.results = opt.solve(mod_object.model)
 
 # import sys
@@ -102,11 +104,14 @@ mod_object.timer.toc("we've solved, let's pull investment variables")
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
 
-valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
+valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret", "Disch", "Char"]
 # thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
 renewable_investments = {}
 dispatchable_investments = {}
 load_shed = {}
+charge = {}
+discharge = {}
+state_of_charge = {}
 for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Shed" in var.name:
@@ -119,6 +124,12 @@ for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
                     renewable_investments[var.name + "." + str(index)] = pyo.value(
                         var[index]
                     )
+        if "Charged" in var.name:
+            charge[var.name + "." + str(index)] = pyo.value(var[index])
+        if "Discharged" in var.name:
+            discharge[var.name + "." + str(index)] = pyo.value(var[index])
+        if "ChargeLevel" in var.name:
+            state_of_charge[var.name + "." + str(index)] = pyo.value(var[index])
 for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
     for index in var:
         for name in valid_names:
@@ -156,6 +167,10 @@ dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
 costs_name = folder_name + "/costs.json"
 
+discharge_name = folder_name + "/discharge.json"
+charge_name = folder_name + "/charge.json"
+state_of_charge_name = folder_name + "/state_of_charge.json"
+
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
 
@@ -167,5 +182,11 @@ with open(load_shed_name, "w") as fil:
     json.dump(load_shed, fil)
 with open(costs_name, "w") as fil:
     json.dump(costs, fil)
+with open(charge_name, "w") as fil:
+    json.dump(charge, fil)
+with open(discharge_name, "w") as fil:
+    json.dump(discharge, fil)
+with open(state_of_charge_name, "w") as fil:
+    json.dump(state_of_charge, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
