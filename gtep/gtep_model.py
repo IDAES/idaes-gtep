@@ -1888,7 +1888,7 @@ def commitment_period_rule(b, commitment_period):
         #     # print(f"{key=}")
         #     # print(f"{val=}")
         #     b.loads[key] *= 1/3
-        print(f'total load at time period = {sum(b.loads.values())}')
+        print(f"total load at time period = {sum(b.loads.values())}")
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -3200,7 +3200,8 @@ def model_data_references(m):
     }
 
     m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"] for bat in m.storage
+        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+        for bat in m.storage
     }  # Future not real cost: idealized DoE 10-yr targets or something
 
     # [ESR WIP: Declare fixed and operating costs here to avoid
@@ -3428,11 +3429,17 @@ def model_create_investment_stages(m, stages):
             if stage != 1
             else pyo.Constraint.Skip
         )
-    
+
     @m.Constraint(m.stages, m.renewableGenerators)
     def renewable_capacity_enforcement(m, stage, gen):
-        return m.investmentStage[stage].renewableOperational[gen] + m.investmentStage[stage].renewableInstalled[gen] + m.investmentStage[stage].renewableExtended[gen] + m.investmentStage[stage].renewableRetired[gen] + m.investmentStage[stage].renewableRetired[gen]<= m.renewableCapacity[gen]
-
+        return (
+            m.investmentStage[stage].renewableOperational[gen]
+            + m.investmentStage[stage].renewableInstalled[gen]
+            + m.investmentStage[stage].renewableExtended[gen]
+            + m.investmentStage[stage].renewableRetired[gen]
+            + m.investmentStage[stage].renewableRetired[gen]
+            <= m.renewableCapacity[gen]
+        )
 
     # If a gen is online at time t, it must have been online or installed at time t-1
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
