@@ -82,7 +82,7 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.001},
+    solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.01},
 )
 # mod_object.model.write('bad_sol.sol')
 # mod_object.results = opt.solve(mod_object.model)
@@ -132,7 +132,7 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "resilience_week_run_revision"
+folder_name = "resilience_week_run_revision_onepercent"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
