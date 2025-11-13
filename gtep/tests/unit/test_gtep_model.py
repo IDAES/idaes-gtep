@@ -1,5 +1,5 @@
+from os.path import abspath, join, dirname
 import pyomo.common.unittest as unittest
-
 from pyomo.environ import ConcreteModel, Var, SolverFactory, value
 from pyomo.environ import units as u
 from gtep.gtep_model import ExpansionPlanningModel
@@ -12,13 +12,10 @@ from prescient.simulator.config import PrescientConfig
 from pyomo.contrib.appsi.solvers.highs import Highs
 
 
-import logging
-from io import StringIO
-
-
 # Helper functions
 def read_debug_model():
-    debug_data_path = "./gtep/data/5bus"
+    curr_dir = dirname(abspath(__file__))
+    debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
     dataObject = ExpansionPlanningData()
     dataObject.load_prescient(debug_data_path)
     return dataObject.md
