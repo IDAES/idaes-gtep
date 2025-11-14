@@ -2202,45 +2202,6 @@ def add_representative_period_constraints(b, rep_per):
             else pyo.LogicalConstraint.Skip
         )
 
-    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-    def consistent_commitment_start_after_downtime(b, commitmentPeriod, thermalGen):
-        return (
-            (
-                pyo.atleast(
-                    int(
-                        m.md.data["elements"]["generator"][thermalGen]["min_down_time"]
-                    ),
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genOff[thermalGen]
-                        .indicator_var
-                        for j in range(
-                            min(
-                                int(
-                                    m.md.data["elements"]["generator"][thermalGen][
-                                        "min_down_time"
-                                    ]
-                                ),
-                                commitmentPeriod - 1,
-                            )
-                        )
-                    ],
-                ).land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genOff[thermalGen]
-                    .indicator_var
-                )
-            ).implies(
-                b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
-                | b.commitmentPeriod[commitmentPeriod]
-                .genStartup[thermalGen]
-                .indicator_var
-            )
-            <= m.batteryDischargingRampDownRates[bat]
-            if commitmentPeriod != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
 
 def representative_period_rule(b, representative_period):
     """Create representative period block.
