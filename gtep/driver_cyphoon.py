@@ -74,7 +74,7 @@ mod_object.timer.toc("triple horrible")
 # import sys
 # sys.exit()
 
-opt = SolverFactory("gurobi_direct")
+opt = SolverFactory("gurobi_direct_v2")
 # opt = Gurobi()
 # opt = GurobiDirect()
 mod_object.timer.toc("Actually, I think this is garbage collection")
@@ -87,7 +87,7 @@ mod_object.timer.toc(
 mod_object.results = opt.solve(
     mod_object.model,
     tee=True,
-    # solver_options={"LogFile": "cyphoon_troubleshooting.log", "MIPGap": 0.001},
+    solver_options={"LogFile": "cyphoon_troubleshooting.log", "MIPGap": 0.001},
 )
 
 # import pyomo.contrib.iis.iis as iis
