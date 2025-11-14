@@ -181,7 +181,7 @@ class ExpansionPlanningModel:
         :magnitude_cutoff: magnitude above which to report coefficients
         """
         var_coef_dict = {}
-        for e in self.model.component_data_objects(Constraint):
+        for e in self.model.component_data_objects(pyo.Constraint):
             cfg = VisitorConfig()
             repn = LinearRepnVisitor(*cfg).walk_expression(e.body)
             repn_dict = repn.linear
@@ -331,7 +331,7 @@ def add_investment_variables(b, investment_stage):
         m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
     b.renewableDisabled = pyo.Var(
-        m.renewableGenerators, within=NonNegativeReals, initialize=0, units=u.MW
+        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
 
     # Track and accumulate costs and penalties
@@ -341,7 +341,7 @@ def add_investment_variables(b, investment_stage):
     b.renewableCurtailmentInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
-    b.storageCostInvestment = Var(within=Reals, initialize=0, units=u.USD)
+    b.storageCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
 
 
 def add_investment_constraints(
@@ -724,9 +724,9 @@ def add_dispatch_variables(b, dispatch_period):
     def init_storage_capacity(b, bat):
         return m.initStorageChargeLevel[bat]
 
-    b.storageChargeLevel = Var(
+    b.storageChargeLevel = pyo.Var(
         m.storage,
-        domain=NonNegativeReals,
+        domain=pyo.NonNegativeReals,
         bounds=storage_capacity_limits,
         initialize=init_storage_capacity,
         units=u.MW,
@@ -741,17 +741,17 @@ def add_dispatch_variables(b, dispatch_period):
     def storage_discharge_limits(b, bat):
         return (0, m.dischargeMax[bat])
 
-    b.storageCharged = Var(
+    b.storageCharged = pyo.Var(
         m.storage,
-        domain=NonNegativeReals,
+        domain=pyo.NonNegativeReals,
         bounds=storage_charge_limits,
         initialize=0,
         units=u.MW,
     )
 
-    b.storageDischarged = Var(
+    b.storageDischarged = pyo.Var(
         m.storage,
-        domain=NonNegativeReals,
+        domain=pyo.NonNegativeReals,
         bounds=storage_discharge_limits,
         initialize=0,
         units=u.MW,
@@ -761,9 +761,9 @@ def add_dispatch_variables(b, dispatch_period):
     def thermal_reactive_generation_limits(b, thermalGen):
         return (0, m.thermalReactiveCapacity[thermalGen])
 
-    b.thermalReactiveGeneration = Var(
+    b.thermalReactiveGeneration = pyo.Var(
         m.thermalGenerators,
-        domain=Reals,
+        domain=pyo.Reals,
         bounds=thermal_reactive_generation_limits,
         initialize=0,
         units=u.MVAR,
@@ -999,12 +999,12 @@ def add_dispatch_variables(b, dispatch_period):
             B = admittance.imag
 
             # Define voltage magnitude variables for from and to buses
-            disj.voltage_from = Var(bounds=(0, 2))
-            disj.voltage_to = Var(bounds=(0, 2))
+            disj.voltage_from = pyo.Var(bounds=(0, 2))
+            disj.voltage_to = pyo.Var(bounds=(0, 2))
 
             # Define active and reactive power flow variables
-            disj.P_flow = Var(bounds=(-1000, 1000))
-            disj.Q_flow = Var(bounds=(-1000, 1000))
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
 
             # Polar Active Power Flow Constraint
             @disj.Constraint()
@@ -1014,8 +1014,9 @@ def add_dispatch_variables(b, dispatch_period):
                     - disj.voltage_from
                     * disj.voltage_to
                     * (
-                        G * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                        + B * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        G * pyo.cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        + B
+                        * pyo.sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                     )
                 )
 
@@ -1027,8 +1028,9 @@ def add_dispatch_variables(b, dispatch_period):
                     - disj.voltage_from
                     * disj.voltage_to
                     * (
-                        G * sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
-                        - B * cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        G * pyo.sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        - B
+                        * pyo.cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
                     )
                 )
 
@@ -1054,14 +1056,14 @@ def add_dispatch_variables(b, dispatch_period):
             B = admittance.imag
 
             # Define rectangular voltage variables for from and to buses
-            disj.real_voltage_from = Var(bounds=(0, 2))
-            disj.real_voltage_to = Var(bounds=(-2, 2))
-            disj.imag_voltage_from = Var(bounds=(0, 2))
-            disj.imag_voltage_to = Var(bounds=(-2, 2))
+            disj.real_voltage_from = pyo.Var(bounds=(0, 2))
+            disj.real_voltage_to = pyo.Var(bounds=(-2, 2))
+            disj.imag_voltage_from = pyo.Var(bounds=(0, 2))
+            disj.imag_voltage_to = pyo.Var(bounds=(-2, 2))
 
             # Define active and reactive power flow variables
-            disj.P_flow = Var(bounds=(-1000, 1000))
-            disj.Q_flow = Var(bounds=(-1000, 1000))
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
 
             # Rectangular Active Power Flow Constraint
             @disj.Constraint()
@@ -1209,7 +1211,7 @@ def add_dispatch_constraints(b, disp_per):
         def CP_flow_balance(b):
             balance = 0
             # load = m.loads.get(bus) or 0
-            buses = [b for b in m.buses]
+            buses = [bus for bus in m.buses]
             loads = [l for l in b.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage]
@@ -1565,7 +1567,7 @@ def add_commitment_variables(b, commitment_period):
                     bat
                 ]  # battery ramp rates are currently absolute values
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
         # Ramp down limit constraints for fully on bats
@@ -1578,7 +1580,7 @@ def add_commitment_variables(b, commitment_period):
                     bat
                 ]  # battery ramp rates are currently absolute values
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
         # Force no charge when discharging
@@ -1595,7 +1597,7 @@ def add_commitment_variables(b, commitment_period):
                 * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
     """
@@ -1628,7 +1630,7 @@ def add_commitment_variables(b, commitment_period):
                     bat
                 ]  # battery ramp rates are currently absolute values
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
         # Ramp down limit constraints for fully on bats
@@ -1641,7 +1643,7 @@ def add_commitment_variables(b, commitment_period):
                     bat
                 ]  # battery ramp rates are currently absolute values
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
         @disj.Constraint(b.dispatchPeriods)
@@ -1658,7 +1660,7 @@ def add_commitment_variables(b, commitment_period):
                 + m.storageChargingEfficiency[bat]
                 * b.dispatchPeriod[disp_per].storageCharged[bat]
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )  # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
 
     """
@@ -1688,7 +1690,7 @@ def add_commitment_variables(b, commitment_period):
                 == m.storageRetentionRate[bat]
                 * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
                 if disp_per != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
     # Batteries are exclusively either Charging, Discharging, or Off
@@ -1703,10 +1705,10 @@ def add_commitment_variables(b, commitment_period):
     # bats cannot be committed unless they are operational or just installed
     @b.LogicalConstraint(m.storage)
     def commit_active_batts_only(b, bat):
-        return lor(
+        return pyo.lor(
             b.storCharging[bat].indicator_var, b.storDischarging[bat].indicator_var
         ).implies(
-            lor(
+            pyo.lor(
                 i_p.storOperational[bat].indicator_var,
                 i_p.storInstalled[bat].indicator_var,
                 i_p.storExtended[bat].indicator_var,
@@ -2259,8 +2261,10 @@ def representative_period_rule(b, representative_period):
 
     b.currentPeriod = representative_period
     if m.config["include_commitment"] or m.config["include_redispatch"]:
-        b.commitmentPeriods = RangeSet(m.numCommitmentPeriods[representative_period])
-        b.commitmentPeriod = Block(b.commitmentPeriods, rule=commitment_period_rule)
+        b.commitmentPeriods = pyo.RangeSet(
+            m.numCommitmentPeriods[representative_period]
+        )
+        b.commitmentPeriod = pyo.Block(b.commitmentPeriods, rule=commitment_period_rule)
 
         add_representative_period_variables(b, representative_period)
         add_representative_period_constraints(b, representative_period)
@@ -2490,9 +2494,9 @@ def investment_stage_rule(b, investment_stage):
         other_option = 1
         ##TEXAS: lmao this is garbage; generalize this
         if investment_stage == 1:
-            b.fixedCost = Param(m.generators, initialize=m.fixedCost1)
-            b.varCost = Param(m.generators, initialize=m.varCost1)
-            b.fuelCost = Param(m.generators, initialize=m.fuelCost1)
+            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost1)
+            b.varCost = pyo.Param(m.generators, initialize=m.varCost1)
+            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost1)
             thermalInvestmentCost = {
                 gen: other_option
                 * m.thermalCapacity[gen]
@@ -2509,9 +2513,9 @@ def investment_stage_rule(b, investment_stage):
             print("gen investment cost")
             print(sum(m.generatorInvestmentCost.values()))
         elif investment_stage == 2:
-            b.fixedCost = Param(m.generators, initialize=m.fixedCost2)
-            b.varCost = Param(m.generators, initialize=m.varCost2)
-            b.fuelCost = Param(m.generators, initialize=m.fuelCost2)
+            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost2)
+            b.varCost = pyo.Param(m.generators, initialize=m.varCost2)
+            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost2)
             thermalInvestmentCost = {
                 gen: other_option
                 * m.thermalCapacity[gen]
@@ -2526,9 +2530,9 @@ def investment_stage_rule(b, investment_stage):
             }
             m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
         else:
-            b.fixedCost = Param(m.generators, initialize=m.fixedCost3)
-            b.varCost = Param(m.generators, initialize=m.varCost3)
-            b.fuelCost = Param(m.generators, initialize=m.fuelCost3)
+            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost3)
+            b.varCost = pyo.Param(m.generators, initialize=m.varCost3)
+            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost3)
             thermalInvestmentCost = {
                 gen: other_option
                 * m.thermalCapacity[gen]
@@ -2671,7 +2675,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # This should be updated for battery. @JKS is this using the
     # built-in structure from EGRET or just a placeholder?
     if m.md.data["elements"].get("storage"):
-        m.storage = Set(
+        m.storage = pyo.Set(
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
@@ -2710,7 +2714,7 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             }
         }  # Thermal generator fuel costs are on [0.5,1.5]; renewables have no fuel cost. What should go here?
 
-        m.storage = Set(
+        m.storage = pyo.Set(
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
@@ -3329,7 +3333,7 @@ def model_create_investment_stages(m, stages):
                 .genRetired[gen]
                 .indicator_var.get_associated_binary()
                 if stage != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
     """ Battery investment stage state change logic """
@@ -3350,7 +3354,7 @@ def model_create_investment_stages(m, stages):
             .branchRetired[branch]
             .indicator_var.get_associated_binary()
             if stage != 1
-            else Constraint.Skip
+            else pyo.Constraint.Skip
         )
 
     # Renewable generation (in MW) retirement relationships
@@ -3407,7 +3411,7 @@ def model_create_investment_stages(m, stages):
                 - m.investmentStage[stage - 1].renewableExtended[gen]
                 - m.investmentStage[stage - 1].renewableRetired[gen]
                 if stage != 1
-                else Constraint.Skip
+                else pyo.Constraint.Skip
             )
 
     @m.Constraint(m.stages, m.renewableGenerators)
@@ -3536,7 +3540,7 @@ def model_create_investment_stages(m, stages):
                 | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     # If a gen is online at time t, it must be online, extended, or retired at time t+1
@@ -3551,7 +3555,7 @@ def model_create_investment_stages(m, stages):
                 | m.investmentStage[stage].storRetired[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     # Retirement in period t-1 implies disabled in period t
@@ -3564,7 +3568,7 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage].storDisabled[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     # If a gen is disabled at time t-1, it must stay disabled  at time t
@@ -3579,7 +3583,7 @@ def model_create_investment_stages(m, stages):
                 | m.investmentStage[stage].storInstalled[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     # If a gen is extended at time t-1, it must stay extended or be retired at time t
@@ -3593,7 +3597,7 @@ def model_create_investment_stages(m, stages):
                 | m.investmentStage[stage].storRetired[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     # Installation in period t-1 implies operational in period t
@@ -3606,7 +3610,7 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage].storOperational[gen].indicator_var
             )
             if stage != 1
-            else LogicalConstraint.Skip
+            else pyo.LogicalConstraint.Skip
         )
 
     if m.config["transmission"]:
@@ -3621,7 +3625,7 @@ def model_create_investment_stages(m, stages):
                     | m.investmentStage[stage - 1].branchInstalled[branch].indicator_var
                 )
                 if stage != 1
-                else LogicalConstraint.Skip
+                else pyo.LogicalConstraint.Skip
             )
 
     # If a branch is online at time t, it must be online, extended, or retired at time t+1
