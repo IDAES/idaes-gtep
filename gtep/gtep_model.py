@@ -2213,7 +2213,7 @@ def investment_stage_rule(b, investment_stage):
 
     # [ESR WIP: Assume we have two types of generators: thermal "CT"
     # (with gas fuel) and renewable "PV" (with "sun" as fuel).]
-
+    
     gen_thermal_type = "CT"
     gen_renewable_type = "PV"
 
@@ -2225,6 +2225,7 @@ def investment_stage_rule(b, investment_stage):
     m.genRenewableFuelCost = []
     m.genRenewableFixOpCost = []
     m.genRenewableVarOpCost = []
+    
     for index, row in m.mc.gen_data_target.iterrows():
         if row["Unit Type"].startswith(gen_thermal_type):
             m.genThermalInvCost.append(row[f"capex_{b.year}"])  # in $/kW
@@ -2301,8 +2302,6 @@ def investment_stage_rule(b, investment_stage):
     ##########
 
     b.year = m.years[investment_stage - 1]
-
-    print(f"b.year = {b.year}")
 
     ##########
     # [ESR WIP: Save lists with all relevant costs (fixed and variable
@@ -2692,7 +2691,7 @@ def model_data_references(m):
         m.renewableGenerators,
         initialize={
             renewableGen: (
-                0
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]
                 if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
                 == float
                 else max(
@@ -3024,107 +3023,108 @@ def model_data_references(m):
         ]
         == region
     }
-    """ Battery Storage properties read-in from data """
-    m.storageCapacity = {
-        bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
-        for bat in m.storage
-    }  # maximum storage capacity
+    if m.config["storage"] == True:
+        """ Battery Storage properties read-in from data """
+        m.storageCapacity = {
+            bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
+            for bat in m.storage
+        }  # maximum storage capacity
 
-    m.initStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
-        for bat in m.storage
-    }  # initial storage capacity
+        m.initStorageChargeLevel = {
+            bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
+            for bat in m.storage
+        }  # initial storage capacity
 
-    m.minStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
-        for bat in m.storage
-    }  # minimum storage capacity
+        m.minStorageChargeLevel = {
+            bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
+            for bat in m.storage
+        }  # minimum storage capacity
 
-    m.chargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
-    }  # cost to charge per unit electricity
+        m.chargingCost = {
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
+        }  # cost to charge per unit electricity
 
-    m.dischargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-        for bat in m.storage
-    }  # cost to discharge per unit electricity
+        m.dischargingCost = {
+            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+            for bat in m.storage
+        }  # cost to discharge per unit electricity
 
-    m.dischargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
-        for bat in m.storage
-    }  # minimum amount to discharge per dispatch period when discharging
+        m.dischargeMin = {
+            bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
+            for bat in m.storage
+        }  # minimum amount to discharge per dispatch period when discharging
 
-    m.dischargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
-        for bat in m.storage
-    }  # maximum amount to discharge per dispatch period when discharging
+        m.dischargeMax = {
+            bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
+            for bat in m.storage
+        }  # maximum amount to discharge per dispatch period when discharging
 
-    m.chargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
-        for bat in m.storage
-    }  # minimum amount to charge per dispatch period when charging
+        m.chargeMin = {
+            bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
+            for bat in m.storage
+        }  # minimum amount to charge per dispatch period when charging
 
-    m.chargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
-        for bat in m.storage
-    }  # maximum amount to charge per dispatch period when charging
+        m.chargeMax = {
+            bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
+            for bat in m.storage
+        }  # maximum amount to charge per dispatch period when charging
 
-    m.storageDischargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp up between dispatch periods when discharging.
-    # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
+        m.storageDischargingRampUpRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp up between dispatch periods when discharging.
+        # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
 
-    m.storageDischargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp down between dispatch periods when discharging.
+        m.storageDischargingRampDownRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp down between dispatch periods when discharging.
 
-    m.storageChargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp up between dispatch periods when charging.
+        m.storageChargingRampUpRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp up between dispatch periods when charging.
 
-    m.storageChargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp down between dispatch periods when charging.
+        m.storageChargingRampDownRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp down between dispatch periods when charging.
 
-    m.storageDischargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
-        for bat in m.storage
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies with in dispatch periods and which is usable in the flow balance
+        m.storageDischargingEfficiency = {
+            bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
+            for bat in m.storage
+        }  # proportion of energy discharged that is not lost to technological
+        # inefficiencies with in dispatch periods and which is usable in the flow balance
 
-    m.storageChargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
-        for bat in m.storage
-    }  # proportion of energy charged that is not lost to technological
-    # inefficiencies within dispatch periods and which is usable in the flow balance
+        m.storageChargingEfficiency = {
+            bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
+            for bat in m.storage
+        }  # proportion of energy charged that is not lost to technological
+        # inefficiencies within dispatch periods and which is usable in the flow balance
 
-    m.storageRetentionRate = {
-        bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
-        for bat in m.storage
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies between dispatch periods and which is usable in the flow balance
+        m.storageRetentionRate = {
+            bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
+            for bat in m.storage
+        }  # proportion of energy discharged that is not lost to technological
+        # inefficiencies between dispatch periods and which is usable in the flow balance
 
-    # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
-    # for individual technologies; higher values are indicative of slow depreciation
-    m.storageCapitalMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
-        for bat in m.storage
-    }
+        # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
+        # for individual technologies; higher values are indicative of slow depreciation
+        m.storageCapitalMultiplier = {
+            bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
+            for bat in m.storage
+        }
 
-    # Cost of life extension for each battery, expressed as a fraction of initial investment cost
-    m.storageExtensionMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
-        for bat in m.storage
-    }
+        # Cost of life extension for each battery, expressed as a fraction of initial investment cost
+        m.storageExtensionMultiplier = {
+            bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
+            for bat in m.storage
+        }
 
-    m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
-        for bat in m.storage
-    }  # Future not real cost: idealized DoE 10-yr targets or something
+        m.storageInvestmentCost = {
+            bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+            for bat in m.storage
+        }  # Future not real cost: idealized DoE 10-yr targets or something
 
     # [ESR WIP: Declare fixed and operating costs here to avoid
     # multiple declarations of the same parameter. Set the value to 1
