@@ -710,8 +710,6 @@ def add_dispatch_variables(b, dispatch_period):
         doc="Thermal generation",
     )
 
-    """ Battery Parameters """
-
     """ Battery --> Storage Parameters """
 
     def storage_capacity_limits(b, bat):
@@ -2125,47 +2123,6 @@ def add_representative_period_constraints(b, rep_per):
         #         if commitmentPeriod != 1
         #         else LogicalConstraint.Skip
         #     )
-
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
-            return (
-                (
-                    pyo.atmost(
-                        int(
-                            m.md.data["elements"]["generator"][thermalGen][
-                                "min_down_time"
-                            ]
-                        )
-                        - 1,
-                        [
-                            b.commitmentPeriod[commitmentPeriod - j - 1]
-                            .genOff[thermalGen]
-                            .indicator_var
-                            for j in range(
-                                min(
-                                    int(
-                                        m.md.data["elements"]["generator"][thermalGen][
-                                            "min_down_time"
-                                        ]
-                                    ),
-                                    commitmentPeriod - 1,
-                                )
-                            )
-                        ],
-                    ).land(
-                        b.commitmentPeriod[commitmentPeriod - 1]
-                        .genOff[thermalGen]
-                        .indicator_var
-                    )
-                ).implies(
-                    b.commitmentPeriod[commitmentPeriod]
-                    .genOff[thermalGen]
-                    .indicator_var
-                )
-                if commitmentPeriod
-                != 1  # >= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
-                else pyo.LogicalConstraint.Skip
-            )
 
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
