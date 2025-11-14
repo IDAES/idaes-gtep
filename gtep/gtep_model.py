@@ -109,7 +109,7 @@ class ExpansionPlanningModel:
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
         if self.data is None:
             raise
-        elif type(self.data.representative_data) is list:
+        elif type(self.data) is list:
             # If self.data is a list, it is a list of data for
             # representative periods
             m.data_list = self.data.representative_data
@@ -122,7 +122,7 @@ class ExpansionPlanningModel:
             # If self.data is an Egret model data object,
             # representative periods will just copy it unchanged
             m.data_list = None
-            m.md = scale_ModelData_to_pu(self.data)
+            m.md = self.data
             m.formulation = self.formulation
 
         # [ESR WIP: Add cost_data. TODO: Think about how to do some
