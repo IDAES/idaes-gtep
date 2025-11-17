@@ -80,7 +80,7 @@ opt = Gurobi()
 mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
-opt.gurobi_options['MIPGap': 0.001]
+# opt.gurobi_options['MIPGap': 0.001]
 # opt = Highs()
 mod_object.timer.toc(
     "let's start to solve -- this is really the start of the handoff to gurobi"
