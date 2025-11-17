@@ -74,20 +74,21 @@ mod_object.timer.toc("triple horrible")
 # import sys
 # sys.exit()
 
-opt = SolverFactory("gurobi_direct_v2")
-# opt = Gurobi()
-# opt = GurobiDirect()
+#opt = SolverFactory("gurobi_direct_v2")
+opt = Gurobi()
+#opt = GurobiDirect()
 mod_object.timer.toc("Actually, I think this is garbage collection")
 # opt.gurobi_options['LogFile'] = "basic_logging.log"
 # opt.gurobi_options['LogToConsole'] = 1
+opt.gurobi_options['MIPGap': 0.001]
 # opt = Highs()
 mod_object.timer.toc(
     "let's start to solve -- this is really the start of the handoff to gurobi"
 )
 mod_object.results = opt.solve(
     mod_object.model,
-    tee=True,
-    solver_options={"LogFile": "cyphoon_troubleshooting.log", "MIPGap": 0.001},
+    # tee=True,
+    # solver_options={"LogFile": "cyphoon_troubleshooting.log", "MIPGap": 0.001},
 )
 
 # import pyomo.contrib.iis.iis as iis
@@ -188,5 +189,22 @@ with open(discharge_name, "w") as fil:
     json.dump(discharge, fil)
 with open(state_of_charge_name, "w") as fil:
     json.dump(state_of_charge, fil)
+
+
+save_numerical_results = True
+if save_numerical_results:
+
+    sol_object = ExpansionPlanningSolution()
+
+    sol_object.load_from_model(mod_object)
+    sol_object.dump_json()
+load_numerical_results = True
+if load_numerical_results:
+    sol_object.read_json("./gtep_solution_battery_Test.json")
+    # sol_object.read_json("./gtep_solution.json")
+    # sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
+plot_results = True
+if plot_results:
+    sol_object.plot_levels(save_dir="./plots/")
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")

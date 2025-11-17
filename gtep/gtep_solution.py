@@ -77,7 +77,7 @@ class ExpansionPlanningSolution:
             json_read = json.loads(fobj.read())
         self.primals_tree = json_read["results"]["primals_tree"]
 
-    def dump_json(self, filename="./gtep_solution_jscTest.json"):
+    def dump_json(self, filename="./gtep_solution_battery_other_Test.json"):
         # def dump_json(self, filename="./gtep_solution.json"):
 
         dump_filepath = Path(filename)

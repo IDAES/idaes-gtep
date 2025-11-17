@@ -1834,7 +1834,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in b.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            b.loads[key] *= 0.47
+            b.loads[key] *= 0.46
         print(f'total load at time period = {sum(b.loads.values())}')
 
     ## TODO: This feels REALLY inelegant and bad.
@@ -2832,7 +2832,7 @@ def model_data_references(m):
     }
 
     m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"] for bat in m.storage
+        bat: 1000*m.md.data["elements"]["storage"][bat]["investment_cost"] for bat in m.storage
     }  # Future not real cost: idealized DoE 10-yr targets or something
 
 
