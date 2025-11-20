@@ -3161,41 +3161,6 @@ def model_data_references(m):
         mutable=True,
     )
 
-    # [ESR WIP: Declare fixed and operating costs here to avoid
-    # multiple declarations of the same parameter. Set the value to 1
-    # for now and updated in function investment_stage_rule.]
-    m.fixedCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
-    )
-    m.varCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
-    )
-
-    # [ESR WIP: Declare and initialize curtailment and load shed costs
-    # as parameters. These are re-calculated in
-    # investment_stage_rule. Also, note that the original
-    # "loadShedCost" was renamed "loadShedCostperCurtailment" to avoid
-    # repetition. ]
-    m.curtailmentCost = pyo.Param(
-        initialize=1,
-        units=u.USD / (u.MW * u.hr),
-        mutable=True,
-        doc="Curtailment cost",
-    )
-    m.loadShedCostperCurtailment = pyo.Param(
-        initialize=1000,
-        units=u.USD / (u.MW * u.hr),
-        mutable=True,
-    )
-
 
 def model_create_investment_stages(m, stages):
     """Creates investment blocks and linking constraints for GTEP model.
