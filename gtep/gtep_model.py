@@ -109,7 +109,7 @@ class ExpansionPlanningModel:
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
         if self.data is None:
             raise
-        elif type(self.data) is list:
+        elif type(self.data.representative_data) is list:
             # If self.data is a list, it is a list of data for
             # representative periods
             m.data_list = self.data.representative_data
@@ -122,7 +122,7 @@ class ExpansionPlanningModel:
             # If self.data is an Egret model data object,
             # representative periods will just copy it unchanged
             m.data_list = None
-            m.md = self.data
+            m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
 
         # [ESR WIP: Add cost_data. TODO: Think about how to do some
@@ -380,7 +380,7 @@ def add_investment_constraints(
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
-            b.renewableOperational[gen].fix(m.renewableCapacity[gen])
+            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
 
     if m.config["transmission"]:
         for branch in m.transmission:
@@ -470,29 +470,8 @@ def add_investment_constraints(
     ## NOTE: The following constraints can be split into rep_per and
     ## invest_stage components if desired
 
-    ## NOTE: Constraint (13) in the reference paper
-    @b.Constraint(doc="Minimum per-stage renewable generation requirement")
-    def renewable_generation_requirement(b):
-        renewableSurplusRepresentative = 0
-        ## TODO: preprocess loads for the appropriate sum here
-        ed = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                operatingCostRepresentative += (
-                    m.weights[rep_per]
-                    # [ESR WIP: Commented since we are including the
-                    # period during dispatch stage.]
-                    # * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .renewableSurplusCommitment
-                )
-        return (
-            renewableSurplusRepresentative + b.quotaDeficit
-            >= m.renewableQuota[investment_stage] * ed
-        )
-
     # Operating costs for investment period
+    # BLN: Convert this to a constraint using operatingCostInvestment Var. May also need to move it
     @b.Expression()
     def operatingCostInvestment(b):
         operatingCostRepresentative = 0
@@ -2213,109 +2192,6 @@ def investment_stage_rule(b, investment_stage):
 
     # [ESR WIP: Assume we have two types of generators: thermal "CT"
     # (with gas fuel) and renewable "PV" (with "sun" as fuel).]
-    
-    gen_thermal_type = "CT"
-    gen_renewable_type = "PV"
-
-    m.genThermalInvCost = []
-    m.genThermalFuelCost = []
-    m.genThermalFixOpCost = []
-    m.genThermalVarOpCost = []
-    m.genRenewableInvCost = []
-    m.genRenewableFuelCost = []
-    m.genRenewableFixOpCost = []
-    m.genRenewableVarOpCost = []
-    
-    for index, row in m.mc.gen_data_target.iterrows():
-        if row["Unit Type"].startswith(gen_thermal_type):
-            m.genThermalInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genThermalFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genThermalVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genThermalFuelCost.append(row[f"fuel_costs_{b.year}"])
-
-        elif row["Unit Type"].startswith(gen_renewable_type):
-            m.genRenewableInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genRenewableFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genRenewableVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genRenewableFuelCost.append(row[f"fuel_costs_{b.year}"])
-
-        else:
-            continue
-
-    # [ESR WIP: Update data for fixed and variable costs here since
-    # they depend on the investment year. Also, convert the units to
-    # be consistent.]
-    units_fixed_cost = u.USD / (u.kW * u.year)
-    units_var_cost = u.USD / (u.MW * u.hr)
-    units_inv_cost = u.USD / u.kW
-    units_fuel_cost = u.USD / (u.MW * u.hr)
-    for gen in m.generators:
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genThermalFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
-
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
-
-            # [ESR WIP: Add fuel costs from preprocessed
-            # data. Consider this cost is for Natural Gas generators,
-            # not coal.]
-            m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
-
-        else:
-            # For renewable
-
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genRenewableFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
-
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
-
-    # Final (converted) units are:
-    # fixed cost = $/ MWh
-    # var cost = $/MWh
-    # inv cost = $/Mw
-    # fuel cost = $/MWh
-
-    # Cost per MW of curtailed renewable energy (Original) NOTE: what
-    # should this be valued at?  This being both curtailment and load
-    # shed.
-
-    # [ESR WIP: Recalculate "curtailmentCost" and
-    # "loadShedCostperCurtailment" (formerly "loadShedCost") since
-    # they depend on "fuelCost". NOTE: These were originally defined
-    # as parameters in the function model_data_reference after
-    # "fuelCost" was defined.]
-    m.curtailmentCost = 2 * max(
-        pyo.value(m.fuelCost[gen]) for gen in m.thermalGenerators
-    )
-    m.loadShedCostperCurtailment = 5000
-
-    ##########
-
-    b.year = m.years[investment_stage - 1]
-
-    ##########
-    # [ESR WIP: Save lists with all relevant costs (fixed and variable
-    # operating costs, fuel costs, and investment costs) for thermal
-    # and renewable generators. Please refer to gtep_data_processing
-    # for more details about the preprocessing of this data. NOTES:
-    # The "capex" in the investment costs already include the interest
-    # rate for each generator. Also, note that this data only covers
-    # three years: 2025, 2030, and 2035. If more investment years are
-    # needed, more data should be included in the data file for data
-    # processing.
-
-    # [ESR WIP: Assume we have two types of generators: thermal "CT"
-    # (with gas fuel) and renewable "PV" (with "sun" as fuel).]
 
     gen_thermal_type = "CT"
     gen_renewable_type = "PV"
@@ -2403,7 +2279,6 @@ def investment_stage_rule(b, investment_stage):
 
     ##########
 
-    b.year = m.years[investment_stage - 1]
     if m.config["scale_texas_loads"]:
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 

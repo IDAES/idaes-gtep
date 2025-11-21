@@ -43,7 +43,7 @@ data_processing_object.load_gen_data(
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
     stages=2,
-    data=data_object.md,
+    data=data_object,
     cost_data=data_processing_object,
     num_reps=2,
     len_reps=1,
@@ -60,10 +60,10 @@ pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
 # Add solver
 # opt = pyo.SolverFactory("gurobi")
-opt = Gurobi()
-# opt = Highs()
-# mod_object.results = opt.solve(mod_object.model, tee=True)
-mod_object.results = opt.solve(mod_object.model)
+# opt = Gurobi()
+opt = Highs()
+mod_object.results = opt.solve(mod_object.model, tee=True)
+# mod_object.results = opt.solve(mod_object.model)
 print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
 # mod_object.report_model()

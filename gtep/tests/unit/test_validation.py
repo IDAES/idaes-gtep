@@ -24,7 +24,7 @@ def get_solution_object():
 
     mod_object = ExpansionPlanningModel(
         stages=2,
-        data=data_object.md,
+        data=data_object,
         num_reps=2,
         len_reps=1,
         num_commit=6,

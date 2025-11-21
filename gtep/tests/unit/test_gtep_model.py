@@ -18,15 +18,15 @@ def read_debug_model():
     debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
     dataObject = ExpansionPlanningData()
     dataObject.load_prescient(debug_data_path)
-    return dataObject.md
+    return dataObject
 
 
 class TestGTEP(unittest.TestCase):
     def test_model_init(self):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with default values, including building a Pyomo.ConcreteModel object
-        md = read_debug_model()
-        modObject = ExpansionPlanningModel(data=md)
+        data_object = read_debug_model()
+        modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
@@ -41,7 +41,7 @@ class TestGTEP(unittest.TestCase):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
         modObject = ExpansionPlanningModel(
-            data=md, stages=2, num_reps=4, len_reps=16, num_commit=12, num_dispatch=12
+            data=data_object, stages=2, num_reps=4, len_reps=16, num_commit=12, num_dispatch=12
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
@@ -87,9 +87,9 @@ class TestGTEP(unittest.TestCase):
 
     # Solve the debug model as is.  Objective value should be $6078.86
     def test_solve_bigm(self):
-        md = read_debug_model()
+        data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
         opt = Highs()
@@ -111,9 +111,9 @@ class TestGTEP(unittest.TestCase):
         )
 
     def test_no_investment(self):
-        md = read_debug_model()
+        data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.config["include_investment"] = False
         modObject.create_model()
