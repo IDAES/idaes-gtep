@@ -1778,6 +1778,9 @@ def commitment_period_rule(b, commitment_period):
     # b.load_scaling = r_p.load_scaling[r_p.load_scaling["hour"] == b.commitmentPeriod]
     # print(b.load_scaling.head())
 
+    ##ZAK: here's the load coefficient to modify 
+    alpha_scaler = 0.46
+
     if m.config["scale_texas_loads"]:
         false_loads = []
         for load in m.md.data["elements"]["load"]:
@@ -1834,7 +1837,7 @@ def commitment_period_rule(b, commitment_period):
         for key, val in b.loads.items():
             # print(f"{key=}")
             # print(f"{val=}")
-            b.loads[key] *= 0.46
+            b.loads[key] *= alpha_scaler
         print(f'total load at time period = {sum(b.loads.values())}')
 
     ## TODO: This feels REALLY inelegant and bad.
