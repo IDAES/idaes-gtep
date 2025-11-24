@@ -1,3 +1,16 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2025 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
 import pyomo.environ as pyo
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
@@ -5,10 +18,7 @@ from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
-from gtep_model import ExpansionPlanningModel
-from gtep_data import ExpansionPlanningData
-from gtep_data_processing import DataProcessing
-from gtep_solution import ExpansionPlanningSolution
+from gtep.gtep_data_processing import DataProcessing
 
 # Add data
 data_path = "./data/5bus"
@@ -43,7 +53,7 @@ data_processing_object.load_gen_data(
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
     stages=2,
-    data=data_object.md,
+    data=data_object,
     cost_data=data_processing_object,
     num_reps=2,
     len_reps=1,
@@ -52,18 +62,30 @@ mod_object = ExpansionPlanningModel(
     # [ESR: in min by default, for now]
     duration_dispatch=15,
 )
+
+mod_object.config["include_investment"] = True
+mod_object.config["include_commitment"] = True
+mod_object.config["include_redispatch"] = True
+mod_object.config["scale_loads"] = True
+mod_object.config["transmission"] = True
+mod_object.config["storage"] = False
+mod_object.config["flow_model"] = "DC"
+
 mod_object.create_model()
 
 # Apply transformations to logical terms
 pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
+quit()
+
 # Add solver
 # opt = pyo.SolverFactory("gurobi")
-opt = Gurobi()
+# opt = Gurobi()
 # opt = Highs()
-# mod_object.results = opt.solve(mod_object.model, tee=True)
-mod_object.results = opt.solve(mod_object.model)
+opt = pyo.SolverFactory("highs")
+mod_object.results = opt.solve(mod_object.model, tee=True)
+# mod_object.results = opt.solve(mod_object.model)
 print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
 # mod_object.report_model()
