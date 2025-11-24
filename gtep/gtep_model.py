@@ -1176,16 +1176,16 @@ def add_dispatch_variables(b, dispatch_period):
                 )
             )
 
-    # JSC update - If a branch is not in use, it must be inactive.
-    # Update this when switching is implemented
-    @b.LogicalConstraint(m.transmission)
-    def cannot_use_inactive_branches(b, branch):
-        return b.branchNotInUse[branch].indicator_var.implies(
-            pyo.lor(
-                i_p.branchDisabled[branch].indicator_var,
-                i_p.branchRetired[branch].indicator_var,
+        # JSC update - If a branch is not in use, it must be inactive.
+        # Update this when switching is implemented
+        @b.LogicalConstraint(m.transmission)
+        def cannot_use_inactive_branches(b, branch):
+            return b.branchNotInUse[branch].indicator_var.implies(
+                pyo.lor(
+                    i_p.branchDisabled[branch].indicator_var,
+                    i_p.branchRetired[branch].indicator_var,
+                )
             )
-        )
 
     def spinning_reserve_limits(
         b, thermalGen, doc="Bounds on thermal generator spinning reserve supply"
@@ -1277,11 +1277,13 @@ def add_dispatch_constraints(b, disp_per):
                 for gen in m.generators
                 if m.md.data["elements"]["generator"][gen]["bus"] == bus
             ]
-            batts = [
-                bat
-                for bat in m.storage
-                if m.md.data["elements"]["storage"][bat]["bus"] == bus
-            ]
+            batts = []
+            if m.config["storage"]:
+                batts = [
+                    bat
+                    for bat in m.storage
+                    if m.md.data["elements"]["storage"][bat]["bus"] == bus
+                ]
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             balance += sum(
@@ -1735,6 +1737,8 @@ def add_storage_constraints(m, b):
         ]
 
     # bats cannot be committed unless they are operational or just installed
+    r_p = b.parent_block()
+    i_p = r_p.parent_block()
     @b.LogicalConstraint(m.storage)
     def commit_active_batts_only(b, bat):
         return pyo.lor(
