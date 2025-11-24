@@ -118,6 +118,8 @@ class ExpansionPlanningModel:
         self.timer.tic("Creating GTEP Model")
         m = pyo.ConcreteModel()
 
+        m.config = self.config
+
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
         if self.data is None:
@@ -722,62 +724,63 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     """ Battery --> Storage Parameters """
+    if m.config["storage"]:
+        def storage_capacity_limits(b, bat):
+            return (
+                m.minStorageChargeLevel[bat],
+                m.storageCapacity[bat],
+            )  # The lower bound should be > 0 - data input
 
-    def storage_capacity_limits(b, bat):
-        return (
-            m.minStorageChargeLevel[bat],
-            m.storageCapacity[bat],
-        )  # The lower bound should be > 0 - data input
+        # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
+        def init_storage_capacity(b, bat):
+            return m.initStorageChargeLevel[bat]
 
-    # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
-    def init_storage_capacity(b, bat):
-        return m.initStorageChargeLevel[bat]
+        b.storageChargeLevel = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_capacity_limits,
+            initialize=init_storage_capacity,
+            units=u.MW,
+        )
 
-    b.storageChargeLevel = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_capacity_limits,
-        initialize=init_storage_capacity,
-        units=u.MW,
-    )
+        # Define bounds on charging/discharging capability. Note that constraints
+        # enforce that there are min & max charge/discharge levels if the bat is in
+        # the charging or discharging state
+        def storage_charge_limits(b, bat):
+            return (0, m.chargeMax[bat])
 
-    # Define bounds on charging/discharging capability. Note that constraints
-    # enforce that there are min & max charge/discharge levels if the bat is in
-    # the charging or discharging state
-    def storage_charge_limits(b, bat):
-        return (0, m.chargeMax[bat])
+        def storage_discharge_limits(b, bat):
+            return (0, m.dischargeMax[bat])
 
-    def storage_discharge_limits(b, bat):
-        return (0, m.dischargeMax[bat])
+        b.storageCharged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_charge_limits,
+            initialize=0,
+            units=u.MW,
+        )
 
-    b.storageCharged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_charge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+        b.storageDischarged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_discharge_limits,
+            initialize=0,
+            units=u.MW,
+        )
 
-    b.storageDischarged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_discharge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        # Define bounds on thermal generator reactive generation
+        def thermal_reactive_generation_limits(b, thermalGen):
+            return (0, m.thermalReactiveCapacity[thermalGen])
 
-    # Define bounds on thermal generator reactive generation
-    def thermal_reactive_generation_limits(b, thermalGen):
-        return (0, m.thermalReactiveCapacity[thermalGen])
-
-    b.thermalReactiveGeneration = pyo.Var(
-        m.thermalGenerators,
-        domain=pyo.Reals,
-        bounds=thermal_reactive_generation_limits,
-        initialize=0,
-        units=u.MVAR,
-        doc="Thermal generation",
-    )
+        b.thermalReactiveGeneration = pyo.Var(
+            m.thermalGenerators,
+            domain=pyo.Reals,
+            bounds=thermal_reactive_generation_limits,
+            initialize=0,
+            units=u.MVAR,
+            doc="Thermal generation",
+        )
 
     # [ESR WIP: Still deciding if this should be Nameplate]
     def renewable_generation_limits(
@@ -1861,7 +1864,7 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        m.loads = {
+        b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: (
                 temp_scale
                 * (
@@ -1936,6 +1939,7 @@ def add_representative_period_variables(b, rep_per):
 def add_representative_period_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
+    
     if m.config["include_commitment"]:
         ##FIXME this needs to be updated for variable length commitment periods
         ## do this by (pre) processing the set of commitment periods for req_shutdown_periods
@@ -2193,6 +2197,7 @@ def representative_period_rule(b, representative_period):
     # ]
 
     b.currentPeriod = representative_period
+    
     if m.config["include_commitment"] or m.config["include_redispatch"]:
         b.commitmentPeriods = pyo.RangeSet(
             m.numCommitmentPeriods[representative_period]

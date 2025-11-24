@@ -74,17 +74,22 @@ mod_object.config["flow_model"] = "DC"
 mod_object.create_model()
 
 # Apply transformations to logical terms
-pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+# pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
-quit()
+# quit()
 
 # Add solver
-# opt = pyo.SolverFactory("gurobi")
+opt = pyo.SolverFactory("gurobi")
 # opt = Gurobi()
 # opt = Highs()
-opt = pyo.SolverFactory("highs")
+# opt = pyo.SolverFactory("highs")
 mod_object.results = opt.solve(mod_object.model, tee=True)
+with open("whatever_trouble.txt","w") as f:
+    mod_object.model.pprint(f)
+import pyomo.contrib.iis.iis as iis
+
+iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
 # mod_object.results = opt.solve(mod_object.model)
 print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
