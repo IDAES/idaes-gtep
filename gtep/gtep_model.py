@@ -793,7 +793,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=renewable_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW, # * u.hr,
         doc="Renewable generation",
     )
 
@@ -852,10 +852,11 @@ def add_dispatch_variables(b, dispatch_period):
             * m.fixedCost[gen]
         )
 
-    # Per generator reactive power cost
-    @b.Expression(m.thermalGenerators)
-    def reactiveGeneratorCost(b, gen):
-        return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        # Per generator reactive power cost
+        @b.Expression(m.thermalGenerators)
+        def reactiveGeneratorCost(b, gen):
+            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -874,16 +875,17 @@ def add_dispatch_variables(b, dispatch_period):
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
-    """ Per-Battery Operational cost variables"""
+    if m.config["storage"]:
+        """ Per-Battery Operational cost variables"""
 
-    @b.Expression(m.storage)
-    def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
+        @b.Expression(m.storage)
+        def storageChargingCost(b, bat):
+            return b.storageCharged[bat] * m.chargingCost[bat]
 
-    # JSC addn Per Battery Discharging Cost
-    @b.Expression(m.storage)
-    def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
+        # JSC addn Per Battery Discharging Cost
+        @b.Expression(m.storage)
+        def storageDischargingCost(b, bat):
+            return b.storageDischarged[bat] * m.dischargingCost[bat]
 
     # Track total dispatch values and costs
     @b.Expression(doc="Total surplus power for renewable generators in MW")
@@ -899,7 +901,10 @@ def add_dispatch_variables(b, dispatch_period):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
     # Reactive generation cost
-    b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
+    else:
+        b.reactiveGenerationCostDispatch = 0
 
     @b.Expression()
     def loadShedCostDispatch(b):
@@ -909,6 +914,19 @@ def add_dispatch_variables(b, dispatch_period):
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
+    if m.config["storage"]:
+        """ Per-Battery Operational costs """
+        b.chargingCostDispatch = sum(b.storageChargingCost.values())
+
+        b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
+
+        b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
+    else:
+        b.chargingCostDispatch = 0
+        b.dischargingCostDispatch = 0
+        b.storageCostDispatch = 0
+
+    # BLN TODO: Check the config check in the Expression rule
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
         return (
@@ -917,14 +935,12 @@ def add_dispatch_variables(b, dispatch_period):
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
+            + b.chargingCostDispatch
+            + b.dischargingCostDispatch
+            + b.storageCostDispatch
+
         )
 
-    """ Per-Battery Operational costs """
-    b.chargingCostDispatch = sum(b.storageChargingCost.values())
-
-    b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
-
-    b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
     def renewableCurtailmentDispatch(b):
@@ -2522,45 +2538,6 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # This should be updated for battery. @JKS is this using the
     # built-in structure from EGRET or just a placeholder?
     if m.md.data["elements"].get("storage"):
-        m.storage = pyo.Set(
-            initialize=(ess for ess in m.md.data["elements"]["storage"]),
-            doc="Potential storage units",
-        )
-
-    else:
-        # TODO: assign and modify data below with better parameters.
-        # Currently, not all are used.
-        m.md.data["elements"]["storage"] = {
-            "test_battery": {
-                "name": "ideas_spelled_wrong",
-                "bus": 3,
-                "generator": None,
-                "storage_type": "battery",
-                "energy_capacity": 100,
-                "initial_state_of_charge": 5,
-                "end_state_of_charge": 5,
-                "minimum_state_of_charge": 5,
-                "charge_efficiency": 1,
-                "discharge_efficiency": 1,
-                "max_discharge_rate": 20,
-                "min_discharge_rate": 2,
-                "max_charge_rate": 100,
-                "min_charge_rate": 1,
-                "initial_charge_rate": 0,
-                "initial_discharge_rate": 0,
-                "charge_cost": 0,
-                "discharge_cost": 0,
-                "retention_rate_60min": 1,  # This has been verified to work at levels below 1; currently set to 1 for testing other storage components
-                "ramp_up_input_60min": 1,
-                "ramp_down_input_60min": 1,
-                "ramp_up_output_60min": 2,
-                "ramp_down_output_60min": 2,
-                "in_service": True,
-                "capital_multiplier": 1,
-                "extension_multiplier": 1,
-            }
-        }  # Thermal generator fuel costs are on [0.5,1.5]; renewables have no fuel cost. What should go here?
-
         m.storage = pyo.Set(
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
