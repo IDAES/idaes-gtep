@@ -62,11 +62,22 @@ mod_object = ExpansionPlanningModel(
     # [ESR: in min by default, for now]
     duration_dispatch=15,
 )
+
+mod_object.config["include_investment"] = True
+mod_object.config["include_commitment"] = True
+mod_object.config["include_redispatch"] = True
+mod_object.config["scale_loads"] = True
+mod_object.config["transmission"] = True
+mod_object.config["storage"] = False
+mod_object.config["flow_model"] = "DC"
+
 mod_object.create_model()
 
 # Apply transformations to logical terms
 pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+
+quit()
 
 # Add solver
 # opt = pyo.SolverFactory("gurobi")
