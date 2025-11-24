@@ -197,14 +197,14 @@ if save_numerical_results:
     sol_object = ExpansionPlanningSolution()
 
     sol_object.load_from_model(mod_object)
-    sol_object.dump_json()
-load_numerical_results = True
-if load_numerical_results:
-    sol_object.read_json("./gtep_solution_battery_Test.json")
-    # sol_object.read_json("./gtep_solution.json")
-    # sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
-plot_results = True
-if plot_results:
-    sol_object.plot_levels(save_dir="./plots/")
+    sol_object.dump_json(filename = 'whateverwhateverwhatever.json')
+# load_numerical_results = True
+# if load_numerical_results:
+#     sol_object.read_json("./gtep_solution_battery_temp_test.json")
+#     # sol_object.read_json("./gtep_solution.json")
+#     # sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
+# plot_results = True
+# if plot_results:
+#     sol_object.plot_levels(save_dir="./plots/")
 
-mod_object.timer.toc("we've dumped; get everybody and the stuff together")
+# mod_object.timer.toc("we've dumped; get everybody and the stuff together")
