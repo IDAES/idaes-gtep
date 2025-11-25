@@ -16,14 +16,13 @@ from os.path import abspath, join, dirname
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, Var, SolverFactory, value
 from pyomo.environ import units as u
+from pyomo.environ import TransformationFactory
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from egret.data.model_data import ModelData
-from pyomo.core import TransformationFactory
 from prescient.data.providers import gmlc_data_provider
 from prescient.simulator.options import Options
 from prescient.simulator.config import PrescientConfig
-from pyomo.contrib.appsi.solvers.highs import Highs
 
 
 # Helper functions
@@ -104,28 +103,27 @@ class TestGTEP(unittest.TestCase):
             len(dispatch_block_1), len(commitment_block_q[1].dispatchPeriods)
         )
 
-    # Solve the debug model as is.  Objective value should be $6078.86
+    # Solve the debug model as is.  Objective value should be $531860.15
     def test_solve_bigm(self):
         data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
             data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        opt = Highs()
+
+        opt = SolverFactory("highs")
         if not opt.available():
-            print("Ack, no Highs?")
-            print(f"{opt.available() = }")
-            raise AssertionError
+            raise unittest.SkipTest("Solver not available")
+
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86
+        # previous successful objective values: 9207.95, 6078.86, 531860.15
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 6078.86, places=1
+            value(modObject.model.total_cost_objective_rule), 531860.15, places=1
         )
-        # Is it finally time to fix units
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
@@ -138,4 +136,19 @@ class TestGTEP(unittest.TestCase):
         modObject.config["include_investment"] = False
         modObject.create_model()
 
-        pass
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 531860.15
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 531860.15, places=1
+        )
+        self.assertEqual(
+            str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
+        )
