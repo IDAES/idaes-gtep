@@ -55,7 +55,12 @@ class TestGTEP(unittest.TestCase):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
         modObject = ExpansionPlanningModel(
-            data=data_object, stages=2, num_reps=4, len_reps=16, num_commit=12, num_dispatch=12
+            data=data_object,
+            stages=2,
+            num_reps=4,
+            len_reps=16,
+            num_commit=12,
+            num_dispatch=12,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
@@ -113,10 +118,7 @@ class TestGTEP(unittest.TestCase):
             raise AssertionError
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
-        # import pyomo.contrib.iis.iis as iis
 
-        # iis.write_iis(modObject.model, "whatever.ilp", "gurobi")
-        
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 9207.95, 6078.86
