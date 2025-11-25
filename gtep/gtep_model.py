@@ -798,9 +798,9 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     # Fix hydro when we don't have a time series
-    for gen in m.renewableGenerators:
-        if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
-            b.renewableGeneration[gen].fix(m.renewableCapacityNameplate[gen])
+    # for gen in m.renewableGenerators:
+    #     if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
+    #         b.renewableGeneration[gen].fix(m.renewableCapacityNameplate[gen])
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(
@@ -813,7 +813,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=curtailment_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW, # * u.hr,
         doc="Curtailment of renewable generators",
     )
 
@@ -1305,6 +1305,9 @@ def add_dispatch_constraints(b, disp_per):
     # JKS - charging costs from non-colocated plants?
     @b.Constraint(m.renewableGenerators)
     def capacity_factor(b, renewableGen):
+        # if m.md.data["elements"]["generator"][renewableGen]["fuel"] == "H":
+        #     # print(m.md.data["elements"]["generator"][renewableGen])
+        #     return pyo.Constraint.Skip
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == c_p.renewableCapacityExpected[renewableGen]

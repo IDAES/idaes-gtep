@@ -90,12 +90,12 @@ with open("whatever_trouble.txt","w") as f:
 import pyomo.contrib.iis.iis as iis
 
 iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
-# mod_object.results = opt.solve(mod_object.model)
-print(mod_object.results)
+mod_object.results = opt.solve(mod_object.model, load_solutions=True)
+# print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
 # mod_object.report_model()
 
-quit()
+# quit()
 
 sol_object = ExpansionPlanningSolution()
 sol_object.load_from_model(mod_object)

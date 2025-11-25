@@ -113,6 +113,10 @@ class TestGTEP(unittest.TestCase):
             raise AssertionError
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
+        # import pyomo.contrib.iis.iis as iis
+
+        # iis.write_iis(modObject.model, "whatever.ilp", "gurobi")
+        
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 9207.95, 6078.86
