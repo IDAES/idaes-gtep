@@ -93,7 +93,7 @@ iis.write_iis(mod_object.model, "whatever.ilp", "gurobi")
 mod_object.results = opt.solve(mod_object.model, load_solutions=True)
 # print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
-# mod_object.report_model()
+# mod_object.report_model() 
 
 # quit()
 

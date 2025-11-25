@@ -797,10 +797,7 @@ def add_dispatch_variables(b, dispatch_period):
         doc="Renewable generation",
     )
 
-    # Fix hydro when we don't have a time series
-    # for gen in m.renewableGenerators:
-    #     if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
-    #         b.renewableGeneration[gen].fix(m.renewableCapacityNameplate[gen])
+    
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(
