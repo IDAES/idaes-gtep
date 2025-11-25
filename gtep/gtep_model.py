@@ -2619,7 +2619,7 @@ def model_data_references(m):
 
     # [ESR WIP: Take only the value for renewable capacity when using
     # max() to avoid errors.]
-    # BLN: Pretty sure this should be removed but double check commented contraint using this
+    # BLN: Pretty sure this should be removed but double check commented constraint using this
     """ m.renewableCapacityValue = pyo.Param(
         m.renewableGenerators,
         initialize={
