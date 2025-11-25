@@ -88,11 +88,47 @@ class ExpansionPlanningData:
             "2020-10-14 00:00",
         ]
 
+        # Sure. The baseline dates are defined in the gtep_data file.        
+        # self.representative_dates = [
+        #     "2020-01-17 00:00",
+        #     "2020-02-17 00:00",
+        #     "2020-03-17 00:00",
+        #     "2020-04-23 00:00",
+        #     "2020-05-23 00:00",
+        #     "2020-06-23 00:00",
+        #     "2020-07-05 00:00",
+        #     "2020-09-05 00:00",
+        #     "2020-10-14 00:00",
+        #     "2020-08-12 00:00",
+        #     "2020-11-05 00:00",
+        #     "2020-12-05 00:00",
+        #  ]
+        # The heat wave days are
+        self.representative_dates = ["2020-07-25 00:00",
+        "2020-08-17 00:00",
+        "2020-06-06 00:00",
+        "2020-08-19 00:00",
+        "2020-06-23 00:00",
+        "2020-06-26 00:00",
+        "2020-08-28 00:00",
+        "2020-08-09 00:00",
+        "2020-08-14 00:00",
+        "2020-05-07 00:00",
+        "2020-06-07 00:00",
+        "2020-06-28 00:00"]
+        
+        # For NGCC derates, I have the p_max defined in the DAY_AHEAD_renewables.csv from 0.4% decrease per degree celsius above 15 C. The 4 main scenarios we've currently been iterating on (base_no_storage, base_storage,heat_wave_no_storage, and heat_wave_storage) in the last week do not have derates included however.
+        
+        # I can extend heat_wave_no_storage and heat_wave_storage results to have with and without derates, like I had before
+        print(len(self.representative_dates))
+
         ## FIXME:
         ## RESIL WEEK ONLY
         ## but we'll want something similar just less insane in the future
         if len(self.representative_dates) == 5:
             self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91, 5: 1}
+        elif len(self.representative_dates) == 12:
+            self.representative_weights = {1:30,2:30,3:30,4:30,5:30,6:30,7:30,8:30,9:30,10:30,11:30,12:30}
         else:
             self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91}
         # self.representative_weights = {1:1}

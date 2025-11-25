@@ -1,0 +1,13 @@
+\ Model unknown_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ investmentStage(1)_representativePeriod(1)_commitmentPeriod(1)_dispatchPeriod(1)_capacity_factor(Hydro_R1):
+   investmentStage(1)_representativePeriod(1)_commitmentPeriod(1)_dispatchPeriod(1)_renewableCurtailment(Hydro_R1)
+   + investmentStage(1)_representativePeriod(1)_commitmentPeriod(1)_dispatchPeriod(1)_renewableGeneration(Hydro_R1)
+   = 1082.59
+Bounds
+ -infinity <= investmentStage(1)_representativePeriod(1)_commitmentPeriod(1)_dispatchPeriod(1)_renewableCurtailment(Hydro_R1) <= 360.8026274399999
+ -infinity <= investmentStage(1)_representativePeriod(1)_commitmentPeriod(1)_dispatchPeriod(1)_renewableGeneration(Hydro_R1) <= 360.8026274399999
+End

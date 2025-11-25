@@ -43,7 +43,7 @@ data_object.load_prescient(data_path)
 ## Change num_reps from 4 to 5 to include extreme days
 
 mod_object = ExpansionPlanningModel(
-    stages=3, data=data_object, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+    stages=3, data=data_object, num_reps=12, len_reps=24, num_commit=24, num_dispatch=1
 )
 # print(mod_object.data.data["elements"]["generator"]["1"])
 # import sys
@@ -162,7 +162,8 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "cyphoon_troubleshooting"
+folder_name = "cyphoon_heatwave_storage"
+solution_filename = folder_name + "/heatwave_storage.json"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
@@ -197,7 +198,7 @@ if save_numerical_results:
     sol_object = ExpansionPlanningSolution()
 
     sol_object.load_from_model(mod_object)
-    sol_object.dump_json(filename = 'whateverwhateverwhatever.json')
+    sol_object.dump_json(filename = solution_filename)
 # load_numerical_results = True
 # if load_numerical_results:
 #     sol_object.read_json("./gtep_solution_battery_temp_test.json")

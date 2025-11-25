@@ -519,18 +519,18 @@ def add_investment_constraints(b, investment_stage):
                 * b.genRetired[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
-            + sum(
-                m.storageInvestmentCost[bat]
-                * m.storageCapitalMultiplier[bat]
-                * b.storInstalled[bat].indicator_var.get_associated_binary()
-                for bat in m.storage
-            )
-            + sum(
-                m.storageInvestmentCost[bat]
-                * m.storageExtensionMultiplier[bat]
-                * b.storExtended[bat].indicator_var.get_associated_binary()
-                for bat in m.storage
-            )
+            # + sum(
+            #     m.storageInvestmentCost[bat]
+            #     * m.storageCapitalMultiplier[bat]
+            #     * b.storInstalled[bat].indicator_var.get_associated_binary()
+            #     for bat in m.storage
+            # )
+            # + sum(
+            #     m.storageInvestmentCost[bat]
+            #     * m.storageExtensionMultiplier[bat]
+            #     * b.storExtended[bat].indicator_var.get_associated_binary()
+            #     for bat in m.storage
+            # )
             + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchCapitalMultiplier[branch]
@@ -742,9 +742,9 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     # Fix hydro when we don't have a time series
-    for gen in m.renewableGenerators:
-        if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
-            b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
+    # for gen in m.renewableGenerators:
+    #     if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
+    #         b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
             # print(m.renewableCapacity[gen])
             # import sys
             # sys.exit()
@@ -1435,210 +1435,211 @@ def add_commitment_variables(b, commitment_period):
     """
     Battery Discharging Constraints
     """
+    if m.config["storage"]:
+        @b.Disjunct(m.storage)
+        def storDischarging(disj, bat):
+            # operating limits
+            ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
+            b = disj.parent_block()
 
-    @b.Disjunct(m.storage)
-    def storDischarging(disj, bat):
-        # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
-        b = disj.parent_block()
-
-        # Minimum operating Limits if storage unit is on
-        @disj.Constraint(b.dispatchPeriods)
-        def discharge_limit_min(d, disp_per):
-            return (
-                m.dischargeMin[bat]  # Assuming dischargeMin is an absolute value (MW)
-                <= b.dispatchPeriod[disp_per].storageDischarged[bat]
-            )
-
-        # Maximum operating limits
-        @disj.Constraint(b.dispatchPeriods)
-        def discharge_limit_max(d, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageDischarged[bat] <= m.dischargeMax[bat]
-            )
-
-        # # Ramp up limit constraints for fully on bats
-        # @disj.Constraint(b.dispatchPeriods)
-        # def discharge_ramp_up_limits(disj, disp_per):
-        #     return (
-        #         b.dispatchPeriod[disp_per].storageDischarged[bat]
-        #         - b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
-        #         <= m.storageDischargingRampUpRates[
-        #             bat
-        #         ]  # battery ramp rates are currently absolute values
-        #         if disp_per != 1
-        #         else Constraint.Skip
-        #     )
-
-        # # Ramp down limit constraints for fully on bats
-        # @disj.Constraint(b.dispatchPeriods)
-        # def discharge_ramp_down_limits(disj, disp_per):
-        #     return (
-        #         b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
-        #         - b.dispatchPeriod[disp_per].storageDischarged[bat]
-        #         <= m.storageDischargingRampDownRates[
-        #             bat
-        #         ]  # battery ramp rates are currently absolute values
-        #         if disp_per != 1
-        #         else Constraint.Skip
-        #     )
-
-        # Force no charge when discharging
-        @disj.Constraint(b.dispatchPeriods)
-        def no_charge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] == 0
-
-        # Batteries that are charging both gain and lose energy
-        @disj.Constraint(b.dispatchPeriods)
-        def discharging_battery_storage_balance(disj, disp_per):
-            if disp_per !=1 and commitment_period != 1:
+            # Minimum operating Limits if storage unit is on
+            @disj.Constraint(b.dispatchPeriods)
+            def discharge_limit_min(d, disp_per):
                 return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat] == 
-                    m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
-                    - m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    m.dischargeMin[bat]  # Assuming dischargeMin is an absolute value (MW)
+                    <= b.dispatchPeriod[disp_per].storageDischarged[bat]
                 )
-            else:
-                return Constraint.Skip
+
+            # Maximum operating limits
+            @disj.Constraint(b.dispatchPeriods)
+            def discharge_limit_max(d, disp_per):
+                return (
+                    b.dispatchPeriod[disp_per].storageDischarged[bat] <= m.dischargeMax[bat]
+                )
+
+            # # Ramp up limit constraints for fully on bats
+            # @disj.Constraint(b.dispatchPeriods)
+            # def discharge_ramp_up_limits(disj, disp_per):
+            #     return (
+            #         b.dispatchPeriod[disp_per].storageDischarged[bat]
+            #         - b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
+            #         <= m.storageDischargingRampUpRates[
+            #             bat
+            #         ]  # battery ramp rates are currently absolute values
+            #         if disp_per != 1
+            #         else Constraint.Skip
+            #     )
+
+            # # Ramp down limit constraints for fully on bats
+            # @disj.Constraint(b.dispatchPeriods)
+            # def discharge_ramp_down_limits(disj, disp_per):
+            #     return (
+            #         b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
+            #         - b.dispatchPeriod[disp_per].storageDischarged[bat]
+            #         <= m.storageDischargingRampDownRates[
+            #             bat
+            #         ]  # battery ramp rates are currently absolute values
+            #         if disp_per != 1
+            #         else Constraint.Skip
+            #     )
+
+            # Force no charge when discharging
+            @disj.Constraint(b.dispatchPeriods)
+            def no_charge(disj, disp_per):
+                return b.dispatchPeriod[disp_per].storageCharged[bat] == 0
+
+            # Batteries that are charging both gain and lose energy
+            @disj.Constraint(b.dispatchPeriods)
+            def discharging_battery_storage_balance(disj, disp_per):
+                if disp_per !=1 and commitment_period != 1:
+                    return (
+                        b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                        == m.storageRetentionRate[bat]
+                        * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                        - b.dispatchPeriod[disp_per].storageDischarged[bat]
+                        )
+                elif disp_per == 1 and commitment_period != 1:
+                    return (
+                        b.dispatchPeriod[disp_per].storageChargeLevel[bat] == 
+                        m.storageRetentionRate[bat]
+                        * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
+                        - m.storageChargingEfficiency[bat]
+                        * b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    )
+                else:
+                    return Constraint.Skip
 
     """
     Battery Charging Constraints
     """
+    if m.config["storage"]:
 
-    @b.Disjunct(m.storage)
-    def storCharging(disj, bat):
-        b = disj.parent_block()
+        @b.Disjunct(m.storage)
+        def storCharging(disj, bat):
+            b = disj.parent_block()
 
-        @disj.Constraint(b.dispatchPeriods)
-        def charge_limit_min(d, disp_per):
-            return (
-                m.chargeMin[bat]  # Assuming chargeMin is an absolute value (MW)
-                <= b.dispatchPeriod[disp_per].storageCharged[bat]
+            @disj.Constraint(b.dispatchPeriods)
+            def charge_limit_min(d, disp_per):
+                return (
+                    m.chargeMin[bat]  # Assuming chargeMin is an absolute value (MW)
+                    <= b.dispatchPeriod[disp_per].storageCharged[bat]
+                )
+
+            # Maximum operating limits
+            @disj.Constraint(b.dispatchPeriods)
+            def charge_limit_max(d, disp_per):
+                return b.dispatchPeriod[disp_per].storageCharged[bat] <= m.chargeMax[bat]
+
+            # # Ramp up limit constraints for fully on bats
+            # @disj.Constraint(b.dispatchPeriods)
+            # def charge_ramp_up_limits(disj, disp_per):
+            #     return (
+            #         b.dispatchPeriod[disp_per].storageCharged[bat]
+            #         - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
+            #         <= m.storageChargingRampUpRates[
+            #             bat
+            #         ]  # battery ramp rates are currently absolute values
+            #         if disp_per != 1
+            #         else Constraint.Skip
+            #     )
+
+            # # Ramp down limit constraints for fully on bats
+            # @disj.Constraint(b.dispatchPeriods)
+            # def charge_ramp_down_limits(disj, disp_per):
+            #     return (
+            #         b.dispatchPeriod[disp_per - 1].storageCharged[bat]
+            #         - b.dispatchPeriod[disp_per].storageCharged[bat]
+            #         <= m.storageChargingRampDownRates[
+            #             bat
+            #         ]  # battery ramp rates are currently absolute values
+            #         if disp_per != 1
+            #         else Constraint.Skip
+            #     )
+
+            @disj.Constraint(b.dispatchPeriods)
+            def no_discharge(disj, disp_per):
+                return b.dispatchPeriod[disp_per].storageDischarged[bat] == 0
+
+            # Batteries that are charging both gain and lose energy
+            @disj.Constraint(b.dispatchPeriods)
+            def charging_battery_storage_balance(disj, disp_per):
+                if disp_per != 1 and commitment_period != 1:
+                    return (
+                        b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                        == m.storageRetentionRate[bat]
+                        * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                        + m.storageChargingEfficiency[bat]
+                        * b.dispatchPeriod[disp_per].storageCharged[bat]
+                    )
+                elif disp_per == 1 and commitment_period != 1:
+                    return (b.dispatchPeriod[disp_per].storageChargeLevel[bat] == 
+                        m.storageRetentionRate[bat]
+                        * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
+                        + m.storageChargingEfficiency[bat]
+                        * b.dispatchPeriod[disp_per].storageCharged[bat]
+                    )
+                else:
+                    return Constraint.Skip
+                # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
+
+        """
+        Battery Off Constraints
+        """
+
+        @b.Disjunct(m.storage)
+        def storOff(disj, bat):
+            b = disj.parent_block()
+
+            # If battery is off, it is not discharging in terms of sending energy
+            # to the grid
+            @disj.Constraint(b.dispatchPeriods)
+            def no_discharge(disj, disp_per):
+                return b.dispatchPeriod[disp_per].storageDischarged[bat] == 0
+
+            # Batteries that are off cannot charge
+            @disj.Constraint(b.dispatchPeriods)
+            def no_charge(disj, disp_per):
+                return b.dispatchPeriod[disp_per].storageCharged[bat] == 0
+
+            # Batteries that are off still lose energy, and none goes to the grid
+            @disj.Constraint(b.dispatchPeriods)
+            def off_batteries_lose_storage(disj, disp_per):
+                if disp_per != 1 and commitment_period !=1:
+                    return (
+                        b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                        == m.storageRetentionRate[bat]
+                        * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                    )
+                elif disp_per == 1 and commitment_period !=1:
+                    return (
+                        b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                        == m.storageRetentionRate[bat]
+                        * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
+                    )
+                else:
+                    return Constraint.Skip
+
+        # Batteries are exclusively either Charging, Discharging, or Off
+        @b.Disjunction(m.storage)
+        def storStatus(disj, bat):
+            return [
+                disj.storCharging[bat],
+                disj.storDischarging[bat],
+                disj.storOff[bat],
+            ]
+
+        # bats cannot be committed unless they are operational or just installed
+        @b.LogicalConstraint(m.storage)
+        def commit_active_batts_only(b, bat):
+            return lor(
+                b.storCharging[bat].indicator_var, b.storDischarging[bat].indicator_var
+            ).implies(
+                lor(
+                    i_p.storOperational[bat].indicator_var,
+                    i_p.storInstalled[bat].indicator_var,
+                    i_p.storExtended[bat].indicator_var,
+                )
             )
-
-        # Maximum operating limits
-        @disj.Constraint(b.dispatchPeriods)
-        def charge_limit_max(d, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] <= m.chargeMax[bat]
-
-        # # Ramp up limit constraints for fully on bats
-        # @disj.Constraint(b.dispatchPeriods)
-        # def charge_ramp_up_limits(disj, disp_per):
-        #     return (
-        #         b.dispatchPeriod[disp_per].storageCharged[bat]
-        #         - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
-        #         <= m.storageChargingRampUpRates[
-        #             bat
-        #         ]  # battery ramp rates are currently absolute values
-        #         if disp_per != 1
-        #         else Constraint.Skip
-        #     )
-
-        # # Ramp down limit constraints for fully on bats
-        # @disj.Constraint(b.dispatchPeriods)
-        # def charge_ramp_down_limits(disj, disp_per):
-        #     return (
-        #         b.dispatchPeriod[disp_per - 1].storageCharged[bat]
-        #         - b.dispatchPeriod[disp_per].storageCharged[bat]
-        #         <= m.storageChargingRampDownRates[
-        #             bat
-        #         ]  # battery ramp rates are currently absolute values
-        #         if disp_per != 1
-        #         else Constraint.Skip
-        #     )
-
-        @disj.Constraint(b.dispatchPeriods)
-        def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageDischarged[bat] == 0
-
-        # Batteries that are charging both gain and lose energy
-        @disj.Constraint(b.dispatchPeriods)
-        def charging_battery_storage_balance(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                    + m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageCharged[bat]
-                )
-            elif disp_per == 1 and commitment_period != 1:
-                return (b.dispatchPeriod[disp_per].storageChargeLevel[bat] == 
-                    m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
-                    + m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageCharged[bat]
-                )
-            else:
-                return Constraint.Skip
-              # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
-
-    """
-    Battery Off Constraints
-    """
-
-    @b.Disjunct(m.storage)
-    def storOff(disj, bat):
-        b = disj.parent_block()
-
-        # If battery is off, it is not discharging in terms of sending energy
-        # to the grid
-        @disj.Constraint(b.dispatchPeriods)
-        def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageDischarged[bat] == 0
-
-        # Batteries that are off cannot charge
-        @disj.Constraint(b.dispatchPeriods)
-        def no_charge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] == 0
-
-        # Batteries that are off still lose energy, and none goes to the grid
-        @disj.Constraint(b.dispatchPeriods)
-        def off_batteries_lose_storage(disj, disp_per):
-            if disp_per != 1 and commitment_period !=1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                )
-            elif disp_per == 1 and commitment_period !=1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[b.dispatchPeriods[-1]].storageChargeLevel[bat]
-                )
-            else:
-                return Constraint.Skip
-
-    # Batteries are exclusively either Charging, Discharging, or Off
-    @b.Disjunction(m.storage)
-    def storStatus(disj, bat):
-        return [
-            disj.storCharging[bat],
-            disj.storDischarging[bat],
-            disj.storOff[bat],
-        ]
-
-    # bats cannot be committed unless they are operational or just installed
-    @b.LogicalConstraint(m.storage)
-    def commit_active_batts_only(b, bat):
-        return lor(
-            b.storCharging[bat].indicator_var, b.storDischarging[bat].indicator_var
-        ).implies(
-            lor(
-                i_p.storOperational[bat].indicator_var,
-                i_p.storInstalled[bat].indicator_var,
-                i_p.storExtended[bat].indicator_var,
-            )
-        )
 
 
 def add_commitment_constraints(b, comm_per):
@@ -3105,91 +3106,91 @@ def model_create_investment_stages(m, stages):
                 if stage != 1
                 else LogicalConstraint.Skip
             )
-
-        # Storage Constraints same as gen constraints
-        # If a storage device is online at time t, it must have been online or installed at time t-1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage]
-                .storOperational[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage - 1].storOperational[gen].indicator_var
-                    | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
+        if m.config["storage"]:
+            # Storage Constraints same as gen constraints
+            # If a storage device is online at time t, it must have been online or installed at time t-1
+            @m.LogicalConstraint(m.stages, m.storage)
+            def consistent_operation_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage]
+                    .storOperational[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage - 1].storOperational[gen].indicator_var
+                        | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
-        # If a gen is online at time t, it must be online, extended, or retired at time t+1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_future_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storOperational[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
-                    | m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
+            # If a gen is online at time t, it must be online, extended, or retired at time t+1
+            @m.LogicalConstraint(m.stages, m.storage)
+            def consistent_operation_future_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage - 1]
+                    .storOperational[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage].storOperational[gen].indicator_var
+                        | m.investmentStage[stage].storExtended[gen].indicator_var
+                        | m.investmentStage[stage].storRetired[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
-        # Retirement in period t-1 implies disabled in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_retirement_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storRetired[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
+            # Retirement in period t-1 implies disabled in period t
+            @m.LogicalConstraint(m.stages, m.storage)
+            def full_retirement_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage - 1]
+                    .storRetired[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage].storDisabled[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
-        # If a gen is disabled at time t-1, it must stay disabled  at time t
-        ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_disabled_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storDisabled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
-                    | m.investmentStage[stage].storInstalled[gen].indicator_var
+            # If a gen is disabled at time t-1, it must stay disabled  at time t
+            ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
+            @m.LogicalConstraint(m.stages, m.storage)
+            def consistent_disabled_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage - 1]
+                    .storDisabled[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage].storDisabled[gen].indicator_var
+                        | m.investmentStage[stage].storInstalled[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
-        # If a gen is extended at time t-1, it must stay extended or be retired at time t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_extended_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storExtended[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
+            # If a gen is extended at time t-1, it must stay extended or be retired at time t
+            @m.LogicalConstraint(m.stages, m.storage)
+            def consistent_extended_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage - 1]
+                    .storExtended[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage].storExtended[gen].indicator_var
+                        | m.investmentStage[stage].storRetired[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
-        # Installation in period t-1 implies operational in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_investment_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storInstalled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
+            # Installation in period t-1 implies operational in period t
+            @m.LogicalConstraint(m.stages, m.storage)
+            def full_investment_stor(m, stage, gen):
+                return (
+                    m.investmentStage[stage - 1]
+                    .storInstalled[gen]
+                    .indicator_var.implies(
+                        m.investmentStage[stage].storOperational[gen].indicator_var
+                    )
+                    if stage != 1
+                    else LogicalConstraint.Skip
                 )
-                if stage != 1
-                else LogicalConstraint.Skip
-            )
 
         if m.config["transmission"]:
             # If a branch is online at time t, it must have been online or installed at time t-1
