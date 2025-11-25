@@ -813,7 +813,7 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=curtailment_limits,
         initialize=0,
-        units=u.MW,
+        units=u.MW * u.hr,
         doc="Curtailment of renewable generators",
     )
 
