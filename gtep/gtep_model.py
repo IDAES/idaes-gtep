@@ -351,12 +351,12 @@ def add_investment_variables(b, investment_stage):
 
     # Track and accumulate costs and penalties
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
-    b.operatingCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.operatingCostInvestment = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
     b.expansionCost = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
     b.renewableCurtailmentInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
-    b.storageCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.storageCostInvestment = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
 
 
 def add_investment_constraints(
