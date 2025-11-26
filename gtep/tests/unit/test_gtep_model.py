@@ -11,44 +11,41 @@
 # for full copyright and license information.
 #################################################################################
 
-import pyomo.common.unittest as unittest
 
+from os.path import abspath, join, dirname
+import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, Var, SolverFactory, value
 from pyomo.environ import units as u
+from pyomo.environ import TransformationFactory
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from egret.data.model_data import ModelData
-from pyomo.core import TransformationFactory
 from prescient.data.providers import gmlc_data_provider
 from prescient.simulator.options import Options
 from prescient.simulator.config import PrescientConfig
-from pyomo.contrib.appsi.solvers.highs import Highs
-
-
-import logging
-from io import StringIO
 
 
 # Helper functions
 def read_debug_model():
-    debug_data_path = "./gtep/data/5bus"
+    curr_dir = dirname(abspath(__file__))
+    debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
     dataObject = ExpansionPlanningData()
     dataObject.load_prescient(debug_data_path)
-    return dataObject.md
+    return dataObject
 
 
 class TestGTEP(unittest.TestCase):
     def test_model_init(self):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with default values, including building a Pyomo.ConcreteModel object
-        md = read_debug_model()
-        modObject = ExpansionPlanningModel(data=md)
+        data_object = read_debug_model()
+        modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
         self.assertEqual(modObject.stages, 1)
         self.assertEqual(modObject.formulation, None)
-        self.assertIsInstance(modObject.data, ModelData)
+        self.assertIsInstance(modObject.model.md, ModelData)
         self.assertEqual(modObject.num_reps, 3)
         self.assertEqual(modObject.len_reps, 24)
         self.assertEqual(modObject.num_commit, 24)
@@ -57,14 +54,19 @@ class TestGTEP(unittest.TestCase):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
         modObject = ExpansionPlanningModel(
-            data=md, stages=2, num_reps=4, len_reps=16, num_commit=12, num_dispatch=12
+            data=data_object,
+            stages=2,
+            num_reps=4,
+            len_reps=16,
+            num_commit=12,
+            num_dispatch=12,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
         self.assertEqual(modObject.stages, 2)
         self.assertEqual(modObject.formulation, None)
-        self.assertIsInstance(modObject.data, ModelData)
+        self.assertIsInstance(modObject.model.md, ModelData)
         self.assertEqual(modObject.num_reps, 4)
         self.assertEqual(modObject.len_reps, 16)
         self.assertEqual(modObject.num_commit, 12)
@@ -101,37 +103,52 @@ class TestGTEP(unittest.TestCase):
             len(dispatch_block_1), len(commitment_block_q[1].dispatchPeriods)
         )
 
-    # Solve the debug model as is.  Objective value should be $6078.86
+    # Solve the debug model as is.  Objective value should be $531860.15
     def test_solve_bigm(self):
-        md = read_debug_model()
+        data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        opt = Highs()
+
+        opt = SolverFactory("highs")
         if not opt.available():
-            print("Ack, no Highs?")
-            print(f"{opt.available() = }")
-            raise AssertionError
+            raise unittest.SkipTest("Solver not available")
+
         TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86
+        # previous successful objective values: 9207.95, 6078.86, 531860.15
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 6078.86, places=1
+            value(modObject.model.total_cost_objective_rule), 531860.15, places=1
         )
-        # Is it finally time to fix units
         self.assertEqual(
             str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
         )
 
     def test_no_investment(self):
-        md = read_debug_model()
+        data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=md, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.config["include_investment"] = False
         modObject.create_model()
 
-        pass
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 531860.15
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 531860.15, places=1
+        )
+        self.assertEqual(
+            str(u.get_units(modObject.model.total_cost_objective_rule.expr)), "USD"
+        )

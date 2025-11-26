@@ -118,6 +118,8 @@ class ExpansionPlanningModel:
         self.timer.tic("Creating GTEP Model")
         m = pyo.ConcreteModel()
 
+        m.config = self.config
+
         ## TODO: checks for active/built/inactive/unbuilt/etc. gen
         ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
         if self.data is None:
@@ -349,12 +351,16 @@ def add_investment_variables(b, investment_stage):
 
     # Track and accumulate costs and penalties
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
-    b.operatingCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
-    b.expansionCost = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.operatingCostInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    )
+    b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
     b.renewableCurtailmentInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
-    b.storageCostInvestment = pyo.Var(within=pyo.Reals, initialize=0, units=u.USD)
+    b.storageCostInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    )
 
 
 def add_investment_constraints(
@@ -393,7 +399,7 @@ def add_investment_constraints(
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
         ):
-            b.renewableOperational[gen].fix(m.renewableCapacity[gen])
+            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
 
     if m.config["transmission"]:
         for branch in m.transmission:
@@ -483,51 +489,64 @@ def add_investment_constraints(
     ## NOTE: The following constraints can be split into rep_per and
     ## invest_stage components if desired
 
-    ## NOTE: Constraint (13) in the reference paper
-    @b.Constraint(doc="Minimum per-stage renewable generation requirement")
-    def renewable_generation_requirement(b):
-        renewableSurplusRepresentative = 0
-        ## TODO: preprocess loads for the appropriate sum here
-        ed = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                operatingCostRepresentative += (
-                    m.weights[rep_per]
-                    # [ESR WIP: Commented since we are including the
-                    # period during dispatch stage.]
-                    # * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .renewableSurplusCommitment
-                )
-        return (
-            renewableSurplusRepresentative + b.quotaDeficit
-            >= m.renewableQuota[investment_stage] * ed
-        )
-
     # Operating costs for investment period
-    @b.Expression()
-    def operatingCostInvestment(b):
-        operatingCostRepresentative = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                operatingCostRepresentative += (
-                    m.weights[rep_per] * m.commitmentPeriodLength
-                    # [ESR WIP: Commented since we are including the
-                    # period during dispatch stage.]
-                    # * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .operatingCostCommitment
-                    for com_per in b.representativePeriod[rep_per].commitmentPeriods
+    # BLN: Convert this to a constraint using operatingCostInvestment Var. May also need to move it
+    @b.Constraint()
+    def rule_operatingCostInvestment(b):
+        if m.config["include_commitment"]:
+            return b.operatingCostInvestment == (
+                m.investmentFactor[investment_stage]
+                * sum(
+                    sum(
+                        m.weights[rep_per]
+                        # [ESR WIP: Commented since we are including the
+                        # period during dispatch stage.]
+                        # * m.commitmentPeriodLength
+                        * b.representativePeriod[rep_per]
+                        .commitmentPeriod[com_per]
+                        .operatingCostCommitment
+                        for com_per in b.representativePeriod[rep_per].commitmentPeriods
+                    )
+                    for rep_per in b.representativePeriods
                 )
-
-        return m.investmentFactor[investment_stage] * operatingCostRepresentative
+            )
+        else:
+            return b.operatingCostInvestment == 0
 
     ## FIXME: investment cost definition needs to be revisited AND possibly depends on
     ## data format.  It is _rare_ for these values to be defined at all, let alone consistently.
-    @b.Constraint(doc="Investment costs for investment period in $")
+    @b.Expression(doc="Investment costs for investment period in $")
     def investment_cost(b):
+        if m.config["storage"] == True:
+            storage_term = sum(
+                m.storageInvestmentCost[bat]
+                * m.storageCapitalMultiplier[bat]
+                * b.storInstalled[bat].indicator_var.get_associated_binary()
+                for bat in m.storage
+            ) + sum(
+                m.storageInvestmentCost[bat]
+                * m.storageExtensionMultiplier[bat]
+                * b.storExtended[bat].indicator_var.get_associated_binary()
+                for bat in m.storage
+            )
+        else:
+            storage_term = 0 * u.USD
+
+        if m.config["transmission"]:
+            branch_term = sum(
+                m.branchInvestmentCost[branch]
+                * m.branchCapitalMultiplier[branch]
+                * b.branchInstalled[branch].indicator_var.get_associated_binary()
+                for branch in m.transmission
+            ) + sum(
+                m.branchInvestmentCost[branch]
+                * m.branchExtensionMultiplier[branch]
+                * b.branchExtended[branch].indicator_var.get_associated_binary()
+                for branch in m.transmission
+            )
+        else:
+            branch_term = 0 * u.USD
+
         baseline_cost = (
             sum(
                 # [ESR WIP: When including the disjunction
@@ -575,51 +594,31 @@ def add_investment_constraints(
                 * b.genRetired[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
-            + sum(
-                m.storageInvestmentCost[bat]
-                * m.storageCapitalMultiplier[bat]
-                * b.storInstalled[bat].indicator_var.get_associated_binary()
-                for bat in m.storage
-            )
-            + sum(
-                m.storageInvestmentCost[bat]
-                * m.storageExtensionMultiplier[bat]
-                * b.storExtended[bat].indicator_var.get_associated_binary()
-                for bat in m.storage
-            )
-            + sum(
-                m.branchInvestmentCost[branch]
-                * m.branchCapitalMultiplier[branch]
-                * b.branchInstalled[branch].indicator_var.get_associated_binary()
-                for branch in m.transmission
-            )
-            + sum(
-                m.branchInvestmentCost[branch]
-                * m.branchExtensionMultiplier[branch]
-                * b.branchExtended[branch].indicator_var.get_associated_binary()
-                for branch in m.transmission
-            )
+            + storage_term
+            + branch_term
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
-    @b.Constraint(doc="Curtailment penalties for investment period")
-    def renewable_curtailment_cost(b):
-        renewableCurtailmentRep = 0
-        for rep_per in b.representativePeriods:
-            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                renewableCurtailmentRep += (
-                    m.weights[rep_per]
-                    * m.commitmentPeriodLength
-                    * b.representativePeriod[rep_per]
-                    .commitmentPeriod[com_per]
-                    .renewableCurtailmentCommitment  # in MW
-                    # [ESR WIP: Q: Do we need to include this term here?]
-                    * m.curtailmentCost
-                )  # units are in $
-        return (
-            b.renewableCurtailmentInvestment  # in $
-            == m.investmentFactor[investment_stage] * renewableCurtailmentRep
-        )
+    if m.config["include_commitment"]:
+
+        @b.Constraint(doc="Curtailment penalties for investment period")
+        def renewable_curtailment_cost(b):
+            renewableCurtailmentRep = 0
+            for rep_per in b.representativePeriods:
+                for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+                    renewableCurtailmentRep += (
+                        m.weights[rep_per]
+                        * m.commitmentPeriodLength
+                        * b.representativePeriod[rep_per]
+                        .commitmentPeriod[com_per]
+                        .renewableCurtailmentCommitment  # in MW
+                        # [ESR WIP: Q: Do we need to include this term here?]
+                        * m.curtailmentCost
+                    )  # units are in $
+            return (
+                b.renewableCurtailmentInvestment  # in $
+                == m.investmentFactor[investment_stage] * renewableCurtailmentRep
+            )
 
     """ 
     # Initial, untested attempt for enforcing identical storage level at 
@@ -724,62 +723,64 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
     """ Battery --> Storage Parameters """
+    if m.config["storage"]:
 
-    def storage_capacity_limits(b, bat):
-        return (
-            m.minStorageChargeLevel[bat],
-            m.storageCapacity[bat],
-        )  # The lower bound should be > 0 - data input
+        def storage_capacity_limits(b, bat):
+            return (
+                m.minStorageChargeLevel[bat],
+                m.storageCapacity[bat],
+            )  # The lower bound should be > 0 - data input
 
-    # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
-    def init_storage_capacity(b, bat):
-        return m.initStorageChargeLevel[bat]
+        # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
+        def init_storage_capacity(b, bat):
+            return m.initStorageChargeLevel[bat]
 
-    b.storageChargeLevel = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_capacity_limits,
-        initialize=init_storage_capacity,
-        units=u.MW,
-    )
+        b.storageChargeLevel = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_capacity_limits,
+            initialize=init_storage_capacity,
+            units=u.MW,
+        )
 
-    # Define bounds on charging/discharging capability. Note that constraints
-    # enforce that there are min & max charge/discharge levels if the bat is in
-    # the charging or discharging state
-    def storage_charge_limits(b, bat):
-        return (0, m.chargeMax[bat])
+        # Define bounds on charging/discharging capability. Note that constraints
+        # enforce that there are min & max charge/discharge levels if the bat is in
+        # the charging or discharging state
+        def storage_charge_limits(b, bat):
+            return (0, m.chargeMax[bat])
 
-    def storage_discharge_limits(b, bat):
-        return (0, m.dischargeMax[bat])
+        def storage_discharge_limits(b, bat):
+            return (0, m.dischargeMax[bat])
 
-    b.storageCharged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_charge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+        b.storageCharged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_charge_limits,
+            initialize=0,
+            units=u.MW,
+        )
 
-    b.storageDischarged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_discharge_limits,
-        initialize=0,
-        units=u.MW,
-    )
+        b.storageDischarged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_discharge_limits,
+            initialize=0,
+            units=u.MW,
+        )
 
-    # Define bounds on thermal generator reactive generation
-    def thermal_reactive_generation_limits(b, thermalGen):
-        return (0, m.thermalReactiveCapacity[thermalGen])
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        # Define bounds on thermal generator reactive generation
+        def thermal_reactive_generation_limits(b, thermalGen):
+            return (0, m.thermalReactiveCapacity[thermalGen])
 
-    b.thermalReactiveGeneration = pyo.Var(
-        m.thermalGenerators,
-        domain=pyo.Reals,
-        bounds=thermal_reactive_generation_limits,
-        initialize=0,
-        units=u.MVAR,
-        doc="Thermal generation",
-    )
+        b.thermalReactiveGeneration = pyo.Var(
+            m.thermalGenerators,
+            domain=pyo.Reals,
+            bounds=thermal_reactive_generation_limits,
+            initialize=0,
+            units=u.MVAR,
+            doc="Thermal generation",
+        )
 
     # [ESR WIP: Still deciding if this should be Nameplate]
     def renewable_generation_limits(
@@ -792,14 +793,9 @@ def add_dispatch_variables(b, dispatch_period):
         domain=pyo.NonNegativeReals,
         bounds=renewable_generation_limits,
         initialize=0,
-        units=u.MW * u.hr,
+        units=u.MW,
         doc="Renewable generation",
     )
-
-    # Fix hydro when we don't have a time series
-    for gen in m.renewableGenerators:
-        if m.md.data["elements"]["generator"][gen]["fuel"] == "H":
-            b.renewableGeneration[gen].fix(m.renewableCapacity[gen])
 
     # Define bounds on renewable generator curtailment
     def curtailment_limits(
@@ -851,10 +847,11 @@ def add_dispatch_variables(b, dispatch_period):
             * m.fixedCost[gen]
         )
 
-    # Per generator reactive power cost
-    @b.Expression(m.thermalGenerators)
-    def reactiveGeneratorCost(b, gen):
-        return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        # Per generator reactive power cost
+        @b.Expression(m.thermalGenerators)
+        def reactiveGeneratorCost(b, gen):
+            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -873,16 +870,17 @@ def add_dispatch_variables(b, dispatch_period):
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
-    """ Per-Battery Operational cost variables"""
+    if m.config["storage"]:
+        """Per-Battery Operational cost variables"""
 
-    @b.Expression(m.storage)
-    def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
+        @b.Expression(m.storage)
+        def storageChargingCost(b, bat):
+            return b.storageCharged[bat] * m.chargingCost[bat]
 
-    # JSC addn Per Battery Discharging Cost
-    @b.Expression(m.storage)
-    def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
+        # JSC addn Per Battery Discharging Cost
+        @b.Expression(m.storage)
+        def storageDischargingCost(b, bat):
+            return b.storageDischarged[bat] * m.dischargingCost[bat]
 
     # Track total dispatch values and costs
     @b.Expression(doc="Total surplus power for renewable generators in MW")
@@ -898,7 +896,10 @@ def add_dispatch_variables(b, dispatch_period):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
     # Reactive generation cost
-    b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
+    else:
+        b.reactiveGenerationCostDispatch = 0
 
     @b.Expression()
     def loadShedCostDispatch(b):
@@ -908,6 +909,19 @@ def add_dispatch_variables(b, dispatch_period):
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
+    if m.config["storage"]:
+        """Per-Battery Operational costs"""
+        b.chargingCostDispatch = sum(b.storageChargingCost.values())
+
+        b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
+
+        b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
+    else:
+        b.chargingCostDispatch = 0
+        b.dischargingCostDispatch = 0
+        b.storageCostDispatch = 0
+
+    # BLN TODO: Check the config check in the Expression rule
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
         return (
@@ -916,14 +930,10 @@ def add_dispatch_variables(b, dispatch_period):
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
+            + b.chargingCostDispatch
+            + b.dischargingCostDispatch
+            + b.storageCostDispatch
         )
-
-    """ Per-Battery Operational costs """
-    b.chargingCostDispatch = sum(b.storageChargingCost.values())
-
-    b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
-
-    b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
     def renewableCurtailmentDispatch(b):
@@ -1159,16 +1169,16 @@ def add_dispatch_variables(b, dispatch_period):
                 )
             )
 
-    # JSC update - If a branch is not in use, it must be inactive.
-    # Update this when switching is implemented
-    @b.LogicalConstraint(m.transmission)
-    def cannot_use_inactive_branches(b, branch):
-        return b.branchNotInUse[branch].indicator_var.implies(
-            pyo.lor(
-                i_p.branchDisabled[branch].indicator_var,
-                i_p.branchRetired[branch].indicator_var,
+        # JSC update - If a branch is not in use, it must be inactive.
+        # Update this when switching is implemented
+        @b.LogicalConstraint(m.transmission)
+        def cannot_use_inactive_branches(b, branch):
+            return b.branchNotInUse[branch].indicator_var.implies(
+                pyo.lor(
+                    i_p.branchDisabled[branch].indicator_var,
+                    i_p.branchRetired[branch].indicator_var,
+                )
             )
-        )
 
     def spinning_reserve_limits(
         b, thermalGen, doc="Bounds on thermal generator spinning reserve supply"
@@ -1260,11 +1270,13 @@ def add_dispatch_constraints(b, disp_per):
                 for gen in m.generators
                 if m.md.data["elements"]["generator"][gen]["bus"] == bus
             ]
-            batts = [
-                bat
-                for bat in m.storage
-                if m.md.data["elements"]["storage"][bat]["bus"] == bus
-            ]
+            batts = []
+            if m.config["storage"]:
+                batts = [
+                    bat
+                    for bat in m.storage
+                    if m.md.data["elements"]["storage"][bat]["bus"] == bus
+                ]
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             balance += sum(
@@ -1286,9 +1298,12 @@ def add_dispatch_constraints(b, disp_per):
     # JKS - charging costs from non-colocated plants?
     @b.Constraint(m.renewableGenerators)
     def capacity_factor(b, renewableGen):
+        # if m.md.data["elements"]["generator"][renewableGen]["fuel"] == "H":
+        #     # print(m.md.data["elements"]["generator"][renewableGen])
+        #     return pyo.Constraint.Skip
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == c_p.renewableCapacityCommitment[renewableGen]
+            == c_p.renewableCapacityExpected[renewableGen]
         )
 
     ## TODO: (@jkskolf) add renewableExtended to this and anywhere else
@@ -1543,6 +1558,11 @@ def add_commitment_variables(b, commitment_period):
     Create constraints within disjunctions on battery storage commitment (charging/discharging/off)
     """
 
+    if m.config["storage"]:
+        add_storage_constraints(m, b)
+
+
+def add_storage_constraints(m, b):
     """
     Battery Discharging Constraints
     """
@@ -1714,6 +1734,9 @@ def add_commitment_variables(b, commitment_period):
         ]
 
     # bats cannot be committed unless they are operational or just installed
+    r_p = b.parent_block()
+    i_p = r_p.parent_block()
+
     @b.LogicalConstraint(m.storage)
     def commit_active_batts_only(b, bat):
         return pyo.lor(
@@ -1859,7 +1882,7 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        m.loads = {
+        b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: (
                 temp_scale
                 * (
@@ -1934,6 +1957,7 @@ def add_representative_period_variables(b, rep_per):
 def add_representative_period_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
+
     if m.config["include_commitment"]:
         ##FIXME this needs to be updated for variable length commitment periods
         ## do this by (pre) processing the set of commitment periods for req_shutdown_periods
@@ -2191,6 +2215,7 @@ def representative_period_rule(b, representative_period):
     # ]
 
     b.currentPeriod = representative_period
+
     if m.config["include_commitment"] or m.config["include_redispatch"]:
         b.commitmentPeriods = pyo.RangeSet(
             m.numCommitmentPeriods[representative_period]
@@ -2238,125 +2263,36 @@ def investment_stage_rule(b, investment_stage):
     m.genRenewableFuelCost = []
     m.genRenewableFixOpCost = []
     m.genRenewableVarOpCost = []
-    for index, row in m.mc.gen_data_target.iterrows():
-        if row["Unit Type"].startswith(gen_thermal_type):
-            m.genThermalInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genThermalFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genThermalVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genThermalFuelCost.append(row[f"fuel_costs_{b.year}"])
 
-        elif row["Unit Type"].startswith(gen_renewable_type):
-            m.genRenewableInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genRenewableFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genRenewableVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genRenewableFuelCost.append(row[f"fuel_costs_{b.year}"])
+    if m.mc is not None:
+        for index, row in m.mc.gen_data_target.iterrows():
+            if row["Unit Type"].startswith(gen_thermal_type):
+                m.genThermalInvCost.append(row[f"capex_{b.year}"])  # in $/kW
+                m.genThermalFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
+                m.genThermalVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
+                m.genThermalFuelCost.append(row[f"fuel_costs_{b.year}"])
 
-        else:
-            continue
+            elif row["Unit Type"].startswith(gen_renewable_type):
+                m.genRenewableInvCost.append(row[f"capex_{b.year}"])  # in $/kW
+                m.genRenewableFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
+                m.genRenewableVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
+                m.genRenewableFuelCost.append(row[f"fuel_costs_{b.year}"])
 
-    # [ESR WIP: Update data for fixed and variable costs here since
-    # they depend on the investment year. Also, convert the units to
-    # be consistent.]
-    units_fixed_cost = u.USD / (u.kW * u.year)
-    units_var_cost = u.USD / (u.MW * u.hr)
-    units_inv_cost = u.USD / u.kW
-    units_fuel_cost = u.USD / (u.MW * u.hr)
-    for gen in m.generators:
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genThermalFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
-
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
-
-            # [ESR WIP: Add fuel costs from preprocessed
-            # data. Consider this cost is for Natural Gas generators,
-            # not coal.]
-            m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
-
-        else:
-            # For renewable
-
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genRenewableFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
-
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
-
-    # Final (converted) units are:
-    # fixed cost = $/ MWh
-    # var cost = $/MWh
-    # inv cost = $/Mw
-    # fuel cost = $/MWh
-
-    # Cost per MW of curtailed renewable energy (Original) NOTE: what
-    # should this be valued at?  This being both curtailment and load
-    # shed.
-
-    # [ESR WIP: Recalculate "curtailmentCost" and
-    # "loadShedCostperCurtailment" (formerly "loadShedCost") since
-    # they depend on "fuelCost". NOTE: These were originally defined
-    # as parameters in the function model_data_reference after
-    # "fuelCost" was defined.]
-    m.curtailmentCost = 2 * max(
-        pyo.value(m.fuelCost[gen]) for gen in m.thermalGenerators
-    )
-    m.loadShedCostperCurtailment = 5000
-
-    ##########
-
-    b.year = m.years[investment_stage - 1]
-
-    print(f"b.year = {b.year}")
-
-    ##########
-    # [ESR WIP: Save lists with all relevant costs (fixed and variable
-    # operating costs, fuel costs, and investment costs) for thermal
-    # and renewable generators. Please refer to gtep_data_processing
-    # for more details about the preprocessing of this data. NOTES:
-    # The "capex" in the investment costs already include the interest
-    # rate for each generator. Also, note that this data only covers
-    # three years: 2025, 2030, and 2035. If more investment years are
-    # needed, more data should be included in the data file for data
-    # processing.
-
-    # [ESR WIP: Assume we have two types of generators: thermal "CT"
-    # (with gas fuel) and renewable "PV" (with "sun" as fuel).]
-
-    gen_thermal_type = "CT"
-    gen_renewable_type = "PV"
-
-    m.genThermalInvCost = []
-    m.genThermalFuelCost = []
-    m.genThermalFixOpCost = []
-    m.genThermalVarOpCost = []
-    m.genRenewableInvCost = []
-    m.genRenewableFuelCost = []
-    m.genRenewableFixOpCost = []
-    m.genRenewableVarOpCost = []
-    for index, row in m.mc.gen_data_target.iterrows():
-        if row["Unit Type"].startswith(gen_thermal_type):
-            m.genThermalInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genThermalFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genThermalVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genThermalFuelCost.append(row[f"fuel_costs_{b.year}"])
-
-        elif row["Unit Type"].startswith(gen_renewable_type):
-            m.genRenewableInvCost.append(row[f"capex_{b.year}"])  # in $/kW
-            m.genRenewableFixOpCost.append(row[f"fixed_ops_{b.year}"])  # in $/kW-yr
-            m.genRenewableVarOpCost.append(row[f"var_ops_{b.year}"])  # $/MWh
-            m.genRenewableFuelCost.append(row[f"fuel_costs_{b.year}"])
-
-        else:
-            continue
+            else:
+                continue
+    else:
+        # TODO: Check what the default costs should be
+        print(
+            "Cost data was not provided in m.mc instance (check DataProcessing for more details). Setting costs parameters to random values for now."
+        )
+        m.genThermalInvCost.append(1)  # in $/kW
+        m.genThermalFixOpCost.append(1)  # in $/kW-yr
+        m.genThermalVarOpCost.append(1)  # $/MWh
+        m.genThermalFuelCost.append(1)
+        m.genRenewableInvCost.append(1)  # in $/kW
+        m.genRenewableFixOpCost.append(1)  # in $/kW-yr
+        m.genRenewableVarOpCost.append(1)  # $/MWh
+        m.genRenewableFuelCost.append(1)
 
     # [ESR WIP: Update data for fixed and variable costs here since
     # they depend on the investment year. Also, convert the units to
@@ -2417,7 +2353,6 @@ def investment_stage_rule(b, investment_stage):
 
     ##########
 
-    b.year = m.years[investment_stage - 1]
     if m.config["scale_texas_loads"]:
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 
@@ -2436,7 +2371,7 @@ def investment_stage_rule(b, investment_stage):
             }
             renewableInvestmentCost = {
                 gen: other_option
-                * m.renewableCapacity[gen]
+                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
                 * m.md.data["elements"]["generator"][gen]["capex1"]
                 for gen in m.renewableGenerators
             }
@@ -2455,7 +2390,7 @@ def investment_stage_rule(b, investment_stage):
             }
             renewableInvestmentCost = {
                 gen: other_option
-                * m.renewableCapacity[gen]
+                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
                 * m.md.data["elements"]["generator"][gen]["capex2"]
                 for gen in m.renewableGenerators
             }
@@ -2472,7 +2407,7 @@ def investment_stage_rule(b, investment_stage):
             }
             renewableInvestmentCost = {
                 gen: other_option
-                * m.renewableCapacity[gen]
+                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
                 * m.md.data["elements"]["generator"][gen]["capex3"]
                 for gen in m.renewableGenerators
             }
@@ -2611,45 +2546,6 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             doc="Potential storage units",
         )
 
-    else:
-        # TODO: assign and modify data below with better parameters.
-        # Currently, not all are used.
-        m.md.data["elements"]["storage"] = {
-            "test_battery": {
-                "name": "ideas_spelled_wrong",
-                "bus": 3,
-                "generator": None,
-                "storage_type": "battery",
-                "energy_capacity": 100,
-                "initial_state_of_charge": 5,
-                "end_state_of_charge": 5,
-                "minimum_state_of_charge": 5,
-                "charge_efficiency": 1,
-                "discharge_efficiency": 1,
-                "max_discharge_rate": 20,
-                "min_discharge_rate": 2,
-                "max_charge_rate": 100,
-                "min_charge_rate": 1,
-                "initial_charge_rate": 0,
-                "initial_discharge_rate": 0,
-                "charge_cost": 0,
-                "discharge_cost": 0,
-                "retention_rate_60min": 1,  # This has been verified to work at levels below 1; currently set to 1 for testing other storage components
-                "ramp_up_input_60min": 1,
-                "ramp_down_input_60min": 1,
-                "ramp_up_output_60min": 2,
-                "ramp_down_output_60min": 2,
-                "in_service": True,
-                "capital_multiplier": 1,
-                "extension_multiplier": 1,
-            }
-        }  # Thermal generator fuel costs are on [0.5,1.5]; renewables have no fuel cost. What should go here?
-
-        m.storage = pyo.Set(
-            initialize=(ess for ess in m.md.data["elements"]["storage"]),
-            doc="Potential storage units",
-        )
-
     ## TODO: make sure time units are both definable and consistent without being forced
 
     m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
@@ -2705,7 +2601,7 @@ def model_data_references(m):
         m.renewableGenerators,
         initialize={
             renewableGen: (
-                0
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]
                 if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
                 == float
                 else max(
@@ -2723,7 +2619,8 @@ def model_data_references(m):
 
     # [ESR WIP: Take only the value for renewable capacity when using
     # max() to avoid errors.]
-    m.renewableCapacityValue = pyo.Param(
+    # BLN: Pretty sure this should be removed but double check commented constraint using this
+    """ m.renewableCapacityValue = pyo.Param(
         m.renewableGenerators,
         initialize={
             renewableGen: (
@@ -2741,7 +2638,7 @@ def model_data_references(m):
         units=u.dimensionless,
         doc="Fraction of generation capacity that can be reliably counted toward planning reserve",
     )
-
+ """
     # [ESR WIP: From case data, the value is divided by 100, which is
     # the per units conversion.]
     m.transmissionCapacity = pyo.Param(
@@ -2954,6 +2851,17 @@ def model_data_references(m):
         doc="Cost of life extension for each generator expressed as a fraction of initial investment cost",
     )
 
+    # BLN: TODO: Check what value should be used here
+    m.retirementMultiplier = pyo.Param(
+        m.generators,
+        initialize={gen: 1 for gen in m.generators},
+        mutable=True,
+        units=u.dimensionless,
+        doc="Cost of life retirement for each generator expressed as a fraction of initial investment cost",
+    )
+    for gen in m.thermalGenerators:
+        m.retirementMultiplier[gen] = 0.1
+
     # [ESR WIP: Replace original generator investment costs with costs
     # from preprocessed data. These are fixed to 0 here but re-defined
     # in the function investment_stage_rule.]
@@ -3037,142 +2945,109 @@ def model_data_references(m):
         ]
         == region
     }
-    """ Battery Storage properties read-in from data """
-    m.storageCapacity = {
-        bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
-        for bat in m.storage
-    }  # maximum storage capacity
+    if m.config["storage"] == True:
+        """Battery Storage properties read-in from data"""
+        m.storageCapacity = {
+            bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
+            for bat in m.storage
+        }  # maximum storage capacity
 
-    m.initStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
-        for bat in m.storage
-    }  # initial storage capacity
+        m.initStorageChargeLevel = {
+            bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
+            for bat in m.storage
+        }  # initial storage capacity
 
-    m.minStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
-        for bat in m.storage
-    }  # minimum storage capacity
+        m.minStorageChargeLevel = {
+            bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
+            for bat in m.storage
+        }  # minimum storage capacity
 
-    m.chargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
-    }  # cost to charge per unit electricity
+        m.chargingCost = {
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+            for bat in m.storage
+        }  # cost to charge per unit electricity
 
-    m.dischargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-        for bat in m.storage
-    }  # cost to discharge per unit electricity
+        m.dischargingCost = {
+            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+            for bat in m.storage
+        }  # cost to discharge per unit electricity
 
-    m.dischargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
-        for bat in m.storage
-    }  # minimum amount to discharge per dispatch period when discharging
+        m.dischargeMin = {
+            bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
+            for bat in m.storage
+        }  # minimum amount to discharge per dispatch period when discharging
 
-    m.dischargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
-        for bat in m.storage
-    }  # maximum amount to discharge per dispatch period when discharging
+        m.dischargeMax = {
+            bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
+            for bat in m.storage
+        }  # maximum amount to discharge per dispatch period when discharging
 
-    m.chargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
-        for bat in m.storage
-    }  # minimum amount to charge per dispatch period when charging
+        m.chargeMin = {
+            bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
+            for bat in m.storage
+        }  # minimum amount to charge per dispatch period when charging
 
-    m.chargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
-        for bat in m.storage
-    }  # maximum amount to charge per dispatch period when charging
+        m.chargeMax = {
+            bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
+            for bat in m.storage
+        }  # maximum amount to charge per dispatch period when charging
 
-    m.storageDischargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp up between dispatch periods when discharging.
-    # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
+        m.storageDischargingRampUpRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp up between dispatch periods when discharging.
+        # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
 
-    m.storageDischargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp down between dispatch periods when discharging.
+        m.storageDischargingRampDownRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp down between dispatch periods when discharging.
 
-    m.storageChargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp up between dispatch periods when charging.
+        m.storageChargingRampUpRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp up between dispatch periods when charging.
 
-    m.storageChargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
-        for bat in m.storage
-    }  # maximum amount of ramp down between dispatch periods when charging.
+        m.storageChargingRampDownRates = {
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
+            for bat in m.storage
+        }  # maximum amount of ramp down between dispatch periods when charging.
 
-    m.storageDischargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
-        for bat in m.storage
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies with in dispatch periods and which is usable in the flow balance
+        m.storageDischargingEfficiency = {
+            bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
+            for bat in m.storage
+        }  # proportion of energy discharged that is not lost to technological
+        # inefficiencies with in dispatch periods and which is usable in the flow balance
 
-    m.storageChargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
-        for bat in m.storage
-    }  # proportion of energy charged that is not lost to technological
-    # inefficiencies within dispatch periods and which is usable in the flow balance
+        m.storageChargingEfficiency = {
+            bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
+            for bat in m.storage
+        }  # proportion of energy charged that is not lost to technological
+        # inefficiencies within dispatch periods and which is usable in the flow balance
 
-    m.storageRetentionRate = {
-        bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
-        for bat in m.storage
-    }  # proportion of energy discharged that is not lost to technological
-    # inefficiencies between dispatch periods and which is usable in the flow balance
+        m.storageRetentionRate = {
+            bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
+            for bat in m.storage
+        }  # proportion of energy discharged that is not lost to technological
+        # inefficiencies between dispatch periods and which is usable in the flow balance
 
-    # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
-    # for individual technologies; higher values are indicative of slow depreciation
-    m.storageCapitalMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
-        for bat in m.storage
-    }
+        # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
+        # for individual technologies; higher values are indicative of slow depreciation
+        m.storageCapitalMultiplier = {
+            bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
+            for bat in m.storage
+        }
 
-    # Cost of life extension for each battery, expressed as a fraction of initial investment cost
-    m.storageExtensionMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
-        for bat in m.storage
-    }
+        # Cost of life extension for each battery, expressed as a fraction of initial investment cost
+        m.storageExtensionMultiplier = {
+            bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
+            for bat in m.storage
+        }
 
-    m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
-        for bat in m.storage
-    }  # Future not real cost: idealized DoE 10-yr targets or something
-
-    # [ESR WIP: Declare fixed and operating costs here to avoid
-    # multiple declarations of the same parameter. Set the value to 1
-    # for now and updated in function investment_stage_rule.]
-    m.fixedCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
-    )
-    m.varCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
-    )
-
-    # [ESR WIP: Declare and initialize curtailment and load shed costs
-    # as parameters. These are re-calculated in
-    # investment_stage_rule. Also, note that the original
-    # "loadShedCost" was renamed "loadShedCostperCurtailment" to avoid
-    # repetition. ]
-    m.curtailmentCost = pyo.Param(
-        initialize=1,
-        units=u.USD / (u.MW * u.hr),
-        mutable=True,
-        doc="Curtailment cost",
-    )
-    m.loadShedCostperCurtailment = pyo.Param(
-        initialize=1000,
-        units=u.USD / (u.MW * u.hr),
-        mutable=True,
-    )
+        m.storageInvestmentCost = {
+            bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+            for bat in m.storage
+        }  # Future not real cost: idealized DoE 10-yr targets or something
 
     # [ESR WIP: Declare fixed and operating costs here to avoid
     # multiple declarations of the same parameter. Set the value to 1
@@ -3267,26 +3142,27 @@ def model_create_investment_stages(m, stages):
                 else pyo.Constraint.Skip
             )
 
-    """ Battery investment stage state change logic """
+    if m.config["transmission"]:
+        """Battery investment stage state change logic"""
 
-    @m.Constraint(m.stages, m.transmission)
-    def branch_stats_link(m, stage, branch):
-        return (
-            m.investmentStage[stage]
-            .branchOperational[branch]
-            .indicator_var.get_associated_binary()
-            == m.investmentStage[stage - 1]
-            .branchOperational[branch]
-            .indicator_var.get_associated_binary()
-            + m.investmentStage[stage - 1]
-            .branchInstalled[branch]
-            .indicator_var.get_associated_binary()
-            - m.investmentStage[stage - 1]
-            .branchRetired[branch]
-            .indicator_var.get_associated_binary()
-            if stage != 1
-            else pyo.Constraint.Skip
-        )
+        @m.Constraint(m.stages, m.transmission)
+        def branch_stats_link(m, stage, branch):
+            return (
+                m.investmentStage[stage]
+                .branchOperational[branch]
+                .indicator_var.get_associated_binary()
+                == m.investmentStage[stage - 1]
+                .branchOperational[branch]
+                .indicator_var.get_associated_binary()
+                + m.investmentStage[stage - 1]
+                .branchInstalled[branch]
+                .indicator_var.get_associated_binary()
+                - m.investmentStage[stage - 1]
+                .branchRetired[branch]
+                .indicator_var.get_associated_binary()
+                if stage != 1
+                else pyo.Constraint.Skip
+            )
 
     # Renewable generation (in MW) retirement relationships
     if len(m.stages) > 1:
@@ -3302,7 +3178,7 @@ def model_create_investment_stages(m, stages):
                     .genInstalled[gen]
                     .indicator_var.get_associated_binary()
                     for t_2 in m.stages
-                    if t_2 <= stage - m.lifetimes[gen]
+                    if t_2 <= stage - pyo.value(m.lifetimes[gen])
                 ) <= sum(
                     m.investmentStage[t_1]
                     .genRetired[gen]
@@ -3373,7 +3249,7 @@ def model_create_investment_stages(m, stages):
             + m.investmentStage[stage].renewableExtended[gen]
             + m.investmentStage[stage].renewableRetired[gen]
             + m.investmentStage[stage].renewableRetired[gen]
-            <= m.renewableCapacity[gen]
+            <= m.renewableCapacityNameplate[gen]
         )
 
     # If a gen is online at time t, it must have been online or installed at time t-1
@@ -3460,89 +3336,91 @@ def model_create_investment_stages(m, stages):
         )
 
     # Storage Constraints same as gen constraints
-    # If a storage device is online at time t, it must have been online or installed at time t-1
-    @m.LogicalConstraint(m.stages, m.storage)
-    def consistent_operation_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage]
-            .storOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage - 1].storOperational[gen].indicator_var
-                | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
+    if m.config["storage"]:
 
-    # If a gen is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.storage)
-    def consistent_operation_future_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .storOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].storOperational[gen].indicator_var
-                | m.investmentStage[stage].storExtended[gen].indicator_var
-                | m.investmentStage[stage].storRetired[gen].indicator_var
+        # If a storage device is online at time t, it must have been online or installed at time t-1
+        @m.LogicalConstraint(m.stages, m.storage)
+        def consistent_operation_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage]
+                .storOperational[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage - 1].storOperational[gen].indicator_var
+                    | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.storage)
-    def full_retirement_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .storRetired[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].storDisabled[gen].indicator_var
+        # If a gen is online at time t, it must be online, extended, or retired at time t+1
+        @m.LogicalConstraint(m.stages, m.storage)
+        def consistent_operation_future_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .storOperational[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].storOperational[gen].indicator_var
+                    | m.investmentStage[stage].storExtended[gen].indicator_var
+                    | m.investmentStage[stage].storRetired[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # If a gen is disabled at time t-1, it must stay disabled  at time t
-    ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
-    @m.LogicalConstraint(m.stages, m.storage)
-    def consistent_disabled_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .storDisabled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].storDisabled[gen].indicator_var
-                | m.investmentStage[stage].storInstalled[gen].indicator_var
+        # Retirement in period t-1 implies disabled in period t
+        @m.LogicalConstraint(m.stages, m.storage)
+        def full_retirement_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .storRetired[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].storDisabled[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # If a gen is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.storage)
-    def consistent_extended_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .storExtended[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].storExtended[gen].indicator_var
-                | m.investmentStage[stage].storRetired[gen].indicator_var
+        # If a gen is disabled at time t-1, it must stay disabled  at time t
+        ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
+        @m.LogicalConstraint(m.stages, m.storage)
+        def consistent_disabled_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .storDisabled[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].storDisabled[gen].indicator_var
+                    | m.investmentStage[stage].storInstalled[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.storage)
-    def full_investment_stor(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .storInstalled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].storOperational[gen].indicator_var
+        # If a gen is extended at time t-1, it must stay extended or be retired at time t
+        @m.LogicalConstraint(m.stages, m.storage)
+        def consistent_extended_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .storExtended[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].storExtended[gen].indicator_var
+                    | m.investmentStage[stage].storRetired[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
+
+        # Installation in period t-1 implies operational in period t
+        @m.LogicalConstraint(m.stages, m.storage)
+        def full_investment_stor(m, stage, gen):
+            return (
+                m.investmentStage[stage - 1]
+                .storInstalled[gen]
+                .indicator_var.implies(
+                    m.investmentStage[stage].storOperational[gen].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
+            )
 
     if m.config["transmission"]:
         # If a branch is online at time t, it must have been online or installed at time t-1
@@ -3559,71 +3437,71 @@ def model_create_investment_stages(m, stages):
                 else pyo.LogicalConstraint.Skip
             )
 
-    # If a branch is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_operation_future(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchOperational[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchOperational[branch].indicator_var
-                | m.investmentStage[stage].branchExtended[branch].indicator_var
-                | m.investmentStage[stage].branchRetired[branch].indicator_var
+        # If a branch is online at time t, it must be online, extended, or retired at time t+1
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_operation_future(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchOperational[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchOperational[branch].indicator_var
+                    | m.investmentStage[stage].branchExtended[branch].indicator_var
+                    | m.investmentStage[stage].branchRetired[branch].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def full_branch_retirement(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchRetired[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchDisabled[branch].indicator_var
+        # Retirement in period t-1 implies disabled in period t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def full_branch_retirement(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchRetired[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchDisabled[branch].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # If a branch is disabled at time t-1, it must stay disabled or be installed at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_disabled(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchDisabled[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchDisabled[branch].indicator_var
-                | m.investmentStage[stage].branchInstalled[branch].indicator_var
+        # If a branch is disabled at time t-1, it must stay disabled or be installed at time t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_disabled(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchDisabled[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchDisabled[branch].indicator_var
+                    | m.investmentStage[stage].branchInstalled[branch].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # If a branch is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def consistent_branch_extended(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchExtended[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchExtended[branch].indicator_var
-                | m.investmentStage[stage].branchRetired[branch].indicator_var
+        # If a branch is extended at time t-1, it must stay extended or be retired at time t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def consistent_branch_extended(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchExtended[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchExtended[branch].indicator_var
+                    | m.investmentStage[stage].branchRetired[branch].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
 
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
-    def full_branch_investment(m, stage, branch):
-        return (
-            m.investmentStage[stage - 1]
-            .branchInstalled[branch]
-            .indicator_var.implies(
-                m.investmentStage[stage].branchOperational[branch].indicator_var
+        # Installation in period t-1 implies operational in period t
+        @m.LogicalConstraint(m.stages, m.transmission)
+        def full_branch_investment(m, stage, branch):
+            return (
+                m.investmentStage[stage - 1]
+                .branchInstalled[branch]
+                .indicator_var.implies(
+                    m.investmentStage[stage].branchOperational[branch].indicator_var
+                )
+                if stage != 1
+                else pyo.LogicalConstraint.Skip
             )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )

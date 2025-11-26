@@ -18,7 +18,6 @@ from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
-import logging
 
 from gtep.validation import (
     clone_timeseries,
@@ -38,7 +37,7 @@ def get_solution_object():
 
     mod_object = ExpansionPlanningModel(
         stages=2,
-        data=data_object.md,
+        data=data_object,
         num_reps=2,
         len_reps=1,
         num_commit=6,
