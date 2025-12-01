@@ -87,7 +87,11 @@ opt = pyo.SolverFactory("highs")
 # print(mod_object.results)
 # mod_object.model.investmentStage.pprint()
 # mod_object.report_model()
-
+mod_object.results = opt.solve(
+    mod_object.model,
+    tee=True,
+    # solver_options={"LogFile": "basic_logging.log", "MIPGap": 0.001},
+)
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
 
