@@ -10,3 +10,11 @@
 # All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
 # for full copyright and license information.
 #################################################################################
+
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("gtep")
+except PackageNotFoundError:
+    # Handle the case where the package is not installed (e.g., running from source tree)
+    __version__ = "uninstalled"
