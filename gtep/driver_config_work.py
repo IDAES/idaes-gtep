@@ -17,7 +17,6 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
-from icecream import ic
 
 
 data_path = "./gtep/data/5bus"
@@ -35,7 +34,6 @@ for k, v in mod_object.config.items():
 mod_object.config["include_investment"] = False
 mod_object.create_model()
 
-ic(mod_object)
 exit()
 
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
