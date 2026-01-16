@@ -48,8 +48,7 @@ jobs:
     name: Check Spelling
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Spell Checker
         uses: crate-ci/typos@master
         with: 
@@ -62,8 +61,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        os: [ubuntu-latest, windows-latest]
-        python: [3.9, '3.10', '3.11', '3.12']
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.10', '3.11', '3.12', '3.13', '3,14']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -72,19 +71,19 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python }}
+          conda-remove-defaults: true
+          auto-update-conda: false
+          channels: conda-forge
 
       - name: Install Python packages (conda)
         run: |
           # Set up environment
           conda config --set always_yes yes
-          conda config --set auto_update_conda false
-          conda config --remove channels defaults
-          conda config --append channels nodefaults
-          conda config --append channels conda-forge
           
           echo "Install Python packages"
-          conda install --yes --quiet pip setuptools wheel
-          conda install --yes --quiet scipy pyomo pytest highspy
+          conda install --yes --quiet pip setuptools
+          # Install dependencies needed for testing
+          conda install --yes --quiet pytest highspy
           
           echo "Final conda environment:"
           conda list | sed 's/^/    /'
