@@ -44,11 +44,14 @@ classifiers=[
 ]
 dependencies = [
     "pyomo",
-    "scipy",
+    "numpy",
     "gridx-egret == 0.5.5",
     "gridx-prescient == 2.2.2",
     "anyio",
     "pint",
+    "pandas",
+    "matplotlib",
+    "ipython",
 ]
 
 [project.urls]
