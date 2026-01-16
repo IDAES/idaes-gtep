@@ -81,7 +81,6 @@ jobs:
           conda config --set always_yes yes
           
           echo "Install Python packages"
-          conda install --yes --quiet pip setuptools
           # Install dependencies needed for testing
           conda install --yes --quiet pytest highspy
           
