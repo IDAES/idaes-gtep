@@ -1393,7 +1393,9 @@ def add_commitment_variables(b, commitment_period):
             elif dispatchPeriod == 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    - r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .thermalGeneration[generator]
                     <= m.rampUpRates[generator]
                     * b.dispatchPeriod[dispatchPeriod].periodLength
                     * m.thermalCapacity[generator]
