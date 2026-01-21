@@ -1781,7 +1781,7 @@ def add_storage_constraints(m, b, commitment_period):
             elif disp_per == 1 and commitment_period != 1:
                 return (
                     r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispachPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last]
                     .storageCharged[bat]
                     - b.dispatchPeriod[disp_per].storageCharged[bat]
                     <= m.storageChargingRampDownRates[
