@@ -1559,13 +1559,16 @@ def add_commitment_variables(b, commitment_period):
     """
 
     if m.config["storage"]:
-        add_storage_constraints(m, b)
+        add_storage_constraints(m, b, commitment_period)
 
 
-def add_storage_constraints(m, b):
+def add_storage_constraints(m, b, commitment_period):
     """
     Battery Discharging Constraints
     """
+
+    r_p = b.parent_block()
+    i_p = r_p.parent_block()
 
     @b.Disjunct(m.storage)
     def storDischarging(disj, bat):
@@ -1591,28 +1594,50 @@ def add_storage_constraints(m, b):
         # Ramp up limit constraints for fully on bats
         @disj.Constraint(b.dispatchPeriods)
         def discharge_ramp_up_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageDischarged[bat]
-                - b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
-                <= m.storageDischargingRampUpRates[
-                    bat
-                ]  # battery ramp rates are currently absolute values
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    - b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
+                    <= m.storageDischargingRampUpRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    - r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .storageDischarged[bat]
+                    <= m.storageDischargingRampUpRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                )
+            else:
+                return pyo.Constraint.Skip
 
         # Ramp down limit constraints for fully on bats
         @disj.Constraint(b.dispatchPeriods)
         def discharge_ramp_down_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
-                - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                <= m.storageDischargingRampDownRates[
-                    bat
-                ]  # battery ramp rates are currently absolute values
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
+                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    <= m.storageDischargingRampDownRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods[-1]]
+                    .storageDischarged[bat]
+                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
+                    <= m.storageDischargingRampDownRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                )
+            else:
+                return pyo.Constraint.Skip
 
         # Force no charge when discharging
         @disj.Constraint(b.dispatchPeriods)
@@ -1622,14 +1647,25 @@ def add_storage_constraints(m, b):
         # Batteries that are charging both gain and lose energy
         @disj.Constraint(b.dispatchPeriods)
         def discharging_battery_storage_balance(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                == m.storageRetentionRate[bat]
-                * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods[-1]]
+                    .storageChargeLevel[bat]
+                    - m.storageChargingEfficiency[bat]
+                    * b.dispatchPeriod[disp_per].storageDischarged[bat]
+                )
+            else:
+                return pyo.Constraint.Skip
 
     """
     Battery Charging Constraints
@@ -1654,15 +1690,31 @@ def add_storage_constraints(m, b):
         # Ramp up limit constraints for fully on bats
         @disj.Constraint(b.dispatchPeriods)
         def charge_ramp_up_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageCharged[bat]
-                - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
-                <= m.storageChargingRampUpRates[
-                    bat
-                ]  # battery ramp rates are currently absolute values
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+
+                return (
+                    b.dispatchPeriod[disp_per].storageCharged[bat]
+                    - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
+                    <= m.storageChargingRampUpRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                    if disp_per != 1
+                    else pyo.Constraint.Skip
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageCharged[bat]
+                    - r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .storageCharged[bat]
+                    <= m.storageChargingRampUpRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                    if disp_per != 1
+                    else pyo.Constraint.Skip
+                )
+            else:
+                return pyo.Constraint.Skip
 
         # Ramp down limit constraints for fully on bats
         @disj.Constraint(b.dispatchPeriods)
@@ -1684,15 +1736,26 @@ def add_storage_constraints(m, b):
         # Batteries that are charging both gain and lose energy
         @disj.Constraint(b.dispatchPeriods)
         def charging_battery_storage_balance(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                == m.storageRetentionRate[bat]
-                * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                + m.storageChargingEfficiency[bat]
-                * b.dispatchPeriod[disp_per].storageCharged[bat]
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )  # @JKS Evaluate if we need charging efficiency in this eqn and/or in flow balance
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                    + m.storageChargingEfficiency[bat]
+                    * b.dispatchPeriod[disp_per].storageCharged[bat]
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods[-1]]
+                    .storageChargeLevel[bat]
+                    + m.storageChargingEfficiency[bat]
+                    * b.dispatchPeriod[disp_per].storageCharged[bat]
+                )
+            else:
+                return pyo.Constraint.Skip
 
     """
     Battery Off Constraints
