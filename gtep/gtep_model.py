@@ -1382,15 +1382,24 @@ def add_commitment_variables(b, commitment_period):
             doc="Ramp up limits for fully-on thermal generators",
         )
         def ramp_up_limits(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                <= m.rampUpRates[generator]
-                * b.dispatchPeriod[dispatchPeriod].periodLength
-                * m.thermalCapacity[generator]
-                if dispatchPeriod != 1
-                else pyo.Constraint.Skip
-            )
+            if dispatchPeriod != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    <= m.rampUpRates[generator]
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * m.thermalCapacity[generator]
+                )
+            elif dispatchPeriod == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    <= m.rampUpRates[generator]
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * m.thermalCapacity[generator]
+                )
+            else:
+                return pyo.Constraint.Skip
 
         @disj.Constraint(
             b.dispatchPeriods,
@@ -1398,15 +1407,24 @@ def add_commitment_variables(b, commitment_period):
             doc="Ramp down limits for fully-on thermal generators",
         )
         def ramp_down_limits(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= m.rampDownRates[generator]  # in MW/min
-                * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
-                * m.thermalCapacity[generator]  # in MW
-                if dispatchPeriod != 1
-                else pyo.Constraint.Skip
-            )
+            if dispatchPeriod != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    <= m.rampDownRates[generator]  # in MW/min
+                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
+                    * m.thermalCapacity[generator]  # in MW
+                )
+            elif dispatchPeriod == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    <= m.rampDownRates[generator]  # in MW/min
+                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
+                    * m.thermalCapacity[generator]  # in MW
+                )
+            else:
+                return pyo.Constraint.Skip
 
         ##NOTE: maxSpinningReserve is a percentage of thermalCapacity
         @disj.Constraint(
@@ -1446,21 +1464,36 @@ def add_commitment_variables(b, commitment_period):
             doc="Ramp up constraints for generators starting up",
         )
         def ramp_up_limits(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                <= max(
-                    pyo.value(m.thermalMin[generator]),
-                    # [ESR: Make sure the time units are consistent
-                    # here since we are only taking the value]
-                    pyo.value(m.rampUpRates[generator])
-                    * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength),
+            if dispatchPeriod != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        # [ESR: Make sure the time units are consistent
+                        # here since we are only taking the value]
+                        pyo.value(m.rampUpRates[generator])
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength),
+                    )
+                    * m.thermalCapacity[generator]
                 )
-                ##FIXME: I don't think this parenthesis is correct -- thermal capacity should go inside with the second term.  Or do I need to make this two constraints?
-                * m.thermalCapacity[generator]
-                if dispatchPeriod != 1
-                else pyo.Constraint.Skip
-            )
+            elif dispatchPeriod == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    - r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .thermalGeneration[generator]
+                    <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        # [ESR: Make sure the time units are consistent
+                        # here since we are only taking the value]
+                        pyo.value(m.rampUpRates[generator])
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength),
+                    )
+                    * m.thermalCapacity[generator]
+                )
+            else:
+                return pyo.Constraint.Skip
 
     @b.Disjunct(m.thermalGenerators)
     def genShutdown(disj, generator):
@@ -1492,20 +1525,36 @@ def add_commitment_variables(b, commitment_period):
         # Ramp down constraints for generators shutting down
         @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
         def ramp_down_limits(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= max(
-                    pyo.value(m.thermalMin[generator]),
-                    # [ESR: Make sure the time units are consistent
-                    # here since we are taking the value only]
-                    pyo.value(m.rampDownRates[generator])
-                    * b.dispatchPeriod[dispatchPeriod].periodLength,
+            if dispatchPeriod != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        # [ESR: Make sure the time units are consistent
+                        # here since we are taking the value only]
+                        pyo.value(m.rampDownRates[generator])
+                        * b.dispatchPeriod[dispatchPeriod].periodLength,
+                    )
+                    * m.thermalCapacity[generator]
                 )
-                * m.thermalCapacity[generator]
-                if dispatchPeriod != 1
-                else pyo.Constraint.Skip
-            )
+            elif dispatchPeriod == 1 and commitment_period != 1:
+                return (
+                    r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .thermalGeneration[generator]
+                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                    <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        # [ESR: Make sure the time units are consistent
+                        # here since we are taking the value only]
+                        pyo.value(m.rampDownRates[generator])
+                        * b.dispatchPeriod[dispatchPeriod].periodLength,
+                    )
+                    * m.thermalCapacity[generator]
+                )
+            else:
+                return pyo.Constraint.Skip
 
     @b.Disjunct(m.thermalGenerators)
     def genOff(disj, generator):
@@ -1691,7 +1740,6 @@ def add_storage_constraints(m, b, commitment_period):
         @disj.Constraint(b.dispatchPeriods)
         def charge_ramp_up_limits(disj, disp_per):
             if disp_per != 1 and commitment_period != 1:
-
                 return (
                     b.dispatchPeriod[disp_per].storageCharged[bat]
                     - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
@@ -1719,15 +1767,30 @@ def add_storage_constraints(m, b, commitment_period):
         # Ramp down limit constraints for fully on bats
         @disj.Constraint(b.dispatchPeriods)
         def charge_ramp_down_limits(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per - 1].storageCharged[bat]
-                - b.dispatchPeriod[disp_per].storageCharged[bat]
-                <= m.storageChargingRampDownRates[
-                    bat
-                ]  # battery ramp rates are currently absolute values
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per - 1].storageCharged[bat]
+                    - b.dispatchPeriod[disp_per].storageCharged[bat]
+                    <= m.storageChargingRampDownRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                    if disp_per != 1
+                    else pyo.Constraint.Skip
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispachPeriods.last]
+                    .storageCharged[bat]
+                    - b.dispatchPeriod[disp_per].storageCharged[bat]
+                    <= m.storageChargingRampDownRates[
+                        bat
+                    ]  # battery ramp rates are currently absolute values
+                    if disp_per != 1
+                    else pyo.Constraint.Skip
+                )
+            else:
+                return pyo.Constraint.Skip
 
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
@@ -1779,13 +1842,22 @@ def add_storage_constraints(m, b, commitment_period):
         # Batteries that are off still lose energy, and none goes to the grid
         @disj.Constraint(b.dispatchPeriods)
         def off_batteries_lose_storage(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                == m.storageRetentionRate[bat]
-                * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                if disp_per != 1
-                else pyo.Constraint.Skip
-            )
+            if disp_per != 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                )
+            elif disp_per == 1 and commitment_period != 1:
+                return (
+                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
+                    == m.storageRetentionRate[bat]
+                    * r_p.commitmentPeriod[commitment_period - 1]
+                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .storageChargeLevel[bat]
+                )
+            else:
+                return pyo.Constraint.Skip
 
     # Batteries are exclusively either Charging, Discharging, or Off
     @b.Disjunction(m.storage)
