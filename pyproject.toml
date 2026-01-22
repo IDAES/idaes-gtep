@@ -49,7 +49,7 @@ dependencies = [
     "gridx-prescient == 2.2.2",
     "anyio",
     "pint",
-    "pandas",
+    "pandas<3",
     "matplotlib",
     "ipython",
 ]
