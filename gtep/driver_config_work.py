@@ -18,7 +18,6 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 
-
 data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
