@@ -1747,8 +1747,6 @@ def add_storage_constraints(m, b, commitment_period):
                     <= m.storageChargingRampUpRates[
                         bat
                     ]  # battery ramp rates are currently absolute values
-                    if disp_per != 1
-                    else pyo.Constraint.Skip
                 )
             elif disp_per == 1 and commitment_period != 1:
                 return (
@@ -1759,8 +1757,6 @@ def add_storage_constraints(m, b, commitment_period):
                     <= m.storageChargingRampUpRates[
                         bat
                     ]  # battery ramp rates are currently absolute values
-                    if disp_per != 1
-                    else pyo.Constraint.Skip
                 )
             else:
                 return pyo.Constraint.Skip
@@ -1775,8 +1771,6 @@ def add_storage_constraints(m, b, commitment_period):
                     <= m.storageChargingRampDownRates[
                         bat
                     ]  # battery ramp rates are currently absolute values
-                    if disp_per != 1
-                    else pyo.Constraint.Skip
                 )
             elif disp_per == 1 and commitment_period != 1:
                 return (
@@ -1787,8 +1781,6 @@ def add_storage_constraints(m, b, commitment_period):
                     <= m.storageChargingRampDownRates[
                         bat
                     ]  # battery ramp rates are currently absolute values
-                    if disp_per != 1
-                    else pyo.Constraint.Skip
                 )
             else:
                 return pyo.Constraint.Skip
