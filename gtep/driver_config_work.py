@@ -3,7 +3,7 @@
 # Framework (IDAES IP) was produced under the DOE Institute for the
 # Design of Advanced Energy Systems (IDAES).
 #
-# Copyright (c) 2018-2025 by the software owners: The Regents of the
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
 # University of California, through Lawrence Berkeley National Laboratory,
 # National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
 # University, West Virginia University Research Corporation, et al.
@@ -17,7 +17,6 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
-from icecream import ic
 
 data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData()
@@ -34,7 +33,6 @@ for k, v in mod_object.config.items():
 mod_object.config["include_investment"] = False
 mod_object.create_model()
 
-ic(mod_object)
 exit()
 
 TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)

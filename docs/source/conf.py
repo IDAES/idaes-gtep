@@ -3,7 +3,7 @@
 # Framework (IDAES IP) was produced under the DOE Institute for the
 # Design of Advanced Energy Systems (IDAES).
 #
-# Copyright (c) 2018-2025 by the software owners: The Regents of the
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
 # University of California, through Lawrence Berkeley National Laboratory,
 # National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
 # University, West Virginia University Research Corporation, et al.
@@ -26,7 +26,7 @@ import importlib
 sys.path.insert(0, os.path.abspath("../.."))
 
 project = "idaes-gtep"
-copyright = "2018-2025, IDAES"
+copyright = "2018-2026, IDAES"
 author = "IDAES Development Team"
 release = importlib.metadata.version("gtep")
 version = importlib.metadata.version("gtep")
