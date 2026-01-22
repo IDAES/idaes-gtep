@@ -3,7 +3,7 @@
 # Framework (IDAES IP) was produced under the DOE Institute for the
 # Design of Advanced Energy Systems (IDAES).
 #
-# Copyright (c) 2018-2025 by the software owners: The Regents of the
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
 # University of California, through Lawrence Berkeley National Laboratory,
 # National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
 # University, West Virginia University Research Corporation, et al.
@@ -36,7 +36,6 @@ from gtep.config_options import (
     _add_common_configs,
     _add_investment_configs,
 )
-
 
 # Define what a USD is for pyomo units purposes
 # This will be set to a base year and we will do NPV calculations
