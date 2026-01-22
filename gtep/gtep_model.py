@@ -1393,7 +1393,7 @@ def add_commitment_variables(b, commitment_period):
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .thermalGeneration[generator]
                     <= m.rampUpRates[generator]
                     * b.dispatchPeriod[dispatchPeriod].periodLength
@@ -1482,7 +1482,7 @@ def add_commitment_variables(b, commitment_period):
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
@@ -1542,7 +1542,7 @@ def add_commitment_variables(b, commitment_period):
             elif dispatchPeriod == 1 and commitment_period != 1:
                 return (
                     r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
@@ -1656,7 +1656,7 @@ def add_storage_constraints(m, b, commitment_period):
                 return (
                     b.dispatchPeriod[disp_per].storageDischarged[bat]
                     - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .storageDischarged[bat]
                     <= m.storageDischargingRampUpRates[
                         bat
@@ -1752,7 +1752,7 @@ def add_storage_constraints(m, b, commitment_period):
                 return (
                     b.dispatchPeriod[disp_per].storageCharged[bat]
                     - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .storageCharged[bat]
                     <= m.storageChargingRampUpRates[
                         bat
@@ -1775,7 +1775,7 @@ def add_storage_constraints(m, b, commitment_period):
             elif disp_per == 1 and commitment_period != 1:
                 return (
                     r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .storageCharged[bat]
                     - b.dispatchPeriod[disp_per].storageCharged[bat]
                     <= m.storageChargingRampDownRates[
@@ -1846,7 +1846,7 @@ def add_storage_constraints(m, b, commitment_period):
                     b.dispatchPeriod[disp_per].storageChargeLevel[bat]
                     == m.storageRetentionRate[bat]
                     * r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last]
+                    .dispatchPeriod[b.dispatchPeriods.last()]
                     .storageChargeLevel[bat]
                 )
             else:
