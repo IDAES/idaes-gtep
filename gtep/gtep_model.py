@@ -1357,7 +1357,6 @@ def add_commitment_variables(b, commitment_period):
     @b.Disjunct(m.thermalGenerators)
     def genOn(disj, generator):
         # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         b = disj.parent_block()
 
         @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
@@ -1445,8 +1444,6 @@ def add_commitment_variables(b, commitment_period):
     def genStartup(disj, generator):
         b = disj.parent_block()
 
-        # (Original) NOTE: Reminder: thermalMin is a percentage of
-        # thermalCapacity
         @disj.Constraint(b.dispatchPeriods, doc="Operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return 0 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -1468,32 +1465,32 @@ def add_commitment_variables(b, commitment_period):
         )
         def ramp_up_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                    <= max(
-                        pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
-                        pyo.value(m.rampUpRates[generator])
-                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength),
-                    )
-                    * m.thermalCapacity[generator]
+                return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                    generator
+                ] - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[
+                    generator
+                ] <= max(
+                    pyo.value(m.thermalMin[generator]),
+                    # [ESR: Make sure the time units are consistent
+                    # here since we are only taking the value]
+                    pyo.value(m.rampUpRates[generator])
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * pyo.value(m.thermalCapacity[generator]),
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
-                    <= max(
-                        pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
-                        pyo.value(m.rampUpRates[generator])
-                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength),
-                    )
-                    * m.thermalCapacity[generator]
+                return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                    generator
+                ] - r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[
+                    b.dispatchPeriods.last()
+                ].thermalGeneration[
+                    generator
+                ] <= max(
+                    pyo.value(m.thermalMin[generator]),
+                    # [ESR: Make sure the time units are consistent
+                    # here since we are only taking the value]
+                    pyo.value(m.rampUpRates[generator])
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * pyo.value(m.thermalCapacity[generator]),
                 )
             else:
                 return pyo.Constraint.Skip
@@ -1503,7 +1500,6 @@ def add_commitment_variables(b, commitment_period):
         b = disj.parent_block()
 
         # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit_min(d, dispatchPeriod):
             return (
@@ -1529,32 +1525,32 @@ def add_commitment_variables(b, commitment_period):
         @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
         def ramp_down_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    <= max(
-                        pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
-                        pyo.value(m.rampDownRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength,
-                    )
-                    * m.thermalCapacity[generator]
+                return b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[
+                    generator
+                ] - b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                    generator
+                ] <= max(
+                    pyo.value(m.thermalMin[generator]),
+                    # [ESR: Make sure the time units are consistent
+                    # here since we are taking the value only]
+                    pyo.value(m.rampDownRates[generator])
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * pyo.value(m.thermalCapacity[generator]),
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
-                return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
-                    - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    <= max(
-                        pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
-                        pyo.value(m.rampDownRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength,
-                    )
-                    * m.thermalCapacity[generator]
+                return r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[
+                    b.dispatchPeriods.last()
+                ].thermalGeneration[generator] - b.dispatchPeriod[
+                    dispatchPeriod
+                ].thermalGeneration[
+                    generator
+                ] <= max(
+                    pyo.value(m.thermalMin[generator]),
+                    # [ESR: Make sure the time units are consistent
+                    # here since we are taking the value only]
+                    pyo.value(m.rampDownRates[generator])
+                    * b.dispatchPeriod[dispatchPeriod].periodLength
+                    * pyo.value(m.thermalCapacity[generator]),
                 )
             else:
                 return pyo.Constraint.Skip
@@ -1564,7 +1560,6 @@ def add_commitment_variables(b, commitment_period):
         b = disj.parent_block()
 
         # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit_max(disj, dispatchPeriod):
             return (
@@ -1625,7 +1620,6 @@ def add_storage_constraints(m, b, commitment_period):
     @b.Disjunct(m.storage)
     def storDischarging(disj, bat):
         # operating limits
-        ## NOTE: Reminder: thermalMin is a percentage of thermalCapacity
         b = disj.parent_block()
 
         # Minimum operating Limits if storage unit is on
