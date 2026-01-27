@@ -77,15 +77,14 @@ mod_object.create_model()
 # pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
-# quit()
-
 # Add solver
 opt = pyo.SolverFactory("gurobi")
 # opt = Gurobi()
 # opt = Highs()
 # opt = pyo.SolverFactory("highs")
+mod_object.results = opt.solve(mod_object.model, tee=True)
 # print(mod_object.results)
-# mod_object.model.investmentStage.pprint()
+# mod_object.model.investmentStage.display()
 # mod_object.report_model()
 
 quit()
