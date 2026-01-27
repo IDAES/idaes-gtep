@@ -538,7 +538,7 @@ def add_investment_constraints(
                 * b.branchInstalled[branch].indicator_var.get_associated_binary()
                 for branch in m.transmission
             )
-            + sum(
+            +sum(
                 m.branchInvestmentCost[branch]
                 * m.branchExtensionMultiplier[branch]
                 * b.branchExtended[branch].indicator_var.get_associated_binary()
@@ -552,7 +552,8 @@ def add_investment_constraints(
                 # [ESR WIP: When including the disjunction
                 # investStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen] * m.thermalCapacity[gen]  # in MW
+                m.generatorInvestmentCost[gen]
+                * m.thermalCapacity[gen]  # in MW
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -567,8 +568,7 @@ def add_investment_constraints(
                 # [ESR WIP: When including the disjunction
                 # investStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen]
-                * m.extensionMultiplier[gen]
+                m.generatorInvestmentCost[gen] * m.extensionMultiplier[gen]
                 # [ESR WIP: Add missing term to include the capacity
                 # of the extended gen. Note that, if no added, units
                 # are not consistent since the binary variable does
@@ -590,8 +590,7 @@ def add_investment_constraints(
                 for gen in m.renewableGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen]
-                * m.retirementMultiplier[gen]
+                m.generatorInvestmentCost[gen] * m.retirementMultiplier[gen]
                 # [ESR WIP: Add missing term to include the capacity
                 # of the retired unit. Note that, if no added, units
                 # are not consistent since the binary variable does not
@@ -1266,7 +1265,7 @@ def add_dispatch_constraints(b, disp_per):
             # parameter instead of the original dictionary. Also, note
             # that the loads are now declared for all the buses in
             # m.buses, and set to 0 for the buses that are not in
-            # m.load_buses.]            
+            # m.load_buses.]
             # load = c_p.loads.get(bus) or 0
 
             end_points = [
@@ -1921,8 +1920,7 @@ def add_commitment_constraints(b, comm_per):
                     for disp_per in b.dispatchPeriods
                 )
                 + sum(
-                    m.fixedCost[gen]  # $/MWh
-                    * b.commitmentPeriodLength  # h
+                    m.fixedCost[gen] * b.commitmentPeriodLength
                     # [ESR WIP: Assuming we are paying for the full
                     # capacity of our generator. Note that a capacity
                     # should be included since the associated binaries
@@ -2042,7 +2040,7 @@ def commitment_period_rule(b, commitment_period):
                     commitment_period - 1
                 ]
             )
-                
+
     elif m.config["scale_texas_loads"]:
         false_loads = []
         for load in m.md.data["elements"]["load"]:
@@ -2061,7 +2059,7 @@ def commitment_period_rule(b, commitment_period):
         }
         # Testing
         # print(m.loads)
-        
+
     else:
         b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -3005,8 +3003,7 @@ def model_data_references(m):
     m.retirementMultiplier = pyo.Param(
         m.generators,
         initialize={
-            gen: (0.1 if gen in m.thermalGenerators else 1.0)
-            for gen in m.generators
+            gen: (0.1 if gen in m.thermalGenerators else 1.0) for gen in m.generators
         },
         mutable=True,
         units=u.dimensionless,
