@@ -537,7 +537,8 @@ def add_investment_constraints(
                 * m.branchCapitalMultiplier[branch]
                 * b.branchInstalled[branch].indicator_var.get_associated_binary()
                 for branch in m.transmission
-            ) + sum(
+            )
+            + sum(
                 m.branchInvestmentCost[branch]
                 * m.branchExtensionMultiplier[branch]
                 * b.branchExtended[branch].indicator_var.get_associated_binary()
@@ -552,7 +553,6 @@ def add_investment_constraints(
                 # investStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen] * m.thermalCapacity[gen]  # in MW
-                # m.generatorInstallationCost[gen]
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -568,9 +568,11 @@ def add_investment_constraints(
                 # investStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen]
-                # m.generatorInstallationCost[gen]
                 * m.extensionMultiplier[gen]
-                # [ESR WIP: Term added for unit consistency]
+                # [ESR WIP: Add missing term to include the capacity
+                # of the extended gen. Note that, if no added, units
+                # are not consistent since the binary variable does
+                # not represent the capacity.]
                 * m.thermalCapacity[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -590,6 +592,11 @@ def add_investment_constraints(
             + sum(
                 m.generatorInvestmentCost[gen]
                 * m.retirementMultiplier[gen]
+                # [ESR WIP: Add missing term to include the capacity
+                # of the retired unit. Note that, if no added, units
+                # are not consistent since the binary variable does not
+                # represent the capacity.]
+                * m.thermalCapacity[gen]
                 * b.genRetired[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
@@ -1255,7 +1262,13 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses)
         def flow_balance(b, bus):
             balance = 0
-            load = c_p.loads.get(bus) or 0
+            # [ESR WIP: Comment load and call all the loads as a
+            # parameter instead of the original dictionary. Also, note
+            # that the loads are now declared for all the buses in
+            # m.buses, and set to 0 for the buses that are not in
+            # m.load_buses.]            
+            # load = c_p.loads.get(bus) or 0
+
             end_points = [
                 line
                 for line in m.transmission
@@ -1288,7 +1301,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= load
+            balance -= m.loads[bus]  # add new parameter (already includes units)
             balance += b.loadShed[bus]
             return balance == 0
 
@@ -1908,8 +1921,14 @@ def add_commitment_constraints(b, comm_per):
                     for disp_per in b.dispatchPeriods
                 )
                 + sum(
-                    m.fixedCost[gen]
-                    * b.commitmentPeriodLength
+                    m.fixedCost[gen]  # $/MWh
+                    * b.commitmentPeriodLength  # h
+                    # [ESR WIP: Assuming we are paying for the full
+                    # capacity of our generator. Note that a capacity
+                    # should be included since the associated binaries
+                    # are dimensionless. This makes the constraint
+                    # unit consistent.]
+                    * m.thermalCapacity[gen]
                     * (
                         b.genOn[gen].indicator_var.get_associated_binary()
                         + b.genShutdown[gen].indicator_var.get_associated_binary()
@@ -2006,19 +2025,24 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        b.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: (
+        for load_n in m.load_buses:
+            # [ESR WIP: replace b.loads with the Parameter m.load to
+            # avoid unit consistency issues in the flow_balance
+            # equation. TODO: Confirm between b.loads and
+            # m.loads. When b.loads is used, the BlockData throws an
+            # error saying the attribute does not exist.]
+            # b.loads[load_n] = (
+            m.loads[load_n] = (
                 temp_scale
                 * (
                     1
                     + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
                 )
+                * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                    commitment_period - 1
+                ]
             )
-            * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
-            for load_n in m.md.data["elements"]["load"]
-        }
+                
     elif m.config["scale_texas_loads"]:
         false_loads = []
         for load in m.md.data["elements"]["load"]:
@@ -2037,6 +2061,7 @@ def commitment_period_rule(b, commitment_period):
         }
         # Testing
         # print(m.loads)
+        
     else:
         b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -2153,7 +2178,8 @@ def add_representative_period_constraints(b, rep_per):
         def consistent_commitment_startup(b, commitmentPeriod, thermalGen):
             req_startup_periods = ceil(
                 1
-                / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
+                # / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
+                / pyo.value(m.rampUpRates[thermalGen])
             )
             return (
                 pyo.atmost(
@@ -2456,7 +2482,7 @@ def investment_stage_rule(b, investment_stage):
             )
 
     # Final (converted) units are:
-    # fixed cost = $/ MWh
+    # fixed cost = $/MWh
     # var cost = $/MWh
     # inv cost = $/Mw
     # fuel cost = $/MWh
@@ -2978,13 +3004,14 @@ def model_data_references(m):
     # BLN: TODO: Check what value should be used here
     m.retirementMultiplier = pyo.Param(
         m.generators,
-        initialize={gen: 1 for gen in m.generators},
+        initialize={
+            gen: (0.1 if gen in m.thermalGenerators else 1.0)
+            for gen in m.generators
+        },
         mutable=True,
         units=u.dimensionless,
         doc="Cost of life retirement for each generator expressed as a fraction of initial investment cost",
     )
-    for gen in m.thermalGenerators:
-        m.retirementMultiplier[gen] = 0.1
 
     # [ESR WIP: Replace original generator investment costs with costs
     # from preprocessed data. These are fixed to 0 here but re-defined
@@ -3044,7 +3071,8 @@ def model_data_references(m):
             thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]
             for thermalGen in m.thermalGenerators
         },
-        units=u.MW / u.minutes,
+        # units=u.MW / u.minutes,
+        units=u.dimensionless,
         doc="Ramp up rates for each generator as a fraction of maximum generator output",
     )
 
@@ -3054,7 +3082,8 @@ def model_data_references(m):
             thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
             for thermalGen in m.thermalGenerators
         },
-        units=u.MW / u.minutes,
+        # units=u.MW / u.minutes,
+        units=u.dimensionless,
         doc="Ramp down rates for each generator as a fraction of maximum generator output",
     )
 
