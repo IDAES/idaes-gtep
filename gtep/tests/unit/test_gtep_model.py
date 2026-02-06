@@ -19,8 +19,8 @@ from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
 from pyomo.environ import units as u
 from pyomo.environ import TransformationFactory
 from pyomo.util.check_units import (
-    assert_units_consistent, 
-    _component_data_handlers, 
+    assert_units_consistent,
+    _component_data_handlers,
     assert_units_equivalent,
 )
 from gtep.gtep_model import ExpansionPlanningModel
@@ -35,13 +35,16 @@ def patch_unit_handlers():
     # This disables units checking on LogicalConstraints. This code can be
     # deleted once a units checker for LogicalConstraints is added to Pyomo
     if LogicalConstraint in _component_data_handlers:
-        print("Warning: Found a unit checker for LogicalConstraints. This testing hack " \
-        "can likely be removed.")
+        print(
+            "Warning: Found a unit checker for LogicalConstraints. This testing hack "
+            "can likely be removed."
+        )
         yield
     else:
         _component_data_handlers[LogicalConstraint] = None
         yield
         _component_data_handlers.pop(LogicalConstraint)
+
 
 # Helper functions
 def read_debug_model():
@@ -50,6 +53,7 @@ def read_debug_model():
     dataObject = ExpansionPlanningData()
     dataObject.load_prescient(debug_data_path)
     return dataObject
+
 
 @pytest.mark.usefixtures("patch_unit_handlers")
 class TestGTEP(unittest.TestCase):
@@ -94,7 +98,7 @@ class TestGTEP(unittest.TestCase):
         expansion_blocks = modObject.model.component("investmentStage")
         self.assertEqual(len(expansion_blocks), 2)
         self.assertIs(modObject.model.investmentStage, expansion_blocks)
-        
+
         # Each expansion block has 4 representative period blocks also, and they make sense
         # Well, at least the first expansion block
 
@@ -118,10 +122,9 @@ class TestGTEP(unittest.TestCase):
             len(dispatch_block_1), len(commitment_block_q[1].dispatchPeriods)
         )
 
-
     def test_model_unit_consistency(self):
         # Test that the ExpansionPlanningModel has consistent units and spot check that
-        # components have their expected units 
+        # components have their expected units
         data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -133,21 +136,54 @@ class TestGTEP(unittest.TestCase):
         )
         modObject.create_model()
         m = modObject.model
-        
+
         # Check for consistent units
         assert_units_consistent(m)
 
         # Check that subset of model components have expected units
-        assert_units_equivalent(m.renewable_capacity_enforcement[1,'10_PV'].expr, u.MW)
-        assert_units_equivalent(m.investmentStage[1].renewable_curtailment_cost.expr, u.USD)
-        assert_units_equivalent(m.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].flow_balance['bus1'].expr, u.MW)
+        assert_units_equivalent(m.renewable_capacity_enforcement[1, "10_PV"].expr, u.MW)
+        assert_units_equivalent(
+            m.investmentStage[1].renewable_curtailment_cost.expr, u.USD
+        )
+        assert_units_equivalent(
+            m.investmentStage[1]
+            .representativePeriod[1]
+            .commitmentPeriod[1]
+            .dispatchPeriod[1]
+            .flow_balance["bus1"]
+            .expr,
+            u.MW,
+        )
         assert_units_equivalent(m.commitmentPeriodLength, u.h)
         assert_units_equivalent(m.dispatchPeriodLength, u.min)
         assert_units_equivalent(m.rampUpRates, u.dimensionless)
-        assert_units_equivalent(m.varCost, u.USD/u.h/u.MW)
-        assert_units_equivalent(m.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].spinningReserve, u.MW)
-        assert_units_equivalent(m.investmentStage[1].representativePeriod[1].commitmentPeriod[1].genOn['3_CT'].operating_limit_min[1].expr, u.MW)
-        assert_units_equivalent(m.investmentStage[1].representativePeriod[1].commitmentPeriod[1].genOn['4_STEAM'].max_spinning_reserve[1,'4_STEAM'].expr, u.MW)
+        assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(
+            m.investmentStage[1]
+            .representativePeriod[1]
+            .commitmentPeriod[1]
+            .dispatchPeriod[1]
+            .spinningReserve,
+            u.MW,
+        )
+        assert_units_equivalent(
+            m.investmentStage[1]
+            .representativePeriod[1]
+            .commitmentPeriod[1]
+            .genOn["3_CT"]
+            .operating_limit_min[1]
+            .expr,
+            u.MW,
+        )
+        assert_units_equivalent(
+            m.investmentStage[1]
+            .representativePeriod[1]
+            .commitmentPeriod[1]
+            .genOn["4_STEAM"]
+            .max_spinning_reserve[1, "4_STEAM"]
+            .expr,
+            u.MW,
+        )
 
     def test_solve_bigm(self):
         # Solve the debug model as is
@@ -156,7 +192,7 @@ class TestGTEP(unittest.TestCase):
             data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
-        
+
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
         assert_units_consistent(modObject.model)
@@ -175,7 +211,6 @@ class TestGTEP(unittest.TestCase):
             value(modObject.model.total_cost_objective_rule), 531883.43, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
-        
 
     def test_no_investment(self):
         # Solve the debug model with no investment
@@ -203,9 +238,8 @@ class TestGTEP(unittest.TestCase):
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 531883.43, places=1
         )
-        
-        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data(self):
         # Test more ExpansionPlanningModel with additional cost data
@@ -215,7 +249,12 @@ class TestGTEP(unittest.TestCase):
         curr_dir = dirname(abspath(__file__))
         data_path = abspath(join(curr_dir, "..", "..", "data", "costs"))
         bus_data_path = abspath(join(data_path, "Bus_data_gen_weights_mappings.csv"))
-        cost_data_path = abspath(join(data_path, "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"))
+        cost_data_path = abspath(
+            join(
+                data_path,
+                "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
+            )
+        )
         candidate_gens = [
             "Natural Gas_CT",
             "Natural Gas_FE",
@@ -259,15 +298,15 @@ class TestGTEP(unittest.TestCase):
         opt = SolverFactory("highs")
         if not opt.available():
             raise unittest.SkipTest("Solver not available")
-        
+
         # Apply transformations to logical terms
-        TransformationFactory("gdp.bigm").apply_to(mod_object.model)      
-        
+        TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+
         mod_object.results = opt.solve(mod_object.model)
 
         # previous successful objective values: 1524581869.89
         self.assertAlmostEqual(
             value(mod_object.model.total_cost_objective_rule), 1524581869.89, places=1
         )
-        
+
         assert_units_equivalent(mod_object.model.total_cost_objective_rule.expr, u.USD)
