@@ -242,7 +242,7 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data(self):
-        # Test more ExpansionPlanningModel with additional cost data
+        # Test ExpansionPlanningModel with cost data
         # This model originated from driver_esr.py
         data_object = read_debug_model()
 
