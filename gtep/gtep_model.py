@@ -1140,7 +1140,8 @@ def add_dispatch_variables(b, dispatch_period):
                     ]
                 else:
                     shift = 0
-                return b.powerFlow[branch] == (-1 / reactance) * (
+                # TODO: Fix the units in this constraint
+                return b.powerFlow[branch] / u.MW == (-1 / reactance) * (
                     disj.busAngle[tb] - disj.busAngle[fb] + shift
                 )
 
@@ -1302,7 +1303,7 @@ def add_dispatch_constraints(b, disp_per):
 
             balance -= m.loads[bus]  # add new parameter (already includes units)
             balance += b.loadShed[bus]
-            return balance == 0
+            return balance == 0 * u.MW
 
     # Capacity factor constraint
     # NOTE: In comparison to reference work, this is *per renewable generator*
@@ -1458,7 +1459,7 @@ def add_commitment_variables(b, commitment_period):
 
         @disj.Constraint(b.dispatchPeriods, doc="Operating limits")
         def operating_limit_min(d, dispatchPeriod):
-            return 0 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            return 0 * u.MW <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
 
         @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
         def operating_limit_max(d, dispatchPeriod):
@@ -1488,7 +1489,7 @@ def add_commitment_variables(b, commitment_period):
                     pyo.value(m.rampUpRates[generator])
                     * b.dispatchPeriod[dispatchPeriod].periodLength
                     * pyo.value(m.thermalCapacity[generator]),
-                )
+                ) * u.MW
             elif dispatchPeriod == 1 and commitment_period != 1:
                 return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
                     generator
@@ -1503,7 +1504,7 @@ def add_commitment_variables(b, commitment_period):
                     pyo.value(m.rampUpRates[generator])
                     * b.dispatchPeriod[dispatchPeriod].periodLength
                     * pyo.value(m.thermalCapacity[generator]),
-                )
+                ) * u.MW
             else:
                 return pyo.Constraint.Skip
 
@@ -1548,7 +1549,7 @@ def add_commitment_variables(b, commitment_period):
                     pyo.value(m.rampDownRates[generator])
                     * b.dispatchPeriod[dispatchPeriod].periodLength
                     * pyo.value(m.thermalCapacity[generator]),
-                )
+                ) * u.MW
             elif dispatchPeriod == 1 and commitment_period != 1:
                 return r_p.commitmentPeriod[commitment_period - 1].dispatchPeriod[
                     b.dispatchPeriods.last()
@@ -1563,7 +1564,7 @@ def add_commitment_variables(b, commitment_period):
                     pyo.value(m.rampDownRates[generator])
                     * b.dispatchPeriod[dispatchPeriod].periodLength
                     * pyo.value(m.thermalCapacity[generator]),
-                )
+                ) * u.MW
             else:
                 return pyo.Constraint.Skip
 
