@@ -52,6 +52,7 @@ dependencies = [
     "pandas<3",
     "matplotlib",
     "ipython",
+    "openpyxl",
 ]
 
 [project.urls]
