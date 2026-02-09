@@ -1,0 +1,506 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import matplotlib.patheffects as pe
+
+block_pos = "bottom"
+plt.rcParams.update({"font.size": 32})
+
+
+def to_dict(dict_in):
+
+    # split_subkey_prefixes = ['gen', 'branch']
+
+    ignore_this = "branch"
+
+    out_dict = {}
+
+    for key, val in dict_in.items():
+        # split the name to figure out depth
+        split_name = key.split(".")
+
+        if ignore_this not in split_name[1]:
+            # set toplevel defaults
+            out_dict.setdefault(split_name[0], {})
+
+            # split things by a predefined prefix
+            out_dict[split_name[0]].setdefault(split_name[1], {})
+            # specific_key = split_name[1].split(subsplit_key, 1)[1]
+            specific_key = "".join(split_name[2:])
+            out_dict[split_name[0]][split_name[1]][specific_key] = val
+
+    return out_dict
+
+
+def plot_binaries(dict_in, suptitle, states_order, gens_pd):
+
+    # figure out all the time ranges
+    time_keys = list(dict_in.keys())
+
+    # figure out all the states and keys
+    states_set = set()
+    keys_set = set()
+    for this_time_key in time_keys:
+        states_set.update(dict_in[this_time_key].keys())
+        for this_state in dict_in[this_time_key].keys():
+            keys_set.update(dict_in[this_time_key][this_state].keys())
+
+    # [BAD] this is chating, and bad, dont let this go to prod
+    states_set = states_order
+
+    # figure out the gen type based on the key
+    gens_keys_to_type = {}
+    gens_keys_to_pmax = {}
+    for this_key in list(keys_set):
+        gens_keys_to_type[this_key] = (
+            gens_pd["Unit Type"].loc[gens_pd["GEN UID"] == this_key].values[0]
+        )
+        gens_keys_to_pmax[this_key] = (
+            gens_pd["PMax MW"].loc[gens_pd["GEN UID"] == this_key].values[0]
+        )
+    unique_gen_types = np.sort(pd.unique(gens_pd["Unit Type"]))
+
+    # check if the values are bools or floats, because that changes how we plot things
+    num_keys_total = None
+    # checking the "first" deeply nested element here is dumb as hell but it's way clearner than recursive next(iter()) calls. (halp)
+    first_layer = next(iter(dict_in))
+    second_layer = next(iter(dict_in[first_layer]))
+    third_layer = next(iter(dict_in[first_layer][second_layer]))
+    type_check = None
+    if isinstance(dict_in[first_layer][second_layer][third_layer], bool):
+        num_keys_total = len(keys_set)
+        type_check = bool
+    else:
+        # we unfortunately have to determine the maximum across all possible blocks. Which sucks.
+        tmp_sum = 0
+        for this_time_key in time_keys:
+            for this_state in states_set:
+                if this_state in dict_in[this_time_key].keys():
+                    if sum(dict_in[this_time_key][this_state].values()) > tmp_sum:
+                        tmp_sum = sum(dict_in[this_time_key][this_state].values())
+        num_keys_total = tmp_sum
+        type_check = float
+
+    # set up plot
+    fig = plt.figure(figsize=(32, 16), tight_layout=False)
+    gs = fig.add_gridspec(1, 1)  # only need 1 plot for now
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    gen_colors = prop_cycle.by_key()["color"]
+
+    # set up figure sizes
+    # if all the variables are binaries, we can assume that the vars are all binaries and the keys are all categories
+    total_height = len(states_set)
+    interstate_height = 1.0 / (len(keys_set) + 2)
+    width = 1
+    width_padding = 0.05
+    ax_bins = fig.add_subplot(gs[:, :])
+    ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
+    ax_bins.set_xlim([0.5, len(time_keys) + 0.5])  # set xlims to support bools
+    ax_bins.set_yticklabels([None] + list(states_set))
+    ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    for axline_ix in range(total_height):
+        ax_bins.axhline(
+            axline_ix + 0.5,
+            color="grey",
+            linewidth=3,
+        )  # draw a seperator line between each level
+    for axline_ix in range(len(time_keys)):
+        ax_bins.axvline(
+            axline_ix + 0.5,
+            color="grey",
+            linewidth=3,
+            linestyle="dotted",
+            alpha=0.5,
+        )  # draw a seperator line between each level
+
+    # [BAD] just start putting things on the plot and cry about it later
+
+    # make a dummy line to steal the color cycler and make a single item for the legend
+    # for ix_var, this_var_key in enumerate(keys_set):
+    # (line,) = ax_bins.plot(
+    #     [None],
+    #     [None],
+    #     label=f"{this_var_key}",
+    #     linewidth=5,
+    # )
+
+    # make dummy lines based on gen types
+    for ix_gen, this_gen_type in enumerate(unique_gen_types):
+        (line,) = ax_bins.plot(
+            [None],
+            [None],
+            label=f"{this_gen_type}",
+            color=gen_colors[ix_gen],
+            linewidth=5,
+        )
+
+    for ix_time_key, this_time_key in enumerate(time_keys):
+        for state_ix, this_state in enumerate(states_set):
+            if this_state in dict_in[this_time_key].keys():
+                # plot the number of things in this state at this time
+                if type_check == bool:
+                    num_keys_in_this_state = len(dict_in[this_time_key][this_state])
+                else:
+                    num_keys_in_this_state = sum(
+                        dict_in[this_time_key][this_state].values()
+                    )
+
+                # count, based on the gen types, how big each block needs to be, normalized to the whole thing
+                gen_weights = {}
+                for this_gen_type in unique_gen_types:
+                    tmp_count = 0
+                    if type_check == bool:
+                        # map
+                        for this_gen in dict_in[this_time_key][this_state]:
+                            if gens_keys_to_type[this_gen] == this_gen_type:
+                                tmp_count += 1
+                    else:
+                        # map
+                        for this_gen in dict_in[this_time_key][this_state]:
+                            if gens_keys_to_type[this_gen] == this_gen_type:
+                                tmp_count += dict_in[this_time_key][this_state][
+                                    this_gen
+                                ]
+                    gen_weights[this_gen_type] = tmp_count
+
+                block_lower_left_x = None
+                block_lower_left_y = None
+                block_width = None
+                block_height = None
+                text_x = None
+                text_y = None
+                if block_pos == "centered":
+                    block_lower_left_x = ix_time_key + 0.5 + width_padding + 0.1
+                    block_lower_left_y = state_ix - (
+                        (num_keys_in_this_state / num_keys_total) * 0.5
+                    )
+                    block_width = width - (width_padding * 2) - 0.1
+                    block_height = num_keys_in_this_state / num_keys_total
+                    text_x = ix_time_key + 1.0
+                    text_y = state_ix
+                    text_y_footnote = state_ix - 0.45
+                elif block_pos == "bottom":
+                    block_lower_left_x = ix_time_key + 0.5 + width_padding + 0.1
+                    block_lower_left_y = state_ix - 0.5
+                    block_width = width - (width_padding * 2) - 0.1
+                    block_height = num_keys_in_this_state / num_keys_total
+                    text_x = ix_time_key + 1.0
+                    text_y = state_ix - 0.5 + (num_keys_in_this_state / num_keys_total)
+                    text_y_footnote = state_ix - 0.45
+
+                gen_weights_nudge = 0
+                gen_weights_count = 0
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    if gen_weights[this_gen_type] > 0:
+                        gen_weights_count += 1
+                        tmp_rect = plt.Rectangle(
+                            [
+                                block_lower_left_x + 0.15,
+                                block_lower_left_y + (gen_weights_nudge * block_height),
+                            ],
+                            block_width - 0.125,
+                            (
+                                gen_weights[this_gen_type]
+                                / num_keys_in_this_state
+                                * block_height
+                            ),
+                            alpha=0.9,
+                            edgecolor="black",
+                            color=gen_colors[gen_ix],
+                        )
+                        ax_bins.add_patch(tmp_rect)
+                        gen_weights_nudge += (
+                            gen_weights[this_gen_type] / num_keys_in_this_state
+                        )
+                        # label_string = f"{label_string} / "
+
+                # make the label block
+                tmp_rect = plt.Rectangle(
+                    [
+                        block_lower_left_x - 0.125,
+                        block_lower_left_y + 0.05,
+                    ],
+                    0.25,
+                    0.9,
+                    alpha=0.8,
+                    color="xkcd:light grey",
+                )
+                ax_bins.add_patch(tmp_rect)
+
+                # add the label in this cell
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    ax_bins.text(
+                        text_x - 0.45,
+                        text_y_footnote + 0.1 + 0.1 * gen_ix,
+                        f"{this_gen_type}",
+                        size=14,
+                        ha="left",
+                        va="center",
+                        color=gen_colors[gen_ix],
+                        path_effects=[pe.withStroke(linewidth=0.5, foreground="grey")],
+                        # bbox=dict(
+                        #     boxstyle="square",
+                        #     ec="black",
+                        #     fc=gen_colors[gen_ix],
+                        # ),
+                    )
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    ax_bins.text(
+                        text_x - 0.25,
+                        text_y_footnote + 0.1 + 0.1 * gen_ix,
+                        f"{gen_weights[this_gen_type]:.03f}",
+                        size=14,
+                        ha="right",
+                        va="center",
+                        color=gen_colors[gen_ix],
+                        path_effects=[pe.withStroke(linewidth=0.5, foreground="grey")],
+                        # bbox=dict(
+                        #     boxstyle="square",
+                        #     ec="black",
+                        #     fc=gen_colors[gen_ix],
+                        # ),
+                    )
+
+                ax_bins.text(
+                    text_x - 0.35,  # text_x,
+                    text_y_footnote + 0.1 + 0.1 * (gen_ix + 2),  # text_y,
+                    f"{num_keys_in_this_state:.03f}",
+                    size=20,
+                    weight="bold",
+                    ha="center",
+                    va="center",
+                    color="black",
+                    # bbox=dict(
+                    #     boxstyle="round",
+                    #     ec="black",
+                    #     fc="xkcd:light grey",
+                    # ),
+                )
+
+    ax_bins.set_xlabel("Investment Period $[n]$")
+    # ax_bins.set_xlabel(f"{level_key} $[n]$")
+    ax_bins.set_title(f"{suptitle} Investment Status")
+    ax_bins.set_ylabel("Binary State")
+    # ax_bins.legend()
+
+    fig.align_labels()
+    # fig.suptitle(f"{suptitle}")
+    fig.savefig(f"{save_dir}{suptitle}_Investment_Status.png")
+    plt.close()
+
+    # set up plot
+    fig = plt.figure(figsize=(32, 16), tight_layout=False)
+    gs = fig.add_gridspec(1, 1)  # only need 1 plot for now
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    gen_colors = prop_cycle.by_key()["color"]
+
+    # set up figure sizes
+    # if all the variables are binaries, we can assume that the vars are all binaries and the keys are all categories
+    total_height = len(states_set)
+    interstate_height = 1.0 / (len(keys_set) + 2)
+    width = 1
+    width_padding = 0.05
+    ax_bins = fig.add_subplot(gs[:, :])
+    ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
+    ax_bins.set_xlim([0.5, len(time_keys) + 0.5])  # set xlims to support bools
+    ax_bins.set_yticklabels([None] + list(states_set))
+    ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    for axline_ix in range(total_height):
+        ax_bins.axhline(
+            axline_ix + 0.5,
+            color="grey",
+            linewidth=3,
+        )  # draw a seperator line between each level
+    for axline_ix in range(len(time_keys)):
+        ax_bins.axvline(
+            axline_ix + 0.5,
+            color="grey",
+            linewidth=3,
+            linestyle="dotted",
+            alpha=0.5,
+        )  # draw a seperator line between each level
+
+    # [BAD] just start putting things on the plot and cry about it later
+
+    # make a dummy line to steal the color cycler and make a single item for the legend
+    # for ix_var, this_var_key in enumerate(keys_set):
+    # (line,) = ax_bins.plot(
+    #     [None],
+    #     [None],
+    #     label=f"{this_var_key}",
+    #     linewidth=5,
+    # )
+
+    # make dummy lines based on gen types
+    for ix_gen, this_gen_type in enumerate(unique_gen_types):
+        (line,) = ax_bins.plot(
+            [None],
+            [None],
+            label=f"{this_gen_type}",
+            color=gen_colors[ix_gen],
+            linewidth=5,
+        )
+
+    # across all days and all types, find the largest possible generation we will scale against
+    gen_total = 0
+    for ix_time_key, this_time_key in enumerate(time_keys):
+        for state_ix, this_state in enumerate(states_set):
+            tmp_count = 0
+            if this_state in dict_in[this_time_key].keys():
+                for this_gen_type in unique_gen_types:
+                    for this_gen in dict_in[this_time_key][this_state]:
+                        if gens_keys_to_type[this_gen] == this_gen_type:
+                            tmp_count += gens_keys_to_pmax[this_gen]
+            if gen_total < tmp_count:
+                gen_total = tmp_count
+
+    for ix_time_key, this_time_key in enumerate(time_keys):
+        for state_ix, this_state in enumerate(states_set):
+            if this_state in dict_in[this_time_key].keys():
+                # # plot the number of things in this state at this time
+                # if type_check == bool:
+                #     gen_this_state = len(dict_in[this_time_key][this_state])
+                # else:
+                #     gen_this_state = sum(dict_in[this_time_key][this_state].values())
+
+                # count, based on the gen types, how big each block needs to be, normalized to the whole thing
+                gen_weights = {}
+                # gen_total = 0
+                for this_gen_type in unique_gen_types:
+                    tmp_count = 0
+                    for this_gen in dict_in[this_time_key][this_state]:
+                        if gens_keys_to_type[this_gen] == this_gen_type:
+                            tmp_count += gens_keys_to_pmax[this_gen]
+                    gen_weights[this_gen_type] = tmp_count
+                    # gen_total += tmp_count
+
+                gen_this_state = 0
+                for key, val in gen_weights.items():
+                    gen_this_state += val
+
+                block_lower_left_x = None
+                block_lower_left_y = None
+                block_width = None
+                block_height = None
+                text_x = None
+                text_y = None
+                if block_pos == "centered":
+                    block_lower_left_x = ix_time_key + 0.5 + width_padding + 0.1
+                    block_lower_left_y = state_ix - ((gen_this_state / gen_total) * 0.5)
+                    block_width = width - (width_padding * 2) - 0.1
+                    block_height = gen_this_state / gen_total
+                    text_x = ix_time_key + 1.0
+                    text_y = state_ix
+                    text_y_footnote = state_ix - 0.45
+                elif block_pos == "bottom":
+                    block_lower_left_x = ix_time_key + 0.5 + width_padding + 0.1
+                    block_lower_left_y = state_ix - 0.5
+                    block_width = width - (width_padding * 2) - 0.1
+                    block_height = gen_this_state / gen_total
+                    text_x = ix_time_key + 1.0
+                    text_y = state_ix - 0.5 + (gen_this_state / gen_total)
+                    text_y_footnote = state_ix - 0.45
+
+                gen_weights_nudge = 0
+                gen_weights_count = 0
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    if gen_weights[this_gen_type] > 0:
+                        gen_weights_count += 1
+                        tmp_rect = plt.Rectangle(
+                            [
+                                block_lower_left_x + 0.15,
+                                block_lower_left_y + (gen_weights_nudge * block_height),
+                            ],
+                            block_width - 0.125,
+                            (
+                                gen_weights[this_gen_type]
+                                / gen_this_state
+                                * block_height
+                            ),
+                            alpha=0.9,
+                            edgecolor="black",
+                            color=gen_colors[gen_ix],
+                        )
+                        ax_bins.add_patch(tmp_rect)
+                        gen_weights_nudge += gen_weights[this_gen_type] / gen_this_state
+                        # label_string = f"{label_string} / "
+
+                # make the label block
+                tmp_rect = plt.Rectangle(
+                    [
+                        block_lower_left_x - 0.125,
+                        block_lower_left_y + 0.05,
+                    ],
+                    0.25,
+                    0.9,
+                    alpha=0.8,
+                    color="xkcd:light grey",
+                )
+                ax_bins.add_patch(tmp_rect)
+
+                # add the label in this cell
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    ax_bins.text(
+                        text_x - 0.45,
+                        text_y_footnote + 0.1 + 0.1 * gen_ix,
+                        f"{this_gen_type}",
+                        size=14,
+                        ha="left",
+                        va="center",
+                        color=gen_colors[gen_ix],
+                        path_effects=[pe.withStroke(linewidth=0.5, foreground="grey")],
+                        # bbox=dict(
+                        #     boxstyle="square",
+                        #     ec="black",
+                        #     fc=gen_colors[gen_ix],
+                        # ),
+                    )
+                for gen_ix, this_gen_type in enumerate(unique_gen_types):
+                    ax_bins.text(
+                        text_x - 0.25,
+                        text_y_footnote + 0.1 + 0.1 * gen_ix,
+                        f"{gen_weights[this_gen_type]:.03f}",
+                        size=14,
+                        ha="right",
+                        va="center",
+                        color=gen_colors[gen_ix],
+                        path_effects=[pe.withStroke(linewidth=0.5, foreground="grey")],
+                        # bbox=dict(
+                        #     boxstyle="square",
+                        #     ec="black",
+                        #     fc=gen_colors[gen_ix],
+                        # ),
+                    )
+
+                ax_bins.text(
+                    text_x - 0.35,  # text_x,
+                    text_y_footnote + 0.1 + 0.1 * (gen_ix + 2),  # text_y,
+                    f"{gen_this_state:.03f}",
+                    size=20,
+                    weight="bold",
+                    ha="center",
+                    va="center",
+                    color="black",
+                    # bbox=dict(
+                    #     boxstyle="round",
+                    #     ec="black",
+                    #     fc="xkcd:light grey",
+                    # ),
+                )
+
+    ax_bins.set_xlabel("Investment Period $[n]$")
+    # ax_bins.set_xlabel(f"{level_key} $[n]$")
+    ax_bins.set_title(f"{suptitle} Total Generation")
+    ax_bins.set_ylabel("Binary State")
+    # ax_bins.legend()
+
+    fig.align_labels()
+    # fig.suptitle(f"{suptitle}")
+    fig.savefig(f"{save_dir}{suptitle}_Total_Generation.png")
+    plt.close()
+    pass
