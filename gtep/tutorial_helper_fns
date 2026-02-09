@@ -288,7 +288,8 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
 
     fig.align_labels()
     # fig.suptitle(f"{suptitle}")
-    fig.savefig(f"{save_dir}{suptitle}_Investment_Status.png")
+    # fig.savefig(f"{save_dir}{suptitle}_Investment_Status.png")
+    plt.show()
     plt.close()
 
     # set up plot
