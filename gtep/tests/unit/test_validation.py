@@ -27,47 +27,107 @@ from gtep.validation import (
 )
 
 curr_dir = dirname(abspath(__file__))
-input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
 
+#############################################################################
+# These tests are designed to run over a collection of models, across both
+# different data sources and model parameters. `data_paths_dict` and
+# `gtep_model_args_list` define the set of collection of models.
+#############################################################################
 
-def get_solution_object():
-    data_object = ExpansionPlanningData()
-    data_object.load_prescient(input_data_source)
+# maps input path to output and reference paths; potentially include other data sources
+# ...just 5 bus for now.
+data_paths_dict = {
+    abspath(join(curr_dir, "..", "..", "data", "5bus")): {
+        'output': abspath(join(curr_dir, "..", "..", "data", "5bus_out")),
+        'reference': abspath(join(curr_dir, "..", "..", "data", "5bus_ref"))
+    },
+}
 
-    mod_object = ExpansionPlanningModel(
-        stages=2,
-        data=data_object,
-        num_reps=2,
-        len_reps=1,
-        num_commit=6,
-        num_dispatch=4,
-    )
-    mod_object.create_model()
-    TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
-    TransformationFactory("gdp.bigm").apply_to(mod_object.model)
-    opt = Highs()
-    mod_object.results = opt.solve(mod_object.model)
+gtep_model_args_list = [
+    {
+        'stages': 2,
+        'num_reps': 2,
+        'len_reps': 1,
+        'num_commit': 6,
+        'num_dispatch': 4,
+     },
+    {
+        'stages': 1,
+        'num_reps': 2,
+        'len_reps': 1,
+        'num_commit': 6,
+        'num_dispatch': 4,
+     }
+]
 
-    sol_object = ExpansionPlanningSolution()
-    sol_object.load_from_model(mod_object)
-    return sol_object
+# helper function
+def get_solution_objects():
+    solution_objects_dict = {}
+
+    for data_input_path in data_paths_dict:
+        solution_objects_dict[data_input_path] = []
+
+        for gtep_model_args in gtep_model_args_list:
+
+            data_object = ExpansionPlanningData()
+            data_object.load_prescient(data_input_path)
+
+            mod_object = ExpansionPlanningModel(**gtep_model_args, data=data_object)
+            mod_object.create_model()
+
+            TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
+            TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+            
+            opt = Highs()
+            mod_object.results = opt.solve(mod_object.model)
+
+            sol_object = ExpansionPlanningSolution()
+            sol_object.load_from_model(mod_object)
+
+            solution_objects_dict[data_input_path].append(sol_object)
+
+    return solution_objects_dict
 
 
 class TestValidation(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.solution = get_solution_object()
+        cls.solution_dict = get_solution_objects()
+
+    def iterate_func_over_data_and_options(self, func: function):
+        """
+        Loops over every combination of data source and options,
+        calling `func` each time.
+        
+        :param func: Must accept three positional arguments:
+            data input path, solution object, and data output path
+        :type func: function
+        """
+        for data_input_path, solutions in self.solution_dict.items():
+
+            out_path = data_paths_dict[data_input_path]['output']
+            for solution in solutions:
+
+                func(data_input_path, solution, out_path)
 
     def test_populate_generators_filter_pointers(self):
-        populate_generators(input_data_source, self.solution, output_data_source)
-        # filter_pointers needs to access the gen.csv file created in populate_generators
-        # so these functions need to be tested together
-        filter_pointers(input_data_source, output_data_source)
+        """
+        Tests the function `populate_generators`, then the function
+        `filter_pointers`. The latter runs on the output of the
+        former, so one test is needed to cover both functions.
+        """
+        def thingy(input, sol, output):
+            populate_generators(input, sol, output)
+            filter_pointers(input, output)
+            assert True
+
+        self.iterate_func_over_data_and_options(thingy)
 
     def test_populate_transmission(self):
-        populate_transmission(input_data_source, self.solution, output_data_source)
+        self.iterate_func_over_data_and_options(populate_transmission)
 
     def test_clone_timeseries(self):
-        clone_timeseries(input_data_source, output_data_source)
+        self.iterate_func_over_data_and_options(
+            lambda input, _, output: clone_timeseries(input, output)
+        )
