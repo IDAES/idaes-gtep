@@ -18,7 +18,7 @@
 
 import pandas as pd
 from pathlib import Path
-from config_data import ConfigData
+from gtep.config_data import ConfigData
 
 """
 References
