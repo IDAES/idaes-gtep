@@ -38,8 +38,8 @@ curr_dir = dirname(abspath(__file__))
 # ...just 5 bus for now.
 data_paths_dict = {
     abspath(join(curr_dir, "..", "..", "data", "5bus")): {
-        'output': abspath(join(curr_dir, "..", "..", "data", "5bus_out")),
-        'reference': abspath(join(curr_dir, "..", "..", "data", "5bus_ref"))
+        'output': abspath(join(curr_dir, "..", "..", "data", "5bus", "out")),
+        'reference': abspath(join(curr_dir, "..", "..", "data", "5bus", "ref"))
     },
 }
 
@@ -61,7 +61,11 @@ gtep_model_args_list = [
 ]
 
 # helper function
-def get_solution_objects():
+def get_solution_objects() -> dict[str, list[ExpansionPlanningSolution]]:
+    """
+    :return: Dictionary that maps each data source path to a list of solution objects
+    (each corresponding to a set of arguments to the model constructor)
+    """
     solution_objects_dict = {}
 
     for data_input_path in data_paths_dict:
@@ -107,9 +111,9 @@ class TestValidation(unittest.TestCase):
         for data_input_path, solutions in self.solution_dict.items():
 
             out_path = data_paths_dict[data_input_path]['output']
-            for solution in solutions:
+            for i, solution in enumerate(solutions):
 
-                func(data_input_path, solution, out_path)
+                func(data_input_path, solution, join(out_path, i))
 
     def test_populate_generators_filter_pointers(self):
         """
