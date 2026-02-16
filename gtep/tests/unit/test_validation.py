@@ -11,17 +11,13 @@
 # for full copyright and license information.
 #################################################################################
 
-from os.path import abspath, join, dirname, exists
+from os.path import abspath, join, dirname
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
-
-import pandas as pd
-import pandas.testing as pdt
-from os import listdir
 
 from gtep.validation import (
     clone_timeseries,
@@ -56,28 +52,6 @@ def get_solution_object():
     sol_object = ExpansionPlanningSolution()
     sol_object.load_from_model(mod_object)
     return sol_object
-
-
-def read_pandas_frames_and_assert_equal(path_1, path_2):
-    """
-    Read in two csvs as `pandas.DataFrame` objects and assert they
-    are equal using `pandas.testing.assert_frame_equal`.
-
-    All the asserts happen in this function.
-
-    :param path_1:
-    :param path_2:
-    :type path_1: str
-    :type path_2: str
-    """
-
-    assert exists(path_1)
-    assert exists(path_2)
-    out_gen_df = pd.read_csv(path_1)
-    ref_gen_df = pd.read_csv(path_2)
-
-    # TODO: check if any options should be used here
-    pdt.assert_frame_equal(out_gen_df, ref_gen_df)
 
 
 class TestValidation(unittest.TestCase):
