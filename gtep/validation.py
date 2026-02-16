@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 def populate_generators(
     data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
 ):
+    """
+    Takes a set of input generator data and updates it to reflect the solution object.
+
+    :param data_input_path:     Path to folder with prescient generator data. Must contain a file named `"gen.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the generator data to
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+    
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
@@ -85,7 +96,21 @@ def populate_generators(
     output_df.to_csv(os.path.join(data_output_path, "gen.csv"), index=False)
 
 
-def populate_transmission(data_input_path, sol_object, data_output_path):
+def populate_transmission(
+    data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
+):
+    """
+    Takes a set of input transmission data and updates it to reflect the solution object.
+
+    :param data_input_path:     Path to folder with prescient transmission data. Must contain a file named `"branch.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the transmission data to
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+    
+
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
@@ -114,15 +139,26 @@ def populate_transmission(data_input_path, sol_object, data_output_path):
     output_df.to_csv(os.path.join(data_output_path, "branch.csv"), index=False)
 
 
-def filter_pointers(data_input_path, data_output_path):
+def filter_pointers(data_input_path: str, data_output_path: str):
+    """
+    Takes a set of input timeseries pointers and updates it to reflect the solution object.
+    Must be run _after_ `populate_generators` and with the same `data_output_path`.
+
+    :param data_input_path:     Path to folder with prescient timeseries pointers. Must contain a file named `"timeseries_pointers.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the timeseries pointers to. Must containa file named `"gen.csv"`.
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+    
+
     # load initial timeseries pointers
     input_pointers_df = pd.read_csv(
         os.path.join(data_input_path, "timeseries_pointers.csv")
     )
 
     # load final generators
-    # NOTE: must be run _after_ populate_generators and with the same data_output_path
-    # to pull resulting generator objects
     output_generators_df = pd.read_csv(os.path.join(data_output_path, "gen.csv"))
 
     # keep generators that exist at the final investment stage and remove the rest
@@ -139,7 +175,14 @@ def filter_pointers(data_input_path, data_output_path):
     output_df.to_csv(os.path.join(data_output_path, "timeseries_pointers.csv"))
 
 
-def clone_timeseries(data_input_path, data_output_path):
+def copy_prescient_inputs(data_input_path: str, data_output_path: str):
+    """
+    Copies all files at `data_input_path` to `data_output_path`, except for:
+        - timeseries_pointers.csv
+        - gen.csv
+        - branch.csv
+    These files are instead handled by other functions in this module.
+    """
 
     if not os.path.exists(data_output_path):
         os.makedirs(data_output_path)
