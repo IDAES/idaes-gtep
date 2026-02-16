@@ -146,7 +146,7 @@ def filter_pointers(data_input_path: str, data_output_path: str):
 
     :param data_input_path:     Path to folder with prescient timeseries pointers. Must contain a file named `"timeseries_pointers.csv"`.
     :param sol_object:          Solution object run with the prescient data at `data_input_path`
-    :param data_output_path:    Path to write the timeseries pointers to. Must containa file named `"gen.csv"`.
+    :param data_output_path:    Path to write the timeseries pointers to. Must contain a file named `"gen.csv"`.
     :type data_input_path:      str
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
     :type data_output_path:     str
@@ -181,7 +181,9 @@ def copy_prescient_inputs(data_input_path: str, data_output_path: str):
         - timeseries_pointers.csv
         - gen.csv
         - branch.csv
-    These files are instead handled by other functions in this module.
+
+    These files are instead handled by other functions in this module (namely,
+    `filter_pointers`, `populate_generators`, and `populate_transmission`).
     """
 
     if not os.path.exists(data_output_path):
