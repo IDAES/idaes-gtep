@@ -37,7 +37,7 @@ def populate_generators(
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
     :type data_output_path:     str
     """
-    
+
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
@@ -109,7 +109,6 @@ def populate_transmission(
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
     :type data_output_path:     str
     """
-    
 
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
@@ -151,7 +150,6 @@ def filter_pointers(data_input_path: str, data_output_path: str):
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
     :type data_output_path:     str
     """
-    
 
     # load initial timeseries pointers
     input_pointers_df = pd.read_csv(
