@@ -20,7 +20,7 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 
 from gtep.validation import (
-    clone_timeseries,
+    copy_prescient_inputs,
     filter_pointers,
     populate_generators,
     populate_transmission,
@@ -69,5 +69,5 @@ class TestValidation(unittest.TestCase):
     def test_populate_transmission(self):
         populate_transmission(input_data_source, self.solution, output_data_source)
 
-    def test_clone_timeseries(self):
-        clone_timeseries(input_data_source, output_data_source)
+    def test_copy_prescient_inputs(self):
+        copy_prescient_inputs(input_data_source, output_data_source)
