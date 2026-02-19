@@ -18,9 +18,15 @@ from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
+import pandas as pd
+from math import isclose
 
 from gtep.validation import (
-    clone_timeseries,
+    extract_end_variable_values,
+    sum_variable_values_by_index,
+    safe_extract_variable_index,
+    safe_write_dataframe_to_csv,
+    copy_prescient_inputs,
     filter_pointers,
     populate_generators,
     populate_transmission,
@@ -60,6 +66,27 @@ class TestValidation(unittest.TestCase):
     def setUpClass(cls):
         cls.solution = get_solution_object()
 
+    def test_safe_extract_variable_index(self):
+        assert safe_extract_variable_index("var[test]") == "test"
+        assert safe_extract_variable_index("var") == "var"
+        assert safe_extract_variable_index("var]") == "var]"
+
+    def test_extract_end_variable_values(self):
+        extract_end_variable_values(self.solution, "gen")
+
+    def test_sum_variable_values_by_index(self):
+        input = {"var1[i]": 0.1, "var2[i]": 0.2, "var1[j]": 0.6}
+        output = sum_variable_values_by_index(input)
+        expected = {"i": 0.3, "j": 0.6}
+
+        assert output.keys() == expected.keys()
+        assert all([isclose(output[idx], expected[idx]) for idx in output.keys()])
+
+    def test_safe_write_dataframe_to_csv(self):
+        safe_write_dataframe_to_csv(
+            pd.DataFrame([[0, 0], [0, 0]]), output_data_source, "test.csv"
+        )
+
     def test_populate_generators_filter_pointers(self):
         populate_generators(input_data_source, self.solution, output_data_source)
         # filter_pointers needs to access the gen.csv file created in populate_generators
@@ -69,5 +96,5 @@ class TestValidation(unittest.TestCase):
     def test_populate_transmission(self):
         populate_transmission(input_data_source, self.solution, output_data_source)
 
-    def test_clone_timeseries(self):
-        clone_timeseries(input_data_source, output_data_source)
+    def test_copy_prescient_inputs(self):
+        copy_prescient_inputs(input_data_source, output_data_source)
