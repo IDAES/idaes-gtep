@@ -127,17 +127,19 @@ def populate_generators(
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
 
-    # get the sum by index of extended, operational, and installed variables for thermal gens
+    # get the sum by index of extended, operational, and installed variables for thermal gens during last investment period
     end_gen_idxs = sum_variable_values_by_index(
         extract_end_variable_values(sol_object, "gen")
     )
-    end_gen_idx_list = [idx for idx, val in end_gen_idxs.items() if val > 0.5]
+    end_gen_idx_list = [
+        idx for idx, val in end_gen_idxs.items() if val > 0.5
+    ]  # keep only gens which are "active"
 
-    # get the sum by index of extended, operational, and installed variables for renewables
+    # get the sum by index of extended, operational, and installed variables for renewables during last investment period
     end_renew_idxs = sum_variable_values_by_index(
         extract_end_variable_values(sol_object, "renewable")
     )
-    end_renew_idx_list = list(end_renew_idxs.keys())
+    end_renew_idx_list = list(end_renew_idxs.keys())  # why no similar check here?
 
     # update renewables with values from last investment period
     input_df["PMax MW"] = (
@@ -171,11 +173,13 @@ def populate_transmission(
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
 
-    # get the sum by index of extended, operational, and installed variables for branches
+    # get the sum by index of extended, operational, and installed variables for branches during last investment period
     end_branch_idxs = sum_variable_values_by_index(
         extract_end_variable_values(sol_object, "branch")
     )
-    end_branch_idx_list = [idx for idx, val in end_branch_idxs.items() if val > 0.5]
+    end_branch_idx_list = [
+        idx for idx, val in end_branch_idxs.items() if val > 0.5
+    ]  # keep only branches which are active
 
     # define output dataframe
     output_df = input_df[input_df["UID"].isin(end_branch_idx_list)]
