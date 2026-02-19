@@ -2035,8 +2035,6 @@ def commitment_period_rule(b, commitment_period):
             * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             for load_n in m.md.data["elements"]["load"]
         }
-        # Testing
-        # print(m.loads)
     else:
         b.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
@@ -2044,11 +2042,6 @@ def commitment_period_rule(b, commitment_period):
             ]["p_load"]["values"][commitment_period - 1]
             for load_n in m.md.data["elements"]["load"]
         }
-        # for key, val in b.loads.items():
-        #     # print(f"{key=}")
-        #     # print(f"{val=}")
-        #     b.loads[key] *= 1/3
-        print(f"total load at time period = {sum(b.loads.values())}")
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -2729,7 +2722,14 @@ def model_data_references(m):
                 if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
                 == float
                 else max(
-                    m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
+                    [
+                        max(
+                            m.data_list[i].data["elements"]["generator"][renewableGen][
+                                "p_max"
+                            ]["values"]
+                        )
+                        for i in range(len(m.data_list))
+                    ]
                 )
             )
             for renewableGen in m.renewableGenerators
