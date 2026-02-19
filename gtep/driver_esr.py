@@ -85,6 +85,7 @@ opt = pyo.SolverFactory("gurobi")
 # opt = Highs()
 # opt = pyo.SolverFactory("highs")
 # print(mod_object.results)
+mod_object.results = opt.solve(mod_object.model, tee=True)
 # mod_object.model.investmentStage.pprint()
 # mod_object.report_model()
 
