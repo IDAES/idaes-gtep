@@ -502,6 +502,6 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
 
     fig.align_labels()
     # fig.suptitle(f"{suptitle}")
-    fig.savefig(f"{save_dir}{suptitle}_Total_Generation.png")
+    # fig.savefig(f"{save_dir}{suptitle}_Total_Generation.png")
     plt.close()
     pass
