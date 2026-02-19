@@ -46,7 +46,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
         for this_state in dict_in[this_time_key].keys():
             keys_set.update(dict_in[this_time_key][this_state].keys())
 
-    # [BAD] this is chating, and bad, dont let this go to prod
+    # [BAD] this is cheating, and bad, dont let this go to prod
     states_set = states_order
 
     # figure out the gen type based on the key
@@ -63,7 +63,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
 
     # check if the values are bools or floats, because that changes how we plot things
     num_keys_total = None
-    # checking the "first" deeply nested element here is dumb as hell but it's way clearner than recursive next(iter()) calls. (halp)
+    # checking the "first" deeply nested element here is dumb but it's way cleaner than recursive next(iter()) calls. (help)
     first_layer = next(iter(dict_in))
     second_layer = next(iter(dict_in[first_layer]))
     third_layer = next(iter(dict_in[first_layer][second_layer]))
@@ -106,7 +106,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
             axline_ix + 0.5,
             color="grey",
             linewidth=3,
-        )  # draw a seperator line between each level
+        )  # draw a separator line between each level
     for axline_ix in range(len(time_keys)):
         ax_bins.axvline(
             axline_ix + 0.5,
@@ -114,7 +114,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
             linewidth=3,
             linestyle="dotted",
             alpha=0.5,
-        )  # draw a seperator line between each level
+        )  # draw a separator line between each level
 
     # [BAD] just start putting things on the plot and cry about it later
 
@@ -316,7 +316,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
             axline_ix + 0.5,
             color="grey",
             linewidth=3,
-        )  # draw a seperator line between each level
+        )  # draw a separator line between each level
     for axline_ix in range(len(time_keys)):
         ax_bins.axvline(
             axline_ix + 0.5,
@@ -324,7 +324,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
             linewidth=3,
             linestyle="dotted",
             alpha=0.5,
-        )  # draw a seperator line between each level
+        )  # draw a separator line between each level
 
     # [BAD] just start putting things on the plot and cry about it later
 
