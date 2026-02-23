@@ -38,21 +38,35 @@ def safe_extract_variable_index(variable_name: str) -> str:
     return search_result.group(0)[1:-1] if search_result else variable_name
 
 
-def extract_end_variable_values(
+def extract_primals_last_investment_stage(
     sol_object: ExpansionPlanningSolution,
+) -> dict:
+    """
+    Accesses the primal variables for the last investment stage in `sol_object`.
+
+    :param sol_object: Solution object.
+    :type sol_object: gtep.gtep_solution.ExpansionPlanningSolution
+    :returns: Dictionary of the form {var_name: var_data}, where var_data is a dict
+    """
+    sol_dict = sol_object._to_dict()["results"]["primals_tree"]
+    end_investment_stage = list(sol_dict.keys())[0]  # more robust way to do this?
+    return sol_dict[end_investment_stage]
+
+
+def extract_variable_values(
+    primals_dict: dict,
     variable_type: str,
     element_statuses: list[str] = ["Extended", "Operational", "Installed"],
 ) -> dict:
     """
-    Accesses the primal variables for the last investment stage in `sol_object`
-    and collects the name and value for all variables of the given `variable_type`
+    Collects the name and value for all variables of the given `variable_type`
     which describe statuses in `element_statuses`.
 
-    :param sol_object: Solution object.
-    :type sol_object: gtep.gtep_solution.ExpansionPlanningSolution
+    :param primals_dict: Primal variables, in the form {var_name: var_value}.
+    :type primals_dict: dict
     :param variable_type: Type of variable to extract (e.g., `"gen"`).
     :type variable_type: str
-    :param element_status: Variable statuses to check for; should be substrings of
+    :param element_statuses: Variable statuses to check for; should be substrings of
         variable names. Defaults to `["Extended", "Operational", "Installed"]`
     :type element_statuses: list[str], optional
     :returns: Dictionary of the form {var_name: var_value}
@@ -63,12 +77,9 @@ def extract_end_variable_values(
             f"variable_type argument must be one of {ALLOWED_VARIABLE_TYPES}."
         )
 
-    sol_dict = sol_object._to_dict()["results"]["primals_tree"]
-    end_investment_stage = list(sol_dict.keys())[0]  # more robust way to do this?
-
     end_investment_values_dict = {
         name: var["value"]
-        for name, var in sol_dict[end_investment_stage].items()
+        for name, var in primals_dict.items()
         if variable_type in name
         and any([status in name for status in element_statuses])
     }
@@ -104,7 +115,7 @@ def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filenam
     :param filename: Name of file to write to.
     :type filename: str
     """
-    if not os.path.exists(directory):
+    if not os.path.isdir(directory):
         os.makedirs(directory)
     dataframe.to_csv(os.path.join(directory, filename), index=False)
 
@@ -128,16 +139,15 @@ def populate_generators(
     input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
 
     # get the sum by index of extended, operational, and installed variables for thermal gens during last investment period
-    end_gen_idxs = sum_variable_values_by_index(
-        extract_end_variable_values(sol_object, "gen")
-    )
+    primals = extract_primals_last_investment_stage(sol_object)
+    end_gen_idxs = sum_variable_values_by_index(extract_variable_values(primals, "gen"))
     end_gen_idx_list = [
         idx for idx, val in end_gen_idxs.items() if val > 0.5
     ]  # keep only gens which are "active"
 
     # get the sum by index of extended, operational, and installed variables for renewables during last investment period
     end_renew_idxs = sum_variable_values_by_index(
-        extract_end_variable_values(sol_object, "renewable")
+        extract_variable_values(primals, "renewable")
     )
     end_renew_idx_list = list(end_renew_idxs.keys())  # why no similar check here?
 
@@ -174,8 +184,9 @@ def populate_transmission(
     input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
 
     # get the sum by index of extended, operational, and installed variables for branches during last investment period
+    primals = extract_primals_last_investment_stage(sol_object)
     end_branch_idxs = sum_variable_values_by_index(
-        extract_end_variable_values(sol_object, "branch")
+        extract_variable_values(primals, "branch")
     )
     end_branch_idx_list = [
         idx for idx, val in end_branch_idxs.items() if val > 0.5

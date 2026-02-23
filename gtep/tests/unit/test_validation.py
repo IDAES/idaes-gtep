@@ -11,7 +11,8 @@
 # for full copyright and license information.
 #################################################################################
 
-from os.path import abspath, join, dirname
+from os.path import abspath, join, dirname, isdir
+from os import remove, rmdir, listdir, makedirs
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -19,10 +20,11 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 import pandas as pd
-from math import isclose
+from numbers import Number
 
 from gtep.validation import (
-    extract_end_variable_values,
+    extract_primals_last_investment_stage,
+    extract_variable_values,
     sum_variable_values_by_index,
     safe_extract_variable_index,
     safe_write_dataframe_to_csv,
@@ -34,7 +36,7 @@ from gtep.validation import (
 
 curr_dir = dirname(abspath(__file__))
 input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
+output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out_test"))
 
 
 def get_solution_object():
@@ -65,36 +67,97 @@ class TestValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.solution = get_solution_object()
+        if not isdir(output_data_source):
+            makedirs(output_data_source)
 
     def test_safe_extract_variable_index(self):
-        assert safe_extract_variable_index("var[test]") == "test"
-        assert safe_extract_variable_index("var") == "var"
-        assert safe_extract_variable_index("var]") == "var]"
+        input_output_pairs = [("var[i]", "i"), ("var", "var"), ("var]", "var]")]
+        for input, output in input_output_pairs:
+            self.assertEqual(safe_extract_variable_index(input), output)
 
-    def test_extract_end_variable_values(self):
-        extract_end_variable_values(self.solution, "gen")
+    def test_extract_primals_last_investment_stage_and_variable_values(self):
+        primals = extract_primals_last_investment_stage(self.solution)
+        self.assertIsInstance(primals, dict)
+        for key, val in primals.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(val, dict)
+
+        var_vals = extract_variable_values(primals, "gen")
+        self.assertIsInstance(var_vals, dict)
+        for key, val in var_vals.items():
+            self.assertIsInstance(key, str)
+            self.assertIn("gen", key)
+            self.assertRegex(key, r"Extended|Operational|Installed")
+            self.assertIsInstance(
+                val, Number
+            )  # or would it ever be something else, e.g. bool?
 
     def test_sum_variable_values_by_index(self):
         input = {"var1[i]": 0.1, "var2[i]": 0.2, "var1[j]": 0.6}
         output = sum_variable_values_by_index(input)
         expected = {"i": 0.3, "j": 0.6}
 
-        assert output.keys() == expected.keys()
-        assert all([isclose(output[idx], expected[idx]) for idx in output.keys()])
+        self.assertEqual(output.keys(), expected.keys())
+        for idx in output:
+            self.assertAlmostEqual(output[idx], expected[idx])
 
     def test_safe_write_dataframe_to_csv(self):
+        output_subdir = join(output_data_source, "test_dir")
+
+        # remove test.csv from output path
+        if "test.csv" in listdir(output_data_source):
+            remove(join(output_data_source, "test.csv"))
+        # remove test_dir and its contents from output path
+        if "test_dir" in listdir(output_data_source):
+            for f in listdir(output_subdir):
+                remove(join(output_subdir, f))
+            rmdir(output_subdir)
+
+        # test writing dataframe to test.csv
         safe_write_dataframe_to_csv(
             pd.DataFrame([[0, 0], [0, 0]]), output_data_source, "test.csv"
         )
+        self.assertIn("test.csv", listdir(output_data_source))
+        test_csv = pd.read_csv(join(output_data_source, "test.csv"))
+        self.assertTupleEqual(test_csv.shape, (2, 2))
+        for item in test_csv.to_numpy().flatten():
+            self.assertAlmostEqual(item, 0)
+
+        # test writing dataframe to test_dir/test.csv
+        safe_write_dataframe_to_csv(
+            pd.DataFrame([[0, 0], [0, 0]]), output_subdir, "test.csv"
+        )
+        self.assertIn("test.csv", listdir(output_data_source))
+        self.assertIn("test.csv", listdir(output_subdir))
+        test_csv = pd.read_csv(join(output_data_source, "test.csv"))
+        self.assertTupleEqual(test_csv.shape, (2, 2))
+        for item in test_csv.to_numpy().flatten():
+            self.assertAlmostEqual(item, 0)
 
     def test_populate_generators_filter_pointers(self):
-        populate_generators(input_data_source, self.solution, output_data_source)
         # filter_pointers needs to access the gen.csv file created in populate_generators
         # so these functions need to be tested together
+        if "gen.csv" in listdir(output_data_source):
+            remove(join(output_data_source, "gen.csv"))
+        populate_generators(input_data_source, self.solution, output_data_source)
+        self.assertIn("gen.csv", listdir(output_data_source))
+
+        if "timeseries_pointers.csv" in listdir(output_data_source):
+            remove(join(output_data_source, "timeseries_pointers.csv"))
         filter_pointers(input_data_source, output_data_source)
+        self.assertIn("timeseries_pointers.csv", listdir(output_data_source))
 
     def test_populate_transmission(self):
+        if "branch.csv" in listdir(output_data_source):
+            remove(join(output_data_source, "branch.csv"))
         populate_transmission(input_data_source, self.solution, output_data_source)
+        self.assertIn("branch.csv", listdir(output_data_source))
 
     def test_copy_prescient_inputs(self):
+        for f in listdir(output_data_source):
+            if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
+                remove(join(output_data_source, f))
         copy_prescient_inputs(input_data_source, output_data_source)
+        for f in listdir(input_data_source):
+            if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
+                self.assertIn(f, listdir(output_data_source))
