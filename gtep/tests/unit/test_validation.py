@@ -19,6 +19,7 @@ from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
+from pyomo.common.tempfiles import TempfileManager
 import pandas as pd
 from numbers import Number
 
@@ -36,7 +37,6 @@ from gtep.validation import (
 
 curr_dir = dirname(abspath(__file__))
 input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out_test"))
 
 
 def get_solution_object():
@@ -67,8 +67,6 @@ class TestValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.solution = get_solution_object()
-        if not isdir(output_data_source):
-            makedirs(output_data_source)
 
     def test_safe_extract_variable_index(self):
         input_output_pairs = [("var[i]", "i"), ("var", "var"), ("var]", "var]")]
@@ -101,63 +99,50 @@ class TestValidation(unittest.TestCase):
         for idx in output:
             self.assertAlmostEqual(output[idx], expected[idx])
 
+    def helper_test_one_dataframe_write(self, fname, dir):
+        self.assertIn(fname, listdir(dir))
+        test_csv = pd.read_csv(join(dir, fname))
+        self.assertTupleEqual(test_csv.shape, (2, 2))
+        for item in test_csv.to_numpy().flatten():
+            self.assertAlmostEqual(item, 0)
+
     def test_safe_write_dataframe_to_csv(self):
-        output_subdir = join(output_data_source, "test_dir")
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
 
-        # remove test.csv from output path
-        if "test.csv" in listdir(output_data_source):
-            remove(join(output_data_source, "test.csv"))
-        # remove test_dir and its contents from output path
-        if "test_dir" in listdir(output_data_source):
-            for f in listdir(output_subdir):
-                remove(join(output_subdir, f))
-            rmdir(output_subdir)
+            # test writing dataframe
+            safe_write_dataframe_to_csv(
+                pd.DataFrame([[0, 0], [0, 0]]), temp_dir, "test.csv"
+            )
+            self.helper_test_one_dataframe_write("test.csv", temp_dir)
 
-        # test writing dataframe to test.csv
-        safe_write_dataframe_to_csv(
-            pd.DataFrame([[0, 0], [0, 0]]), output_data_source, "test.csv"
-        )
-        self.assertIn("test.csv", listdir(output_data_source))
-        test_csv = pd.read_csv(join(output_data_source, "test.csv"))
-        self.assertTupleEqual(test_csv.shape, (2, 2))
-        for item in test_csv.to_numpy().flatten():
-            self.assertAlmostEqual(item, 0)
-
-        # test writing dataframe to test_dir/test.csv
-        safe_write_dataframe_to_csv(
-            pd.DataFrame([[0, 0], [0, 0]]), output_subdir, "test.csv"
-        )
-        self.assertIn("test.csv", listdir(output_data_source))
-        self.assertIn("test.csv", listdir(output_subdir))
-        test_csv = pd.read_csv(join(output_data_source, "test.csv"))
-        self.assertTupleEqual(test_csv.shape, (2, 2))
-        for item in test_csv.to_numpy().flatten():
-            self.assertAlmostEqual(item, 0)
+            # test writing dataframe to a directory that doesn't yet exist
+            output_subdir = join(temp_dir, "test_dir")
+            safe_write_dataframe_to_csv(
+                pd.DataFrame([[0, 0], [0, 0]]), output_subdir, "test.csv"
+            )
+            self.helper_test_one_dataframe_write("test.csv", output_subdir)
 
     def test_populate_generators_filter_pointers(self):
         # filter_pointers needs to access the gen.csv file created in populate_generators
         # so these functions need to be tested together
-        if "gen.csv" in listdir(output_data_source):
-            remove(join(output_data_source, "gen.csv"))
-        populate_generators(input_data_source, self.solution, output_data_source)
-        self.assertIn("gen.csv", listdir(output_data_source))
-
-        if "timeseries_pointers.csv" in listdir(output_data_source):
-            remove(join(output_data_source, "timeseries_pointers.csv"))
-        filter_pointers(input_data_source, output_data_source)
-        self.assertIn("timeseries_pointers.csv", listdir(output_data_source))
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            populate_generators(input_data_source, self.solution, temp_dir)
+            self.assertIn("gen.csv", listdir(temp_dir))
+            filter_pointers(input_data_source, temp_dir)
+            self.assertIn("timeseries_pointers.csv", listdir(temp_dir))
 
     def test_populate_transmission(self):
-        if "branch.csv" in listdir(output_data_source):
-            remove(join(output_data_source, "branch.csv"))
-        populate_transmission(input_data_source, self.solution, output_data_source)
-        self.assertIn("branch.csv", listdir(output_data_source))
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            populate_transmission(input_data_source, self.solution, temp_dir)
+            self.assertIn("branch.csv", listdir(temp_dir))
 
     def test_copy_prescient_inputs(self):
-        for f in listdir(output_data_source):
-            if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
-                remove(join(output_data_source, f))
-        copy_prescient_inputs(input_data_source, output_data_source)
-        for f in listdir(input_data_source):
-            if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
-                self.assertIn(f, listdir(output_data_source))
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            copy_prescient_inputs(input_data_source, temp_dir)
+            for f in listdir(input_data_source):
+                if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
+                    self.assertIn(f, listdir(temp_dir))
