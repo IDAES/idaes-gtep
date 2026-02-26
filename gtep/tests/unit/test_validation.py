@@ -83,6 +83,7 @@ class TestValidation(unittest.TestCase):
         var_vals = extract_variable_values(primals, "gen")
         self.assertIsInstance(var_vals, dict)
         for key, val in var_vals.items():
+            # TODO: change these tests once solution object has sets
             self.assertIsInstance(key, str)
             self.assertIn("gen", key)
             self.assertRegex(key, r"Extended|Operational|Installed")
@@ -99,29 +100,20 @@ class TestValidation(unittest.TestCase):
         for idx in output:
             self.assertAlmostEqual(output[idx], expected[idx])
 
-    def helper_test_one_dataframe_write(self, fname, dir):
-        self.assertIn(fname, listdir(dir))
-        test_csv = pd.read_csv(join(dir, fname))
-        self.assertTupleEqual(test_csv.shape, (2, 2))
-        for item in test_csv.to_numpy().flatten():
-            self.assertAlmostEqual(item, 0)
-
     def test_safe_write_dataframe_to_csv(self):
+        def single_write_test(dir):
+            fname = "test.csv"
+            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), dir, fname)
+            self.assertIn(fname, listdir(dir))
+            test_csv = pd.read_csv(join(dir, fname))
+            self.assertTupleEqual(test_csv.shape, (2, 2))
+            for item in test_csv.to_numpy().flatten():
+                self.assertAlmostEqual(item, 0)
+
         with TempfileManager.new_context() as tempfile:
             temp_dir = tempfile.mkdtemp()
-
-            # test writing dataframe
-            safe_write_dataframe_to_csv(
-                pd.DataFrame([[0, 0], [0, 0]]), temp_dir, "test.csv"
-            )
-            self.helper_test_one_dataframe_write("test.csv", temp_dir)
-
-            # test writing dataframe to a directory that doesn't yet exist
-            output_subdir = join(temp_dir, "test_dir")
-            safe_write_dataframe_to_csv(
-                pd.DataFrame([[0, 0], [0, 0]]), output_subdir, "test.csv"
-            )
-            self.helper_test_one_dataframe_write("test.csv", output_subdir)
+            single_write_test(temp_dir)
+            single_write_test(join(temp_dir, "test_dir"))
 
     def test_populate_generators_filter_pointers(self):
         # filter_pointers needs to access the gen.csv file created in populate_generators
@@ -140,9 +132,13 @@ class TestValidation(unittest.TestCase):
             self.assertIn("branch.csv", listdir(temp_dir))
 
     def test_copy_prescient_inputs(self):
-        with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
-            copy_prescient_inputs(input_data_source, temp_dir)
+        def single_copy_test(dir):
+            copy_prescient_inputs(input_data_source, dir)
             for f in listdir(input_data_source):
                 if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
-                    self.assertIn(f, listdir(temp_dir))
+                    self.assertIn(f, listdir(dir))
+
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            single_copy_test(temp_dir)
+            single_copy_test(join(temp_dir, "test_dir"))

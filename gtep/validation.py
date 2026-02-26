@@ -34,6 +34,7 @@ def safe_extract_variable_index(variable_name: str) -> str:
     :type variable_name: str
     :returns: Index.
     """
+    # TODO: possibly modify once solution object has sets
     search_result = re.search(r"\[.*\]", variable_name)
     return search_result.group(0)[1:-1] if search_result else variable_name
 
@@ -48,6 +49,7 @@ def extract_primals_last_investment_stage(
     :type sol_object: gtep.gtep_solution.ExpansionPlanningSolution
     :returns: Dictionary of the form {var_name: var_data}, where var_data is a dict
     """
+    # TODO: modify once solution object has sets
     sol_dict = sol_object._to_dict()["results"]["primals_tree"]
     end_investment_stage = list(sol_dict.keys())[0]  # more robust way to do this?
     return sol_dict[end_investment_stage]
@@ -71,12 +73,7 @@ def extract_variable_values(
     :type element_statuses: list[str], optional
     :returns: Dictionary of the form {var_name: var_value}
     """
-    ALLOWED_VARIABLE_TYPES = ["gen", "renewable", "branch"]
-    if variable_type not in ALLOWED_VARIABLE_TYPES:
-        raise ValueError(
-            f"variable_type argument must be one of {ALLOWED_VARIABLE_TYPES}."
-        )
-
+    # TODO: modify once solution object has sets
     end_investment_values_dict = {
         name: var["value"]
         for name, var in primals_dict.items()
