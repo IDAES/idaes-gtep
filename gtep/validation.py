@@ -108,7 +108,7 @@ def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Num
     return dict(result)
 
 
-def safe_mkdir(path: str) -> None:
+def safe_mkdir(path: str):
     """
     Creates a directory if it doesn't already exist. If the path exists but isn't a directory,
     raises a `FileExistsError`.
