@@ -12,15 +12,15 @@
 #################################################################################
 
 from pyomo.environ import *
-from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_solution import ExpansionPlanningSolution
 import re
 import os
 import shutil
 import logging
 from collections import defaultdict
-
 import pandas as pd
+from numbers import Number
+from warnings import warn
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +84,21 @@ def extract_variable_values(
     return end_investment_values_dict
 
 
-def sum_variable_values_by_index(value_dict: dict[str, float]) -> dict[str, float]:
+def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Number]:
     """
     Takes an input dict of variables and values, groups by index, and computes the sum of values.
 
     :param value_dict: Dictionary of the form {var[idx]: value}.
-    :type value_dict: dict[str, float]
+    :type value_dict: dict[str, Number]
     :returns: Dictionary of the form {idx: summed_value}.
     """
+    # throw warning if we're trying to sum something that isn't a number (incl. bool)
+    value_types = [type(value) for value in value_dict.values()]
+    if any([t == bool or not issubclass(t, Number) for t in value_types]):
+        warn(
+            f"Expected variable values to be numeric, but got the following types: {set(value_types)}",
+            UserWarning,
+        )
 
     result = defaultdict(float)
     for name, value in value_dict.items():
@@ -99,6 +106,21 @@ def sum_variable_values_by_index(value_dict: dict[str, float]) -> dict[str, floa
         result[index] += value
 
     return dict(result)
+
+
+def safe_mkdir(path: str) -> None:
+    """
+    Creates a directory if it doesn't already exist. If the path exists but isn't a directory,
+    raises a `FileExistsError`.
+
+    :param path: Path to new directory
+    :type path: str
+    """
+    if os.path.exists(path):
+        if not os.path.isdir(path):
+            raise FileExistsError(f"{path} exists and is not a directory")
+        return
+    os.makedirs(path)
 
 
 def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filename: str):
@@ -112,8 +134,7 @@ def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filenam
     :param filename: Name of file to write to.
     :type filename: str
     """
-    if not os.path.isdir(directory):
-        os.makedirs(directory)
+    safe_mkdir(directory)
     dataframe.to_csv(os.path.join(directory, filename), index=False)
 
 
@@ -244,8 +265,7 @@ def copy_prescient_inputs(data_input_path: str, data_output_path: str):
     :type data_output_path:     str
     """
 
-    if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path)
+    safe_mkdir(data_output_path)
 
     file_list = os.listdir(data_input_path)
     file_list.remove("timeseries_pointers.csv")

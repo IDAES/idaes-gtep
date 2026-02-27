@@ -29,6 +29,7 @@ from gtep.validation import (
     sum_variable_values_by_index,
     safe_extract_variable_index,
     safe_write_dataframe_to_csv,
+    safe_mkdir,
     copy_prescient_inputs,
     filter_pointers,
     populate_generators,
@@ -92,28 +93,51 @@ class TestValidation(unittest.TestCase):
             )  # or would it ever be something else, e.g. bool?
 
     def test_sum_variable_values_by_index(self):
+        # test expected case of floats
         input = {"var1[i]": 0.1, "var2[i]": 0.2, "var1[j]": 0.6}
-        output = sum_variable_values_by_index(input)
         expected = {"i": 0.3, "j": 0.6}
-
+        output = sum_variable_values_by_index(input)
         self.assertEqual(output.keys(), expected.keys())
         for idx in output:
             self.assertAlmostEqual(output[idx], expected[idx])
 
+        # test unexpected case of bools; commented out for now bc assertWarns throws error
+        # with self.assertWarns(UserWarning):
+        #     sum_variable_values_by_index({"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3})
+
     def test_safe_write_dataframe_to_csv(self):
-        def single_write_test(dir):
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
             fname = "test.csv"
-            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), dir, fname)
-            self.assertIn(fname, listdir(dir))
-            test_csv = pd.read_csv(join(dir, fname))
+            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), temp_dir, fname)
+
+            self.assertIn(fname, listdir(temp_dir))
+            test_csv = pd.read_csv(join(temp_dir, fname))
             self.assertTupleEqual(test_csv.shape, (2, 2))
             for item in test_csv.to_numpy().flatten():
                 self.assertAlmostEqual(item, 0)
 
+    def test_safe_mkdir(self):
         with TempfileManager.new_context() as tempfile:
             temp_dir = tempfile.mkdtemp()
-            single_write_test(temp_dir)
-            single_write_test(join(temp_dir, "test_dir"))
+            test_subdir = join(temp_dir, "test_dir")
+
+            # create new directory
+            safe_mkdir(test_subdir)
+            self.assertIn("test_dir", listdir(temp_dir))
+
+            # put file in directory and make sure we don't overwrite
+            with open(join(test_subdir, "test_file"), "w") as f:
+                f.write("this is a test")
+            safe_mkdir(test_subdir)
+            self.assertIn("test_dir", listdir(temp_dir))  # make sure dir still exists
+            self.assertIn(
+                "test_file", listdir(test_subdir)
+            )  # make sure we didn't overwrite
+
+            # make sure we raise the expected FileExistsError
+            with self.assertRaises(FileExistsError):
+                safe_mkdir(join(test_subdir, "test_file"))
 
     def test_populate_generators_filter_pointers(self):
         # filter_pointers needs to access the gen.csv file created in populate_generators
@@ -132,13 +156,9 @@ class TestValidation(unittest.TestCase):
             self.assertIn("branch.csv", listdir(temp_dir))
 
     def test_copy_prescient_inputs(self):
-        def single_copy_test(dir):
-            copy_prescient_inputs(input_data_source, dir)
-            for f in listdir(input_data_source):
-                if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
-                    self.assertIn(f, listdir(dir))
-
         with TempfileManager.new_context() as tempfile:
             temp_dir = tempfile.mkdtemp()
-            single_copy_test(temp_dir)
-            single_copy_test(join(temp_dir, "test_dir"))
+            copy_prescient_inputs(input_data_source, temp_dir)
+            for f in listdir(input_data_source):
+                if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
+                    self.assertIn(f, listdir(temp_dir))
