@@ -45,7 +45,7 @@ candidate_gens = [
     "Land-Based Wind",
 ]
 
-start_date = "01-29"
+start_date = "12-30"
 
 data_processing_object = DataProcessing()
 data_processing_object.load_gen_data(
