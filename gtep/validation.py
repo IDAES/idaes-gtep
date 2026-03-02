@@ -11,7 +11,6 @@
 # for full copyright and license information.
 #################################################################################
 
-from pyomo.environ import *
 from gtep.gtep_solution import ExpansionPlanningSolution
 import re
 import os
@@ -30,9 +29,9 @@ def safe_extract_variable_index(variable_name: str) -> str:
     Takes a variable name and extracts the index (enclosed in square brackets).
     If no matches are found, returns the whole variable name.
 
-    :param variable_name: Variable name.
-    :type variable_name: str
-    :returns: Index.
+    :param variable_name:   Variable name.
+    :type variable_name:    str
+    :returns:               Index, not including the square brackets.
     """
     # TODO: possibly modify once solution object has sets
     search_result = re.search(r"\[.*\]", variable_name)
@@ -45,9 +44,9 @@ def extract_primals_last_investment_stage(
     """
     Accesses the primal variables for the last investment stage in `sol_object`.
 
-    :param sol_object: Solution object.
-    :type sol_object: gtep.gtep_solution.ExpansionPlanningSolution
-    :returns: Dictionary of the form {var_name: var_data}, where var_data is a dict
+    :param sol_object:  Solution object.
+    :type sol_object:   gtep.gtep_solution.ExpansionPlanningSolution
+    :returns:           Dictionary of the form {var_name: var_data}, where var_data is a dict
     """
     # TODO: modify once solution object has sets
     sol_dict = sol_object._to_dict()["results"]["primals_tree"]
@@ -64,14 +63,15 @@ def extract_variable_values(
     Collects the name and value for all variables of the given `variable_type`
     which describe statuses in `element_statuses`.
 
-    :param primals_dict: Primal variables, in the form {var_name: var_value}.
-    :type primals_dict: dict
-    :param variable_type: Type of variable to extract (e.g., `"gen"`).
-    :type variable_type: str
-    :param element_statuses: Variable statuses to check for; should be substrings of
-        variable names. Defaults to `["Extended", "Operational", "Installed"]`
-    :type element_statuses: list[str], optional
-    :returns: Dictionary of the form {var_name: var_value}
+    :param primals_dict:        Primal variables, in the form {var_name: var_value}.
+    :type primals_dict:         dict
+    :param variable_type:       Type of variable to extract (e.g., `"gen"`).
+    :type variable_type:        str
+    :param element_statuses:    Variable statuses to check for; should be substrings of
+                                    variable names. Defaults to
+                                    `["Extended", "Operational", "Installed"]`
+    :type element_statuses:     list[str], optional
+    :returns:                   Dictionary of the form {var_name: var_value}
     """
     # TODO: modify once solution object has sets
     end_investment_values_dict = {
@@ -87,10 +87,12 @@ def extract_variable_values(
 def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Number]:
     """
     Takes an input dict of variables and values, groups by index, and computes the sum of values.
+    This function expects the variable values to be non-bool Numbers (e.g., int, float) and
+    warns if a different type is passed in via `value_dict`.
 
-    :param value_dict: Dictionary of the form {var[idx]: value}.
-    :type value_dict: dict[str, Number]
-    :returns: Dictionary of the form {idx: summed_value}.
+    :param value_dict:  Dictionary of the form {var[idx]: value}.
+    :type value_dict:   dict[str, Number]
+    :returns:           Dictionary of the form {idx: summed_value}.
     """
     # throw warning if we're trying to sum something that isn't a number (incl. bool)
     value_types = [type(value) for value in value_dict.values()]
@@ -113,8 +115,8 @@ def safe_mkdir(path: str):
     Creates a directory if it doesn't already exist. If the path exists but isn't a directory,
     raises a `FileExistsError`.
 
-    :param path: Path to new directory
-    :type path: str
+    :param path:    Path to new directory
+    :type path:     str
     """
     if os.path.exists(path):
         if not os.path.isdir(path):
@@ -127,12 +129,12 @@ def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filenam
     """
     Writes a DataFrame to CSV, creating the directory if necessary.
 
-    :param dataframe: DataFrame to write.
-    :type dataframe: pandas.DataFrame
-    :param directory: Directory to write in.
-    :type directory: str
-    :param filename: Name of file to write to.
-    :type filename: str
+    :param dataframe:   DataFrame to write.
+    :type dataframe:    pandas.DataFrame
+    :param directory:   Directory to write in.
+    :type directory:    str
+    :param filename:    Name of file to write to.
+    :type filename:     str
     """
     safe_mkdir(directory)
     dataframe.to_csv(os.path.join(directory, filename), index=False)
@@ -167,7 +169,7 @@ def populate_generators(
     end_renew_idxs = sum_variable_values_by_index(
         extract_variable_values(primals, "renewable")
     )
-    end_renew_idx_list = list(end_renew_idxs.keys())  # why no similar check here?
+    end_renew_idx_list = list(end_renew_idxs.keys())
 
     # update renewables with values from last investment period
     input_df["PMax MW"] = (

@@ -11,8 +11,8 @@
 # for full copyright and license information.
 #################################################################################
 
-from os.path import abspath, join, dirname, isdir
-from os import remove, rmdir, listdir, makedirs
+from os.path import abspath, join, dirname
+from os import listdir
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -89,8 +89,8 @@ class TestValidation(unittest.TestCase):
             self.assertIn("gen", key)
             self.assertRegex(key, r"Extended|Operational|Installed")
             self.assertIsInstance(
-                val, Number
-            )  # or would it ever be something else, e.g. bool?
+                val, Number  # Number accounts for int, float, bool, etc.
+            )
 
     def test_sum_variable_values_by_index(self):
         # test expected case of floats
