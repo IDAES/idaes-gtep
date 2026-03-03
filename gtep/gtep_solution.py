@@ -48,7 +48,6 @@ class ExpansionPlanningSolution:
     """A class that stores the solution to the ExpansionPlanningModel class for writing and visualization."""
 
     def __init__(self):
-        # PopPop the Power Optimization Possum says ౿ᓕ ̤Ꜥ·> --- "eat trash, heck __init__, hold me"
         pass
 
     def load_from_file(self):
