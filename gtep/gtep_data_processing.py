@@ -43,15 +43,16 @@ class DataProcessing:
 
     def load_gen_data(
         self,
-        bus_data_path=None,
-        cost_data_path=None,
-        candidate_gens=None,
-        save_csv=None,
+        bus_data_path: str,
+        cost_data_path: str,
+        candidate_gens: list[str],
+        save_csv: bool=False,
     ):
 
-        assert isinstance(
-            candidate_gens, list
-        ), f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
+        if not isinstance(candidate_gens, list):  # is there a reason we're checking only this variable's type?
+            raise TypeError(
+                f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
+            )
 
         all_gens = [
             "Natural Gas_CT",
@@ -65,18 +66,13 @@ class DataProcessing:
             "Geothermal",
         ]
 
-        candidate_gens_filt = candidate_gens
-
         # Read bus data from the provided .csv file
         gen_nonsense = pd.read_csv(bus_data_path)
-        gen_nonsense.head()
-
         gen_nonsense = gen_nonsense[gen_nonsense["Gen bus/ Non-gen bus"] == 1]
-        gen_nonsense.head()
 
         candidate_df = {}
         candidate_gen_by_bus = {}
-        for gen in candidate_gens_filt:
+        for gen in candidate_gens:
             gen_weight_key = gen + " - Generation Weight"
             candidate_df[gen] = gen_nonsense[
                 gen_nonsense[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
@@ -106,7 +102,7 @@ class DataProcessing:
         minup = []
         mindown = []
 
-        years_list = [2025, 2030, 2035]
+        years_list = [2025, 2030, 2035]  # hard-coded
         costs = {}
         for year in years_list:
             costs[f"capex_{year}"] = []
@@ -114,10 +110,8 @@ class DataProcessing:
             costs[f"fixed_ops_{year}"] = []
             costs[f"var_ops_{year}"] = []
 
-        bus_data_df = gen_nonsense
-
         gens_of_interest_unfilt = []
-        for gen in candidate_gens_filt:
+        for gen in candidate_gens:
             if "Natural Gas" in gen:
                 gens_of_interest_unfilt.append("Natural Gas_FE")
             else:
@@ -145,11 +139,11 @@ class DataProcessing:
                     (pricing_dict[gen]["Key1"] == var)
                     & (pricing_dict[gen]["Key3"] == subvars_of_interest)
                 ]
-                bus_cutdown_df = bus_data_df[["Bus Name", gen]]
-                the_thing_we_want = bus_cutdown_df[gen].iloc[0]
-                the_row_that_has_the_prices = demo_df[
-                    demo_df["Key2"] == the_thing_we_want
-                ]
+                bus_cutdown_df = gen_nonsense[["Bus Name", gen]]
+                # the_thing_we_want = bus_cutdown_df[gen].iloc[0]
+                # the_row_that_has_the_prices = demo_df[
+                #     demo_df["Key2"] == the_thing_we_want
+                # ]
                 bus_capex_df = pd.merge(
                     bus_cutdown_df, demo_df, left_on=gen, right_on="Key2"
                 )
@@ -186,8 +180,8 @@ class DataProcessing:
                             # [1] assuming a NG Combustion Turbine
                             # (F-Frame), Moderate, for the Base Year
                             # 2022. The units are in MMBtu/MWh.]
-                            heat_rate = 9.717
-                            hh_ng_costs = {2025: 3.49, 2030: 2.91, 2035: 3.68}
+                            heat_rate = 9.717  # hard-coded
+                            hh_ng_costs = {2025: 3.49, 2030: 2.91, 2035: 3.68}  # hard-coded
 
                             for year in years_list:
                                 # [ESR WIP: Comment original equation]
@@ -220,6 +214,7 @@ class DataProcessing:
                                 )
                             )
 
+        # several columns here aren't ever given values, other than ""...
         target_columns = [
             "GEN UID",
             "Bus ID",
@@ -289,7 +284,6 @@ class DataProcessing:
         ).fillna(1)
 
         self.gen_data_target.fillna("", inplace=True)
-        self.gen_data_target.head()
 
         if save_csv:
             self.gen_data_target.to_csv(
