@@ -46,10 +46,12 @@ class DataProcessing:
         bus_data_path: str,
         cost_data_path: str,
         candidate_gens: list[str],
-        save_csv: bool=False,
+        save_csv: bool = False,
     ):
 
-        if not isinstance(candidate_gens, list):  # is there a reason we're checking only this variable's type?
+        if not isinstance(
+            candidate_gens, list
+        ):  # is there a reason we're checking only this variable's type?
             raise TypeError(
                 f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
             )
@@ -181,7 +183,11 @@ class DataProcessing:
                             # (F-Frame), Moderate, for the Base Year
                             # 2022. The units are in MMBtu/MWh.]
                             heat_rate = 9.717  # hard-coded
-                            hh_ng_costs = {2025: 3.49, 2030: 2.91, 2035: 3.68}  # hard-coded
+                            hh_ng_costs = {
+                                2025: 3.49,
+                                2030: 2.91,
+                                2035: 3.68,
+                            }  # hard-coded
 
                             for year in years_list:
                                 # [ESR WIP: Comment original equation]
