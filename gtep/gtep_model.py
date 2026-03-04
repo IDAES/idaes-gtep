@@ -3261,7 +3261,7 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
             )
-            if stage >= m.lifetimes[gen]
+            if stage >= pyo.value(m.lifetimes[gen])
             else pyo.LogicalConstraint.Skip
         )
 
