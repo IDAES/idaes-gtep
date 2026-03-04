@@ -1,8 +1,7 @@
-import pyomo.common.unittest as unittest
-
-from gtep.gtep_data_processing import DataProcessing
-
 from os.path import dirname, abspath, join
+import pandas as pd
+import pyomo.common.unittest as unittest
+from gtep.gtep_data_processing import DataProcessing
 
 curr_dir = dirname(abspath(__file__))
 bus_data_path = abspath(
@@ -33,7 +32,13 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
     def test_data_processing_init(self):
         self.assertIsInstance(self.data_processing, DataProcessing)
-        self.assertHasAttr(self.data_processing, "config")
+        # have to do this for now bc self.assertHasAttr only available in python>=3.14
+        self.assertTrue(hasattr(self.data_processing, "config"))
+
+    def test_get_gen_nonsense_and_get_candidate_gen_by_bus(self):
+        gen_nonsense = self.data_processing.get_gen_nonsense(bus_data_path)
+        self.assertIsInstance(gen_nonsense, pd.DataFrame)
+        self.data_processing.get_candidate_gen_by_bus(gen_nonsense, candidate_gens)
 
     def test_load_gen_data(self):
         self.data_processing.load_gen_data(

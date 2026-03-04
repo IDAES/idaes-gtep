@@ -41,6 +41,28 @@ class DataProcessing:
         # for generators
         self.config = ConfigData()
 
+    def get_gen_nonsense(self, bus_data_path):
+        # Read bus data from the provided .csv file
+        gen_nonsense = pd.read_csv(bus_data_path)
+        gen_nonsense = gen_nonsense[gen_nonsense["Gen bus/ Non-gen bus"] == 1]
+        return gen_nonsense
+
+
+    def get_candidate_gen_by_bus(self, gen_nonsense, candidate_gens):
+
+        candidate_gen_by_bus = {}
+        for gen in candidate_gens:
+            gen_weight_key = gen + " - Generation Weight"
+            candidate_df = gen_nonsense[
+                gen_nonsense[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
+            ]
+
+            candidate_gen_by_bus[gen] = dict(
+                zip(candidate_df["Bus Name"], candidate_df["Bus Number"])
+            )
+
+        return candidate_gen_by_bus
+
     def load_gen_data(
         self,
         bus_data_path: str,
@@ -55,6 +77,8 @@ class DataProcessing:
             raise TypeError(
                 f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
             )
+        
+        gen_nonsense = self.get_gen_nonsense(bus_data_path)
 
         all_gens = [
             "Natural Gas_CT",
@@ -68,21 +92,8 @@ class DataProcessing:
             "Geothermal",
         ]
 
-        # Read bus data from the provided .csv file
-        gen_nonsense = pd.read_csv(bus_data_path)
-        gen_nonsense = gen_nonsense[gen_nonsense["Gen bus/ Non-gen bus"] == 1]
-
-        candidate_df = {}
-        candidate_gen_by_bus = {}
-        for gen in candidate_gens:
-            gen_weight_key = gen + " - Generation Weight"
-            candidate_df[gen] = gen_nonsense[
-                gen_nonsense[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
-            ]
-
-            candidate_gen_by_bus[gen] = dict(
-                zip(candidate_df[gen]["Bus Name"], candidate_df[gen]["Bus Number"])
-            )
+        # dict of the form {gen_type: {bus name: bus_number}}
+        candidate_gen_by_bus = self.get_candidate_gen_by_bus(gen_nonsense, candidate_gens)
 
         # Considering that Natural Gas_CT and Natural Gas_FE have the
         # same cost assumptions, create a pricing_data list that
