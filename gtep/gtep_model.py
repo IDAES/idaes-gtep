@@ -2028,7 +2028,7 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        for load_n in m.loads:
+        for load_n in m.load_buses:
             m.loads[load_n] = (
                 temp_scale
                 * (
@@ -2049,7 +2049,7 @@ def commitment_period_rule(b, commitment_period):
             del m.md.data["elements"]["load"][load]
             # del m.loads[load]
         # print(m.loads)
-        for load_n in m.loads:
+        for load_n in m.load_buses:
             m.loads[load_n] = (
                 m.md.data["elements"]["load"][load_n]["p_load"]["values"][
                     commitment_period - 1
@@ -2061,7 +2061,7 @@ def commitment_period_rule(b, commitment_period):
         # print(m.loads)
 
     else:
-        for load_n in m.loads:
+        for load_n in m.load_buses:
             m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
                 commitment_period - 1
             ]
