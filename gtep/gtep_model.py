@@ -3259,7 +3259,9 @@ def model_create_investment_stages(m, stages):
                 m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
                 .genOperational[gen]
                 .indicator_var
-                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[gen]
+                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[
+                    gen
+                ]
             ).implies(
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
