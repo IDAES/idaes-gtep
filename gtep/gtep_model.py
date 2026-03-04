@@ -1296,7 +1296,9 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= c_p.loads.get(bus) or 0  # add new parameter (already includes units)
+            balance -= (
+                c_p.loads.get(bus) or 0
+            )  # add new parameter (already includes units)
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
@@ -3256,10 +3258,17 @@ def model_create_investment_stages(m, stages):
     ## TODO: needs to be tested
     @m.LogicalConstraint(m.stages, m.thermalGenerators)
     def gen_retirement(m, stage, gen):
-        return ((m.investmentStage[stage - m.lifetimes[gen]].genOperational[gen].indicator_var
-        | m.investmentStage[stage - m.lifetimes[gen]].genInstalled[gen]).implies(
-            m.investmentStage[stage].genRetired[gen].indicator_var
-            | m.investmentStage[stage].genExtended[gen].indicator_var) if stage >= m.lifetimes[gen] 
+        return (
+            (
+                m.investmentStage[stage - m.lifetimes[gen]]
+                .genOperational[gen]
+                .indicator_var
+                | m.investmentStage[stage - m.lifetimes[gen]].genInstalled[gen]
+            ).implies(
+                m.investmentStage[stage].genRetired[gen].indicator_var
+                | m.investmentStage[stage].genExtended[gen].indicator_var
+            )
+            if stage >= m.lifetimes[gen]
             else pyo.LogicalConstraint.Skip
         )
 
