@@ -2028,16 +2028,19 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        b.loads= {load_n:  (
-            temp_scale
-            * (
-                1
-                + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
+        b.loads = {
+            load_n: (
+                temp_scale
+                * (
+                    1
+                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
+                )
+                * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                    commitment_period - 1
+                ]
             )
-            * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
-        ) for load_n in m.md.data["elements"]["load"]}
+            for load_n in m.md.data["elements"]["load"]
+        }
 
     elif m.config["scale_texas_loads"]:
         false_loads = []
