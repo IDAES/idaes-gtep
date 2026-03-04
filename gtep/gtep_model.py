@@ -1297,7 +1297,7 @@ def add_dispatch_constraints(b, disp_per):
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
             balance -= (
-                c_p.loads.get(bus) or 0
+                m.loads.get(bus) or 0
             )  # add new parameter (already includes units)
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
@@ -2028,7 +2028,7 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        b.loads = {
+        m.loads = {
             load_n: (
                 temp_scale
                 * (
@@ -2051,7 +2051,7 @@ def commitment_period_rule(b, commitment_period):
             del m.md.data["elements"]["load"][load]
             # del m.loads[load]
         # print(m.loads)
-        b.loads = {
+        m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
             ]["p_load"]["values"][commitment_period - 1]
@@ -2062,7 +2062,7 @@ def commitment_period_rule(b, commitment_period):
         # print(m.loads)
 
     else:
-        b.loads = {
+        m.loads = {
             m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
                 load_n
             ]["p_load"]["values"][commitment_period - 1]
@@ -2072,7 +2072,7 @@ def commitment_period_rule(b, commitment_period):
         #     # print(f"{key=}")
         #     # print(f"{val=}")
         #     b.loads[key] *= 1/3
-        print(f"total load at time period = {sum(b.loads.values())}")
+        # print(f"total load at time period = {sum(b.loads.values())}")
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -3256,10 +3256,10 @@ def model_create_investment_stages(m, stages):
     def gen_retirement(m, stage, gen):
         return (
             (
-                m.investmentStage[stage - m.lifetimes[gen]]
+                m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
                 .genOperational[gen]
                 .indicator_var
-                | m.investmentStage[stage - m.lifetimes[gen]].genInstalled[gen]
+                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[gen]
             ).implies(
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
