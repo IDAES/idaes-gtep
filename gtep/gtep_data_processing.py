@@ -173,17 +173,6 @@ class DataProcessing:
             book: pd.read_excel(cost_data_path, book)
             for book in gens_of_interest
         }
-    
-    def append_row_to_dataframe(self, df: pd.DataFrame, row_dict: dict):
-        """
-        Adds a row in-place to the end of a dataframe.
-
-        :param df:          Dataframe to append row to.
-        :type df:           pandas.DataFrame
-        :param row_dict:    Dict of the form {col: val}
-        :type row_dict:     dict
-        """
-        df.loc[len(df)] = row_dict
 
     def get_gen_cost_data(
             self,
@@ -274,7 +263,7 @@ class DataProcessing:
                     else:
                         bus_row[f"fuel_costs_{year}"] = 0
 
-                self.append_row_to_dataframe(self.gen_data_target, bus_row)
+                self.gen_data_target.loc[len(self.gen_data_target)] = bus_row
 
         # commenting the rest of this out for now bc we never set any of these other variables...
 
