@@ -19,6 +19,7 @@
 import pandas as pd
 from pathlib import Path
 from gtep.config_data import ConfigData
+from warnings import warn
 
 """
 References
@@ -34,6 +35,71 @@ class DataProcessing:
     cost data. Original data from ref[1].
 
     """
+    # For now, moved all the hard-coded stuff to here.
+    all_gens = [
+        "Natural Gas_CT",
+        "Natural Gas_FE",
+        "Solar - CSP",
+        "Solar - Utility PV",
+        "Land-Based Wind",
+        "Coal_FE",
+        "Biopower",
+        "Nuclear",
+        "Geothermal",
+    ]
+    years_list = [2025, 2030, 2035]
+    subvar_of_interest = "Moderate"
+
+    # Henry Hub forecast prices for natural
+    # gas. [ESR WIP: Units for this metric are
+    # in USD/MMBtu. To convert it to $/MWh,
+    # multiply factor by the heat rate. In
+    # this case, we use a heat rate value from
+    # [1] assuming a NG Combustion Turbine
+    # (F-Frame), Moderate, for the Base Year
+    # 2022. The units are in MMBtu/MWh.]
+    heat_rate = 9.717
+    hh_ng_costs = {
+        2025: 3.49,
+        2030: 2.91,
+        2035: 3.68,
+    }
+
+    # TODO: A bunch of these columns are never set... while others are set that aren't here!
+    target_columns = [
+        "GEN UID",
+        "Bus ID",
+        "Unit Type",
+        "Fuel",
+        "MW Inj",
+        "MVAR Inj",
+        "V Setpoint p.u.",
+        "PMax MW",
+        "PMin MW",
+        "QMax MVAR",
+        "QMin MVAR",
+        "Min Down Time Hr",
+        "Min Up Time Hr",
+        "Ramp Rate MW/Min",
+        "Start Time Cold Hr",
+        "Start Time Warm Hr",
+        "Start Time Hot Hr",
+        "Start Heat Cold MBTU",
+        "Start Heat Warm MBTU",
+        "Start Heat Hot MBTU",
+        "Non Fuel Start Cost $",
+        "Fuel Price $/MMBTU",
+        "Output_pct_0",
+        "Output_pct_1",
+        "Output_pct_2",
+        "Output_pct_3",
+        "Output_pct_4",
+        "HR_avg_0",
+        "HR_incr_1",
+        "HR_incr_2",
+        "HR_incr_3",
+        "HR_incr_4",
+    ]
 
     def __init__(self):
 
@@ -41,27 +107,111 @@ class DataProcessing:
         # for generators
         self.config = ConfigData()
 
-    def get_gen_nonsense(self, bus_data_path):
-        # Read bus data from the provided .csv file
-        gen_nonsense = pd.read_csv(bus_data_path)
-        gen_nonsense = gen_nonsense[gen_nonsense["Gen bus/ Non-gen bus"] == 1]
-        return gen_nonsense
+    def get_gen_bus_data(self, bus_data_path: str) -> pd.DataFrame:
+        """
+        :param bus_data_path:   Path to bus data.
+        :type bus_data_path:    str
+        :returns:               DataFrame with generator bus data.
+        """
+        # TODO: Confirm that "Gen bus/ Non-gen bus" will always be a column
+        # in bus_data? And that it is always an int (instead of a bool)?
+        # TODO: Confirm that this functionality of filtering for gen buses
+        # is what we want to maintain?
+        bus_data = pd.read_csv(bus_data_path)
+        bus_data = bus_data[bus_data["Gen bus/ Non-gen bus"] == 1]
+        return bus_data
 
-
-    def get_candidate_gen_by_bus(self, gen_nonsense, candidate_gens):
-
+    def get_buses_by_gen(self,
+        gen_bus_df: pd.DataFrame,
+        candidate_gens: list[str],
+    ) -> dict[str, dict]:
+        """
+        :param gen_bus_df:      DataFrame with generator bus data.
+        :type gen_bus_df:       pandas.DataFrame
+        :param candidate_gens:  List of candidate generator types.
+        :type candidate_gens:   list[str]
+        :returns:               Dict of the form {gen_type: bus_info}, where bus_info
+                                    is itself a dict of the form {bus_name: bus_number}
+        """
+        # TODO: We should probably check that gen_weight_key is actually a column in gen_bus_df
+        # TODO: Confirm that "Bus Name" and "Bus Number" will always be columns in gen_bus_df?
+        # TODO: Might be good to pass a set instead of list for candidate gens to prevent over-writing
         candidate_gen_by_bus = {}
         for gen in candidate_gens:
             gen_weight_key = gen + " - Generation Weight"
-            candidate_df = gen_nonsense[
-                gen_nonsense[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
+            candidate_df = gen_bus_df[
+                gen_bus_df[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
             ]
-
             candidate_gen_by_bus[gen] = dict(
                 zip(candidate_df["Bus Name"], candidate_df["Bus Number"])
             )
-
         return candidate_gen_by_bus
+    
+    def clean_up_candidate_gens(self, candidate_gens: list[str]) -> set[str]:
+        """
+        Ensures elements of a given list are unique and do not include
+        "Natural Gas_CT" ("Natural Gas_FE" will be substituted).
+
+        :param candidate_gens:      List of candidate generator types.
+        :type candidate_gens:       list[str]
+        :returns:                   Set of generator types.
+        """
+        # TODO: Should we ensure that these are all in self.all_gens?
+        return set([gen if "Natural Gas" not in gen else "Natural Gas_FE" for gen in candidate_gens])
+    
+    def get_cost_data(self, cost_data_path: str, gens_of_interest: set[str]) -> dict[str, pd.DataFrame]:
+        """
+        :param cost_data_path:      Path to cost data.
+        :type cost_data_path:       str
+        :param gens_of_interest:    Generator types of interest.
+        :type gens_of_interest:     set[str]
+        :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
+                                        is a pandas DataFrame.
+        """
+        # TODO: we should probably check that the elements of gens_of_interest are actually books...
+        return {
+            book: pd.read_excel(cost_data_path, book)
+            for book in gens_of_interest
+        }
+    
+    def append_row_to_dataframe(self, df: pd.DataFrame, row_dict: dict):
+        """
+        Adds a row in-place to the end of a dataframe.
+
+        :param df:          Dataframe to append row to.
+        :type df:           pandas.DataFrame
+        :param row_dict:    Dict of the form {col: val}
+        :type row_dict:     dict
+        """
+        df.loc[len(df)] = row_dict
+
+    def get_capex_df(
+            self,
+            gen_cost_df: pd.DataFrame,
+            gen_bus_df: pd.DataFrame,
+            gen: str) -> pd.DataFrame:
+        """
+        :param gen_cost_df:     Dataframe with cost data.
+        :type gen_cost_df:      pandas.DataFrame
+        :param gen_bus_df:      Dataframe with bus data.
+        :type gen_bus_df:       pandas.DataFrame
+        :param gen:             Type of generator.
+        :type gen:              str
+        :returns:               Dataframe with CapEx data. Has a multi-index of
+                                    ("Key1", "Bus Name"), where "Key1" is the
+                                    costs variable.
+        """
+        bus_capex_df = gen_cost_df[
+            gen_cost_df["Key3"] == self.subvar_of_interest
+        ]
+        bus_capex_df = pd.merge(
+            gen_bus_df[["Bus Name", gen]],
+            bus_capex_df,
+            left_on=gen,
+            right_on="Key2",
+        )
+        bus_capex_df = bus_capex_df.set_index(["Key1", "Bus Name"])
+        return bus_capex_df
 
     def load_gen_data(
         self,
@@ -78,229 +228,70 @@ class DataProcessing:
                 f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
             )
         
-        gen_nonsense = self.get_gen_nonsense(bus_data_path)
+        gen_bus_df = self.get_gen_bus_data(bus_data_path)
+        buses_by_gen = self.get_buses_by_gen(gen_bus_df, candidate_gens)
+        
+        gens_of_interest = self.clean_up_candidate_gens(candidate_gens)
+        cost_dict = self.get_cost_data(cost_data_path, gens_of_interest)
 
-        all_gens = [
-            "Natural Gas_CT",
-            "Natural Gas_FE",
-            "Solar - CSP",
-            "Solar - Utility PV",
-            "Land-Based Wind",
-            "Coal_FE",
-            "Biopower",
-            "Nuclear",
-            "Geothermal",
-        ]
+        # instantiate dataframe that will have all of the output data
+        cost_col_names = []
+        for year in self.years_list:
+            cost_col_names += [f"capex_{year}", f"fuel_costs_{year}", f"fixed_ops_{year}", f"var_ops_{year}"]
+        self.gen_data_target = pd.DataFrame(columns=self.target_columns + cost_col_names)
 
-        # dict of the form {gen_type: {bus name: bus_number}}
-        candidate_gen_by_bus = self.get_candidate_gen_by_bus(gen_nonsense, candidate_gens)
+        # add to the dataframe, row by row
+        for gen, gen_cost_df in cost_dict.items():
+            bus_capex_df = self.get_capex_df(gen_cost_df, gen_bus_df, gen)
 
-        # Considering that Natural Gas_CT and Natural Gas_FE have the
-        # same cost assumptions, create a pricing_data list that
-        # contains only Natural Gas_FE
-        pricing_data_book_names = [gen for gen in all_gens if gen != "Natural Gas_CT"]
-        pricing_data_sheet_path = Path(cost_data_path)
-        pricing_dict = {}
-        for this_book_name in pricing_data_book_names:
-            pricing_dict[this_book_name] = pd.read_excel(
-                pricing_data_sheet_path, this_book_name
-            )
+            for bus_name, bus in buses_by_gen[gen].items():
+                bus_row = {
+                    "GEN UID": self.config.gen_data[gen]["ids"] + str(bus) + "-c",
+                    "Bus ID": bus,
+                    "Unit Type": self.config.gen_data[gen]["unit_type"],
+                    "Fuel": self.config.gen_data[gen]["fuel_type"],
+                    "PMax MW": self.config.gen_data[gen]["pmax"],
+                    "PMin MW": self.config.gen_data[gen]["pmin"],
+                    "Min Up Time Hr": self.config.gen_data[gen]["minup"],
+                    "Min Down Time Hr": self.config.gen_data[gen]["mindown"],
+                }
 
-        gen_uids = []
-        bus_uids = []
-        unit_types = []
-        fuels = []
-        pmax = []
-        pmin = []
-        minup = []
-        mindown = []
+                for year in self.years_list:
+                    # add capex data
+                    bus_row[f"capex_{year}"] = float(
+                        bus_capex_df.loc[("CAPEX ($/kW)", bus_name), year]
+                    )
+                    # add heat rate data
+                    if gen == "Natural Gas_FE":
+                        bus_row[f"fuel_costs_{year}"] = self.hh_ng_costs[year] * self.heat_rate
+                    else:
+                        bus_row[f"fuel_costs_{year}"] = 0
+                    # add fixed O&M expenses
+                    var = "Fixed Operation and Maintenance Expenses ($/kW-yr)"
+                    bus_row[f"fixed_ops_{year}"] = float(
+                        bus_capex_df.loc[(var, bus_name), year]
+                    )
+                    # add variable O&M expenses
+                    var = "Variable Operation and Maintenance Expenses ($/MWh)"
+                    bus_row[f"var_ops_{year}"] = float(
+                            bus_capex_df.loc[(var, bus_name), year]
+                    )
 
-        years_list = [2025, 2030, 2035]  # hard-coded
-        costs = {}
-        for year in years_list:
-            costs[f"capex_{year}"] = []
-            costs[f"fuel_costs_{year}"] = []
-            costs[f"fixed_ops_{year}"] = []
-            costs[f"var_ops_{year}"] = []
+                self.append_row_to_dataframe(self.gen_data_target, bus_row)
 
-        gens_of_interest_unfilt = []
-        for gen in candidate_gens:
-            if "Natural Gas" in gen:
-                gens_of_interest_unfilt.append("Natural Gas_FE")
-            else:
-                gens_of_interest_unfilt.append(gen)
+        # commenting the rest of this out for now bc we never set any of these other variables...
 
-        # Since we can use two different natural gas generators, add a
-        # filter to remove the repeated natural gas generator (this
-        # because we only have cost data for the "_FE" kind).
-        gens_of_interest = []
-        for item in gens_of_interest_unfilt:
-            if item not in gens_of_interest:
-                gens_of_interest.append(item)
+        # self.gen_data_target["V Setpoint p.u."] = pd.to_numeric(
+        #     self.gen_data_target["V Setpoint p.u."], errors="coerce"
+        # ).fillna(1)
+        # self.gen_data_target["Output_pct_0"] = pd.to_numeric(
+        #     self.gen_data_target["Output_pct_0"], errors="coerce"
+        # ).fillna(0.6)
+        # self.gen_data_target["Output_pct_1"] = pd.to_numeric(
+        #     self.gen_data_target["Output_pct_1"], errors="coerce"
+        # ).fillna(1)
 
-        vars_of_interest = [
-            "CAPEX ($/kW)",
-            "Heat Rate  (MMBtu/MWh)",
-            "Fixed Operation and Maintenance Expenses ($/kW-yr)",
-            "Variable Operation and Maintenance Expenses ($/MWh)",
-        ]
-        subvars_of_interest = "Moderate"
-
-        for var in vars_of_interest:
-            for gen in gens_of_interest:
-                demo_df = pricing_dict[gen][
-                    (pricing_dict[gen]["Key1"] == var)
-                    & (pricing_dict[gen]["Key3"] == subvars_of_interest)
-                ]
-                bus_cutdown_df = gen_nonsense[["Bus Name", gen]]
-                # the_thing_we_want = bus_cutdown_df[gen].iloc[0]
-                # the_row_that_has_the_prices = demo_df[
-                #     demo_df["Key2"] == the_thing_we_want
-                # ]
-                bus_capex_df = pd.merge(
-                    bus_cutdown_df, demo_df, left_on=gen, right_on="Key2"
-                )
-
-                for bus_name, bus in candidate_gen_by_bus[gen].items():
-                    if var == "CAPEX ($/kW)":
-                        gen_uids.append(
-                            self.config.gen_data[gen]["ids"] + str(bus) + "-c"
-                        )
-                        bus_uids.append(bus)
-                        unit_types.append(self.config.gen_data[gen]["unit_type"])
-                        fuels.append(self.config.gen_data[gen]["fuel_type"])
-                        pmax.append(self.config.gen_data[gen]["pmax"])
-                        pmin.append(self.config.gen_data[gen]["pmin"])
-                        minup.append(self.config.gen_data[gen]["minup"])
-                        mindown.append(self.config.gen_data[gen]["mindown"])
-
-                        for year in years_list:
-                            costs[f"capex_{year}"].append(
-                                float(
-                                    bus_capex_df[bus_capex_df["Bus Name"] == bus_name][
-                                        year
-                                    ].iloc[0]
-                                )
-                            )
-
-                    elif var == "Heat Rate  (MMBtu/MWh)":
-                        if gen == "Natural Gas_FE":
-                            # Henry Hub forecast prices for natural
-                            # gas. [ESR WIP: Units for this metric are
-                            # in USD/MMBtu. To convert it to $/MWh,
-                            # multiply factor by the heat rate. In
-                            # this case, we use a heat rate value from
-                            # [1] assuming a NG Combustion Turbine
-                            # (F-Frame), Moderate, for the Base Year
-                            # 2022. The units are in MMBtu/MWh.]
-                            heat_rate = 9.717  # hard-coded
-                            hh_ng_costs = {
-                                2025: 3.49,
-                                2030: 2.91,
-                                2035: 3.68,
-                            }  # hard-coded
-
-                            for year in years_list:
-                                # [ESR WIP: Comment original equation]
-                                # costs[f'fuel_costs_{year}'].append(hh_ng_costs[year] * float(bus_capex_df[bus_capex_df["Bus Name"] == bus_name][year].iloc[0]))
-                                costs[f"fuel_costs_{year}"].append(
-                                    hh_ng_costs[year] * heat_rate
-                                )  # units in USD/MWh
-
-                        else:
-                            for year in years_list:
-                                costs[f"fuel_costs_{year}"].append(0)
-
-                    elif var == "Fixed Operation and Maintenance Expenses ($/kW-yr)":
-                        for year in years_list:
-                            costs[f"fixed_ops_{year}"].append(
-                                float(
-                                    bus_capex_df[bus_capex_df["Bus Name"] == bus_name][
-                                        year
-                                    ].iloc[0]
-                                )
-                            )
-
-                    elif var == "Variable Operation and Maintenance Expenses ($/MWh)":
-                        for year in years_list:
-                            costs[f"var_ops_{year}"].append(
-                                float(
-                                    bus_capex_df[bus_capex_df["Bus Name"] == bus_name][
-                                        year
-                                    ].iloc[0]
-                                )
-                            )
-
-        # several columns here aren't ever given values, other than ""...
-        target_columns = [
-            "GEN UID",
-            "Bus ID",
-            "Unit Type",
-            "Fuel",
-            "MW Inj",
-            "MVAR Inj",
-            "V Setpoint p.u.",
-            "PMax MW",
-            "PMin MW",
-            "QMax MVAR",
-            "QMin MVAR",
-            "Min Down Time Hr",
-            "Min Up Time Hr",
-            "Ramp Rate MW/Min",
-            "Start Time Cold Hr",
-            "Start Time Warm Hr",
-            "Start Time Hot Hr",
-            "Start Heat Cold MBTU",
-            "Start Heat Warm MBTU",
-            "Start Heat Hot MBTU",
-            "Non Fuel Start Cost $",
-            "Fuel Price $/MMBTU",
-            "Output_pct_0",
-            "Output_pct_1",
-            "Output_pct_2",
-            "Output_pct_3",
-            "Output_pct_4",
-            "HR_avg_0",
-            "HR_incr_1",
-            "HR_incr_2",
-            "HR_incr_3",
-            "HR_incr_4",
-        ]
-
-        self.gen_data_target = pd.DataFrame(columns=target_columns)
-        self.gen_data_target["GEN UID"] = gen_uids
-        self.gen_data_target["Bus ID"] = bus_uids
-        self.gen_data_target["Unit Type"] = unit_types
-        self.gen_data_target["Fuel"] = fuels
-        self.gen_data_target["PMax MW"] = pmax
-        self.gen_data_target["PMin MW"] = pmin
-        self.gen_data_target["Min Up Time Hr"] = minup
-        self.gen_data_target["Min Down Time Hr"] = mindown
-        for year in years_list:
-            self.gen_data_target[f"capex_{year}"] = costs[f"capex_{year}"]
-        for year in years_list:
-            self.gen_data_target[f"fuel_costs_{year}"] = costs[f"fuel_costs_{year}"]
-        for year in years_list:
-            self.gen_data_target[f"fixed_ops_{year}"] = costs[f"fixed_ops_{year}"]
-        for year in years_list:
-            self.gen_data_target[f"var_ops_{year}"] = costs[f"var_ops_{year}"]
-
-        # Explicitly modifying the original DataFrame rather than a
-        # copy to avoid "FutureWarning"
-        # gen_data_target["V Setpoint p.u."].fillna(1, inplace=True)
-        # gen_data_target["Output_pct_0"].fillna(0.6, inplace=True)
-        # gen_data_target["Output_pct_1"].fillna(1,inplace=True)
-        self.gen_data_target["V Setpoint p.u."] = pd.to_numeric(
-            self.gen_data_target["V Setpoint p.u."], errors="coerce"
-        ).fillna(1)
-        self.gen_data_target["Output_pct_0"] = pd.to_numeric(
-            self.gen_data_target["Output_pct_0"], errors="coerce"
-        ).fillna(0.6)
-        self.gen_data_target["Output_pct_1"] = pd.to_numeric(
-            self.gen_data_target["Output_pct_1"], errors="coerce"
-        ).fillna(1)
-
-        self.gen_data_target.fillna("", inplace=True)
+        # self.gen_data_target.fillna("", inplace=True)
 
         if save_csv:
             self.gen_data_target.to_csv(
