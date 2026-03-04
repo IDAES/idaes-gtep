@@ -2028,23 +2028,16 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        for load_n in m.load_buses:
-            # [ESR WIP: replace b.loads with the Parameter m.load to
-            # avoid unit consistency issues in the flow_balance
-            # equation. TODO: Confirm between b.loads and
-            # m.loads. When b.loads is used, the BlockData throws an
-            # error saying the attribute does not exist.]
-            # b.loads[load_n] = (
-            m.loads[load_n] = (
-                temp_scale
-                * (
-                    1
-                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
-                )
-                * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                    commitment_period - 1
-                ]
+        b.loads= {load_n:  (
+            temp_scale
+            * (
+                1
+                + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
             )
+            * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                commitment_period - 1
+            ]
+        ) for load_n in m.md.data["elements"]["load"]}
 
     elif m.config["scale_texas_loads"]:
         false_loads = []
