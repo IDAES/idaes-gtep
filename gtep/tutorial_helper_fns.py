@@ -1,3 +1,16 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -97,7 +110,8 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
     ax_bins = fig.add_subplot(gs[:, :])
     ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
     ax_bins.set_xlim([0.5, len(time_keys) + 0.5])  # set xlims to support bools
-    ax_bins.set_yticklabels([None] + list(states_set))
+    ax_bins.set_yticks(range(len(states_set)))
+    ax_bins.set_yticklabels(list(states_set))
     ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
 
@@ -208,7 +222,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
                                 * block_height
                             ),
                             alpha=0.9,
-                            edgecolor="black",
+                            # edgecolor="black",
                             color=gen_colors[gen_ix],
                         )
                         ax_bins.add_patch(tmp_rect)
@@ -307,7 +321,8 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
     ax_bins = fig.add_subplot(gs[:, :])
     ax_bins.set_ylim([-0.5, total_height - 0.5])  # set ylims to support bools
     ax_bins.set_xlim([0.5, len(time_keys) + 0.5])  # set xlims to support bools
-    ax_bins.set_yticklabels([None] + list(states_set))
+    ax_bins.set_yticks(range(len(states_set)))
+    ax_bins.set_yticklabels(list(states_set))
     ax_bins.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax_bins.xaxis.set_major_locator(MaxNLocator(integer=True))
 
@@ -424,7 +439,7 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
                                 * block_height
                             ),
                             alpha=0.9,
-                            edgecolor="black",
+                            # edgecolor="black",
                             color=gen_colors[gen_ix],
                         )
                         ax_bins.add_patch(tmp_rect)
@@ -503,5 +518,5 @@ def plot_binaries(dict_in, suptitle, states_order, gens_pd):
     fig.align_labels()
     # fig.suptitle(f"{suptitle}")
     # fig.savefig(f"{save_dir}{suptitle}_Total_Generation.png")
+    plt.show()
     plt.close()
-    pass
