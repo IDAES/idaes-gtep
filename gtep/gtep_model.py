@@ -2028,8 +2028,8 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 3
         temp_scale = 10
 
-        m.loads = {
-            load_n: (
+        for load_n in m.loads:
+            m.loads[load_n] = (
                 temp_scale
                 * (
                     1
@@ -2039,8 +2039,6 @@ def commitment_period_rule(b, commitment_period):
                     commitment_period - 1
                 ]
             )
-            for load_n in m.md.data["elements"]["load"]
-        }
 
     elif m.config["scale_texas_loads"]:
         false_loads = []
@@ -2051,23 +2049,22 @@ def commitment_period_rule(b, commitment_period):
             del m.md.data["elements"]["load"][load]
             # del m.loads[load]
         # print(m.loads)
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
-            for load_n in m.md.data["elements"]["load"]
-        }
+        for load_n in m.loads:
+            m.loads[load_n] = (
+                m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                    commitment_period - 1
+                ]
+                * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
+            )
+
         # Testing
         # print(m.loads)
 
     else:
-        m.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            for load_n in m.md.data["elements"]["load"]
-        }
+        for load_n in m.loads:
+            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                commitment_period - 1
+            ]
         # for key, val in b.loads.items():
         #     # print(f"{key=}")
         #     # print(f"{val=}")
