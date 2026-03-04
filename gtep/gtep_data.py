@@ -27,28 +27,54 @@ import pandas as pd
 class ExpansionPlanningData:
     """Standard data storage class for the IDAES GTEP model."""
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        stages=2,
+        num_reps=4,
+        len_reps=1,
+        num_commit=24,
+        num_dispatch=1,
+        duration_dispatch=60,
+    ):
 
-    def load_prescient(self, data_path, options_dict=None):
+        self.stages = stages
+        self.num_reps = num_reps
+        self.len_reps = len_reps
+        self.num_commit = num_commit
+        self.num_dispatch = num_dispatch
+        self.duration_dispatch = duration_dispatch
+
+    def load_prescient(
+        self,
+        data_path,
+        representative_dates,
+        representative_weights=None,
+        options_dict=None,
+    ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
         """
         self.data_type = "prescient"
-        options_dict = {
-            "data_path": data_path,
-            "input_format": "rts-gmlc",
-            "start_date": "01-01-2020",
-            "num_days": 365,
-            "sced_horizon": 1,
-            "sced_frequency_minutes": 60,
-            "ruc_horizon": 36,
-        }
 
+        # create prescient config object with defaults
         prescient_options = PrescientConfig()
+
+        if options_dict is None:
+            # set basic configurations that do not match prescient defaults
+            options_dict = {
+                "data_path": data_path,
+                "num_days": 365,
+                "ruc_horizon": 36,
+            }
+        else:
+            # ensure data path is included in options dictionary
+            options_dict["data_path"] = data_path
+
+        # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
+
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
@@ -223,8 +249,12 @@ class ExpansionPlanningData:
             self.md.data["elements"]["generator"][gen]["max_operating_reserve"] = 1
             self.md.data["elements"]["generator"][gen]["max_spinning_reserve"] = 1
             self.md.data["elements"]["generator"][gen]["max_quickstart_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["ramp_up_rate"] = 0.1
-            self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
+            self.md.data["elements"]["generator"][gen][
+                "ramp_up_rate"
+            ] = 0.1  # FIXME should we update to only add if necessary
+            self.md.data["elements"]["generator"][gen][
+                "ramp_down_rate"
+            ] = 0.1  # FIXME should we update to only add if necessary
             self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
             self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
             self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
