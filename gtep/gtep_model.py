@@ -379,7 +379,6 @@ def add_investment_constraints(
             and investment_stage == 1
         ):
             b.genOperational[gen].indicator_var.fix(False)
-            # b.genDisabled[gen].binary_indicator_var.fix(1)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -391,9 +390,7 @@ def add_investment_constraints(
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
         ):
-            # print(gen)
             b.renewableOperational[gen].fix(0)
-            # b.renewableDisabled[gen].fix(m.renewableCapacity[gen])
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -406,14 +403,12 @@ def add_investment_constraints(
                 m.md.data["elements"]["branch"][branch]["in_service"] == False
                 and investment_stage == 1
             ):
-                b.branchDisabled[branch].indicator_var.fix(True)
-                # b.branchDisabled[branch].binary_indicator_var.fix(1)
+                b.branchOperational[branch].indicator_var.fix(False)
             elif (
                 m.md.data["elements"]["branch"][branch]["in_service"] == True
                 and investment_stage == 1
             ):
                 b.branchOperational[branch].indicator_var.fix(True)
-                # b.branchInstalled[branch].binary_indicator_var.fix(1)
 
         # Planning reserve requirement constraint
         ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
@@ -429,7 +424,7 @@ def add_investment_constraints(
                 m.md.data["elements"]["storage"][bat]["in_service"] == False
                 and investment_stage == 1
             ):
-                b.storDisabled[bat].indicator_var.fix(True)
+                b.storOperational[bat].indicator_var.fix(False)
             elif (
                 m.md.data["elements"]["storage"][bat]["in_service"] == True
                 and investment_stage == 1
@@ -1252,7 +1247,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(b.loads[l] for l in loads)
+            balance -= sum(m.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -2032,12 +2027,6 @@ def commitment_period_rule(b, commitment_period):
         temp_scale = 10
 
         for load_n in m.load_buses:
-            # [ESR WIP: replace b.loads with the Parameter m.load to
-            # avoid unit consistency issues in the flow_balance
-            # equation. TODO: Confirm between b.loads and
-            # m.loads. When b.loads is used, the BlockData throws an
-            # error saying the attribute does not exist.]
-            # b.loads[load_n] = (
             m.loads[load_n] = (
                 temp_scale
                 * (
@@ -2058,28 +2047,27 @@ def commitment_period_rule(b, commitment_period):
             del m.md.data["elements"]["load"][load]
             # del m.loads[load]
         # print(m.loads)
-        b.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
-            for load_n in m.md.data["elements"]["load"]
-        }
+        for load_n in m.load_buses:
+            m.loads[load_n] = (
+                m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                    commitment_period - 1
+                ]
+                * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
+            )
+
         # Testing
         # print(m.loads)
 
     else:
-        b.loads = {
-            m.md.data["elements"]["load"][load_n]["bus"]: m.md.data["elements"]["load"][
-                load_n
-            ]["p_load"]["values"][commitment_period - 1]
-            for load_n in m.md.data["elements"]["load"]
-        }
+        for load_n in m.load_buses:
+            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+                commitment_period - 1
+            ]
         # for key, val in b.loads.items():
         #     # print(f"{key=}")
         #     # print(f"{val=}")
         #     b.loads[key] *= 1/3
-        print(f"total load at time period = {sum(b.loads.values())}")
+        # print(f"total load at time period = {sum(b.loads.values())}")
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
@@ -3257,127 +3245,40 @@ def model_create_investment_stages(m, stages):
 
     m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
 
-    # Retirement/extension relationships over investment periods -- C&P'd
-    # from the paper.  These are okay.
-    # if len(m.stages) > 1:
-
-    #     @m.Constraint(m.stages, m.thermalGenerators)
-    #     def gen_retirement(m, stage, gen):
-    #         return sum(
-    #             m.investmentStage[t_2]
-    #             .genInstalled[gen]
-    #             .indicator_var.get_associated_binary()
-    #             for t_2 in m.stages
-    #             if t_2 <= stage - m.lifetimes[gen]
-    #         ) <= sum(
-    #             m.investmentStage[t_1]
-    #             .genRetired[gen]
-    #             .indicator_var.get_associated_binary()
-    #             + m.investmentStage[t_1]
-    #             .genExtended[gen]
-    #             .indicator_var.get_associated_binary()
-    #             for t_1 in m.stages
-    #             if t_1 <= stage
-    #         )
-    if m.config["include_investment"]:
-        # Linking generator investment status constraints
-        @m.Constraint(m.stages, m.thermalGenerators)
-        def gen_stats_link(m, stage, gen):
-            return (
-                m.investmentStage[stage]
+    ## Generator Retirement Constraints
+    ## TODO: needs to be tested
+    @m.LogicalConstraint(m.stages, m.thermalGenerators)
+    def gen_retirement(m, stage, gen):
+        return (
+            (
+                m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
                 .genOperational[gen]
-                .indicator_var.get_associated_binary()
-                == m.investmentStage[stage - 1]
-                .genOperational[gen]
-                .indicator_var.get_associated_binary()
-                + m.investmentStage[stage - 1]
-                .genInstalled[gen]
-                .indicator_var.get_associated_binary()
-                - m.investmentStage[stage - 1]
-                .genRetired[gen]
-                .indicator_var.get_associated_binary()
-                if stage != 1
-                else pyo.Constraint.Skip
+                .indicator_var
+                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[
+                    gen
+                ]
+            ).implies(
+                m.investmentStage[stage].genRetired[gen].indicator_var
+                | m.investmentStage[stage].genExtended[gen].indicator_var
             )
+            if stage > pyo.value(m.lifetimes[gen])
+            else pyo.LogicalConstraint.Skip
+        )
 
-    if m.config["transmission"]:
-        """Battery investment stage state change logic"""
-
-        @m.Constraint(m.stages, m.transmission)
-        def branch_stats_link(m, stage, branch):
-            return (
-                m.investmentStage[stage]
-                .branchOperational[branch]
-                .indicator_var.get_associated_binary()
-                == m.investmentStage[stage - 1]
-                .branchOperational[branch]
-                .indicator_var.get_associated_binary()
-                + m.investmentStage[stage - 1]
-                .branchInstalled[branch]
-                .indicator_var.get_associated_binary()
-                - m.investmentStage[stage - 1]
-                .branchRetired[branch]
-                .indicator_var.get_associated_binary()
-                if stage != 1
-                else pyo.Constraint.Skip
-            )
-
-    # Renewable generation (in MW) retirement relationships
-    if len(m.stages) > 1:
-        if len(m.stages) > 1:
-            ##FIXME Rewrite as logic
-            @m.Constraint(m.stages, m.thermalGenerators)
-            def gen_retirement(m, stage, gen):
-                return sum(
-                    m.investmentStage[t_2]
-                    .genOperational[gen]
-                    .indicator_var.get_associated_binary()
-                    + m.investmentStage[t_2]
-                    .genInstalled[gen]
-                    .indicator_var.get_associated_binary()
-                    for t_2 in m.stages
-                    if t_2 <= stage - pyo.value(m.lifetimes[gen])
-                ) <= sum(
-                    m.investmentStage[t_1]
-                    .genRetired[gen]
-                    .indicator_var.get_associated_binary()
-                    + m.investmentStage[t_1]
-                    .genExtended[gen]
-                    .indicator_var.get_associated_binary()
-                    for t_1 in m.stages
-                    if t_1 <= stage
-                )
-
-        # Renewable generation (in MW) retirement relationships
-        # if len(m.stages) > 1:
-
-        #     @m.Constraint(m.stages, m.renewableGenerators)
-        #     def renewable_retirement(m, stage, gen):
-        #         return sum(
-        #             m.investmentStage[t_2].renewableInstalled[gen]
-        #             for t_2 in m.stages
-        #             if t_2 <= stage - m.lifetimes[gen]
-        #         ) <= sum(
-        #             m.investmentStage[t_1].renewableRetired[gen]
-        #             + m.investmentStage[t_1].renewableExtended[gen]
-        #             for t_1 in m.stages
-        #             if t_1 <= stage
-        #         )
-
-        # Total renewable generation (in MW) operational at a given stage
-        # is equal to what was operational and/or installed in the previous stage
-        # less what was retired in the previous stage
-        @m.Constraint(m.stages, m.renewableGenerators)
-        def renewable_stats_link(m, stage, gen):
-            return (
-                m.investmentStage[stage].renewableOperational[gen]
-                == m.investmentStage[stage - 1].renewableOperational[gen]
-                + m.investmentStage[stage - 1].renewableInstalled[gen]
-                - m.investmentStage[stage - 1].renewableExtended[gen]
-                - m.investmentStage[stage - 1].renewableRetired[gen]
-                if stage != 1
-                else pyo.Constraint.Skip
-            )
+    # Total renewable generation (in MW) operational at a given stage
+    # is equal to what was operational and/or installed in the previous stage
+    # less what was retired in the previous stage
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_stats_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableOperational[gen]
+            == m.investmentStage[stage - 1].renewableOperational[gen]
+            + m.investmentStage[stage - 1].renewableInstalled[gen]
+            - m.investmentStage[stage - 1].renewableExtended[gen]
+            - m.investmentStage[stage - 1].renewableRetired[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
 
     @m.Constraint(m.stages, m.renewableGenerators)
     def renewable_retirement_link(m, stage, gen):
