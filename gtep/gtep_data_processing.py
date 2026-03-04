@@ -185,14 +185,16 @@ class DataProcessing:
         """
         df.loc[len(df)] = row_dict
 
-    def get_capex_df(
+    def get_gen_cost_data(
             self,
-            gen_cost_df: pd.DataFrame,
+            cost_df: pd.DataFrame,
             gen_bus_df: pd.DataFrame,
             gen: str) -> pd.DataFrame:
         """
-        :param gen_cost_df:     Dataframe with cost data.
-        :type gen_cost_df:      pandas.DataFrame
+        Extracts the cost data from gen_cost_df for a given generator type.
+
+        :param cost_df:         Dataframe with cost data.
+        :type cost_df:          pandas.DataFrame
         :param gen_bus_df:      Dataframe with bus data.
         :type gen_bus_df:       pandas.DataFrame
         :param gen:             Type of generator.
@@ -201,17 +203,18 @@ class DataProcessing:
                                     ("Key1", "Bus Name"), where "Key1" is the
                                     costs variable.
         """
-        bus_capex_df = gen_cost_df[
-            gen_cost_df["Key3"] == self.subvar_of_interest
+        gen_cost_df = cost_df[
+            cost_df["Key3"] == self.subvar_of_interest
         ]
-        bus_capex_df = pd.merge(
+        # link bus name to specific generation class
+        gen_cost_df = pd.merge(
             gen_bus_df[["Bus Name", gen]],
-            bus_capex_df,
+            gen_cost_df,
             left_on=gen,
             right_on="Key2",
         )
-        bus_capex_df = bus_capex_df.set_index(["Key1", "Bus Name"])
-        return bus_capex_df
+        gen_cost_df = gen_cost_df.set_index(["Key1", "Bus Name"])
+        return gen_cost_df
 
     def load_gen_data(
         self,
@@ -241,8 +244,8 @@ class DataProcessing:
         self.gen_data_target = pd.DataFrame(columns=self.target_columns + cost_col_names)
 
         # add to the dataframe, row by row
-        for gen, gen_cost_df in cost_dict.items():
-            bus_capex_df = self.get_capex_df(gen_cost_df, gen_bus_df, gen)
+        for gen, cost_df in cost_dict.items():
+            gen_cost_df = self.get_gen_cost_data(cost_df, gen_bus_df, gen)
 
             for bus_name, bus in buses_by_gen[gen].items():
                 bus_row = {
@@ -257,25 +260,19 @@ class DataProcessing:
                 }
 
                 for year in self.years_list:
-                    # add capex data
-                    bus_row[f"capex_{year}"] = float(
-                        bus_capex_df.loc[("CAPEX ($/kW)", bus_name), year]
-                    )
-                    # add heat rate data
+                    # maps variable in cost dataset to what our output cols are
+                    col_mapper = {
+                        "CAPEX ($/kW)": f"capex_{year}",
+                        "Fixed Operation and Maintenance Expenses ($/kW-yr)": f"fixed_ops_{year}",
+                        "Variable Operation and Maintenance Expenses ($/MWh)": f"var_ops_{year}",
+                    }
+                    for var, col in col_mapper.items():
+                        bus_row[col] = float(gen_cost_df.loc[(var, bus_name), year])
+                    # add heat rate data as well
                     if gen == "Natural Gas_FE":
                         bus_row[f"fuel_costs_{year}"] = self.hh_ng_costs[year] * self.heat_rate
                     else:
                         bus_row[f"fuel_costs_{year}"] = 0
-                    # add fixed O&M expenses
-                    var = "Fixed Operation and Maintenance Expenses ($/kW-yr)"
-                    bus_row[f"fixed_ops_{year}"] = float(
-                        bus_capex_df.loc[(var, bus_name), year]
-                    )
-                    # add variable O&M expenses
-                    var = "Variable Operation and Maintenance Expenses ($/MWh)"
-                    bus_row[f"var_ops_{year}"] = float(
-                            bus_capex_df.loc[(var, bus_name), year]
-                    )
 
                 self.append_row_to_dataframe(self.gen_data_target, bus_row)
 
