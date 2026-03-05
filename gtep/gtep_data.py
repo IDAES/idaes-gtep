@@ -20,7 +20,6 @@
 from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
-import datetime
 import pandas as pd
 import os
 
