@@ -22,6 +22,7 @@ from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 import datetime
 import pandas as pd
+import os
 
 
 class ExpansionPlanningData:
@@ -48,13 +49,16 @@ class ExpansionPlanningData:
         self,
         data_path,
         representative_dates,
-        representative_weights=None,
+        representative_weights={},
         options_dict=None,
     ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
+        :param representative_dates: List of time points to include Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
+
         """
         self.data_type = "prescient"
 
@@ -68,6 +72,7 @@ class ExpansionPlanningData:
                 "num_days": 365,
                 "ruc_horizon": 36,
             }
+
         else:
             # ensure data path is included in options dictionary
             options_dict["data_path"] = data_path
@@ -78,18 +83,32 @@ class ExpansionPlanningData:
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
-        x = datetime.datetime(2020, 1, 1)
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
+
+        # grab details from simulation objects file (data provider above throws error if no simulation_objects.csv exists)
+        metadata_path = os.path.join(data_path, "simulation_objects.csv")
+        metadata_df = pd.read_csv(metadata_path, index_col=0)
+
+        # save to variable for easy calling
+        sced_freq_min = prescient_options.sced_frequency_minutes
+
+        # TODO double check that this is the value to check with total steps (the old hard code was 24*365 for num_time_steps)
+        period_per_step = int(metadata_df.loc["Periods_per_Step"]["REAL_TIME"])
+        total_num_steps = prescient_options.num_days * period_per_step
+
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
-            options=prescient_options, num_time_steps=24 * 365, minutes_per_timestep=60
+            options=prescient_options,
+            num_time_steps=total_num_steps,
+            minutes_per_timestep=sced_freq_min,
         )
+
         # fill in renewable actuals and maybe demand idk
         data_provider.populate_with_actuals(
             options=prescient_options,
-            num_time_periods=24 * 365,
-            time_period_length_minutes=60,
-            start_time=x,
+            num_time_periods=total_num_steps,
+            time_period_length_minutes=sced_freq_min,
+            start_time=data_provider._start_time,
             model=self.md,
         )
 
@@ -115,40 +134,43 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
+        self.representative_dates = representative_dates
 
-        ## RMA:
-        ## Change the last date for whatever extreme day is needed based on the given run(s)
+        if not representative_weights:
+            # set the weight for each day to the total weight divided by number of days
+            total_weight = prescient_options.num_days * self.stages
+            weight_per_date = int(total_weight / (len(representative_dates)))
+            self.representative_weights = {
+                key: weight_per_date
+                for date, key in enumerate(self.representative_dates)
+            }
 
         time_keys = self.md.data["system"]["time_keys"]
-        self.representative_dates = [
-            "2020-01-28 00:00",
-            "2020-04-23 00:00",
-            "2020-07-05 00:00",
-            "2020-10-14 00:00",
-        ]
 
-        ## FIXME:
-        ## RESIL WEEK ONLY
-        ## but we'll want something similar just less insane in the future
-        if len(self.representative_dates) == 5:
-            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91, 5: 1}
-        else:
-            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91}
-        # self.representative_weights = {1:1}
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
-            time_key_set = time_keys[key_idx : key_idx + 24]
+            time_key_set = time_keys[key_idx : key_idx + period_per_step]
             data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
 
-    def import_load_scaling(self, load_file_name):
+    def import_load_scaling(self, load_file_name, forecast_years=[2025, 2030, 2035]):
         adjusted_forecast = pd.read_excel(load_file_name)
+
+        # check years are valid
+        if len(forecast_years) < self.stages:
+            raise ValueError(
+                "Not enough forecast years for the number of stages of investment"
+            )
+        elif any(year < 2020 or year > 2050 for year in forecast_years):
+            raise ValueError(
+                "The list of years includes a year before 2020 or after 2050."
+            )
+
         adjusted_forecast_by_period = adjusted_forecast[
-            (adjusted_forecast["year"] == 2025)
-            | (adjusted_forecast["year"] == 2030)
-            | (adjusted_forecast["year"] == 2035)
+            adjusted_forecast["year"].isin(forecast_years)
         ]
+
         base_zones = [
             "base_economic_coast",
             "base_economic_east",
@@ -283,6 +305,9 @@ class ExpansionPlanningData:
             self.md.data["elements"]["storage"] = {}
 
     def texas_case_study_updates(self, data_path):
+        if "Texas" or "Coal" not in data_path:
+            raise ValueError("The data path provided is not a Texas case study")
+
         generator_update_path = data_path + "/gen.csv"
         generator_df = pd.read_csv(generator_update_path)
         bonus_feature_list = [
