@@ -14,6 +14,25 @@ import pytest
 import pyomo.common.unittest as unittest
 import gtep_data
 
-# Instances to check
-# - user input options dict
-# -
+
+class TestExpansionPlanningData(unittest.TestCase):
+    def test_load_prescient():
+        # test that representative data can be loaded from prescient with all default loading
+        pass
+
+    def test_load_prescient_with_options_input():
+        # test that an options dictionary input gets used in the data loader
+        pass
+
+    def test_load_prescient_generator_in_service_false():
+        pass
+
+    def test_load_prescient_branch_in_service_false():
+        pass
+
+    def test_load_prescient_storage_in_service_false():
+        pass
+
+    def test_load_prescient_4_dates():
+        # test that 4 representative dates results in the correct weights
+        pass
