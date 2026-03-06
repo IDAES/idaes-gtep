@@ -72,4 +72,9 @@ Source          = "https://github.com/IDAES/idaes-gtep"
     "*.xlsb",
     "*.xlsx",
 ]
-"data" = ["**/*"]
+"data/123_Bus_Coal" = ["*"]
+"data/123_Bus_Resil_Week" = ["*"]
+"data/5bus" = ["*"]
+"data/5bus_jsc" = ["*"]
+"data/5bus_out" = ["*"]
+"data/9_bus_GTEP_dir" = ["*"]
