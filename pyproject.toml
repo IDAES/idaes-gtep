@@ -61,20 +61,4 @@ Documentation   = "https://idaes-gtep.readthedocs.io/en/latest/"
 Source          = "https://github.com/IDAES/idaes-gtep"
 
 [tool.setuptools.package-data]
-"*" = [
-    "*.csv",
-    "*.ipynb",
-    "*.m",
-    "*.md",
-    "*.png",
-    "*.rst",
-    "*.txt",
-    "*.xlsb",
-    "*.xlsx",
-]
-"data/123_Bus_Coal" = ["*"]
-"data/123_Bus_Resil_Week" = ["*"]
-"data/5bus" = ["*"]
-"data/5bus_jsc" = ["*"]
-"data/5bus_out" = ["*"]
-"data/9_bus_GTEP_dir" = ["*"]
+"" = ["**"]
