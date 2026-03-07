@@ -2028,7 +2028,7 @@ def commitment_period_rule(b, commitment_period):
 
     # Demand at each bus
     if m.config["scale_loads"]:
-        temp_scale = 2
+        temp_scale = 0.2
         #temp_scale = 10
 
         for load_n in m.load_buses:

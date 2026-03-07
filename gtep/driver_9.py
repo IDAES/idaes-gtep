@@ -33,9 +33,9 @@ import pyomo.core.base.expression as expr
 
 import gtep.gtep_model
 print(f"PRINTING THE PATH HERE!!!!!!!!!!!!!!!!!!!!!!!!!!: {gtep.gtep_model.__file__}")
-
+ 
 # Add data
-data_path = "./data/5bus"
+data_path = "./data/9_bus_GTEP_dir"
 data_object = ExpansionPlanningData()
 data_object.load_prescient(data_path)
 
@@ -56,7 +56,7 @@ candidate_gens = [
     "Land-Based Wind",
 ]
 
-start_date = "12-31"
+start_date = "01-01"
 
 data_processing_object = DataProcessing()
 data_processing_object.load_gen_data(
@@ -72,8 +72,8 @@ mod_object = ExpansionPlanningModel(
     data=data_object,
     cost_data=data_processing_object,
     num_reps=1,
-    len_reps=24,#168,
-    num_commit=24,#168,
+    len_reps=168,
+    num_commit=168,
     num_dispatch=1,
 )
 
@@ -173,10 +173,10 @@ import os
 ## RMA:
 ## You can change where results are saved down here
 
-folder_name = "congestion_5"
+folder_name = "9bus_congestion"
 renewable_investment_name = folder_name + "/renewable_investments.json"
 dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
-load_shed_name = f"5_results/load_shed/load_shed_{start_date}.json" #folder_name + 
+load_shed_name = f"9_results/load_shed/load_shed_{start_date}.json" #folder_name + 
 costs_name = folder_name + "/costs.json"
 
 if not os.path.exists(folder_name):
@@ -186,18 +186,17 @@ with open(renewable_investment_name, "w") as fil:
     json.dump(renewable_investments, fil)
 with open(dispatchable_investment_name, "w") as fil:
     json.dump(dispatchable_investments, fil)
-with open(costs_name, "w") as fil:
-    json.dump(costs, fil)
-
 with open(load_shed_name, "w") as fil:
     json.dump(load_shed, fil)
+with open(costs_name, "w") as fil:
+    json.dump(costs, fil)
 
 flows = {}
 for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Flow" in var.name:
             flows[var.name + "." + str(index)] = pyo.value(var[index])
-with open(f"5_results/power_flows/power_flows_{start_date}.json", "w") as fil:
+with open(f"9_results/power_flows/power_flows_{start_date}.json", "w") as fil:
     json.dump(flows, fil)
 
 max_flows = {}
@@ -205,7 +204,7 @@ for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Flow" in var.name:
             max_flows[var.name + "." + str(index)] = pyo.value(var[index].ub)
-with open(f"5_results/max_flows/max_flows_{start_date}.json", "w") as fil:
+with open(f"9_results/max_flows/max_flows_{start_date}.json", "w") as fil:
     json.dump(max_flows, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
