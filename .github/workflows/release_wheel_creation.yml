@@ -2,8 +2,8 @@ name: GTEP Release Distribution Creation
 
 on:
   push:
-    branches:
-      - release-infrastructure
+    tags:
+      - '*'
   schedule:
     - cron: '0 0 3 * *'
   workflow_dispatch:
