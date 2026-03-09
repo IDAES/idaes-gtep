@@ -21,7 +21,6 @@ from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.common.tempfiles import TempfileManager
 import pandas as pd
-from numbers import Number
 
 from gtep.validation import (
     extract_primals_last_investment_stage,
@@ -88,9 +87,7 @@ class TestValidation(unittest.TestCase):
             self.assertIsInstance(key, str)
             self.assertIn("gen", key)
             self.assertRegex(key, r"Extended|Operational|Installed")
-            self.assertIsInstance(
-                val, Number  # Number accounts for int, float, bool, etc.
-            )
+            self.assertIsInstance(val, float)
 
     def test_sum_variable_values_by_index(self):
         # test expected case of floats
