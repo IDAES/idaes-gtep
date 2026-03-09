@@ -91,8 +91,9 @@ class ExpansionPlanningData:
         # save to variable for easy calling
         sced_freq_min = prescient_options.sced_frequency_minutes
 
-        # TODO double check that this is the value to check with total steps (the old hard code was 24*365 for num_time_steps)
-        period_per_step = int(metadata_df.loc["Periods_per_Step"]["REAL_TIME"])
+        # This step is grabbing DAY_AHEAD information for now
+        # (in the future we may want to update to grab the "REAL_TIME" data if the data has reliable data since the actuals model is looking for real time data info)
+        period_per_step = int(metadata_df.loc["Periods_per_Step"]["DAY_AHEAD"])
         total_num_steps = prescient_options.num_days * period_per_step
 
         # populate an egret model data with the basic stuff
@@ -252,7 +253,7 @@ class ExpansionPlanningData:
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
-        ## TODO: too many of these are hard coded; everything should check if it exists too.
+        ## TODO: everything should check if it exists too.
         """Fills in necessary but unspecified data information."""
         for gen in self.md.data["elements"]["generator"]:
             if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
