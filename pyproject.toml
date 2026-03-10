@@ -64,5 +64,5 @@ Source          = "https://github.com/IDAES/idaes-gtep"
 gtep = [
     "data/5bus/**",
     "data/costs/**",
-    "**/*.ipynb"
+    "*.ipynb"
     ]
