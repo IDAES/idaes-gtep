@@ -61,4 +61,8 @@ Documentation   = "https://idaes-gtep.readthedocs.io/en/latest/"
 Source          = "https://github.com/IDAES/idaes-gtep"
 
 [tool.setuptools.package-data]
-gtep = ["data/5bus/**"]
+gtep = [
+    "data/5bus/**",
+    "data/costs/**",
+    "**/*.ipynb"
+    ]
