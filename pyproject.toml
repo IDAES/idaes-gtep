@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gtep"
-version = "1.0"
+version = "1.1.dev0"
 description = "The IDAES Generation and Transmission Expansion Planning Framework"
 readme = "README.md"
 requires-python = ">=3.10"
