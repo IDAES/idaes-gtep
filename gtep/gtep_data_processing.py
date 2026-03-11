@@ -346,8 +346,8 @@ class DataProcessing:
         for bus_gen, cost_gen in candidate_gens_dict.items():
             # NOTE: the current implementation in main has a possible bug: Natural Gas CT are not included in the output csv!
             # the following two lines recreate the bug to allow comparison of remaining outputs
-            # if bus_gen != cost_gen:
-            #     continue
+            if bus_gen != cost_gen:
+                continue
             gen_cost_df = self.get_gen_cost_data(
                 cost_dict[cost_gen], gen_bus_df, bus_gen
             )
