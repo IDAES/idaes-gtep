@@ -45,7 +45,6 @@ class TestGTEPDataProcessing(unittest.TestCase):
         # have to do this for now bc self.assertHasAttr only available in python>=3.14
         self.assertTrue(hasattr(self.data_processing, "config"))
 
-
     def _helper_verify_gen_dict(self, test_dict):
         """
         Verifies that an input, which we expect to be a dict
@@ -85,5 +84,9 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
     def test_load_gen_data(self):
         self.data_processing.load_gen_data(
-            bus_data_path, cost_data_path, candidate_gens, save_csv=True, out_path=out_path
+            bus_data_path,
+            cost_data_path,
+            candidate_gens,
+            save_csv=True,
+            out_path=out_path,
         )

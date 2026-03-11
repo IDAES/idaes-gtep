@@ -32,8 +32,8 @@ References
 class DataProcessing:
     """Data processing class for the IDAES GTEP model to read and save
     cost data. Original data from ref[1].
-
     """
+
     # Henry Hub forecast prices for natural
     # gas. [ESR WIP: Units for this metric are
     # in USD/MMBtu. To convert it to $/MWh,
@@ -47,7 +47,7 @@ class DataProcessing:
         2025: 3.49,
         2030: 2.91,
         2035: 3.68,
-    } # used for natural gas fuel costs
+    }  # used for natural gas fuel costs
 
     # TODO: A bunch of these columns are never set... commented those out for now
     target_columns = [
@@ -103,7 +103,8 @@ class DataProcessing:
         bus_data = bus_data[bus_data["Gen bus/ Non-gen bus"] == 1]
         return bus_data
 
-    def get_buses_by_gen(self,
+    def get_buses_by_gen(
+        self,
         gen_bus_df: pd.DataFrame,
         gens: set[str],
     ) -> dict[str, dict]:
@@ -127,7 +128,7 @@ class DataProcessing:
                 zip(candidate_df["Bus Name"], candidate_df["Bus Number"])
             )
         return candidate_gen_by_bus
-    
+
     def get_clean_gens_dict(self, candidate_gens: list[str]) -> dict[str, str]:
         """
         Maps a list of candidate generators to a cleaned set, where
@@ -137,8 +138,11 @@ class DataProcessing:
         :type candidate_gens:       list[str]
         :returns:                   Dict mapping input generator types to those without "Natural Gas_CT".
         """
-        return {gen: gen if "Natural Gas" not in gen else "Natural Gas_FE" for gen in candidate_gens}
-    
+        return {
+            gen: gen if "Natural Gas" not in gen else "Natural Gas_FE"
+            for gen in candidate_gens
+        }
+
     def extract_cost_data(
         self,
         cost_data_path: str,
@@ -254,8 +258,10 @@ class DataProcessing:
                     raise RuntimeError(f"{col} is not a column in gen_data_target.")
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
             # add heat rate data as well
-            row[f"fuel_costs_{year}"] = self.hh_ng_costs[year] * self.heat_rate if "Natural Gas" in gen else 0
-        
+            row[f"fuel_costs_{year}"] = (
+                self.hh_ng_costs[year] * self.heat_rate if "Natural Gas" in gen else 0
+            )
+
         gen_data_target.loc[len(gen_data_target)] = row
 
     def load_gen_data(
@@ -310,26 +316,30 @@ class DataProcessing:
         cost_variable_source_names = {
             "capex": capex_source_name,
             "fixed_ops": fixed_ops_source_name,
-            "var_ops": var_ops_source_name
+            "var_ops": var_ops_source_name,
         }
-        
+
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
 
         # maps set of generator types in gen_bus_df to set of generator types w/ cost data
-        candidate_gens_dict = self.get_clean_gens_dict(candidate_gens) 
+        candidate_gens_dict = self.get_clean_gens_dict(candidate_gens)
 
-        buses_by_gen = self.get_buses_by_gen(gen_bus_df, set(candidate_gens_dict.keys()))
+        buses_by_gen = self.get_buses_by_gen(
+            gen_bus_df, set(candidate_gens_dict.keys())
+        )
         cost_dict = self.extract_cost_data(
-            cost_data_path,
-            set(candidate_gens_dict.values()),
-            years,
-            key_3
+            cost_data_path, set(candidate_gens_dict.values()), years, key_3
         )
 
         # instantiate dataframe that will have all of the output data
         cost_col_names = []
         for year in years:
-            cost_col_names += [f"capex_{year}", f"fuel_costs_{year}", f"fixed_ops_{year}", f"var_ops_{year}"]
+            cost_col_names += [
+                f"capex_{year}",
+                f"fuel_costs_{year}",
+                f"fixed_ops_{year}",
+                f"var_ops_{year}",
+            ]
         gen_data_target = pd.DataFrame(columns=self.target_columns + cost_col_names)
 
         # add to the dataframe, row by row
@@ -338,11 +348,20 @@ class DataProcessing:
             # the following two lines recreate the bug to allow comparison of remaining outputs
             # if bus_gen != cost_gen:
             #     continue
-            gen_cost_df = self.get_gen_cost_data(cost_dict[cost_gen], gen_bus_df, bus_gen)
+            gen_cost_df = self.get_gen_cost_data(
+                cost_dict[cost_gen], gen_bus_df, bus_gen
+            )
 
             for bus_name, bus in buses_by_gen[bus_gen].items():
-                self.build_cost_data_row(gen_data_target, gen_cost_df, years, cost_variable_source_names, bus, bus_name, bus_gen)
-                
+                self.build_cost_data_row(
+                    gen_data_target,
+                    gen_cost_df,
+                    years,
+                    cost_variable_source_names,
+                    bus,
+                    bus_name,
+                    bus_gen,
+                )
 
         # commenting the rest of this out for now bc we never set any of these other variables...
 
