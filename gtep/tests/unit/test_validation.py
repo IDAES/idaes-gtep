@@ -12,15 +12,24 @@
 #################################################################################
 
 from os.path import abspath, join, dirname
+from os import listdir
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
+from pyomo.common.tempfiles import TempfileManager
+import pandas as pd
 
 from gtep.validation import (
-    clone_timeseries,
+    extract_primals_last_investment_stage,
+    extract_variable_values,
+    sum_variable_values_by_index,
+    safe_extract_variable_index,
+    safe_write_dataframe_to_csv,
+    safe_mkdir,
+    copy_prescient_inputs,
     filter_pointers,
     populate_generators,
     populate_transmission,
@@ -28,7 +37,6 @@ from gtep.validation import (
 
 curr_dir = dirname(abspath(__file__))
 input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-output_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus_out"))
 
 
 def get_solution_object():
@@ -60,14 +68,94 @@ class TestValidation(unittest.TestCase):
     def setUpClass(cls):
         cls.solution = get_solution_object()
 
+    def test_safe_extract_variable_index(self):
+        input_output_pairs = [("var[i]", "i"), ("var", "var"), ("var]", "var]")]
+        for input, output in input_output_pairs:
+            self.assertEqual(safe_extract_variable_index(input), output)
+
+    def test_extract_primals_last_investment_stage_and_variable_values(self):
+        primals = extract_primals_last_investment_stage(self.solution)
+        self.assertIsInstance(primals, dict)
+        for key, val in primals.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(val, dict)
+
+        var_vals = extract_variable_values(primals, "gen")
+        self.assertIsInstance(var_vals, dict)
+        for key, val in var_vals.items():
+            # TODO: change these tests once solution object has sets
+            self.assertIsInstance(key, str)
+            self.assertIn("gen", key)
+            self.assertRegex(key, r"Extended|Operational|Installed")
+            self.assertIsInstance(val, float)
+
+    def test_sum_variable_values_by_index(self):
+        # test expected case of floats
+        input = {"var1[i]": 0.1, "var2[i]": 0.2, "var1[j]": 0.6}
+        expected = {"i": 0.3, "j": 0.6}
+        output = sum_variable_values_by_index(input)
+        self.assertEqual(output.keys(), expected.keys())
+        for idx in output:
+            self.assertAlmostEqual(output[idx], expected[idx])
+
+        # test unexpected case of bools; commented out for now bc assertWarns throws error
+        # with self.assertWarns(UserWarning):
+        #     sum_variable_values_by_index({"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3})
+
+    def test_safe_write_dataframe_to_csv(self):
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            fname = "test.csv"
+            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), temp_dir, fname)
+
+            self.assertIn(fname, listdir(temp_dir))
+            test_csv = pd.read_csv(join(temp_dir, fname))
+            self.assertTupleEqual(test_csv.shape, (2, 2))
+            for item in test_csv.to_numpy().flatten():
+                self.assertAlmostEqual(item, 0)
+
+    def test_safe_mkdir(self):
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            test_subdir = join(temp_dir, "test_dir")
+
+            # create new directory
+            safe_mkdir(test_subdir)
+            self.assertIn("test_dir", listdir(temp_dir))
+
+            # put file in directory and make sure we don't overwrite
+            with open(join(test_subdir, "test_file"), "w") as f:
+                f.write("this is a test")
+            safe_mkdir(test_subdir)
+            self.assertIn("test_dir", listdir(temp_dir))  # make sure dir still exists
+            self.assertIn(
+                "test_file", listdir(test_subdir)
+            )  # make sure we didn't overwrite
+
+            # make sure we raise the expected FileExistsError
+            with self.assertRaises(FileExistsError):
+                safe_mkdir(join(test_subdir, "test_file"))
+
     def test_populate_generators_filter_pointers(self):
-        populate_generators(input_data_source, self.solution, output_data_source)
         # filter_pointers needs to access the gen.csv file created in populate_generators
         # so these functions need to be tested together
-        filter_pointers(input_data_source, output_data_source)
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            populate_generators(input_data_source, self.solution, temp_dir)
+            self.assertIn("gen.csv", listdir(temp_dir))
+            filter_pointers(input_data_source, temp_dir)
+            self.assertIn("timeseries_pointers.csv", listdir(temp_dir))
 
     def test_populate_transmission(self):
-        populate_transmission(input_data_source, self.solution, output_data_source)
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            populate_transmission(input_data_source, self.solution, temp_dir)
+            self.assertIn("branch.csv", listdir(temp_dir))
 
-    def test_clone_timeseries(self):
-        clone_timeseries(input_data_source, output_data_source)
+    def test_copy_prescient_inputs(self):
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = tempfile.mkdtemp()
+            copy_prescient_inputs(input_data_source, temp_dir)
+            for f in listdir(input_data_source):
+                if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
+                    self.assertIn(f, listdir(temp_dir))

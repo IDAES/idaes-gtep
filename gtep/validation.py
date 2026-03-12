@@ -11,118 +11,232 @@
 # for full copyright and license information.
 #################################################################################
 
-from pyomo.environ import *
-from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_solution import ExpansionPlanningSolution
 import re
 import os
 import shutil
 import logging
-
+from collections import defaultdict
 import pandas as pd
+from numbers import Number
+from warnings import warn
 
 logger = logging.getLogger(__name__)
+
+
+def safe_extract_variable_index(variable_name: str) -> str:
+    """
+    Takes a variable name and extracts the index (enclosed in square brackets).
+    If no matches are found, returns the whole variable name.
+
+    :param variable_name:   Variable name.
+    :type variable_name:    str
+    :returns:               Index, not including the square brackets.
+    """
+    # TODO: possibly modify once solution object has sets
+    search_result = re.search(r"\[.*\]", variable_name)
+    return search_result.group(0)[1:-1] if search_result else variable_name
+
+
+def extract_primals_last_investment_stage(
+    sol_object: ExpansionPlanningSolution,
+) -> dict:
+    """
+    Accesses the primal variables for the last investment stage in `sol_object`.
+
+    :param sol_object:  Solution object.
+    :type sol_object:   gtep.gtep_solution.ExpansionPlanningSolution
+    :returns:           Dictionary of the form {var_name: var_data}, where var_data is a dict
+    """
+    # TODO: modify once solution object has sets
+    sol_dict = sol_object._to_dict()["results"]["primals_tree"]
+    end_investment_stage = list(sol_dict.keys())[0]  # more robust way to do this?
+    return sol_dict[end_investment_stage]
+
+
+def extract_variable_values(
+    primals_dict: dict,
+    variable_type: str,
+    element_statuses: list[str] = ["Extended", "Operational", "Installed"],
+) -> dict:
+    """
+    Collects the name and value for all variables of the given `variable_type`
+    which describe statuses in `element_statuses`.
+
+    :param primals_dict:        Primal variables, in the form {var_name: var_value}.
+    :type primals_dict:         dict
+    :param variable_type:       Type of variable to extract (e.g., `"gen"`).
+    :type variable_type:        str
+    :param element_statuses:    Variable statuses to check for; should be substrings of
+                                    variable names. Defaults to
+                                    `["Extended", "Operational", "Installed"]`
+    :type element_statuses:     list[str], optional
+    :returns:                   Dictionary of the form {var_name: var_value}
+    """
+    # TODO: modify once solution object has sets
+    end_investment_values_dict = {
+        name: var["value"]
+        for name, var in primals_dict.items()
+        if variable_type in name
+        and any([status in name for status in element_statuses])
+    }
+
+    return end_investment_values_dict
+
+
+def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Number]:
+    """
+    Takes an input dict of variables and values, groups by index, and computes the sum of values.
+    This function expects the variable values to be non-bool Numbers (e.g., int, float) and
+    warns if a different type is passed in via `value_dict`.
+
+    :param value_dict:  Dictionary of the form {var[idx]: value}.
+    :type value_dict:   dict[str, Number]
+    :returns:           Dictionary of the form {idx: summed_value}.
+    """
+    # throw warning if we're trying to sum something that isn't a number (incl. bool)
+    value_types = [type(value) for value in value_dict.values()]
+    if any([t == bool or not issubclass(t, Number) for t in value_types]):
+        warn(
+            f"Expected variable values to be numeric, but got the following types: {set(value_types)}",
+            UserWarning,
+        )
+
+    result = defaultdict(float)
+    for name, value in value_dict.items():
+        index = safe_extract_variable_index(name)
+        result[index] += value
+
+    return dict(result)
+
+
+def safe_mkdir(path: str):
+    """
+    Creates a directory if it doesn't already exist. If the path exists but isn't a directory,
+    raises a `FileExistsError`.
+
+    :param path:    Path to new directory
+    :type path:     str
+    """
+    if os.path.exists(path):
+        if not os.path.isdir(path):
+            raise FileExistsError(f"{path} exists and is not a directory")
+        return
+    os.makedirs(path)
+
+
+def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filename: str):
+    """
+    Writes a DataFrame to CSV, creating the directory if necessary.
+
+    :param dataframe:   DataFrame to write.
+    :type dataframe:    pandas.DataFrame
+    :param directory:   Directory to write in.
+    :type directory:    str
+    :param filename:    Name of file to write to.
+    :type filename:     str
+    """
+    safe_mkdir(directory)
+    dataframe.to_csv(os.path.join(directory, filename), index=False)
 
 
 def populate_generators(
     data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
 ):
+    """
+    Takes a set of input generator data and updates it to reflect the solution object.
+
+    :param data_input_path:     Path to folder with prescient generator data. Must contain a file named `"gen.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the generator data to
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
 
-    # pull final stage solution variables for thermal and renewable investments
-    # for thermal:
-    # generator should exist in future grid if the status in the final stage
-    # is installed, operational, or extended
+    # get the sum by index of extended, operational, and installed variables for thermal gens during last investment period
+    primals = extract_primals_last_investment_stage(sol_object)
+    end_gen_idxs = sum_variable_values_by_index(extract_variable_values(primals, "gen"))
+    end_gen_idx_list = [
+        idx for idx, val in end_gen_idxs.items() if val > 0.5
+    ]  # keep only gens which are "active"
 
-    def gen_name_filter(gen_name):
-        return "gen" in gen_name and (
-            "Ext" in gen_name or "Ope" in gen_name or "Ins" in gen_name
-        )
+    # get the sum by index of extended, operational, and installed variables for renewables during last investment period
+    end_renew_idxs = sum_variable_values_by_index(
+        extract_variable_values(primals, "renewable")
+    )
+    end_renew_idx_list = list(end_renew_idxs.keys())
 
-    solution_dict = sol_object._to_dict()["results"]["primals_tree"]
-    end_investment_stage = list(solution_dict.keys())[0]
-    end_investment_solution_dict = {
-        k: v["value"]
-        for k, v in solution_dict[end_investment_stage].items()
-        if gen_name_filter(k) and v["value"] > 0.5
-    }
-    end_investment_gens = [
-        re.search(r"\[.*\]", k).group(0)[1:-1]
-        for k in end_investment_solution_dict.keys()
+    # update renewables with values from last investment period
+    input_df["PMax MW"] = (
+        input_df["GEN UID"].map(end_renew_idxs).fillna(input_df["PMax MW"])
+    )
+
+    # define output dataframe
+    output_df = input_df[
+        input_df["GEN UID"].isin(end_gen_idx_list + end_renew_idx_list)
     ]
 
-    # for renewable:
-    # total capacity should be installed + operational + extended values
-    def renewable_name_filter(gen_name):
-        return "renew" in gen_name and (
-            "Ext" in gen_name or "Ope" in gen_name or "Ins" in gen_name
-        )
-
-    end_investment_renewable_dict = {
-        k: v["value"]
-        for k, v in solution_dict[end_investment_stage].items()
-        if renewable_name_filter(k)
-    }
-    end_investment_renewable_gens = {
-        re.search(r"\[.*\]", k).group(0)[1:-1]: 0
-        for k in end_investment_renewable_dict.keys()
-    }
-    for k, v in end_investment_renewable_dict.items():
-        end_investment_renewable_gens[re.search(r"\[.*\]", k).group(0)[1:-1]] += v
-    for k, v in end_investment_renewable_gens.items():
-        ## NOTE: (@jkskolf) this will break in pandas 3.0
-        input_df["PMax MW"].mask(input_df["GEN UID"] == k, v, inplace=True)
-
-    end_investment_gens += [k for k in end_investment_renewable_gens.keys()]
-    # populate output dataframe
-    output_df = input_df[input_df["GEN UID"].isin(end_investment_gens)]
-
     # TODO: (@jkskolf) should we update prices here? I think no, but ...
-    if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path)
-    output_df.to_csv(os.path.join(data_output_path, "gen.csv"), index=False)
+    safe_write_dataframe_to_csv(output_df, data_output_path, "gen.csv")
 
 
-def populate_transmission(data_input_path, sol_object, data_output_path):
+def populate_transmission(
+    data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
+):
+    """
+    Takes a set of input transmission data and updates it to reflect the solution object.
+
+    :param data_input_path:     Path to folder with prescient transmission data. Must contain a file named `"branch.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the transmission data to
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
     input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
 
-    # pull final stage solution variables for transmission
-    def branch_name_filter(gen_name):
-        return "bran" in gen_name and (
-            "Ext" in gen_name or "Ope" in gen_name or "Ins" in gen_name
-        )
+    # get the sum by index of extended, operational, and installed variables for branches during last investment period
+    primals = extract_primals_last_investment_stage(sol_object)
+    end_branch_idxs = sum_variable_values_by_index(
+        extract_variable_values(primals, "branch")
+    )
+    end_branch_idx_list = [
+        idx for idx, val in end_branch_idxs.items() if val > 0.5
+    ]  # keep only branches which are active
 
-    solution_dict = sol_object._to_dict()["results"]["primals_tree"]
-    end_investment_stage = list(solution_dict.keys())[0]
-    end_investment_solution_dict = {
-        k: v["value"]
-        for k, v in solution_dict[end_investment_stage].items()
-        if branch_name_filter(k) and v["value"] > 0.5
-    }
-    end_investment_branches = [
-        re.search(r"\[.*\]", k).group(0)[1:-1]
-        for k in end_investment_solution_dict.keys()
-    ]
-    output_df = input_df[input_df["UID"].isin(end_investment_branches)]
+    # define output dataframe
+    output_df = input_df[input_df["UID"].isin(end_branch_idx_list)]
 
-    if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path)
-    output_df.to_csv(os.path.join(data_output_path, "branch.csv"), index=False)
+    safe_write_dataframe_to_csv(output_df, data_output_path, "branch.csv")
 
 
-def filter_pointers(data_input_path, data_output_path):
+def filter_pointers(data_input_path: str, data_output_path: str):
+    """
+    Takes a set of input timeseries pointers and updates it to reflect the solution object.
+    Must be run _after_ `populate_generators` and with the same `data_output_path`.
+
+    :param data_input_path:     Path to folder with prescient timeseries pointers. Must contain a file named `"timeseries_pointers.csv"`.
+    :param sol_object:          Solution object run with the prescient data at `data_input_path`
+    :param data_output_path:    Path to write the timeseries pointers to. Must contain a file named `"gen.csv"`.
+    :type data_input_path:      str
+    :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
+    :type data_output_path:     str
+    """
+
     # load initial timeseries pointers
     input_pointers_df = pd.read_csv(
         os.path.join(data_input_path, "timeseries_pointers.csv")
     )
 
     # load final generators
-    # NOTE: must be run _after_ populate_generators and with the same data_output_path
-    # to pull resulting generator objects
     output_generators_df = pd.read_csv(os.path.join(data_output_path, "gen.csv"))
 
     # keep generators that exist at the final investment stage and remove the rest
@@ -134,15 +248,26 @@ def filter_pointers(data_input_path, data_output_path):
         != "Generator"
     ]
 
-    if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path)
-    output_df.to_csv(os.path.join(data_output_path, "timeseries_pointers.csv"))
+    safe_write_dataframe_to_csv(output_df, data_output_path, "timeseries_pointers.csv")
 
 
-def clone_timeseries(data_input_path, data_output_path):
+def copy_prescient_inputs(data_input_path: str, data_output_path: str):
+    """
+    Copies all files at `data_input_path` to `data_output_path`, except for:
+        - timeseries_pointers.csv
+        - gen.csv
+        - branch.csv
 
-    if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path)
+    These files are instead handled by other functions in this module (namely,
+    `filter_pointers`, `populate_generators`, and `populate_transmission`).
+
+    :param data_input_path:     Path to folder with files to copy.
+    :param data_output_path:    Path to write the files to.
+    :type data_input_path:      str
+    :type data_output_path:     str
+    """
+
+    safe_mkdir(data_output_path)
 
     file_list = os.listdir(data_input_path)
     file_list.remove("timeseries_pointers.csv")
