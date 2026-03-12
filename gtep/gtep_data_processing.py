@@ -104,7 +104,7 @@ class DataProcessing:
         cost_data_path: str,
         gens: list[str],
         years: list[int],
-        key_3: str,  # TODO: decide what to call this argument
+        scenario: str,
     ) -> dict[str, pd.DataFrame]:
         """
         :param cost_data_path:      Path to cost data.
@@ -114,8 +114,8 @@ class DataProcessing:
         :type gens:                 list[str]
         :param years:               Years to extract data for.
         :type years:                list[int]
-        :param key_3:               Key 3
-        :type key_3:                str
+        :param scenario:            scenario
+        :type scenario:             str
         :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
                                         is a pandas DataFrame.
         """
@@ -128,7 +128,7 @@ class DataProcessing:
 
         cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
         return {
-            gen: df.loc[df["Key3"] == key_3, ["Key1", "Key2"] + years]
+            gen: df.loc[df["Key3"] == scenario, ["Key1", "Key2"] + years]
             for gen, df in cost_data.items()
         }
 
@@ -285,7 +285,7 @@ class DataProcessing:
         cost_data_path: str,
         candidate_gens: list[str],
         years: list[int] = [2025, 2030, 2035],
-        key_3: str = "Moderate",
+        scenario: str = "Moderate",
         heat_rate: float = 9.717,
         ng_costs: dict[int, float] = {
             2025: 3.49,
@@ -307,8 +307,8 @@ class DataProcessing:
         :type candidate_gens:               list[str]
         :param years:                       Years to extract cost data for.
         :type years:                        list[int]
-        :param key_3:                       Key 3. Defaults to `"Moderate"`.
-        :type key_3:                        str
+        :param scenario:                    Scenario. Defaults to `"Moderate"`.
+        :type scenario:                     str
         :param heat_rate:                   Units of MMBtu/MWh. Defaults to 9.717 (value from [1] assuming a NG
                                                 Combustion Turbine (F-Frame), Moderate, for the Base Year 2022).
         :type heat_rate:                    float
@@ -351,7 +351,7 @@ class DataProcessing:
             gen_bus_df, set(candidate_gens_dict.keys())
         )
         cost_dict = self.extract_cost_data(
-            cost_data_path, set(candidate_gens_dict.values()), years, key_3
+            cost_data_path, set(candidate_gens_dict.values()), years, scenario
         )
 
         df_rows = []
