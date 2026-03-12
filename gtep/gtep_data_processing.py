@@ -19,6 +19,8 @@
 import pandas as pd
 from gtep.config_data import ConfigData
 from os.path import join
+from typing import Any
+from warnings import warn
 
 """
 References
@@ -33,57 +35,6 @@ class DataProcessing:
     """Data processing class for the IDAES GTEP model to read and save
     cost data. Original data from ref[1].
     """
-
-    # Henry Hub forecast prices for natural
-    # gas. [ESR WIP: Units for this metric are
-    # in USD/MMBtu. To convert it to $/MWh,
-    # multiply factor by the heat rate. In
-    # this case, we use a heat rate value from
-    # [1] assuming a NG Combustion Turbine
-    # (F-Frame), Moderate, for the Base Year
-    # 2022. The units are in MMBtu/MWh.]
-    heat_rate = 9.717
-    hh_ng_costs = {
-        2025: 3.49,
-        2030: 2.91,
-        2035: 3.68,
-    }  # used for natural gas fuel costs
-
-    # TODO: A bunch of these columns are never set... commented those out for now
-    target_columns = [
-        "GEN UID",
-        "Bus ID",
-        "Unit Type",
-        "Fuel",
-        # "MW Inj",
-        # "MVAR Inj",
-        # "V Setpoint p.u.",
-        "PMax MW",
-        "PMin MW",
-        # "QMax MVAR",
-        # "QMin MVAR",
-        "Min Down Time Hr",
-        "Min Up Time Hr",
-        # "Ramp Rate MW/Min",
-        # "Start Time Cold Hr",
-        # "Start Time Warm Hr",
-        # "Start Time Hot Hr",
-        # "Start Heat Cold MBTU",
-        # "Start Heat Warm MBTU",
-        # "Start Heat Hot MBTU",
-        # "Non Fuel Start Cost $",
-        # "Fuel Price $/MMBTU",
-        # "Output_pct_0",
-        # "Output_pct_1",
-        # "Output_pct_2",
-        # "Output_pct_3",
-        # "Output_pct_4",
-        # "HR_avg_0",
-        # "HR_incr_1",
-        # "HR_incr_2",
-        # "HR_incr_3",
-        # "HR_incr_4",
-    ]
 
     def __init__(self):
 
@@ -138,10 +89,15 @@ class DataProcessing:
         :type candidate_gens:       list[str]
         :returns:                   Dict mapping input generator types to those without "Natural Gas_CT".
         """
-        return {
+        result = {
             gen: gen if "Natural Gas" not in gen else "Natural Gas_FE"
             for gen in candidate_gens
         }
+        if "Natural Gas_CT" in candidate_gens:
+            warn(
+                "Natural Gas_CT does not have cost data. Substituting Natural Gas_FE cost data."
+            )
+        return result
 
     def extract_cost_data(
         self,
@@ -208,14 +164,15 @@ class DataProcessing:
 
     def build_cost_data_row(
         self,
-        gen_data_target: pd.DataFrame,
         gen_cost_df: pd.DataFrame,
         years: list[int],
-        cost_variable_source_names: dict[str, str],
+        cost_var_names: dict[str, str],
         bus_id: int,
         bus_name: str,
         gen: str,
-    ):
+        heat_rate: float,
+        ng_costs: dict[int, float],
+    ) -> dict[str, Any]:
         """
         Builds a row of cost data and adds it to `gen_data_target`, in-place.
 
@@ -225,18 +182,18 @@ class DataProcessing:
         :type gen_cost_df:                  pandas.DataFrame
         :param years:                       Years to include.
         :type years:                        list[int]
-        :param cost_variable_source_names:  Dict mapping the output column name to its source in cost data.
-                                                For each combination of key in `cost_variable_source_names`
-                                                and year in `years`, `f"{key}_{year}"` must be a column in `gen_data_target`,
-                                                and for each combination of value in `cost_variable_source_names`
-                                                and year in `years`, `(value, year)` must be in `gen_cost_df.index`.
-        :type cost_variable_source_names:   dict[str, str]
+        :param cost_var_names:              Dict mapping the output column name to its source in cost data.
+        :type cost_var_names:               dict[str, str]
         :param bus_id:                      Bus ID.
         :type bus_id:                       int
         :param bus_name:                    Bus name.
         :type bus_name:                     str
         :param gen:                         Generator type.
         :type gen:                          str
+        :param heat_rate:                   Heat rate, in MMBtu/MWh.
+        :type heat_rate:                    float
+        :param ng_costs:                    Yearly natural gas costs in USD/MMBtu.
+        :type ng_costs:                     dict[int, float]
         :returns:                           dict of the form {col_name: value}
         """
         config_gen = self.config.gen_data[gen]
@@ -252,17 +209,75 @@ class DataProcessing:
         }
 
         for year in years:
-            for out_col, source_var in cost_variable_source_names.items():
+            for out_col, source_var in cost_var_names.items():
                 col = f"{out_col}_{year}"
-                if col not in gen_data_target.columns:
-                    raise RuntimeError(f"{col} is not a column in gen_data_target.")
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
-            # add heat rate data as well
+            # add natural gas costs
             row[f"fuel_costs_{year}"] = (
-                self.hh_ng_costs[year] * self.heat_rate if "Natural Gas" in gen else 0
+                ng_costs[year] * heat_rate if "Natural Gas" in gen else 0
             )
 
-        gen_data_target.loc[len(gen_data_target)] = row
+        return row
+
+    def fill_out_prescient_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Takes an input dataframe with cost data and adds columns required
+        by prescient, if they aren't already in the dataframe.
+
+        :param df:  Cost dataframe
+        :type df:   pandas.DataFrame
+        :returns:   Cost dataframe with all prescient-required columns.
+        """
+        prescient_cols = [
+            "GEN UID",
+            "Bus ID",
+            "Unit Type",
+            "Fuel",
+            "MW Inj",
+            "MVAR Inj",
+            "V Setpoint p.u.",
+            "PMax MW",
+            "PMin MW",
+            "QMax MVAR",
+            "QMin MVAR",
+            "Min Down Time Hr",
+            "Min Up Time Hr",
+            "Ramp Rate MW/Min",
+            "Start Time Cold Hr",
+            "Start Time Warm Hr",
+            "Start Time Hot Hr",
+            "Start Heat Cold MBTU",
+            "Start Heat Warm MBTU",
+            "Start Heat Hot MBTU",
+            "Non Fuel Start Cost $",
+            "Fuel Price $/MMBTU",
+            "Output_pct_0",
+            "Output_pct_1",
+            "Output_pct_2",
+            "Output_pct_3",
+            "Output_pct_4",
+            "HR_avg_0",
+            "HR_incr_1",
+            "HR_incr_2",
+            "HR_incr_3",
+            "HR_incr_4",
+        ]
+        for col in prescient_cols:
+            if col not in df.columns:
+                df[col] = pd.NA
+
+        df["V Setpoint p.u."] = pd.to_numeric(
+            df["V Setpoint p.u."], errors="coerce"
+        ).fillna(1)
+        df["Output_pct_0"] = pd.to_numeric(df["Output_pct_0"], errors="coerce").fillna(
+            0.6
+        )
+        df["Output_pct_1"] = pd.to_numeric(df["Output_pct_1"], errors="coerce").fillna(
+            1
+        )
+
+        df.fillna("", inplace=True)
+        return df
 
     def load_gen_data(
         self,
@@ -271,9 +286,12 @@ class DataProcessing:
         candidate_gens: list[str],
         years: list[int] = [2025, 2030, 2035],
         key_3: str = "Moderate",
-        capex_source_name: str = "CAPEX ($/kW)",
-        fixed_ops_source_name: str = "Fixed Operation and Maintenance Expenses ($/kW-yr)",
-        var_ops_source_name: str = "Variable Operation and Maintenance Expenses ($/MWh)",
+        heat_rate: float = 9.717,
+        ng_costs: dict[int, float] = {
+            2025: 3.49,
+            2030: 2.91,
+            2035: 3.68,
+        },
         save_csv: bool = False,
         out_path: str | None = None,
     ):
@@ -291,15 +309,13 @@ class DataProcessing:
         :type years:                        list[int]
         :param key_3:                       Key 3. Defaults to `"Moderate"`.
         :type key_3:                        str
-        :param capex_source_name:           Name of CapEx variable in the cost data.
-                                                Defaults to `"CAPEX ($/kW)"`.
-        :type capex_source_name:            str
-        :param fixed_ops_source_name:       Name of fixed O&M expenses in the cost data.
-                                                Defaults to `"Fixed Operation and Maintenance Expenses ($/kW-yr)"`.
-        :type fixed_ops_source_name:        str
-        :param var_ops_source_name:         Name of variable O&M expenses in the cost data.
-                                                Defaults to `"Variable Operation and Maintenance Expenses ($/MWh)"`.
-        :type var_ops_source_name:          str
+        :param heat_rate:                   Units of MMBtu/MWh. Defaults to 9.717 (value from [1] assuming a NG
+                                                Combustion Turbine (F-Frame), Moderate, for the Base Year 2022).
+        :type heat_rate:                    float
+        :param ng_costs:                    Prices for naturgal gas in units of USD/MMBtu, in the format {year: cost}.
+                                                Defaults to the Henry Hub forecast prices for natural gas.
+                                                Each year in `years` must be a key in this dict.
+        :type ng_costs:                     dict[str, float]
         :param save_csv:                    Whether to save the resulting dataframe to csv. Defaults to `False`.
         :type save_csv:                     bool
         :param out_path:                    Path to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
@@ -308,16 +324,23 @@ class DataProcessing:
         if save_csv and out_path is None:
             raise ValueError("With save_csv=True, out_path must be provided.")
 
+        cost_var_names = {
+            "capex": "CAPEX ($/kW)",
+            "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
+            "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
+        }
+
+        years_without_costs = [year for year in years if year not in ng_costs]
+        if years_without_costs:
+            raise ValueError(
+                f"The following years do not have natural gas costs: {years_without_costs}"
+            )
+
         # commenting out for now... not sure we need to do this for just one of the arguments
         # if not isinstance(candidate_gens, list):
         #     raise TypeError(
         #         f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
         # )
-        cost_variable_source_names = {
-            "capex": capex_source_name,
-            "fixed_ops": fixed_ops_source_name,
-            "var_ops": var_ops_source_name,
-        }
 
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
 
@@ -331,53 +354,34 @@ class DataProcessing:
             cost_data_path, set(candidate_gens_dict.values()), years, key_3
         )
 
-        # instantiate dataframe that will have all of the output data
-        cost_col_names = []
-        for year in years:
-            cost_col_names += [
-                f"capex_{year}",
-                f"fuel_costs_{year}",
-                f"fixed_ops_{year}",
-                f"var_ops_{year}",
-            ]
-        gen_data_target = pd.DataFrame(columns=self.target_columns + cost_col_names)
+        df_rows = []
 
         # add to the dataframe, row by row
         for bus_gen, cost_gen in candidate_gens_dict.items():
             # NOTE: the current implementation in main has a possible bug: Natural Gas CT are not included in the output csv!
             # the following two lines recreate the bug to allow comparison of remaining outputs
-            if bus_gen != cost_gen:
-                continue
+            # if bus_gen != cost_gen:
+            #     continue
+
             gen_cost_df = self.get_gen_cost_data(
                 cost_dict[cost_gen], gen_bus_df, bus_gen
             )
 
             for bus_name, bus in buses_by_gen[bus_gen].items():
-                self.build_cost_data_row(
-                    gen_data_target,
-                    gen_cost_df,
-                    years,
-                    cost_variable_source_names,
-                    bus,
-                    bus_name,
-                    bus_gen,
+                df_rows.append(
+                    self.build_cost_data_row(
+                        gen_cost_df,
+                        years,
+                        cost_var_names,
+                        bus,
+                        bus_name,
+                        bus_gen,
+                        heat_rate,
+                        ng_costs,
+                    )
                 )
 
-        # commenting the rest of this out for now bc we never set any of these other variables...
-
-        # self.gen_data_target["V Setpoint p.u."] = pd.to_numeric(
-        #     self.gen_data_target["V Setpoint p.u."], errors="coerce"
-        # ).fillna(1)
-        # self.gen_data_target["Output_pct_0"] = pd.to_numeric(
-        #     self.gen_data_target["Output_pct_0"], errors="coerce"
-        # ).fillna(0.6)
-        # self.gen_data_target["Output_pct_1"] = pd.to_numeric(
-        #     self.gen_data_target["Output_pct_1"], errors="coerce"
-        # ).fillna(1)
-
-        # self.gen_data_target.fillna("", inplace=True)
-
-        self.gen_data_target = gen_data_target
+        self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
         if save_csv:
             self.gen_data_target.to_csv(
