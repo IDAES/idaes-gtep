@@ -20,6 +20,7 @@ cost_data_path = abspath(
     )
 )
 
+
 class TestGTEPDataProcessing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -120,7 +121,6 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
         # make sure that no NAs remain
         self.assertEqual(df.isna().sum().sum(), 0)
-        
 
     def test_load_gen_data(self):
         gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV"]
@@ -131,9 +131,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             cost_data_path,
             gens,
         )
-        self.assertIsInstance(
-            self.data_processing.gen_data_target, pd.DataFrame
-        )
+        self.assertIsInstance(self.data_processing.gen_data_target, pd.DataFrame)
         self.gen_data_target = None  # reset
 
         # change ng costs so that we are missing data for a year

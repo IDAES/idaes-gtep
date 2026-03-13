@@ -329,7 +329,7 @@ class DataProcessing:
             raise KeyError(
                 f"The following years do not have natural gas costs: {years_without_costs}"
             )
-        
+
         cost_var_names = {
             "capex": "CAPEX ($/kW)",
             "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
