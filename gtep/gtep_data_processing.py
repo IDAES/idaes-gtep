@@ -70,6 +70,13 @@ class DataProcessing:
         "HR_incr_4",
     ]
 
+    cost_var_names = {
+        "capex": "CAPEX ($/kW)",
+        "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
+        "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
+    }
+    heat_rate_var = "Heat Rate  (MMBtu/MWh)"
+
     def __init__(self):
 
         # Create an instance of the configuration class that has data
@@ -194,38 +201,31 @@ class DataProcessing:
             right_on="Key2",
         )
         gen_cost_df = gen_cost_df.set_index(["Key1", "Bus Name"])
+        gen_cost_df = gen_cost_df.drop(columns=["Key2", gen])
         return gen_cost_df
 
     def build_cost_data_row(
         self,
         gen_cost_df: pd.DataFrame,
         years: list[int],
-        cost_var_names: dict[str, str],
         bus_id: int,
         bus_name: str,
         gen: str,
-        heat_rate_var: float,
         ng_costs: dict[int, float],
     ) -> dict[str, Any]:
         """
         Builds a row of cost data and adds it to `gen_data_target`, in-place.
 
-        :param gen_data_target:             Dataframe where the data is being written.
-        :type gen_data_target:              pandas.DataFrame
         :param gen_cost_df:                 Dataframe with cost data to be extracted.
         :type gen_cost_df:                  pandas.DataFrame
         :param years:                       Years to include.
         :type years:                        list[int]
-        :param cost_var_names:              Dict mapping the output column name to its source in cost data.
-        :type cost_var_names:               dict[str, str]
         :param bus_id:                      Bus ID.
         :type bus_id:                       int
         :param bus_name:                    Bus name.
         :type bus_name:                     str
         :param gen:                         Generator type.
         :type gen:                          str
-        :param heat_rate_var:               Heat rate variable name.
-        :type heat_rate_var:                str
         :param ng_costs:                    Yearly natural gas costs in USD/MMBtu.
         :type ng_costs:                     dict[int, float]
         :returns:                           dict of the form {col_name: value}
@@ -243,14 +243,14 @@ class DataProcessing:
         }
 
         for year in years:
-            for out_col, source_var in cost_var_names.items():
+            for out_col, source_var in self.cost_var_names.items():
                 col = f"{out_col}_{year}"
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
             # add natural gas costs
             row[f"fuel_costs_{year}"] = (
-                ng_costs[year] * float(gen_cost_df.loc[(heat_rate_var, bus_name), year])
+                ng_costs[year] * float(gen_cost_df.loc[(self.heat_rate_var, bus_name), year])
                 if "Natural Gas" in gen
-                else 0
+                else 0.0
             )
 
         return row
@@ -329,13 +329,6 @@ class DataProcessing:
                 f"Natural gas generators were passed in candidate_gens, but the following years do not have natural gas costs: {years_without_costs}"
             )
 
-        cost_var_names = {
-            "capex": "CAPEX ($/kW)",
-            "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
-            "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
-        }
-        heat_rate_var = "Heat Rate  (MMBtu/MWh)"
-
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
 
         # maps set of generator types in gen_bus_df to set of generator types w/ cost data
@@ -363,11 +356,9 @@ class DataProcessing:
                     self.build_cost_data_row(
                         gen_cost_df,
                         years,
-                        cost_var_names,
                         bus,
                         bus_name,
                         bus_gen,
-                        heat_rate_var,
                         ng_costs,
                     )
                 )
