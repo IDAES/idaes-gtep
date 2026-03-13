@@ -19,16 +19,6 @@ cost_data_path = abspath(
         "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
     )
 )
-out_path = abspath(
-    join(
-        curr_dir,
-        "..",
-        "..",
-        "data",
-        "costs",
-    )
-)
-
 
 class TestGTEPDataProcessing(unittest.TestCase):
     @classmethod
