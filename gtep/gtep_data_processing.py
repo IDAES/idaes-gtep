@@ -129,7 +129,7 @@ class DataProcessing:
         }
         if "Natural Gas_CT" in candidate_gens:
             warn(
-                "Natural Gas_CT does not have cost data. Substituting Natural Gas_FE cost data."
+                "Natural Gas_CT does not have cost data. We will assume all natural gas costs are coming from fossil energy sources (Natural Gas_FE)."
             )
         return result
 
@@ -148,7 +148,7 @@ class DataProcessing:
         :type gens:                 list[str]
         :param years:               Years to extract data for.
         :type years:                list[int]
-        :param scenario:            scenario
+        :param scenario:            Cost scenario.
         :type scenario:             str
         :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
                                         is a pandas DataFrame.
@@ -186,9 +186,9 @@ class DataProcessing:
                                     costs variable.
         """
         # link bus name to specific generation class
-        gen_subet = gen_bus_df[["Bus Name", gen]]
+        gen_subset = gen_bus_df[["Bus Name", gen]]
         gen_cost_df = pd.merge(
-            gen_subet,
+            gen_subset,
             cost_df,
             left_on=gen,
             right_on="Key2",
@@ -204,7 +204,7 @@ class DataProcessing:
         bus_id: int,
         bus_name: str,
         gen: str,
-        heat_rate: float,
+        heat_rate_var: float,
         ng_costs: dict[int, float],
     ) -> dict[str, Any]:
         """
@@ -224,8 +224,8 @@ class DataProcessing:
         :type bus_name:                     str
         :param gen:                         Generator type.
         :type gen:                          str
-        :param heat_rate:                   Heat rate, in MMBtu/MWh.
-        :type heat_rate:                    float
+        :param heat_rate_var:               Heat rate variable name.
+        :type heat_rate_var:                str
         :param ng_costs:                    Yearly natural gas costs in USD/MMBtu.
         :type ng_costs:                     dict[int, float]
         :returns:                           dict of the form {col_name: value}
@@ -248,7 +248,9 @@ class DataProcessing:
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
             # add natural gas costs
             row[f"fuel_costs_{year}"] = (
-                ng_costs[year] * heat_rate if "Natural Gas" in gen else 0
+                ng_costs[year] * float(gen_cost_df.loc[(heat_rate_var, bus_name), year])
+                if "Natural Gas" in gen
+                else 0
             )
 
         return row
@@ -286,8 +288,7 @@ class DataProcessing:
         candidate_gens: list[str],
         years: list[int] = [2025, 2030, 2035],
         scenario: str = "Moderate",
-        heat_rate: float = 9.717,
-        ng_costs: dict[int, float] = {
+        ng_costs: dict[int, float] = {  # can't find values this far out online
             2025: 3.49,
             2030: 2.91,
             2035: 3.68,
@@ -307,11 +308,8 @@ class DataProcessing:
         :type candidate_gens:               list[str]
         :param years:                       Years to extract cost data for.
         :type years:                        list[int]
-        :param scenario:                    Scenario. Defaults to `"Moderate"`.
+        :param scenario:                    Cost scenario. Defaults to `"Moderate"`.
         :type scenario:                     str
-        :param heat_rate:                   Units of MMBtu/MWh. Defaults to 9.717 (value from [1] assuming a NG
-                                                Combustion Turbine (F-Frame), Moderate, for the Base Year 2022).
-        :type heat_rate:                    float
         :param ng_costs:                    Natural gas costs in units of USD/MMBtu, in the format {year: cost}.
                                                 Defaults to the Henry Hub forecast prices for natural gas.
                                                 Each year in `years` must be a key in this dict.
@@ -325,9 +323,10 @@ class DataProcessing:
             raise TypeError("With save_csv=True, out_path must be a str.")
 
         years_without_costs = [year for year in years if year not in ng_costs]
-        if years_without_costs:
+        gens_include_ng = any(["Natural Gas" in gen for gen in candidate_gens])
+        if years_without_costs and gens_include_ng:
             raise KeyError(
-                f"The following years do not have natural gas costs: {years_without_costs}"
+                f"Natural gas generators were passed in candidate_gens, but the following years do not have natural gas costs: {years_without_costs}"
             )
 
         cost_var_names = {
@@ -335,6 +334,7 @@ class DataProcessing:
             "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
             "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
         }
+        heat_rate_var = "Heat Rate  (MMBtu/MWh)"
 
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
 
@@ -367,7 +367,7 @@ class DataProcessing:
                         bus,
                         bus_name,
                         bus_gen,
-                        heat_rate,
+                        heat_rate_var,
                         ng_costs,
                     )
                 )
