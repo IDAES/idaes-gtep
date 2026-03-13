@@ -312,7 +312,7 @@ class DataProcessing:
         :param heat_rate:                   Units of MMBtu/MWh. Defaults to 9.717 (value from [1] assuming a NG
                                                 Combustion Turbine (F-Frame), Moderate, for the Base Year 2022).
         :type heat_rate:                    float
-        :param ng_costs:                    Prices for naturgal gas in units of USD/MMBtu, in the format {year: cost}.
+        :param ng_costs:                    Natural gas costs in units of USD/MMBtu, in the format {year: cost}.
                                                 Defaults to the Henry Hub forecast prices for natural gas.
                                                 Each year in `years` must be a key in this dict.
         :type ng_costs:                     dict[str, float]
@@ -324,23 +324,17 @@ class DataProcessing:
         if save_csv and out_path is None:
             raise ValueError("With save_csv=True, out_path must be provided.")
 
-        cost_var_names = {
-            "capex": "CAPEX ($/kW)",
-            "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
-            "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
-        }
-
         years_without_costs = [year for year in years if year not in ng_costs]
         if years_without_costs:
             raise ValueError(
                 f"The following years do not have natural gas costs: {years_without_costs}"
             )
-
-        # commenting out for now... not sure we need to do this for just one of the arguments
-        # if not isinstance(candidate_gens, list):
-        #     raise TypeError(
-        #         f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
-        # )
+        
+        cost_var_names = {
+            "capex": "CAPEX ($/kW)",
+            "fixed_ops": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
+            "var_ops": "Variable Operation and Maintenance Expenses ($/MWh)",
+        }
 
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
 
@@ -354,19 +348,16 @@ class DataProcessing:
             cost_data_path, set(candidate_gens_dict.values()), years, scenario
         )
 
+        # build output dataframe
         df_rows = []
-
-        # add to the dataframe, row by row
         for bus_gen, cost_gen in candidate_gens_dict.items():
             # NOTE: the current implementation in main has a possible bug: Natural Gas CT are not included in the output csv!
             # the following two lines recreate the bug to allow comparison of remaining outputs
             # if bus_gen != cost_gen:
             #     continue
-
             gen_cost_df = self.get_gen_cost_data(
                 cost_dict[cost_gen], gen_bus_df, bus_gen
             )
-
             for bus_name, bus in buses_by_gen[bus_gen].items():
                 df_rows.append(
                     self.build_cost_data_row(
@@ -380,7 +371,6 @@ class DataProcessing:
                         ng_costs,
                     )
                 )
-
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
         if save_csv:
