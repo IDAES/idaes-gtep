@@ -18,7 +18,6 @@
 
 import pandas as pd
 from gtep.config_data import ConfigData
-from os.path import join
 from typing import Any
 from warnings import warn
 
@@ -35,6 +34,41 @@ class DataProcessing:
     """Data processing class for the IDAES GTEP model to read and save
     cost data. Original data from ref[1].
     """
+
+    prescient_cols = [
+        "GEN UID",
+        "Bus ID",
+        "Unit Type",
+        "Fuel",
+        "MW Inj",
+        "MVAR Inj",
+        "V Setpoint p.u.",
+        "PMax MW",
+        "PMin MW",
+        "QMax MVAR",
+        "QMin MVAR",
+        "Min Down Time Hr",
+        "Min Up Time Hr",
+        "Ramp Rate MW/Min",
+        "Start Time Cold Hr",
+        "Start Time Warm Hr",
+        "Start Time Hot Hr",
+        "Start Heat Cold MBTU",
+        "Start Heat Warm MBTU",
+        "Start Heat Hot MBTU",
+        "Non Fuel Start Cost $",
+        "Fuel Price $/MMBTU",
+        "Output_pct_0",
+        "Output_pct_1",
+        "Output_pct_2",
+        "Output_pct_3",
+        "Output_pct_4",
+        "HR_avg_0",
+        "HR_incr_1",
+        "HR_incr_2",
+        "HR_incr_3",
+        "HR_incr_4",
+    ]
 
     def __init__(self):
 
@@ -57,13 +91,13 @@ class DataProcessing:
     def get_buses_by_gen(
         self,
         gen_bus_df: pd.DataFrame,
-        gens: set[str],
+        gens: list[str],
     ) -> dict[str, dict]:
         """
         :param gen_bus_df:      DataFrame with generator bus data.
         :type gen_bus_df:       pandas.DataFrame
-        :param gens:            Set of candidate generator types.
-        :type gens:             set[str]
+        :param gens:            List of candidate generator types.
+        :type gens:             list[str]
         :returns:               Dict of the form {gen_type: bus_info}, where bus_info
                                     is itself a dict of the form {bus_name: bus_number}
         """
@@ -228,41 +262,7 @@ class DataProcessing:
         :type df:   pandas.DataFrame
         :returns:   Cost dataframe with all prescient-required columns.
         """
-        prescient_cols = [
-            "GEN UID",
-            "Bus ID",
-            "Unit Type",
-            "Fuel",
-            "MW Inj",
-            "MVAR Inj",
-            "V Setpoint p.u.",
-            "PMax MW",
-            "PMin MW",
-            "QMax MVAR",
-            "QMin MVAR",
-            "Min Down Time Hr",
-            "Min Up Time Hr",
-            "Ramp Rate MW/Min",
-            "Start Time Cold Hr",
-            "Start Time Warm Hr",
-            "Start Time Hot Hr",
-            "Start Heat Cold MBTU",
-            "Start Heat Warm MBTU",
-            "Start Heat Hot MBTU",
-            "Non Fuel Start Cost $",
-            "Fuel Price $/MMBTU",
-            "Output_pct_0",
-            "Output_pct_1",
-            "Output_pct_2",
-            "Output_pct_3",
-            "Output_pct_4",
-            "HR_avg_0",
-            "HR_incr_1",
-            "HR_incr_2",
-            "HR_incr_3",
-            "HR_incr_4",
-        ]
-        for col in prescient_cols:
+        for col in self.prescient_cols:
             if col not in df.columns:
                 df[col] = pd.NA
 
@@ -322,11 +322,11 @@ class DataProcessing:
         :type out_path:                     str | None
         """
         if save_csv and out_path is None:
-            raise ValueError("With save_csv=True, out_path must be provided.")
+            raise TypeError("With save_csv=True, out_path must be a str.")
 
         years_without_costs = [year for year in years if year not in ng_costs]
         if years_without_costs:
-            raise ValueError(
+            raise KeyError(
                 f"The following years do not have natural gas costs: {years_without_costs}"
             )
         
@@ -374,7 +374,4 @@ class DataProcessing:
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
         if save_csv:
-            self.gen_data_target.to_csv(
-                join(out_path, "candidate_generators_initial_list.csv"),
-                index=False,
-            )
+            self.gen_data_target.to_csv(out_path, index=False)
