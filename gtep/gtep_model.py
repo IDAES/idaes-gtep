@@ -72,15 +72,9 @@ class ExpansionPlanningModel:
     def __init__(
         self,
         config=None,
-        stages=1,
         formulation=None,
         data=None,
         cost_data=None,
-        num_reps=3,
-        len_reps=24,
-        num_commit=24,
-        num_dispatch=4,
-        duration_dispatch=15,
     ):
         """Initialize generation & expansion planning model object.
 
@@ -96,15 +90,15 @@ class ExpansionPlanningModel:
         :return: Pyomo model for full GTEP
         """
 
-        self.stages = stages
+        self.stages = data.stages
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
-        self.num_reps = num_reps
-        self.len_reps = len_reps
-        self.num_commit = num_commit
-        self.num_dispatch = num_dispatch
-        self.duration_dispatch = duration_dispatch
+        self.num_reps = data.num_reps
+        self.len_reps = data.len_reps
+        self.num_commit = data.num_commit
+        self.num_dispatch = data.num_dispatch
+        self.duration_dispatch = data.duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
 
