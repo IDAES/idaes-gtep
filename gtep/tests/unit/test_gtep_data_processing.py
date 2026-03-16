@@ -1,25 +1,22 @@
-from os.path import dirname, abspath, join
-from os import listdir
+from pathlib import Path
+from itertools import product
 import pandas as pd
 import pyomo.common.unittest as unittest
 from pyomo.common.tempfiles import TempfileManager
 from gtep.gtep_data_processing import DataProcessing
-from itertools import product
 
-curr_dir = dirname(abspath(__file__))
-bus_data_path = abspath(
-    join(curr_dir, "..", "..", "data", "costs", "Bus_data_gen_weights_mappings.csv")
-)
-cost_data_path = abspath(
-    join(
-        curr_dir,
-        "..",
-        "..",
-        "data",
-        "costs",
-        "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
-    )
-)
+curr_dir = Path(__file__).resolve().parent
+bus_data_path = (
+    curr_dir / ".." / ".." / "data" / "costs" / "Bus_data_gen_weights_mappings.csv"
+).resolve()
+cost_data_path = (
+    curr_dir
+    / ".."
+    / ".."
+    / "data"
+    / "costs"
+    / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+).resolve()
 
 
 class TestGTEPDataProcessing(unittest.TestCase):
@@ -82,7 +79,9 @@ class TestGTEPDataProcessing(unittest.TestCase):
                 data=[[var, "genname", 1.0, 2.0] for var in varnames],
                 columns=["Key1", "Key2", *years],
             )
-            gen_cost_df = self.data_processing.get_gen_cost_data(cost_df, gen_bus_df, gen)
+            gen_cost_df = self.data_processing.get_gen_cost_data(
+                cost_df, gen_bus_df, gen
+            )
 
             self.assertIsInstance(gen_cost_df, pd.DataFrame)
             self.assertTupleEqual(
@@ -98,10 +97,21 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
             ### TEST BUILD_COST_DATA_ROW ###
             expected_keys = [
-                "GEN UID", "Bus ID", "Unit Type", "Fuel", "PMax MW", "PMin MW", "Min Up Time Hr", "Min Down Time Hr"
+                "GEN UID",
+                "Bus ID",
+                "Unit Type",
+                "Fuel",
+                "PMax MW",
+                "PMin MW",
+                "Min Up Time Hr",
+                "Min Down Time Hr",
             ]
-            out_varnames = list(self.data_processing.cost_var_names.keys()) + ["fuel_costs"]
-            expected_keys += [f"{var}_{year}" for var, year in product(out_varnames, years)]
+            out_varnames = list(self.data_processing.cost_var_names.keys()) + [
+                "fuel_costs"
+            ]
+            expected_keys += [
+                f"{var}_{year}" for var, year in product(out_varnames, years)
+            ]
 
             row = self.data_processing.build_cost_data_row(
                 gen_cost_df=gen_cost_df,
@@ -220,15 +230,14 @@ class TestGTEPDataProcessing(unittest.TestCase):
         # ensure file is written where expected
         with TempfileManager.new_context() as tempfile:
             tempdir = tempfile.mkdtemp()
-            out_path = join(tempdir, "costs.csv")
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
                 gens,
                 save_csv=True,
-                out_path=out_path,
+                write_dir=tempdir,
             )
             self.assertIsInstance(
                 self.data_processing.gen_data_target, pd.DataFrame
             )  # make sure we are still storing as an attribute
-            self.assertIn("costs.csv", listdir(tempdir))
+            self.assertIn("costs.csv", Path.iterdir(tempdir))

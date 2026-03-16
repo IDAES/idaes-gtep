@@ -16,10 +16,11 @@
 
 # author: Soraya Rawlings and Kyle Skolfield
 
-import pandas as pd
-from gtep.config_data import ConfigData
 from typing import Any
 from warnings import warn
+import pandas as pd
+from gtep.config_data import ConfigData
+from pathlib import Path
 
 """
 References
@@ -83,14 +84,12 @@ class DataProcessing:
         # for generators
         self.config = ConfigData()
 
-    def get_gen_bus_data(self, bus_data_path: str) -> pd.DataFrame:
+    def get_gen_bus_data(self, bus_data_path: Path) -> pd.DataFrame:
         """
         :param bus_data_path:   Path to bus data.
-        :type bus_data_path:    str
+        :type bus_data_path:    pathlib.Path
         :returns:               DataFrame with generator bus data.
         """
-        # TODO: Confirm that "Gen bus/ Non-gen bus" will always be a column
-        # in bus_data? And that it is always an int (instead of a bool)?
         bus_data = pd.read_csv(bus_data_path)
         bus_data = bus_data[bus_data["Gen bus/ Non-gen bus"] == 1]
         return bus_data
@@ -108,8 +107,6 @@ class DataProcessing:
         :returns:               Dict of the form {gen_type: bus_info}, where bus_info
                                     is itself a dict of the form {bus_name: bus_number}
         """
-        # TODO: We should probably check that gen_weight_key is actually a column in gen_bus_df
-        # TODO: Confirm that "Bus Name" and "Bus Number" will always be columns in gen_bus_df?
         candidate_gen_by_bus = {}
         for gen in gens:
             gen_weight_key = gen + " - Generation Weight"
@@ -142,14 +139,14 @@ class DataProcessing:
 
     def extract_cost_data(
         self,
-        cost_data_path: str,
+        cost_data_path: Path,
         gens: list[str],
         years: list[int],
         scenario: str,
     ) -> dict[str, pd.DataFrame]:
         """
         :param cost_data_path:      Path to cost data.
-        :type cost_data_path:       str
+        :type cost_data_path:       pathlib.Path
         :param gens:                Generator types to extract data for. Each element
                                         must be a sheet in the cost data file.
         :type gens:                 list[str]
@@ -248,7 +245,8 @@ class DataProcessing:
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
             # add natural gas costs
             row[f"fuel_costs_{year}"] = (
-                ng_costs[year] * float(gen_cost_df.loc[(self.heat_rate_var, bus_name), year])
+                ng_costs[year]
+                * float(gen_cost_df.loc[(self.heat_rate_var, bus_name), year])
                 if "Natural Gas" in gen
                 else 0.0
             )
@@ -283,8 +281,8 @@ class DataProcessing:
 
     def load_gen_data(
         self,
-        bus_data_path: str,
-        cost_data_path: str,
+        bus_data_path: Path,
+        cost_data_path: Path,
         candidate_gens: list[str],
         years: list[int] = [2025, 2030, 2035],
         scenario: str = "Moderate",
@@ -294,16 +292,16 @@ class DataProcessing:
             2035: 3.68,
         },
         save_csv: bool = False,
-        out_path: str | None = None,
+        out_path: Path | None = None,
     ):
         """
         Builds a dataframe containing cost data for generators of specified type from bus data.
         Stores the result in `self.gen_data_target` and optionally writes to a CSV.
 
         :param bus_data_path:               Path to bus data.
-        :type bus_data_path:                str
+        :type bus_data_path:                pathlib.Path
         :param cost_data_path:              Path to cost data.
-        :type cost_data_path:               str
+        :type cost_data_path:               pathlib.Path
         :param candidate_gens:              Generator types to extract cost data for.
         :type candidate_gens:               list[str]
         :param years:                       Years to extract cost data for.
@@ -316,11 +314,11 @@ class DataProcessing:
         :type ng_costs:                     dict[str, float]
         :param save_csv:                    Whether to save the resulting dataframe to csv. Defaults to `False`.
         :type save_csv:                     bool
-        :param out_path:                    Path to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
-        :type out_path:                     str | None
+        :param write_dir:                   Directory to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
+        :type write_dir:                    pathlib.Path | None
         """
         if save_csv and out_path is None:
-            raise TypeError("With save_csv=True, out_path must be a str.")
+            raise TypeError("With save_csv=True, out_path must be a pathlib.Path.")
 
         years_without_costs = [year for year in years if year not in ng_costs]
         gens_include_ng = any(["Natural Gas" in gen for gen in candidate_gens])
@@ -365,4 +363,4 @@ class DataProcessing:
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
         if save_csv:
-            self.gen_data_target.to_csv(out_path, index=False)
+            self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
