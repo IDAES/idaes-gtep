@@ -229,15 +229,17 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
         # ensure file is written where expected
         with TempfileManager.new_context() as tempfile:
-            tempdir = tempfile.mkdtemp()
+            tempdir = Path(tempfile.mkdtemp())
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
                 gens,
                 save_csv=True,
-                write_dir=tempdir,
+                out_path=tempdir,
             )
             self.assertIsInstance(
                 self.data_processing.gen_data_target, pd.DataFrame
             )  # make sure we are still storing as an attribute
-            self.assertIn("costs.csv", Path.iterdir(tempdir))
+            self.assertIn(
+                (tempdir / "costs.csv").resolve(), list(Path.iterdir(tempdir))
+            )

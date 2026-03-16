@@ -314,8 +314,8 @@ class DataProcessing:
         :type ng_costs:                     dict[str, float]
         :param save_csv:                    Whether to save the resulting dataframe to csv. Defaults to `False`.
         :type save_csv:                     bool
-        :param write_dir:                   Directory to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
-        :type write_dir:                    pathlib.Path | None
+        :param out_path:                    Directory to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
+        :type out_path:                     pathlib.Path | None
         """
         if save_csv and out_path is None:
             raise TypeError("With save_csv=True, out_path must be a pathlib.Path.")
