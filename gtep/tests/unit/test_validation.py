@@ -11,8 +11,7 @@
 # for full copyright and license information.
 #################################################################################
 
-from os.path import abspath, join, dirname
-from os import listdir
+from pathlib import Path
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -35,13 +34,13 @@ from gtep.validation import (
     populate_transmission,
 )
 
-curr_dir = dirname(abspath(__file__))
-input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
+curr_dir = Path(__file__).resolve().parent
+input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
 def get_solution_object():
     data_object = ExpansionPlanningData()
-    data_object.load_prescient(input_data_source)
+    data_object.load_prescient(str(input_data_source))
 
     mod_object = ExpansionPlanningModel(
         stages=2,
@@ -104,58 +103,73 @@ class TestValidation(unittest.TestCase):
 
     def test_safe_write_dataframe_to_csv(self):
         with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
+            temp_dir = Path(tempfile.mkdtemp())
             fname = "test.csv"
+            expected_csv = (temp_dir / fname).resolve()
             safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), temp_dir, fname)
 
-            self.assertIn(fname, listdir(temp_dir))
-            test_csv = pd.read_csv(join(temp_dir, fname))
+            self.assertIn(expected_csv, list(temp_dir.iterdir()))
+            test_csv = pd.read_csv(expected_csv)
             self.assertTupleEqual(test_csv.shape, (2, 2))
             for item in test_csv.to_numpy().flatten():
                 self.assertAlmostEqual(item, 0)
 
     def test_safe_mkdir(self):
         with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
-            test_subdir = join(temp_dir, "test_dir")
+            temp_dir = Path(tempfile.mkdtemp())
+            test_subdir = (temp_dir / "test_dir").resolve()
 
             # create new directory
             safe_mkdir(test_subdir)
-            self.assertIn("test_dir", listdir(temp_dir))
+            self.assertIn(test_subdir, list(temp_dir.iterdir()))
 
             # put file in directory and make sure we don't overwrite
-            with open(join(test_subdir, "test_file"), "w") as f:
+            test_fpath = (test_subdir / "test_file").resolve()
+            with open(test_fpath, "w") as f:
                 f.write("this is a test")
-            safe_mkdir(test_subdir)
-            self.assertIn("test_dir", listdir(temp_dir))  # make sure dir still exists
+            safe_mkdir(test_subdir)  # call function; shouldn't do anything
             self.assertIn(
-                "test_file", listdir(test_subdir)
+                test_subdir, list(temp_dir.iterdir())
+            )  # make sure dir still exists
+            self.assertIn(
+                test_fpath, list(test_subdir.iterdir())
             )  # make sure we didn't overwrite
 
             # make sure we raise the expected FileExistsError
             with self.assertRaises(FileExistsError):
-                safe_mkdir(join(test_subdir, "test_file"))
+                safe_mkdir(test_fpath)
 
     def test_populate_generators_filter_pointers(self):
         # filter_pointers needs to access the gen.csv file created in populate_generators
         # so these functions need to be tested together
         with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
+            temp_dir = Path(tempfile.mkdtemp())
+            expected_gen_path = (temp_dir / "gen.csv").resolve()
+            expected_time_path = (temp_dir / "timeseries_pointers.csv").resolve()
+
             populate_generators(input_data_source, self.solution, temp_dir)
-            self.assertIn("gen.csv", listdir(temp_dir))
+            self.assertIn(expected_gen_path, list(temp_dir.iterdir()))
             filter_pointers(input_data_source, temp_dir)
-            self.assertIn("timeseries_pointers.csv", listdir(temp_dir))
+            self.assertIn(expected_time_path, list(temp_dir.iterdir()))
 
     def test_populate_transmission(self):
         with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
+            temp_dir = Path(tempfile.mkdtemp())
+            expected_branch_path = (temp_dir / "branch.csv").resolve()
+
             populate_transmission(input_data_source, self.solution, temp_dir)
-            self.assertIn("branch.csv", listdir(temp_dir))
+            self.assertIn(expected_branch_path, list(temp_dir.iterdir()))
 
     def test_copy_prescient_inputs(self):
         with TempfileManager.new_context() as tempfile:
-            temp_dir = tempfile.mkdtemp()
+            temp_dir = Path(tempfile.mkdtemp())
             copy_prescient_inputs(input_data_source, temp_dir)
-            for f in listdir(input_data_source):
-                if f not in ["gen.csv", "timeseries_pointers.csv", "branch.csv"]:
-                    self.assertIn(f, listdir(temp_dir))
+            for fpath in list(input_data_source.iterdir()):
+                if fpath.name not in [
+                    "gen.csv",
+                    "timeseries_pointers.csv",
+                    "branch.csv",
+                ]:
+                    self.assertIn(
+                        (temp_dir / fpath.name).resolve(), list(temp_dir.iterdir())
+                    )

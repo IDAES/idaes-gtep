@@ -13,7 +13,7 @@
 
 from gtep.gtep_solution import ExpansionPlanningSolution
 import re
-import os
+from pathlib import Path
 import shutil
 import logging
 from collections import defaultdict
@@ -110,38 +110,40 @@ def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Num
     return dict(result)
 
 
-def safe_mkdir(path: str):
+def safe_mkdir(path: Path):
     """
     Creates a directory if it doesn't already exist. If the path exists but isn't a directory,
     raises a `FileExistsError`.
 
     :param path:    Path to new directory
-    :type path:     str
+    :type path:     pathlib.Path
     """
-    if os.path.exists(path):
-        if not os.path.isdir(path):
+    if path.exists():
+        if not path.is_dir():
             raise FileExistsError(f"{path} exists and is not a directory")
-        return
-    os.makedirs(path)
+    else:
+        path.mkdir(parents=True)
 
 
-def safe_write_dataframe_to_csv(dataframe: pd.DataFrame, directory: str, filename: str):
+def safe_write_dataframe_to_csv(
+    dataframe: pd.DataFrame, directory: Path, filename: str
+):
     """
     Writes a DataFrame to CSV, creating the directory if necessary.
 
     :param dataframe:   DataFrame to write.
     :type dataframe:    pandas.DataFrame
     :param directory:   Directory to write in.
-    :type directory:    str
+    :type directory:    pathlib.Path
     :param filename:    Name of file to write to.
     :type filename:     str
     """
     safe_mkdir(directory)
-    dataframe.to_csv(os.path.join(directory, filename), index=False)
+    dataframe.to_csv((directory / filename).resolve(), index=False)
 
 
 def populate_generators(
-    data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
+    data_input_path: Path, sol_object: ExpansionPlanningSolution, data_output_path: str
 ):
     """
     Takes a set of input generator data and updates it to reflect the solution object.
@@ -149,14 +151,14 @@ def populate_generators(
     :param data_input_path:     Path to folder with prescient generator data. Must contain a file named `"gen.csv"`.
     :param sol_object:          Solution object run with the prescient data at `data_input_path`
     :param data_output_path:    Path to write the generator data to
-    :type data_input_path:      str
+    :type data_input_path:      pathlib.Path
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
     :type data_output_path:     str
     """
 
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
-    input_df = pd.read_csv(os.path.join(data_input_path, "gen.csv"))
+    input_df = pd.read_csv((data_input_path / "gen.csv").resolve())
 
     # get the sum by index of extended, operational, and installed variables for thermal gens during last investment period
     primals = extract_primals_last_investment_stage(sol_object)
@@ -186,7 +188,7 @@ def populate_generators(
 
 
 def populate_transmission(
-    data_input_path: str, sol_object: ExpansionPlanningSolution, data_output_path: str
+    data_input_path: Path, sol_object: ExpansionPlanningSolution, data_output_path: Path
 ):
     """
     Takes a set of input transmission data and updates it to reflect the solution object.
@@ -194,14 +196,14 @@ def populate_transmission(
     :param data_input_path:     Path to folder with prescient transmission data. Must contain a file named `"branch.csv"`.
     :param sol_object:          Solution object run with the prescient data at `data_input_path`
     :param data_output_path:    Path to write the transmission data to
-    :type data_input_path:      str
+    :type data_input_path:      pathlib.Path
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
-    :type data_output_path:     str
+    :type data_output_path:     pathlib.Path
     """
 
     # load existing and candidate generators from initial prescient data
     # note that -c in name indicates candidate
-    input_df = pd.read_csv(os.path.join(data_input_path, "branch.csv"))
+    input_df = pd.read_csv((data_input_path / "branch.csv").resolve())
 
     # get the sum by index of extended, operational, and installed variables for branches during last investment period
     primals = extract_primals_last_investment_stage(sol_object)
@@ -218,7 +220,7 @@ def populate_transmission(
     safe_write_dataframe_to_csv(output_df, data_output_path, "branch.csv")
 
 
-def filter_pointers(data_input_path: str, data_output_path: str):
+def filter_pointers(data_input_path: Path, data_output_path: Path):
     """
     Takes a set of input timeseries pointers and updates it to reflect the solution object.
     Must be run _after_ `populate_generators` and with the same `data_output_path`.
@@ -226,18 +228,18 @@ def filter_pointers(data_input_path: str, data_output_path: str):
     :param data_input_path:     Path to folder with prescient timeseries pointers. Must contain a file named `"timeseries_pointers.csv"`.
     :param sol_object:          Solution object run with the prescient data at `data_input_path`
     :param data_output_path:    Path to write the timeseries pointers to. Must contain a file named `"gen.csv"`.
-    :type data_input_path:      str
+    :type data_input_path:      pathlib.Path
     :type sol_object:           gtep.gtep_solution.ExpansionPlanningSolution
-    :type data_output_path:     str
+    :type data_output_path:     pathlib.Path
     """
 
     # load initial timeseries pointers
     input_pointers_df = pd.read_csv(
-        os.path.join(data_input_path, "timeseries_pointers.csv")
+        (data_input_path / "timeseries_pointers.csv").resolve()
     )
 
     # load final generators
-    output_generators_df = pd.read_csv(os.path.join(data_output_path, "gen.csv"))
+    output_generators_df = pd.read_csv((data_output_path / "gen.csv").resolve())
 
     # keep generators that exist at the final investment stage and remove the rest
     # keep all non-generator timeseries pointers
@@ -251,31 +253,29 @@ def filter_pointers(data_input_path: str, data_output_path: str):
     safe_write_dataframe_to_csv(output_df, data_output_path, "timeseries_pointers.csv")
 
 
-def copy_prescient_inputs(data_input_path: str, data_output_path: str):
+def copy_prescient_inputs(data_input_path: Path, data_output_path: Path):
     """
     Copies all files at `data_input_path` to `data_output_path`, except for:
-        - timeseries_pointers.csv
         - gen.csv
         - branch.csv
+        - timeseries_pointers.csv
 
     These files are instead handled by other functions in this module (namely,
     `filter_pointers`, `populate_generators`, and `populate_transmission`).
 
     :param data_input_path:     Path to folder with files to copy.
     :param data_output_path:    Path to write the files to.
-    :type data_input_path:      str
-    :type data_output_path:     str
+    :type data_input_path:      pathlib.Path
+    :type data_output_path:     pathlib.Path
     """
 
     safe_mkdir(data_output_path)
 
-    file_list = os.listdir(data_input_path)
-    file_list.remove("timeseries_pointers.csv")
-    file_list.remove("gen.csv")
-    file_list.remove("branch.csv")
+    file_list = list(data_input_path.iterdir())
 
     # @jkskolf, I don't think I like this ...
-    for fname in file_list:
-        from_file = os.path.join(data_input_path, fname)
-        to_file = os.path.join(data_output_path, fname)
-        shutil.copy(from_file, to_file)
+    for from_fpath in file_list:
+        if from_fpath.name in ["gen.csv", "branch.csv", "timeseries_pointers.csv"]:
+            continue
+        to_fpath = (data_output_path / from_fpath.name).resolve()
+        shutil.copy(from_fpath, to_fpath)
