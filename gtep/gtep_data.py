@@ -268,7 +268,10 @@ class ExpansionPlanningData:
         if "elements" in self.md.data:
             if "generator" in self.md.data["elements"]:
                 for gen in self.md.data["elements"]["generator"]:
+                    # set lifetime value to default first
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 3
                     if "fuel" in self.md.data["elements"]["generator"][gen]:
+                        # update lifetime value if checks pass
                         if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
                             if (
                                 "in_service"
@@ -287,9 +290,6 @@ class ExpansionPlanningData:
                                     self.md.data["elements"]["generator"][gen][
                                         "lifetime"
                                     ] = 2
-                    else:
-                        self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-                        self.md.data["elements"]["generator"][gen]["lifetime"] = 3
 
                     self.md.data["elements"]["generator"][gen][
                         "spinning_reserve_frac"
