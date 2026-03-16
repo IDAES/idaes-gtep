@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gtep"
-version = "0.1.dev0"
+version = "1.1.dev0"
 description = "The IDAES Generation and Transmission Expansion Planning Framework"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -61,14 +61,8 @@ Documentation   = "https://idaes-gtep.readthedocs.io/en/latest/"
 Source          = "https://github.com/IDAES/idaes-gtep"
 
 [tool.setuptools.package-data]
-"*" = [
-    "*.csv",
-    "*.ipynb",
-    "*.m",
-    "*.md",
-    "*.png",
-    "*.rst",
-    "*.txt",
-    "*.xlsb",
-    "*.xlsx",
-]
+gtep = [
+    "data/5bus/**",
+    "data/costs/**",
+    "*.ipynb"
+    ]
