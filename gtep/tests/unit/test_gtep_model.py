@@ -61,7 +61,15 @@ def read_debug_model(
     dataObject = ExpansionPlanningData(
         stages, num_reps, len_reps, num_commit, num_dispatch, duration_dispatch
     )
-    dataObject.load_prescient(debug_data_path)
+    dataObject.load_prescient(
+        debug_data_path,
+        [
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+            "2020-07-05 00:00",
+            "2020-10-14 00:00",
+        ],
+    )
     return dataObject
 
 

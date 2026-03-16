@@ -155,6 +155,12 @@ class ExpansionPlanningData:
         self.representative_data = data_list
 
     def import_load_scaling(self, load_file_name, forecast_years=[2025, 2030, 2035]):
+        """Imports load scaling data for forecast years.
+
+        :param load_file_name: filepath for adjusted forecast excel file
+        :param forecast_years: list of years to forecast, defaults to [2025, 2030, 2035]
+
+        """
         adjusted_forecast = pd.read_excel(load_file_name)
 
         # check years are valid
@@ -221,11 +227,15 @@ class ExpansionPlanningData:
         self.load_scaling = load_scaling_df
 
     def import_outage_data(self, load_file_name):
+        """Imports outage data.
+
+        :param load_file_name: filepath for adjusted forecast excel file
+
+        """
         outage_list = pd.read_csv(load_file_name)
         percentile_threshold = 0.9
         threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
         filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
-        import re
 
         filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
             r" (\d+):"
@@ -253,41 +263,75 @@ class ExpansionPlanningData:
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
-        ## TODO: everything should check if it exists too.
+        # Many of these items are hardcoded for the time being
         """Fills in necessary but unspecified data information."""
-        for gen in self.md.data["elements"]["generator"]:
-            if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
-                if self.md.data["elements"]["generator"][gen]["in_service"] == False:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 1
-                else:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 2
-            else:
-                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-            self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
-            self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
-            self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
-            self.md.data["elements"]["generator"][gen]["extension_multiplier"] = 0
-            self.md.data["elements"]["generator"][gen]["max_operating_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["max_spinning_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["max_quickstart_reserve"] = 1
-            self.md.data["elements"]["generator"][gen][
-                "ramp_up_rate"
-            ] = 0.1  # FIXME should we update to only add if necessary
-            self.md.data["elements"]["generator"][gen][
-                "ramp_down_rate"
-            ] = 0.1  # FIXME should we update to only add if necessary
-            self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
-            self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
-            self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
-        for branch in self.md.data["elements"]["branch"]:
-            self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
-            self.md.data["elements"]["branch"][branch]["distance"] = 1
-            self.md.data["elements"]["branch"][branch]["capital_cost"] = 10000000
-        self.md.data["system"]["min_operating_reserve"] = 0.1
-        self.md.data["system"]["min_spinning_reserve"] = 0.1
+        if "elements" in self.md.data:
+            if "generator" in self.md.data["elements"]:
+                for gen in self.md.data["elements"]["generator"]:
+                    if "fuel" in self.md.data["elements"]["generator"][gen]:
+                        if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
+                            if (
+                                "in_service"
+                                in self.md.data["elements"]["generator"][gen]
+                            ):
+                                if (
+                                    self.md.data["elements"]["generator"][gen][
+                                        "in_service"
+                                    ]
+                                    == False
+                                ):
+                                    self.md.data["elements"]["generator"][gen][
+                                        "lifetime"
+                                    ] = 1
+                                else:
+                                    self.md.data["elements"]["generator"][gen][
+                                        "lifetime"
+                                    ] = 2
+                    else:
+                        self.md.data["elements"]["generator"][gen]["lifetime"] = 3
+                        self.md.data["elements"]["generator"][gen]["lifetime"] = 3
+
+                    self.md.data["elements"]["generator"][gen][
+                        "spinning_reserve_frac"
+                    ] = 0.1
+                    self.md.data["elements"]["generator"][gen][
+                        "quickstart_reserve_frac"
+                    ] = 0.1
+                    self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "extension_multiplier"
+                    ] = 0
+                    self.md.data["elements"]["generator"][gen][
+                        "max_operating_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "max_spinning_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "max_quickstart_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen]["ramp_up_rate"] = 0.1
+                    self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
+                    self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
+                    self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
+                    self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
+            if "branch" in self.md.data["elements"]:
+                for branch in self.md.data["elements"]["branch"]:
+                    self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
+                    self.md.data["elements"]["branch"][branch]["distance"] = 1
+                    self.md.data["elements"]["branch"][branch][
+                        "capital_cost"
+                    ] = 10000000
+        if "system" in self.md.data:
+            self.md.data["system"]["min_operating_reserve"] = 0.1
+            self.md.data["system"]["min_spinning_reserve"] = 0.1
 
     def load_storage_csv(self, data_path):
+        """Imports storage data.
+
+        :param data_path: filepath for storage data csv file
+
+        """
         try:
             storage_path = data_path + "/storage.csv"
             storage_df = pd.read_csv(storage_path)
@@ -305,6 +349,12 @@ class ExpansionPlanningData:
             self.md.data["elements"]["storage"] = {}
 
     def texas_case_study_updates(self, data_path):
+        """Imports generator data for texas case study.
+
+        :param data_path: filepath for generator data csv file
+
+        """
+        # check that datapath is coming from a texas case study directory
         if "Texas" or "Coal" not in data_path:
             raise ValueError("The data path provided is not a Texas case study")
 

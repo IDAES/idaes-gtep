@@ -39,7 +39,15 @@ def get_solution_object():
         num_commit=6,
         num_dispatch=4,
     )
-    data_object.load_prescient(input_data_source)
+    data_object.load_prescient(
+        input_data_source,
+        [
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+            "2020-07-05 00:00",
+            "2020-10-14 00:00",
+        ],
+    )
 
     mod_object = ExpansionPlanningModel(data=data_object)
     mod_object.create_model()
