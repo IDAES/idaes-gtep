@@ -22,7 +22,9 @@ from pyomo.environ import units as u
 import gtep.model_library.storage as stor
 
 
-def model_data_references(m):
+def model_data_references(
+        m, num_commit, num_dispatch, duration_dispatch
+):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -30,6 +32,41 @@ def model_data_references(m):
 
     """
 
+    # Add investment years. [TODO: Make sure this value comes from a
+    # configuration arg and not hardcoded values.]
+    m.years = [2025, 2030, 2035]
+
+    # Add parameters related to the representative periods for the
+    # different stages
+    m.representativePeriodLength = pyo.Param(
+        m.representativePeriods,
+        within=pyo.PositiveReals,
+        default=24,
+        units=u.hr
+    )
+    m.numCommitmentPeriods = pyo.Param(
+        m.representativePeriods,
+        within=pyo.PositiveIntegers,
+        default=2,
+        initialize=num_commit,
+    )
+    m.numDispatchPeriods = pyo.Param(
+        m.representativePeriods,
+        within=pyo.PositiveIntegers,
+        default=2,
+        initialize=num_dispatch,
+    )
+    m.commitmentPeriodLength = pyo.Param(
+        within=pyo.PositiveReals, default=1, units=u.hr
+    )
+
+    # [TODO: Index by dispatch period? Certainly index by
+    # commitment period.]
+    m.dispatchPeriodLength = pyo.Param(
+        within=pyo.PositiveReals, initialize=duration_dispatch, units=u.minutes
+    )
+
+    # Add power-related parameters
     m.thermalCapacity = pyo.Param(
         m.thermalGenerators,
         initialize={
