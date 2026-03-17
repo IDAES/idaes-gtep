@@ -48,6 +48,7 @@ import gtep.model_library.objective as obj_comp
 import gtep.model_library.params as params
 import gtep.model_library.sets as sets
 import gtep.model_library.representative_period as rep_period
+import gtep.model_library.scaling as scaling
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -262,54 +263,7 @@ def commitment_period_rule(b, commitment_period):
             )
 
     ## TODO: Redesign load scaling and allow nature of it as argument
-
-    # Demand at each bus
-    if m.config["scale_loads"]:
-        temp_scale = 3
-        temp_scale = 10
-
-        for load_n in m.load_buses:
-            m.loads[load_n] = (
-                temp_scale
-                * (
-                    1
-                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
-                )
-                * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                    commitment_period - 1
-                ]
-            )
-
-    elif m.config["scale_texas_loads"]:
-        false_loads = []
-        for load in m.md.data["elements"]["load"]:
-            if type(m.md.data["elements"]["load"][load]) == float:
-                false_loads.append(load)
-        for load in false_loads:
-            del m.md.data["elements"]["load"][load]
-            # del m.loads[load]
-        # print(m.loads)
-        for load_n in m.load_buses:
-            m.loads[load_n] = (
-                m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                    commitment_period - 1
-                ]
-                * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
-            )
-
-        # Testing
-        # print(m.loads)
-
-    else:
-        for load_n in m.load_buses:
-            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
-        # for key, val in b.loads.items():
-        #     # print(f"{key=}")
-        #     # print(f"{val=}")
-        #     b.loads[key] *= 1/3
-        # print(f"total load at time period = {sum(b.loads.values())}")
+    scaling.add_load_scaling(m, i_p, commitment_period)
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
