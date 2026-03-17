@@ -24,9 +24,7 @@ References:
 
 __author__ = "Kyle Skolfield"
 
-import math
 import json
-from math import ceil
 import numpy as np
 import re
 
@@ -49,6 +47,7 @@ import gtep.model_library.commitment as commit
 import gtep.model_library.objective as obj_comp
 import gtep.model_library.params as params
 import gtep.model_library.sets as sets
+import gtep.model_library.representative_period as rep_period
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -330,260 +329,6 @@ def commitment_period_rule(b, commitment_period):
         disp.add_dispatch_constraints(b.dispatchPeriod[period], period)
 
 
-def add_representative_period_variables(b, rep_per):
-    m = b.model()
-    i_p = b.parent_block()
-
-    # [ESR WIP: This variable is never used. Should we remove it?]
-    b.renewableSurplusRepresentative = pyo.Var(
-        within=pyo.Reals, initialize=0, units=u.USD
-    )
-
-
-def add_representative_period_constraints(b, rep_per):
-    m = b.model()
-    i_p = b.parent_block()
-
-    if m.config["include_commitment"]:
-        ##FIXME this needs to be updated for variable length commitment periods
-        ## do this by (pre) processing the set of commitment periods for req_shutdown_periods
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
-            req_shutdown_periods = ceil(
-                1
-                / float(
-                    m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
-                )
-            )
-            return (
-                pyo.atmost(
-                    req_shutdown_periods - 1,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genShutdown[thermalGen]
-                        .indicator_var
-                        for j in range(min(req_shutdown_periods, commitmentPeriod - 1))
-                    ],
-                ).land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genShutdown[thermalGen]
-                    .indicator_var
-                )
-                # | b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
-                .implies(
-                    b.commitmentPeriod[commitmentPeriod]
-                    .genShutdown[thermalGen]
-                    .indicator_var
-                )
-                if commitmentPeriod != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_off_after_shutdown(b, commitmentPeriod, thermalGen):
-            req_shutdown_periods = ceil(
-                1
-                / float(
-                    m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
-                )
-            )
-            return (
-                pyo.atleast(
-                    req_shutdown_periods,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genShutdown[thermalGen]
-                        .indicator_var
-                        for j in range(min(req_shutdown_periods, commitmentPeriod - 1))
-                    ],
-                )
-                .land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genShutdown[thermalGen]
-                    .indicator_var
-                )
-                .implies(
-                    b.commitmentPeriod[commitmentPeriod]
-                    .genOff[thermalGen]
-                    .indicator_var
-                )
-                if commitmentPeriod != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_startup(b, commitmentPeriod, thermalGen):
-            req_startup_periods = ceil(
-                1
-                # / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
-                / pyo.value(m.rampUpRates[thermalGen])
-            )
-            return (
-                pyo.atmost(
-                    req_startup_periods - 1,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genStartup[thermalGen]
-                        .indicator_var
-                        for j in range(min(req_startup_periods, commitmentPeriod - 1))
-                    ],
-                ).land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genStartup[thermalGen]
-                    .indicator_var
-                )
-                # | b.commitmentPeriod[commitmentPeriod-1].genOn.indicator_var)
-                .implies(
-                    b.commitmentPeriod[commitmentPeriod]
-                    .genStartup[thermalGen]
-                    .indicator_var
-                )
-                if commitmentPeriod != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_on_after_startup(b, commitmentPeriod, thermalGen):
-            req_startup_periods = ceil(
-                1
-                / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
-            )
-            return (
-                pyo.atleast(
-                    req_startup_periods,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genStartup[thermalGen]
-                        .indicator_var
-                        for j in range(min(req_startup_periods, commitmentPeriod - 1))
-                    ],
-                )
-                .land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genStartup[thermalGen]
-                    .indicator_var
-                )
-                .implies(
-                    b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
-                )
-                if commitmentPeriod != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        def consistent_commitment_uptime(b, commitmentPeriod, thermalGen):
-            return (
-                pyo.atmost(
-                    int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"])
-                    - 1,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genOn[thermalGen]
-                        .indicator_var
-                        for j in range(
-                            min(
-                                int(
-                                    m.md.data["elements"]["generator"][thermalGen][
-                                        "min_up_time"
-                                    ]
-                                ),
-                                commitmentPeriod - 1,
-                            )
-                        )
-                    ],
-                )
-                .land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genOn[thermalGen]
-                    .indicator_var
-                )
-                .implies(
-                    b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
-                )
-                if commitmentPeriod
-                != 1  # int(m.md.data["elements"]["generator"][thermalGen]["min_up_time"])+1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        ##FIXME: Is this constraint necessary?
-        # @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-        # def consistent_commitment_shutdown_after_uptime(
-        #     b, commitmentPeriod, thermalGen
-        # ):
-        #     return (
-        #         (
-        #             atleast(
-        #                 int(
-        #                     m.md.data["elements"]["generator"][thermalGen][
-        #                         "min_up_time"
-        #                     ]
-        #                 ),
-        #                 [
-        #                     b.commitmentPeriod[commitmentPeriod - j - 1]
-        #                     .genOn[thermalGen]
-        #                     .indicator_var
-        #                     for j in range(
-        #                         min(
-        #                             int(
-        #                                 m.md.data["elements"]["generator"][thermalGen][
-        #                                     "min_up_time"
-        #                                 ]
-        #                             ),
-        #                             commitmentPeriod - 1,
-        #                         )
-        #                     )
-        #                 ],
-        #             ).land(
-        #                 b.commitmentPeriod[commitmentPeriod - 1]
-        #                 .genOn[thermalGen]
-        #                 .indicator_var
-        #             )
-        #         ).implies(
-        #             b.commitmentPeriod[commitmentPeriod].genOn[thermalGen].indicator_var
-        #             | b.commitmentPeriod[commitmentPeriod]
-        #             .genShutdown[thermalGen]
-        #             .indicator_var
-        #         )
-        #         if commitmentPeriod != 1
-        #         else LogicalConstraint.Skip
-        #     )
-
-    @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
-    def consistent_commitment_downtime(b, commitmentPeriod, thermalGen):
-        return (
-            (
-                pyo.atmost(
-                    int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])
-                    - 1,
-                    [
-                        b.commitmentPeriod[commitmentPeriod - j - 1]
-                        .genOff[thermalGen]
-                        .indicator_var
-                        for j in range(
-                            min(
-                                int(
-                                    m.md.data["elements"]["generator"][thermalGen][
-                                        "min_down_time"
-                                    ]
-                                ),
-                                commitmentPeriod - 1,
-                            )
-                        )
-                    ],
-                ).land(
-                    b.commitmentPeriod[commitmentPeriod - 1]
-                    .genOff[thermalGen]
-                    .indicator_var
-                )
-            ).implies(
-                b.commitmentPeriod[commitmentPeriod].genOff[thermalGen].indicator_var
-            )
-            if commitmentPeriod
-            != 1  # >= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
-            else pyo.LogicalConstraint.Skip
-        )
-
-
 def representative_period_rule(b, representative_period):
     """Create representative period block.
 
@@ -609,8 +354,8 @@ def representative_period_rule(b, representative_period):
         )
         b.commitmentPeriod = pyo.Block(b.commitmentPeriods, rule=commitment_period_rule)
 
-        add_representative_period_variables(b, representative_period)
-        add_representative_period_constraints(b, representative_period)
+        rep_period.add_representative_period_variables(b, representative_period)
+        rep_period.add_representative_period_constraints(b, representative_period)
 
 
 def investment_stage_rule(b, investment_stage):
