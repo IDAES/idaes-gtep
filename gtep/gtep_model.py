@@ -46,6 +46,7 @@ from gtep.config_options import (
 import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
+import gtep.model_library.objective as obj_comp
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -184,7 +185,7 @@ class ExpansionPlanningModel:
         model_data_references(m)
 
         model_create_investment_stages(m, self.stages)
-        create_objective_function(m)
+        obj_comp.create_objective_function(m)
 
         self.model = m
 
@@ -833,49 +834,6 @@ def investment_stage_rule(b, investment_stage):
     b.maxRenewableInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
 
     inv.add_investment_constraints(b, investment_stage)
-
-
-def create_objective_function(m):
-    """Creates objective function.  Total cost is operating cost plus
-    expansion cost plus penalty cost (penalties include generation deficits,
-    renewable quota deficits, and curtailment)
-    :param m: Pyomo GTEP model.
-    """
-    """ Added Battery Storage Cost to Objective Function """
-
-    if len(m.stages) > 1:
-        m.operatingCost = sum(
-            m.investmentStage[stage].operatingCostInvestment for stage in m.stages
-        )
-        m.storageCost = sum(
-            m.investmentStage[stage].storageCostInvestment for stage in m.stages
-        )
-        m.expansionCost = sum(
-            m.investmentStage[stage].investment_cost for stage in m.stages
-        )
-        m.penaltyCost = sum(
-            m.deficitPenalty[stage]
-            * m.investmentFactor[stage]
-            * m.investmentStage[stage].quotaDeficit
-            + m.investmentStage[stage].renewableCurtailmentInvestment
-            for stage in m.stages
-        )
-
-    @m.Objective()
-    def total_cost_objective_rule(m):
-        if len(m.stages) > 1:
-            return m.operatingCost + m.expansionCost + m.penaltyCost + m.storageCost
-        else:
-            return (
-                m.investmentStage[1].operatingCostInvestment
-                + m.investmentStage[1].storageCostInvestment  # JSC Addn
-                + m.investmentStage[1].expansionCost
-                + m.deficitPenalty[1]
-                * m.investmentFactor[1]
-                * m.investmentStage[1].quotaDeficit
-                + m.investmentStage[1].renewableCurtailmentInvestment
-                + m.investmentStage[1].storageCostInvestment
-            )
 
 
 def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
