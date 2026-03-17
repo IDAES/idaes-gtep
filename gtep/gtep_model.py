@@ -21,7 +21,7 @@ References:
 [1] http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
 """
- 
+
 __author__ = "Kyle Skolfield"
 
 import math
@@ -55,8 +55,10 @@ u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]"])
 
 ## TODO: Egret features
 
+
 def data_update(investment_stage, storage_object, target_storage_object):
     pass
+
 
 # This is only used for reporting potentially bad (i.e., large
 # magnitude) coefficients and thus only when that argument is passed.

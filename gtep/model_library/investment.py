@@ -499,4 +499,3 @@ def add_investment_constraints(
                 renewableSurplusRepresentative + b.quotaDeficit
                 >= m.renewableQuota[investment_stage] * ed
             )
-
