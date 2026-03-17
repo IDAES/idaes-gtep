@@ -273,4 +273,3 @@ def add_representative_period_constraints(b, rep_per):
             != 1  # >= int(m.md.data["elements"]["generator"][thermalGen]["min_down_time"])+1
             else pyo.LogicalConstraint.Skip
         )
-
