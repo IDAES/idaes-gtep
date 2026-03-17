@@ -11,11 +11,18 @@
 # for full copyright and license information.
 #################################################################################
 
-# Generation and Transmission Expansion Planning
-# IDAES project
-# author: Kyle Skolfield
-# date: 01/04/2024
-# Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
+"""Generation and Transmission Expansion Planning (GTEP) Model
+
+Model equations available at ref[1]
+
+
+References:
+
+[1] http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
+
+"""
+ 
+__author__ = "Kyle Skolfield"
 
 import math
 import json
@@ -37,25 +44,19 @@ from gtep.config_options import (
     _add_investment_configs,
 )
 
-# Define what a USD is for pyomo units purposes
-# This will be set to a base year and we will do NPV calculations
-# based on automatic pyomo unit transformations
+# Define what a USD is for pyomo units purposes. This will be set to a
+# base year and we will do NPV calculations based on automatic Pyomo
+# unit transformations.
 u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]"])
 
 
-####################################
-########## New Work Here ###########
-####################################
-
 ## TODO: Egret features
-
 
 def data_update(investment_stage, storage_object, target_storage_object):
     pass
 
-
-# This is only used for reporting potentially bad (i.e., large magnitude) coefficients
-# and thus only when that argument is passed
+# This is only used for reporting potentially bad (i.e., large
+# magnitude) coefficients and thus only when that argument is passed.
 class VisitorConfig(object):
     def __init__(self):
         self.subexpr = {}
@@ -67,7 +68,10 @@ class VisitorConfig(object):
 
 
 class ExpansionPlanningModel:
-    """A generalized generation and transmission expansion planning model."""
+    """A generalized generation and transmission expansion planning
+    model.
+
+    """
 
     def __init__(
         self,
@@ -112,24 +116,25 @@ class ExpansionPlanningModel:
         _add_investment_configs(self.config)
 
     def create_model(self):
-        """Create concrete Pyomo model object associated with the ExpansionPlanningModel"""
+        """Create concrete Pyomo model object associated with the
+        ExpansionPlanningModel class
+
+        """
 
         self.timer.tic("Creating GTEP Model")
-        m = pyo.ConcreteModel()
+        m = pyo.ConcreteModel("GTEP Model")
 
         m.config = self.config
 
-        ## TODO: checks for active/built/inactive/unbuilt/etc. gen
-        ## NOTE: scale_ModelData_to_pu doesn't account for expansion data -- does it need to?
+        # NOTE: scale_ModelData_to_pu doesn't account for expansion
+        # data -- does it need to?
+        # [TODO: checks for active/built/inactive/unbuilt/etc. gen]
         if self.data is None:
             raise
         elif type(self.data.representative_data) is list:
             # If self.data is a list, it is a list of data for
             # representative periods
             m.data_list = self.data.representative_data
-            ##TEXAS: testing this for proper scaling
-            # for data in m.data_list:
-            #     scale_ModelData_to_pu(data)
             m.md = m.data_list[0]
             m.data = self.data
         else:
@@ -139,8 +144,8 @@ class ExpansionPlanningModel:
             m.md = scale_ModelData_to_pu(self.data)
             m.formulation = self.formulation
 
-        # [ESR WIP: Add cost_data. TODO: Think about how to do some
-        # scaling in this data.]
+        # Add cost_data from the DataProcessing class. [TODO: Think
+        # about how to do some scaling in this data.]
         m.mc = self.cost_data
 
         model_set_declaration(
@@ -165,8 +170,8 @@ class ExpansionPlanningModel:
             within=pyo.PositiveReals, default=1, units=u.hr
         )
 
-        # TODO: index by dispatch period? Certainly index by
-        # commitment period
+        # [TODO: Index by dispatch period? Certainly index by
+        # commitment period.]
         m.dispatchPeriodLength = pyo.Param(
             within=pyo.PositiveReals, initialize=self.duration_dispatch, units=u.minutes
         )
@@ -178,7 +183,8 @@ class ExpansionPlanningModel:
 
         self.model = m
 
-    ## TODO: this should handle string or i/o object for outfile
+    # [TODO: This method should handle string or i/o object for
+    # outfile.]
     def report_model(self, outfile="pretty_model_output.txt"):
         """Pretty prints Pyomo model to outfile.
 
@@ -188,11 +194,13 @@ class ExpansionPlanningModel:
             self.model.pprint(ostream=outf)
 
     def report_large_coefficients(self, outfile, magnitude_cutoff=1e5):
-        """Dump very large magnitude (>= 1e5) coefficients to a json file.
+        """Dump very large magnitude (>= 1e5) coefficients to a json
+        file.
 
         :outfile: should accept filename or open file and write there;
                   (see how we do this in pyomo elsewhere)
         :magnitude_cutoff: magnitude above which to report coefficients
+
         """
         var_coef_dict = {}
         for e in self.model.component_data_objects(pyo.Constraint):
