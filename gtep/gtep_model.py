@@ -45,7 +45,7 @@ from gtep.config_options import (
 )
 import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
-import gtep.model_library.commitment as commt
+import gtep.model_library.commitment as commit
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -341,9 +341,9 @@ def commitment_period_rule(b, commitment_period):
 
     ## TODO: if commitment is neglected but dispatch is still desired, pull something different here? or simply don't enforce linked commitment constraints?
     if m.config["include_commitment"]:
-        commt.add_commitment_variables(b, commitment_period)
+        commit.add_commitment_variables(b, commitment_period)
 
-    commt.add_commitment_constraints(b, commitment_period)
+    commit.add_commitment_constraints(b, commitment_period)
 
     for period in b.dispatchPeriods:
         disp.add_dispatch_constraints(b.dispatchPeriod[period], period)
