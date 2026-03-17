@@ -48,6 +48,7 @@ import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
 import gtep.model_library.objective as obj_comp
 import gtep.model_library.params as params
+import gtep.model_library.sets as sets
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -155,35 +156,13 @@ class ExpansionPlanningModel:
         # about how to do some scaling in this data.]
         m.mc = self.cost_data
 
-        model_set_declaration(
+        sets.model_set_declaration(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
-        m.representativePeriodLength = pyo.Param(
-            m.representativePeriods, within=pyo.PositiveReals, default=24, units=u.hr
-        )
-        m.numCommitmentPeriods = pyo.Param(
-            m.representativePeriods,
-            within=pyo.PositiveIntegers,
-            default=2,
-            initialize=self.num_commit,
-        )
-        m.numDispatchPeriods = pyo.Param(
-            m.representativePeriods,
-            within=pyo.PositiveIntegers,
-            default=2,
-            initialize=self.num_dispatch,
-        )
-        m.commitmentPeriodLength = pyo.Param(
-            within=pyo.PositiveReals, default=1, units=u.hr
-        )
 
-        # [TODO: Index by dispatch period? Certainly index by
-        # commitment period.]
-        m.dispatchPeriodLength = pyo.Param(
-            within=pyo.PositiveReals, initialize=self.duration_dispatch, units=u.minutes
+        params.model_data_references(
+            m, self.num_commit, self.num_dispatch, self.duration_dispatch
         )
-
-        params.model_data_references(m)
 
         model_create_investment_stages(m, self.stages)
         obj_comp.create_objective_function(m)
@@ -837,92 +816,6 @@ def investment_stage_rule(b, investment_stage):
     inv.add_investment_constraints(b, investment_stage)
 
 
-def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
-    """
-    Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
-
-    :m: Pyomo model object
-    :stages: Number of stages in investment horizon
-    """
-
-    m.buses = pyo.Set(
-        initialize=m.md.data["elements"]["bus"].keys(), doc="Individual buses"
-    )
-
-    m.regions = pyo.Set(
-        initialize=(
-            m.md.data["elements"]["bus"][bus]["area"]
-            for bus in m.md.data["elements"]["bus"]
-        ),
-        doc="Regions / clusters of buses",
-    )
-
-    ## TODO: Right now, this means that branches can only be specified entirely as standard
-    ## or as dc ... not mix-and-match
-    if len(m.md.data["elements"]["branch"]) == 0:
-        m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
-
-    m.transmission = {
-        branch: {
-            "from_bus": m.md.data["elements"]["branch"][branch]["from_bus"],
-            "to_bus": m.md.data["elements"]["branch"][branch]["to_bus"],
-            "reactance": m.md.data["elements"]["branch"][branch]["reactance"],
-        }
-        for branch in m.md.data["elements"]["branch"]
-    }
-
-    m.generators = pyo.Set(
-        initialize=m.md.data["elements"]["generator"].keys(),
-        doc="All generators",
-    )
-
-    m.thermalGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal"
-        ),
-        doc="Thermal generators; subset of all generators",
-    )
-
-    m.renewableGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
-
-    # [ESR WIP: Add set for transmission lines, relevant in
-    # model_data_references.]
-    m.lines = pyo.Set(
-        initialize=m.transmission.keys(), doc="Individual transmission lines"
-    )
-
-    m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
-
-    ## NOTE: will want to cover baseline generator types in IDAES
-    # This should be updated for battery. @JKS is this using the
-    # built-in structure from EGRET or just a placeholder?
-    if m.md.data["elements"].get("storage"):
-        m.storage = pyo.Set(
-            initialize=(ess for ess in m.md.data["elements"]["storage"]),
-            doc="Potential storage units",
-        )
-
-    ## TODO: make sure time units are both definable and consistent without being forced
-
-    m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
-
-    m.representativePeriods = pyo.Set(
-        initialize=rep_per,
-        doc="Set of representative periods for each planning period",
-    )
-
-
 def model_create_investment_stages(m, stages):
     """Creates investment blocks and linking constraints for GTEP model.
     Largely manages retirements and links operational units in a given investment stage
@@ -931,9 +824,6 @@ def model_create_investment_stages(m, stages):
     :m: Pyomo model object
     :stages: Number of investment stages in planning horizon
     """
-
-    # [ESR WIP: Add investment years]
-    m.years = [2025, 2030, 2035]
 
     m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
 
