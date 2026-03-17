@@ -22,9 +22,7 @@ from pyomo.environ import units as u
 import gtep.model_library.storage as stor
 
 
-def model_data_references(
-        m, num_commit, num_dispatch, duration_dispatch
-):
+def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -39,10 +37,7 @@ def model_data_references(
     # Add parameters related to the representative periods for the
     # different stages
     m.representativePeriodLength = pyo.Param(
-        m.representativePeriods,
-        within=pyo.PositiveReals,
-        default=24,
-        units=u.hr
+        m.representativePeriods, within=pyo.PositiveReals, default=24, units=u.hr
     )
     m.numCommitmentPeriods = pyo.Param(
         m.representativePeriods,

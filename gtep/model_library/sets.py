@@ -103,4 +103,3 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         initialize=rep_per,
         doc="Set of representative periods for each planning period",
     )
-
