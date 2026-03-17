@@ -17,50 +17,43 @@ Model
 """
 
 
-def add_load_scaling(m, i_p, commitment_period):
+def add_load_scaling(m, b, commitment_period, investment_stage):
 
-    # Demand at each bus
-    if m.config["scale_loads"]:
-        temp_scale = 3
-        temp_scale = 10
+    # Create a false load directory. [TODO: Commented for now since it
+    # is not used. Check with team if we want to preserve this for
+    # Texas case.]
+    # false_loads = []
+    # for load in m.md.data["elements"]["load"]:
+    #     if type(m.md.data["elements"]["load"][load]) == float:
+    #         false_loads.append(load)
+    # for load in false_loads:
+    #     del m.md.data["elements"]["load"][load]
+    #     # del m.loads[load]
+    # # print(m.loads)
 
-        for load_n in m.load_buses:
+    # Loop over the demand at each bus and scale based on the case.
+    for load_n in m.load_buses:
+        p_load = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
+            commitment_period - 1
+        ]
+
+        if m.config["scale_loads"]:
+            temp_scale = 10
             m.loads[load_n] = (
-                temp_scale
-                * (
-                    1
-                    + (temp_scale + i_p.investmentStage) / (temp_scale + len(m.stages))
-                )
-                * m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                    commitment_period - 1
-                ]
+                p_load
+                * temp_scale
+                * (1 + (temp_scale + investment_stage) / (temp_scale + len(m.stages)))
             )
 
-    elif m.config["scale_texas_loads"]:
-        false_loads = []
-        for load in m.md.data["elements"]["load"]:
-            if type(m.md.data["elements"]["load"][load]) == float:
-                false_loads.append(load)
-        for load in false_loads:
-            del m.md.data["elements"]["load"][load]
-            # del m.loads[load]
-        # print(m.loads)
-        for load_n in m.load_buses:
+        elif m.config["scale_texas_loads"]:
             m.loads[load_n] = (
-                m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                    commitment_period - 1
-                ]
+                p_load
                 * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             )
 
-        # Testing
-        # print(m.loads)
+        else:
+            m.loads[load_n] = p_load
 
-    else:
-        for load_n in m.load_buses:
-            m.loads[load_n] = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
-                commitment_period - 1
-            ]
         # for key, val in b.loads.items():
         #     # print(f"{key=}")
         #     # print(f"{val=}")

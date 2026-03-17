@@ -263,7 +263,7 @@ def commitment_period_rule(b, commitment_period):
             )
 
     ## TODO: Redesign load scaling and allow nature of it as argument
-    scaling.add_load_scaling(m, i_p, commitment_period)
+    scaling.add_load_scaling(m, b, commitment_period, i_p.investmentStage)
 
     ## TODO: This feels REALLY inelegant and bad.
     ## TODO: Something weird happens if I say periodLength has a unit
