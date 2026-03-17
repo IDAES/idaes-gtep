@@ -21,25 +21,24 @@ import pyomo.environ as pyo
 
 def add_storage_params(m):
     """Battery Storage properties read-in from data"""
-    
+
     m.storageCapacity = {
         bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
         for bat in m.storage
     }  # maximum storage capacity
-    
+
     m.initStorageChargeLevel = {
         bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
         for bat in m.storage
     }  # initial storage capacity
-    
+
     m.minStorageChargeLevel = {
         bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
         for bat in m.storage
     }  # minimum storage capacity
 
     m.chargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
-        for bat in m.storage
+        bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
     }  # cost to charge per unit electricity
 
     m.dischargingCost = {
@@ -82,7 +81,7 @@ def add_storage_params(m):
         bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
         for bat in m.storage
     }  # maximum amount of ramp up between dispatch periods when charging.
-    
+
     m.storageChargingRampDownRates = {
         bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
         for bat in m.storage

@@ -422,7 +422,6 @@ def model_data_references(m):
         == region
     }
 
-    
     # [ESR WIP: Declare fixed and operating costs here to avoid
     # multiple declarations of the same parameter. Set the value to 1
     # for now and updated in function investment_stage_rule.]
