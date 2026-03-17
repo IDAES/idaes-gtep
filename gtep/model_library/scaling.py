@@ -18,7 +18,7 @@ Model
 
 
 def add_load_scaling(m, i_p, commitment_period):
-    
+
     # Demand at each bus
     if m.config["scale_loads"]:
         temp_scale = 3
