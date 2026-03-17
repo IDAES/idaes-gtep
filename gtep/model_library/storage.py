@@ -19,6 +19,112 @@ Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 
 
+def add_storage_params(m):
+    """Battery Storage properties read-in from data"""
+    
+    m.storageCapacity = {
+        bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
+        for bat in m.storage
+    }  # maximum storage capacity
+    
+    m.initStorageChargeLevel = {
+        bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
+        for bat in m.storage
+    }  # initial storage capacity
+    
+    m.minStorageChargeLevel = {
+        bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
+        for bat in m.storage
+    }  # minimum storage capacity
+
+    m.chargingCost = {
+        bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+        for bat in m.storage
+    }  # cost to charge per unit electricity
+
+    m.dischargingCost = {
+        bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+        for bat in m.storage
+    }  # cost to discharge per unit electricity
+
+    m.dischargeMin = {
+        bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
+        for bat in m.storage
+    }  # minimum amount to discharge per dispatch period when discharging
+
+    m.dischargeMax = {
+        bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
+        for bat in m.storage
+    }  # maximum amount to discharge per dispatch period when discharging
+
+    m.chargeMin = {
+        bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
+        for bat in m.storage
+    }  # minimum amount to charge per dispatch period when charging
+
+    m.chargeMax = {
+        bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
+        for bat in m.storage
+    }  # maximum amount to charge per dispatch period when charging
+
+    m.storageDischargingRampUpRates = {
+        bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
+        for bat in m.storage
+    }  # maximum amount of ramp up between dispatch periods when discharging.
+    # Notice that default EGRET naming convention assumes dispatch periods are 60 minutes
+
+    m.storageDischargingRampDownRates = {
+        bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
+        for bat in m.storage
+    }  # maximum amount of ramp down between dispatch periods when discharging.
+
+    m.storageChargingRampUpRates = {
+        bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
+        for bat in m.storage
+    }  # maximum amount of ramp up between dispatch periods when charging.
+    
+    m.storageChargingRampDownRates = {
+        bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
+        for bat in m.storage
+    }  # maximum amount of ramp down between dispatch periods when charging.
+
+    m.storageDischargingEfficiency = {
+        bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
+        for bat in m.storage
+    }  # proportion of energy discharged that is not lost to technological
+    # inefficiencies with in dispatch periods and which is usable in the flow balance
+
+    m.storageChargingEfficiency = {
+        bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
+        for bat in m.storage
+    }  # proportion of energy charged that is not lost to technological
+    # inefficiencies within dispatch periods and which is usable in the flow balance
+
+    m.storageRetentionRate = {
+        bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
+        for bat in m.storage
+    }  # proportion of energy discharged that is not lost to technological
+    # inefficiencies between dispatch periods and which is usable in the flow balance
+
+    # (Arbitrary) multiplier for new battery investments corresponds to depreciation schedules
+    # for individual technologies; higher values are indicative of slow depreciation
+    m.storageCapitalMultiplier = {
+        bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
+        for bat in m.storage
+    }
+
+    # Cost of life extension for each battery, expressed as a fraction of initial investment cost
+    m.storageExtensionMultiplier = {
+        bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
+        for bat in m.storage
+    }
+
+    m.storageInvestmentCost = {
+        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+        for bat in m.storage
+    }  # Future not real cost: idealized DoE 10-yr targets or something
+
+
 def add_storage_constraints(m, b, commitment_period):
     """
     Battery Discharging Constraints
