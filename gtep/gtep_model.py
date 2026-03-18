@@ -45,8 +45,7 @@ import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
 import gtep.model_library.objective as obj_comp
-import gtep.model_library.params as params
-import gtep.model_library.sets as sets
+import gtep.model_library.params as comps
 import gtep.model_library.representative_period as rep_period
 import gtep.model_library.scaling as scaling
 import gtep.model_library.storage as stor
@@ -157,11 +156,11 @@ class ExpansionPlanningModel:
         # about how to do some scaling in this data.]
         m.mc = self.cost_data
 
-        sets.model_set_declaration(
+        comps.model_set_declaration(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
 
-        params.model_data_references(
+        comps.model_data_references(
             m, self.num_commit, self.num_dispatch, self.duration_dispatch
         )
 
@@ -327,8 +326,9 @@ def investment_stage_rule(b, investment_stage):
 
     # Declare costs parameters here since they depend on the
     # investment year
-    params.model_data_costs(m, b.year)
+    comps.model_data_costs(m, b.year)
 
+    # Get rid of this
     if m.config["scale_texas_loads"]:
         b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
 
