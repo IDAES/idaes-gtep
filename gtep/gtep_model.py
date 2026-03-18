@@ -49,6 +49,7 @@ import gtep.model_library.params as params
 import gtep.model_library.sets as sets
 import gtep.model_library.representative_period as rep_period
 import gtep.model_library.scaling as scaling
+import gtep.model_library.storage as stor
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
@@ -566,90 +567,7 @@ def model_create_investment_stages(m, stages):
 
     # Storage Constraints same as gen constraints
     if m.config["storage"]:
-
-        # If a storage device is online at time t, it must have been online or installed at time t-1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage]
-                .storOperational[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage - 1].storOperational[gen].indicator_var
-                    | m.investmentStage[stage - 1].storInstalled[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        # If a gen is online at time t, it must be online, extended, or retired at time t+1
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_operation_future_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storOperational[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
-                    | m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        # Retirement in period t-1 implies disabled in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_retirement_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storRetired[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        # If a gen is disabled at time t-1, it must stay disabled  at time t
-        ##FIXME Disabling is permanent.  Re investment is a "new" unit.  Remove the "or"
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_disabled_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storDisabled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storDisabled[gen].indicator_var
-                    | m.investmentStage[stage].storInstalled[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        # If a gen is extended at time t-1, it must stay extended or be retired at time t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def consistent_extended_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storExtended[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storExtended[gen].indicator_var
-                    | m.investmentStage[stage].storRetired[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
-
-        # Installation in period t-1 implies operational in period t
-        @m.LogicalConstraint(m.stages, m.storage)
-        def full_investment_stor(m, stage, gen):
-            return (
-                m.investmentStage[stage - 1]
-                .storInstalled[gen]
-                .indicator_var.implies(
-                    m.investmentStage[stage].storOperational[gen].indicator_var
-                )
-                if stage != 1
-                else pyo.LogicalConstraint.Skip
-            )
+        stor.add_storage_logical_constraints(m)
 
     if m.config["transmission"]:
         # If a branch is online at time t, it must have been online or installed at time t-1
