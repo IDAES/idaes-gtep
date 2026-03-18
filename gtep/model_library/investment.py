@@ -19,6 +19,7 @@ Generation and Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
