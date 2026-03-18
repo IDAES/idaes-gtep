@@ -210,20 +210,13 @@ def add_investment_constraints(
         ## TODO: check and re-enable with additional bounding transform before bigm
         ## TODO: renewableCapacityValue... should this be time iterated? is it tech based?
         ## is it site based? who can say?
-    """ Energy Storage: Fixing In-Service batteries initial investment state based on input"""
+
+    # Fixing in-service batteries initial investment state based on
+    # input. [TODO: Also initialize storage level (state of charge)]
     if m.config["storage"]:
-        for bat in m.storage:
-            if (
-                m.md.data["elements"]["storage"][bat]["in_service"] == False
-                and investment_stage == 1
-            ):
-                b.storOperational[bat].indicator_var.fix(False)
-            elif (
-                m.md.data["elements"]["storage"][bat]["in_service"] == True
-                and investment_stage == 1
-            ):
-                b.storOperational[bat].indicator_var.fix(True)
-        # TODO: Also initialize storage level (state of charge)
+        stor.add_investment_storage_constraints(m, b, investment_stage)
+
+
     """@b.Constraint()
     def planning_reserve_requirement(b):
         return (

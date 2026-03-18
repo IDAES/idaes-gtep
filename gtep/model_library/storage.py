@@ -389,6 +389,20 @@ def add_storage_constraints(m, b, commitment_period):
         )
 
 
+def add_investment_storage_constraints(m, b, investment_stage):
+    for bat in m.storage:
+        if (
+            m.md.data["elements"]["storage"][bat]["in_service"] == False
+            and investment_stage == 1
+        ):
+            b.storOperational[bat].indicator_var.fix(False)
+        elif (
+            m.md.data["elements"]["storage"][bat]["in_service"] == True
+            and investment_stage == 1
+        ):
+            b.storOperational[bat].indicator_var.fix(True)
+
+
 def add_storage_logical_constraints(m):
 
     # If a storage device is online at time t, it must have been online or installed at time t-1
