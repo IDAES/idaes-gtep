@@ -19,6 +19,8 @@ Generation and Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+import gtep.model_library.transmission as transm
+
 
 def add_investment_variables(b, investment_stage):
     """Add variables to investment stage block.
@@ -199,17 +201,7 @@ def add_investment_constraints(
             b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
 
     if m.config["transmission"]:
-        for branch in m.transmission:
-            if (
-                m.md.data["elements"]["branch"][branch]["in_service"] == False
-                and investment_stage == 1
-            ):
-                b.branchOperational[branch].indicator_var.fix(False)
-            elif (
-                m.md.data["elements"]["branch"][branch]["in_service"] == True
-                and investment_stage == 1
-            ):
-                b.branchOperational[branch].indicator_var.fix(True)
+        transm.add_transmission_constraints(m, b, investment_stage)
 
         # Planning reserve requirement constraint
         ## NOTE: renewableCapacityValue is a percentage of renewableCapacity
@@ -218,7 +210,7 @@ def add_investment_constraints(
         ## TODO: check and re-enable with additional bounding transform before bigm
         ## TODO: renewableCapacityValue... should this be time iterated? is it tech based?
         ## is it site based? who can say?
-        """ Energy Storage: Fixing In-Service batteries initial investment state based on input"""
+    """ Energy Storage: Fixing In-Service batteries initial investment state based on input"""
     if m.config["storage"]:
         for bat in m.storage:
             if (

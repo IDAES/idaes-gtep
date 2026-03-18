@@ -19,6 +19,20 @@ Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 
 
+def add_transmission_constraints(m, b, investment_stage):
+    for branch in m.transmission:
+        if (
+            m.md.data["elements"]["branch"][branch]["in_service"] == False
+            and investment_stage == 1
+        ):
+            b.branchOperational[branch].indicator_var.fix(False)
+        elif (
+            m.md.data["elements"]["branch"][branch]["in_service"] == True
+            and investment_stage == 1
+        ):
+            b.branchOperational[branch].indicator_var.fix(True)
+
+
 def add_transmission_logical_constraints(m):
 
     # If a branch is online at time t, it must have been online or installed at time t-1
