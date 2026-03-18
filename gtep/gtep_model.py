@@ -45,7 +45,7 @@ import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
 import gtep.model_library.objective as obj_comp
-import gtep.model_library.params as comps
+import gtep.model_library.components as comps
 import gtep.model_library.representative_period as rep_period
 import gtep.model_library.scaling as scaling
 import gtep.model_library.storage as stor
