@@ -329,67 +329,6 @@ def investment_stage_rule(b, investment_stage):
     # investment year
     comps.model_data_costs(m, b.year)
 
-    # Get rid of this
-    if m.config["scale_texas_loads"]:
-        b.load_scaling = m.data.load_scaling[m.data.load_scaling["year"] == b.year]
-
-        kw_to_mw_option = 1000
-        other_option = 1
-        ##TEXAS: lmao this is garbage; generalize this
-        if investment_stage == 1:
-            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost1)
-            b.varCost = pyo.Param(m.generators, initialize=m.varCost1)
-            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost1)
-            thermalInvestmentCost = {
-                gen: other_option
-                * m.thermalCapacity[gen]
-                * m.md.data["elements"]["generator"][gen]["capex1"]
-                for gen in m.thermalGenerators
-            }
-            renewableInvestmentCost = {
-                gen: other_option
-                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
-                * m.md.data["elements"]["generator"][gen]["capex1"]
-                for gen in m.renewableGenerators
-            }
-            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
-            print("gen investment cost")
-            print(sum(m.generatorInvestmentCost.values()))
-        elif investment_stage == 2:
-            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost2)
-            b.varCost = pyo.Param(m.generators, initialize=m.varCost2)
-            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost2)
-            thermalInvestmentCost = {
-                gen: other_option
-                * m.thermalCapacity[gen]
-                * m.md.data["elements"]["generator"][gen]["capex2"]
-                for gen in m.thermalGenerators
-            }
-            renewableInvestmentCost = {
-                gen: other_option
-                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
-                * m.md.data["elements"]["generator"][gen]["capex2"]
-                for gen in m.renewableGenerators
-            }
-            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
-        else:
-            b.fixedCost = pyo.Param(m.generators, initialize=m.fixedCost3)
-            b.varCost = pyo.Param(m.generators, initialize=m.varCost3)
-            b.fuelCost = pyo.Param(m.generators, initialize=m.fuelCost3)
-            thermalInvestmentCost = {
-                gen: other_option
-                * m.thermalCapacity[gen]
-                * m.md.data["elements"]["generator"][gen]["capex3"]
-                for gen in m.thermalGenerators
-            }
-            renewableInvestmentCost = {
-                gen: other_option
-                * m.renewableCapacityNameplate[gen]  # TODO: is Nameplate correct?
-                * m.md.data["elements"]["generator"][gen]["capex3"]
-                for gen in m.renewableGenerators
-            }
-            m.generatorInvestmentCost = thermalInvestmentCost | renewableInvestmentCost
-
     b.representativePeriods = [
         p
         for p in m.representativePeriods
