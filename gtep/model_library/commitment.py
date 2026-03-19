@@ -370,3 +370,38 @@ def add_commitment_constraints(b, comm_per):
             b.dispatchPeriod[disp_per].renewableCurtailmentDispatch
             for disp_per in b.dispatchPeriods
         )
+
+
+def add_investment_commitment_constraints(m, b, investment_stage):
+
+    @b.Constraint(doc="Curtailment penalties for investment period")
+    def renewable_curtailment_cost(b):
+        renewableCurtailmentRep = 0
+        for rep_per in b.representativePeriods:
+            for com_per in b.representativePeriod[rep_per].commitmentPeriods:
+                renewableCurtailmentRep += (
+                    m.weights[rep_per]
+                    * m.commitmentPeriodLength
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .renewableCurtailmentCommitment  # in MW
+                    # [ESR Question: Do we need to include this term here?]
+                    * m.curtailmentCost
+                )  # units are in $
+        return (
+            b.renewableCurtailmentInvestment  # in $
+            == m.investmentFactor[investment_stage] * renewableCurtailmentRep
+        )
+
+    @b.Expression(doc="Operating costs for investment period")
+    def commitmentOperatingCostInvestment(b):
+        return m.investmentFactor[investment_stage] * sum(
+            sum(
+                m.weights[rep_per]
+                * b.representativePeriod[rep_per]
+                .commitmentPeriod[com_per]
+                .operatingCostCommitment
+                for com_per in b.representativePeriod[rep_per].commitmentPeriods
+            )
+            for rep_per in b.representativePeriods
+        )

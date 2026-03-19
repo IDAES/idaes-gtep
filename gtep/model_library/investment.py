@@ -21,6 +21,7 @@ from pyomo.environ import units as u
 
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
+import gtep.model_library.commitment as commit
 
 
 def add_investment_variables(b, investment_stage):
@@ -161,29 +162,7 @@ def add_investment_constraints(
         stor.add_investment_storage_constraints(m, b, investment_stage)
 
     # NOTE: The following constraints can be split into rep_per and
-    # invest_stage components if desired. [ESR Question: Check
-    # commitment flag here.]
-
-    # [BLN: Convert this to a constraint using operatingCostInvestment
-    # Var. May also need to move it]
-    @b.Constraint(doc="Operating costs for investment period")
-    def rule_operatingCostInvestment(b):
-        if m.config["include_commitment"]:
-            return b.operatingCostInvestment == (
-                m.investmentFactor[investment_stage]
-                * sum(
-                    sum(
-                        m.weights[rep_per]
-                        * b.representativePeriod[rep_per]
-                        .commitmentPeriod[com_per]
-                        .operatingCostCommitment
-                        for com_per in b.representativePeriod[rep_per].commitmentPeriods
-                    )
-                    for rep_per in b.representativePeriods
-                )
-            )
-        else:
-            return b.operatingCostInvestment == 0
+    # invest_stage components if desired.
 
     # [TODO: The definition of the investment cost needs to be
     # revisited AND possibly depends on data format. NOTE: It is
@@ -250,28 +229,18 @@ def add_investment_constraints(
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
-    # [ESR Question: Should we rename this as "include_curtailment"
-    # instead?]
     if m.config["include_commitment"]:
+        commit.add_investment_commitment_constraints(m, b, investment_stage)
 
-        @b.Constraint(doc="Curtailment penalties for investment period")
-        def renewable_curtailment_cost(b):
-            renewableCurtailmentRep = 0
-            for rep_per in b.representativePeriods:
-                for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                    renewableCurtailmentRep += (
-                        m.weights[rep_per]
-                        * m.commitmentPeriodLength
-                        * b.representativePeriod[rep_per]
-                        .commitmentPeriod[com_per]
-                        .renewableCurtailmentCommitment  # in MW
-                        # [ESR Question: Do we need to include this term here?]
-                        * m.curtailmentCost
-                    )  # units are in $
-            return (
-                b.renewableCurtailmentInvestment  # in $
-                == m.investmentFactor[investment_stage] * renewableCurtailmentRep
-            )
+    # [BLN: Convert this to a constraint using operatingCostInvestment
+    # Var. May also need to move it]
+    @b.Constraint(doc="Operating costs for investment period")
+    def rule_operatingCostInvestment(b):
+        return b.operatingCostInvestment == (
+            b.commitmentOperatingCostInvestment
+            if m.config["include_commitment"] == True
+            else 0
+        )
 
     # [ESR Question: Do we need to add the flag for investment? Should
     # we better put this flag when calling this function?]
