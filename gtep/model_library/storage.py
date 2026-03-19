@@ -457,6 +457,9 @@ def add_storage_state_disjuncts(m, b, commitment_period):
 
 
 def add_investment_storage_constraints(m, b, investment_stage):
+
+    # Fix "in-service" batteries initial investment state based on
+    # input. [TODO: Initialize storage level (state of charge)]
     for bat in m.storage:
         if (
             m.md.data["elements"]["storage"][bat]["in_service"] == False
