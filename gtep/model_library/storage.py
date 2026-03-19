@@ -581,6 +581,11 @@ def add_storage_status_disjuncts(b, storage_set):
 
 
 def add_storage_logical_constraints(m):
+    """This method defines logical constraints to ensure that storage
+    statuses transitions are operationally consistent over time,
+    across the investment stages.
+
+    """
 
     @m.LogicalConstraint(
         m.stages,
