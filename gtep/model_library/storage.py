@@ -691,7 +691,7 @@ def add_storage_logical_constraints(m):
         )
 
 
-def add_dispatch_storage_variables_and_constraints(m):
+def add_dispatch_storage_variables_and_constraints(m, b):
 
     # NOTE: The lower bound should be > 0 (from data input)
     def storage_capacity_limits(b, bat):

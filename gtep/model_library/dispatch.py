@@ -122,7 +122,9 @@ def add_dispatch_variables(b, dispatch_period):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
     if m.config["storage"]:
-        stor.add_dispatch_storage_variables(m)  # includes costs variables
+        stor.add_dispatch_storage_variables_and_constraints(
+            m, b
+        )  # includes costs variables
 
     if m.config["storage"]:
         """Per-Battery Operational costs"""
