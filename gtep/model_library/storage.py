@@ -462,6 +462,20 @@ def add_investment_storage_constraints(m, b, investment_stage):
         ):
             b.storOperational[bat].indicator_var.fix(True)
 
+    @b.Expression(doc="Storage investment costs in $")
+    def storage_investment_cost(b):
+        return sum(
+            m.storageInvestmentCost[bat]
+            * m.storageCapitalMultiplier[bat]
+            * b.storInstalled[bat].indicator_var.get_associated_binary()
+            for bat in m.storage
+        ) + sum(
+            m.storageInvestmentCost[bat]
+            * m.storageExtensionMultiplier[bat]
+            * b.storExtended[bat].indicator_var.get_associated_binary()
+            for bat in m.storage
+        )
+
 
 def add_storage_disjuncts(b, storage_set):
     """This method implements a Disjunction and its disjuncts to model

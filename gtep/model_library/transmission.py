@@ -19,7 +19,7 @@ Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 
 
-def add_transmission_constraints(m, b, investment_stage):
+def add_investment_transmission_constraints(m, b, investment_stage):
     for branch in m.transmission:
         if (
             m.md.data["elements"]["branch"][branch]["in_service"] == False
@@ -31,6 +31,20 @@ def add_transmission_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.branchOperational[branch].indicator_var.fix(True)
+
+    @b.Expression(doc="Transmission investment costs in $")
+    def transmission_investment_cost(b):
+        return sum(
+            m.branchInvestmentCost[branch]
+            * m.branchCapitalMultiplier[branch]
+            * b.branchInstalled[branch].indicator_var.get_associated_binary()
+            for branch in m.transmission
+        ) + sum(
+            m.branchInvestmentCost[branch]
+            * m.branchExtensionMultiplier[branch]
+            * b.branchExtended[branch].indicator_var.get_associated_binary()
+            for branch in m.transmission
+        )
 
 
 def add_transmission_disjuncts(b, transmission_set):
