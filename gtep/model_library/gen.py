@@ -16,6 +16,9 @@ Expansion Planning (GTEP) Model
 
 """
 
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+
 
 def add_generators_status_disjuncts(b, thermalgens_set, renewablegens_set):
     """This method declares variables and a Disjunction and its
