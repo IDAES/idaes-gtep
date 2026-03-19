@@ -255,6 +255,12 @@ class TestGTEP(unittest.TestCase):
                 "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
             )
         )
+        ng_cost_path = abspath(
+            join(
+                data_path,
+                "Table_1._Total_Energy_Supply_Disposition_and_Price_Summary.csv",
+            )
+        )
         candidate_gens = [
             "Natural Gas_CT",
             "Natural Gas_FE",
@@ -266,6 +272,7 @@ class TestGTEP(unittest.TestCase):
         data_processing_object.load_gen_data(
             bus_data_path=bus_data_path,
             cost_data_path=cost_data_path,
+            ng_cost_path=ng_cost_path,
             candidate_gens=candidate_gens,
         )
 
@@ -304,9 +311,9 @@ class TestGTEP(unittest.TestCase):
 
         mod_object.results = opt.solve(mod_object.model)
 
-        # previous successful objective values: 1524581869.89
+        # previous successful objective values: 1524581869.89, 1524533561.02
         self.assertAlmostEqual(
-            value(mod_object.model.total_cost_objective_rule), 1524533561.02, places=1
+            value(mod_object.model.total_cost_objective_rule), 1613439582.86, places=1
         )
 
         assert_units_equivalent(mod_object.model.total_cost_objective_rule.expr, u.USD)

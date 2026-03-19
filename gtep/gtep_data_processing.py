@@ -26,7 +26,7 @@ from pathlib import Path
 References
 
 [1] https://atb.nrel.gov/electricity/2024/data 
-
+[2] https://www.eia.gov/outlooks/aeo/data/browser/#/?id=1-AEO2025&region=0-0&cases=ref2025~hm2025~lm2025~highprice~lowprice~highogs~lowogs~highZTC~lowZTC~nocaa111~alttrnp~aeo2023ref&start=2023&end=2050&f=A&linechart=~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ref2025-d032025a.44-1-AEO2025&map=&ctype=linechart&sid=&sourcekey=0
 
 """
 
@@ -101,8 +101,8 @@ class DataProcessing:
     ) -> dict[str, dict]:
         """
         :param gen_bus_df:      DataFrame with generator bus data.
-        :type gen_bus_df:       pandas.DataFrame
         :param gens:            List of candidate generator types.
+        :type gen_bus_df:       pandas.DataFrame
         :type gens:             list[str]
         :returns:               Dict of the form {gen_type: bus_info}, where bus_info
                                     is itself a dict of the form {bus_name: bus_number}
@@ -146,18 +146,20 @@ class DataProcessing:
     ) -> dict[str, pd.DataFrame]:
         """
         :param cost_data_path:      Path to cost data.
-        :type cost_data_path:       pathlib.Path
         :param gens:                Generator types to extract data for. Each element
                                         must be a sheet in the cost data file.
-        :type gens:                 list[str]
         :param years:               Years to extract data for.
-        :type years:                list[int]
         :param scenario:            Cost scenario.
+        :type cost_data_path:       pathlib.Path
+        :type gens:                 list[str]
+        :type years:                list[int]
         :type scenario:             str
         :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
                                         is a pandas DataFrame.
         """
         xls = pd.ExcelFile(cost_data_path)
+
+        # check all sheets are available
         not_a_sheet = [name for name in gens if name not in xls.sheet_names]
         if not_a_sheet:
             raise ValueError(
@@ -165,6 +167,15 @@ class DataProcessing:
             )
 
         cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
+
+        # check all years available
+        for gen, df in cost_data.items():
+            missing_years = [year for year in years if year not in df.columns]
+            if missing_years:
+                raise ValueError(
+                    f"One or more years ({missing_years}) were not in the {gen} cost dataset. Available columns: {df.columns}"
+                )
+
         return {
             gen: df.loc[df["Key3"] == scenario, ["Key1", "Key2"] + years]
             for gen, df in cost_data.items()
@@ -180,10 +191,10 @@ class DataProcessing:
         Extracts the cost data from gen_cost_df for a given generator type.
 
         :param cost_df:         Dataframe with cost data.
-        :type cost_df:          pandas.DataFrame
         :param gen_bus_df:      Dataframe with bus data.
-        :type gen_bus_df:       pandas.DataFrame
         :param gen:             Generator type. Must be a column in `gen_bus_df`.
+        :type cost_df:          pandas.DataFrame
+        :type gen_bus_df:       pandas.DataFrame
         :type gen:              str
         :returns:               Dataframe with CapEx data. Has a multi-index of
                                     ("Key1", "Bus Name"), where "Key1" is the
@@ -201,30 +212,47 @@ class DataProcessing:
         gen_cost_df = gen_cost_df.drop(columns=["Key2", gen])
         return gen_cost_df
 
+    def get_ng_costs(self, ng_cost_path: Path) -> pd.DataFrame:
+        """
+        Reads in natural gas costs data, sourced from [2], with the
+        quantity (e.g., Refence case) on the index.
+
+        :param ng_cost_path:    Path to CSV with natural gas costs.
+        :type ng_cost_path:     pathlib.Path
+        :returns:               pandas.DataFrame with natural gas costs
+        """
+        rowfunc = lambda row: ((row > 425 or row < 414) and row != 4)
+        ng_data = pd.read_csv(ng_cost_path, skiprows=rowfunc, header=0, index_col=0)
+        return ng_data
+
     def build_cost_data_row(
         self,
         gen_cost_df: pd.DataFrame,
+        ng_cost_df: pd.DataFrame,
+        ng_cost_quantity: str,
         years: list[int],
         bus_id: int,
         bus_name: str,
         gen: str,
-        ng_costs: dict[int, float],
     ) -> dict[str, Any]:
         """
-        Builds a row of cost data and adds it to `gen_data_target`, in-place.
+        Builds a row of cost data and adds it to `gen_data_target`, in-place. `ng_cost_df` and
+        `ng_cost_quantity` must be provided if `gen` contains the substring `"Natural Gas"`.
 
         :param gen_cost_df:                 Dataframe with cost data to be extracted.
-        :type gen_cost_df:                  pandas.DataFrame
+        :param ng_cost_df:                  Dataframe with natural gas costs in 2024 USD/MMBtu.
         :param years:                       Years to include.
-        :type years:                        list[int]
         :param bus_id:                      Bus ID.
-        :type bus_id:                       int
         :param bus_name:                    Bus name.
-        :type bus_name:                     str
         :param gen:                         Generator type.
+        :param ng_cost_quantity:            Natural gas cost quantity to use (e.g., `"Reference case"`).
+        :type gen_cost_df:                  pandas.DataFrame
+        :type ng_cost_df:                   pandas.DataFrame
+        :type years:                        list[int]
+        :type ng_cost_quantity:             str
+        :type bus_id:                       int
+        :type bus_name:                     str
         :type gen:                          str
-        :param ng_costs:                    Yearly natural gas costs in USD/MMBtu.
-        :type ng_costs:                     dict[int, float]
         :returns:                           dict of the form {col_name: value}
         """
         config_gen = self.config.gen_data[gen]
@@ -245,7 +273,7 @@ class DataProcessing:
                 row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
             # add natural gas costs
             row[f"fuel_costs_{year}"] = (
-                ng_costs[year]
+                ng_cost_df.loc[ng_cost_quantity, str(year)]
                 * float(gen_cost_df.loc[(self.heat_rate_var, bus_name), year])
                 if "Natural Gas" in gen
                 else 0.0
@@ -283,14 +311,11 @@ class DataProcessing:
         self,
         bus_data_path: Path,
         cost_data_path: Path,
+        ng_cost_path: Path,
         candidate_gens: list[str],
         years: list[int] = [2025, 2030, 2035],
         scenario: str = "Moderate",
-        ng_costs: dict[int, float] = {  # can't find values this far out online
-            2025: 3.49,
-            2030: 2.91,
-            2035: 3.68,
-        },
+        ng_cost_quantity: str = "Reference case",
         save_csv: bool = False,
         out_path: Path | None = None,
     ):
@@ -299,35 +324,40 @@ class DataProcessing:
         Stores the result in `self.gen_data_target` and optionally writes to a CSV.
 
         :param bus_data_path:               Path to bus data.
-        :type bus_data_path:                pathlib.Path
         :param cost_data_path:              Path to cost data.
-        :type cost_data_path:               pathlib.Path
+        :param ng_cost_path:                Path to natural gas cost data.
         :param candidate_gens:              Generator types to extract cost data for.
-        :type candidate_gens:               list[str]
         :param years:                       Years to extract cost data for.
-        :type years:                        list[int]
         :param scenario:                    Cost scenario. Defaults to `"Moderate"`.
-        :type scenario:                     str
-        :param ng_costs:                    Natural gas costs in units of USD/MMBtu, in the format {year: cost}.
-                                                Defaults to the Henry Hub forecast prices for natural gas.
-                                                Each year in `years` must be a key in this dict.
-        :type ng_costs:                     dict[str, float]
+        :param ng_cost_quantity:            Natural gas cost quantity to use. Defaults to `"Reference case"`.
         :param save_csv:                    Whether to save the resulting dataframe to csv. Defaults to `False`.
-        :type save_csv:                     bool
         :param out_path:                    Directory to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
+        :type bus_data_path:                pathlib.Path
+        :type cost_data_path:               pathlib.Path
+        :type ng_cost_path:                 pathlib.Path
+        :type candidate_gens:               list[str]
+        :type years:                        list[int]
+        :type scenario:                     str
+        :type ng_cost_quantity:             str
+        :type save_csv:                     bool
         :type out_path:                     pathlib.Path | None
         """
         if save_csv and out_path is None:
-            raise TypeError("With save_csv=True, out_path must be a pathlib.Path.")
-
-        years_without_costs = [year for year in years if year not in ng_costs]
-        gens_include_ng = any(["Natural Gas" in gen for gen in candidate_gens])
-        if years_without_costs and gens_include_ng:
-            raise KeyError(
-                f"Natural gas generators were passed in candidate_gens, but the following years do not have natural gas costs: {years_without_costs}"
-            )
+            raise TypeError("With save_csv=True, out_path must be a provided.")
 
         gen_bus_df = self.get_gen_bus_data(bus_data_path)
+
+        # get natural gas data and check we have the matching cost quantity and years
+        ng_cost_df = self.get_ng_costs(ng_cost_path)
+        if ng_cost_quantity not in ng_cost_df.index:
+            raise ValueError(
+                f"The provided natural gas quantity {ng_cost_quantity} is not in the natural gas cost dataset. Available quantities: {ng_cost_df.index}"
+            )
+        missing_years = [year for year in years if str(year) not in ng_cost_df.columns]
+        if missing_years:
+            raise ValueError(
+                f"One or more years ({missing_years}) were not in the natural gas cost dataset. Available columns: {ng_cost_df.columns}"
+            )
 
         # maps set of generator types in gen_bus_df to set of generator types w/ cost data
         candidate_gens_dict = self.get_clean_gens_dict(candidate_gens)
@@ -352,12 +382,13 @@ class DataProcessing:
             for bus_name, bus in buses_by_gen[bus_gen].items():
                 df_rows.append(
                     self.build_cost_data_row(
-                        gen_cost_df,
-                        years,
-                        bus,
-                        bus_name,
-                        bus_gen,
-                        ng_costs,
+                        gen_cost_df=gen_cost_df,
+                        years=years,
+                        bus_id=bus,
+                        bus_name=bus_name,
+                        gen=bus_gen,
+                        ng_cost_df=ng_cost_df,
+                        ng_cost_quantity=ng_cost_quantity,
                     )
                 )
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))

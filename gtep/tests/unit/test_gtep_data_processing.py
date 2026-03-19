@@ -17,6 +17,14 @@ cost_data_path = (
     / "costs"
     / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 ).resolve()
+ng_cost_path = (
+    curr_dir
+    / ".."
+    / ".."
+    / "data"
+    / "costs"
+    / "Table_1._Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+).resolve()
 
 
 class TestGTEPDataProcessing(unittest.TestCase):
@@ -60,7 +68,6 @@ class TestGTEPDataProcessing(unittest.TestCase):
         """
         gens = ["Natural Gas_FE", "Solar - Utility PV"]
         years = [2025, 2030]
-        ng_costs = {2025: 3.49, 2030: 2.91}
 
         for gen in gens:
             ### TEST GET_GEN_COST_DATA ###
@@ -112,6 +119,12 @@ class TestGTEPDataProcessing(unittest.TestCase):
             expected_keys += [
                 f"{var}_{year}" for var, year in product(out_varnames, years)
             ]
+            ng_cost_quantity = "quantity"
+            ng_cost_df = pd.DataFrame(
+                data=[[0] * len(years)],
+                index=[ng_cost_quantity],
+                columns=[str(year) for year in years],
+            )
 
             row = self.data_processing.build_cost_data_row(
                 gen_cost_df=gen_cost_df,
@@ -119,7 +132,8 @@ class TestGTEPDataProcessing(unittest.TestCase):
                 bus_id=0,
                 bus_name="bus1",
                 gen=gen,
-                ng_costs=ng_costs,
+                ng_cost_df=ng_cost_df,
+                ng_cost_quantity=ng_cost_quantity,
             )
             self.assertIsInstance(row, dict)
             # check keys are exactly what we expect
@@ -153,16 +167,14 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.assertIsInstance(key, str)
             self.assertIn(key, gens)
 
-    def test_extract_cost_data_build_cost_data_row(self):
+    def test_extract_cost_data(self):
         """
-        Test that cost data is being properly extracted (`extract cost data`)
-        and that we build rows for the output dataframe properly from that
-        data (`build_cost_data_row`). The latter requires the cost dataframe
-        from the former, so they must be tested together.
+        Test that cost data is being properly extracted (`extract cost data`).
         """
         gens = ["Natural Gas_FE", "Solar - Utility PV"]
         years = [2025, 2030]
         scenario = "Moderate"
+
         cost_data = self.data_processing.extract_cost_data(
             cost_data_path, gens, years, scenario
         )
@@ -177,6 +189,20 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.assertIsInstance(gen, str)
             self.assertIn(gen, gens)
             self.assertIsInstance(gen_cost_data, pd.DataFrame)
+
+        # try passing in a gen that isn't a sheet
+        wrong_gens = gens + ["not a sheet"]
+        with self.assertRaises(ValueError):
+            self.data_processing.extract_cost_data(
+                cost_data_path, wrong_gens, years, scenario
+            )
+
+        # try passing in years that aren't included
+        wrong_years = years + [1999]
+        with self.assertRaises(ValueError):
+            self.data_processing.extract_cost_data(
+                cost_data_path, gens, wrong_years, scenario
+            )
 
     def test_fill_out_prescient_columns(self):
         df = pd.DataFrame([[0, 0], [0, 0]])
@@ -200,22 +226,40 @@ class TestGTEPDataProcessing(unittest.TestCase):
     def test_load_gen_data(self):
         gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV"]
 
-        # basic case with all default arguments
-        self.data_processing.load_gen_data(
-            bus_data_path,
-            cost_data_path,
-            gens,
-        )
-        self.assertIsInstance(self.data_processing.gen_data_target, pd.DataFrame)
-        self.gen_data_target = None  # reset
-
-        # change ng costs so that we are missing data for a year
-        with self.assertRaises(KeyError):
+        # basic case with all required arguments
+        with TempfileManager.new_context() as tempfile:
+            tempdir = Path(tempfile.mkdtemp())
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
+                ng_cost_path,
                 gens,
-                ng_costs={2025: 3.49, 2030: 2.91},
+            )
+            self.assertIsInstance(self.data_processing.gen_data_target, pd.DataFrame)
+            self.assertNotIn(
+                "costs.csv", [path.name for path in Path.iterdir(tempdir)]
+            )  # make sure we don't write if save_csv=False
+
+        self.gen_data_target = None  # reset
+
+        # provide invalid ng_cost_quantity
+        with self.assertRaises(ValueError):
+            self.data_processing.load_gen_data(
+                bus_data_path,
+                cost_data_path,
+                ng_cost_path,
+                gens,
+                ng_cost_quantity="Invalid quantity",
+            )
+
+        # provide years that don't match ng cost dataset
+        with self.assertRaises(ValueError):
+            self.data_processing.load_gen_data(
+                bus_data_path,
+                cost_data_path,
+                ng_cost_path,
+                gens,
+                years=[1999],
             )
 
         # try using save_csv=True without specifying output directory
@@ -223,6 +267,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
+                ng_cost_path,
                 gens,
                 save_csv=True,
             )
@@ -233,6 +278,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
+                ng_cost_path,
                 gens,
                 save_csv=True,
                 out_path=tempdir,
@@ -240,6 +286,4 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.assertIsInstance(
                 self.data_processing.gen_data_target, pd.DataFrame
             )  # make sure we are still storing as an attribute
-            self.assertIn(
-                (tempdir / "costs.csv").resolve(), list(Path.iterdir(tempdir))
-            )
+            self.assertIn("costs.csv", [path.name for path in Path.iterdir(tempdir)])
