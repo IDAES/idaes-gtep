@@ -11,16 +11,15 @@
 # for full copyright and license information.
 #################################################################################
 
-from gtep.gtep_solution import ExpansionPlanningSolution
 import re
 from pathlib import Path
 import shutil
-import logging
 from collections import defaultdict
-import pandas as pd
 from numbers import Number
 
-logger = logging.getLogger(__name__)
+from gtep.gtep_solution import ExpansionPlanningSolution
+
+import pandas as pd
 
 
 def safe_extract_variable_index(variable_name: str) -> str:

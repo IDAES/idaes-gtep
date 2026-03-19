@@ -12,13 +12,15 @@
 #################################################################################
 
 from pathlib import Path
-import pyomo.common.unittest as unittest
+
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
+import pyomo.common.unittest as unittest
 from pyomo.common.tempfiles import TempfileManager
+
 import pandas as pd
 
 from gtep.validation import (
