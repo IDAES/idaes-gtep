@@ -103,24 +103,25 @@ class TestValidation(unittest.TestCase):
                 {"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3}
             )
 
-    def test_safe_write_dataframe_to_csv(self):
-        with TempfileManager.new_context() as tempfile:
-            temp_dir = Path(tempfile.mkdtemp())
-            fname = "test.csv"
-            expected_csv = (temp_dir / fname).resolve()
-            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), temp_dir, fname)
-
-            self.assertIn(expected_csv, list(temp_dir.iterdir()))
-            test_csv = pd.read_csv(expected_csv)
-            self.assertTupleEqual(test_csv.shape, (2, 2))
-            for item in test_csv.to_numpy().flatten():
-                self.assertAlmostEqual(item, 0)
-
     def _check_fname_in_dir(self, name: str, dir: Path) -> bool:
         """
         Checks that a name (file, directory) is in dir.
         """
         return name in [tempfile.name for tempfile in dir.iterdir()]
+
+    def test_safe_write_dataframe_to_csv(self):
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = Path(tempfile.mkdtemp())
+            # write test dataframe to csv and make sure the file is created
+            fname = "test.csv"
+            safe_write_dataframe_to_csv(pd.DataFrame([[0, 0], [0, 0]]), temp_dir, fname)
+            self.assertTrue(self._check_fname_in_dir(fname, temp_dir))
+
+            # read in csv and make sure its contents are what we expect
+            test_csv = pd.read_csv((temp_dir / fname).resolve())
+            self.assertTupleEqual(test_csv.shape, (2, 2))
+            for item in test_csv.to_numpy().flatten():
+                self.assertAlmostEqual(item, 0)
 
     def test_safe_mkdir(self):
         with TempfileManager.new_context() as tempfile:
