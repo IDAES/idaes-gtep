@@ -160,72 +160,9 @@ def add_investment_constraints(
     if m.config["storage"]:
         stor.add_investment_storage_constraints(m, b, investment_stage)
 
-    """
-    # Planning reserve requirement constraint
-    # NOTE: renewableCapacityValue is a percentage of renewableCapacity
-    # TODO: renewableCapacityValue ==> renewableCapacityFactor
-    # NOTE: reserveMargin is a percentage of peakLoad
-    # TODO: check and re-enable with additional bounding transform before bigm
-    # TODO: renewableCapacityValue... should this be time iterated? is it tech based?
-    # is it site based? who can say?
-
-    @b.Constraint()
-    def planning_reserve_requirement(b):
-        return (
-            sum(
-                m.renewableCapacityNameplate[gen]
-                * m.renewableCapacityValue[gen]
-                * (b.renewableOperational[gen] + b.renewableInstalled[gen])
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                m.thermalCapacity[gen]
-                * (
-                    b.genOperational[gen].indicator_var.get_associated_binary()
-                    + b.genInstalled[gen].indicator_var.get_associated_binary()
-                )
-                for gen in m.thermalGenerators
-            )
-            >= (1 + m.reserveMargin[investment_stage]) * m.peakLoad[investment_stage]
-        )
-
-    """
-
-    """
-    # Maximum investment stage installation
-    # NOTE: temporarily disabled maximum investment as default option
-    # TODO: These capacities shouldn't be enabled by default since they can
-    # easily cause absurd results/possibly even infeasibility.  Will need to add
-    # user-defined handling for this.
-
-    @b.Constraint(m.regions)
-    def maximum_thermal_investment(b, region):
-        return (
-            sum(
-                m.thermalCapacity[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators & m.gensAtRegion[region]
-            )
-            <= b.maxThermalInvestment[region]
-        )
-
-    @b.Constraint(m.regions)
-    def maximum_renewable_investment(b, region):
-        return (
-            sum(
-                m.renewableCapacityNameplate[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
-                for gen in m.renewableGenerators & m.gensAtRegion[region]
-            )
-            <= b.maxRenewableInvestment[region]
-            if m.renewableGenerators & m.gensAtRegion[region]
-            else pyo.Constraint.Skip
-        )
-    
-    """
-
     # NOTE: The following constraints can be split into rep_per and
-    # invest_stage components if desired
+    # invest_stage components if desired. [ESR Question: Check
+    # commitment flag here.]
 
     # [BLN: Convert this to a constraint using operatingCostInvestment
     # Var. May also need to move it]
@@ -313,6 +250,8 @@ def add_investment_constraints(
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
+    # [ESR Question: Should we rename this as "include_curtailment"
+    # instead?]
     if m.config["include_commitment"]:
 
         @b.Constraint(doc="Curtailment penalties for investment period")
@@ -326,7 +265,7 @@ def add_investment_constraints(
                         * b.representativePeriod[rep_per]
                         .commitmentPeriod[com_per]
                         .renewableCurtailmentCommitment  # in MW
-                        # [ESR WIP: Q: Do we need to include this term here?]
+                        # [ESR Question: Do we need to include this term here?]
                         * m.curtailmentCost
                     )  # units are in $
             return (
@@ -334,68 +273,12 @@ def add_investment_constraints(
                 == m.investmentFactor[investment_stage] * renewableCurtailmentRep
             )
 
-    """ 
-    # Initial, untested attempt for enforcing identical storage level at 
-    # beginning and end of representative periods
-    # Need to update to use init and end batteryChargeLevel?
-    """
-    # @b.Constraint(b.representativePeriods, m.batteryStorageSystems)
-    # def consistent_battery_charge_level_commitment(b, rep_per, bat):
-
-    #     return (
-
-    #             b.representativePeriod[rep_per]
-    #             .commitmentPeriod[
-    #                 b.representativePeriod[rep_per]
-    #                 .commitmentPeriods.first()
-    #                 ]
-    #                 .dispatchPeriod[
-    #                     b.representativePeriod[rep_per]
-    #                     .commitmentPeriod[
-    #                         b.representativePeriod[rep_per]
-    #                         .commitmentPeriods.first()
-    #                         ]
-    #                         .dispatchPeriods.first()
-    #                     ]
-    #                     .batteryChargeLevel[bat]
-    #               ==
-    #               b.representativePeriod[rep_per]
-    #               .commitmentPeriod[
-    #                   b.representativePeriod[rep_per]
-    #                   .commitmentPeriods.last()
-    #                   ]
-    #                   .dispatchPeriod[
-    #                       b.representativePeriod[rep_per]
-    #                       .commitmentPeriod[
-    #                           b.representativePeriod[rep_per]
-    #                           .commitmentPeriods.last()
-    #                           ]
-    #                           .dispatchPeriods.last()
-    #                       ]
-    #                       .batteryChargeLevel[bat]
-    #     )
-    # @b.Constraint()
-    # def renewable_curtailment_cost(b):
-    #     renewableCurtailmentRep = 0
-    #     for rep_per in b.representativePeriods:
-    #         for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-    #             renewableCurtailmentRep += (
-    #                 m.weights[rep_per]
-    #                 * m.commitmentPeriodLength
-    #                 * b.representativePeriod[rep_per]
-    #                 .commitmentPeriod[com_per]
-    #                 .renewableCurtailmentCommitment
-    #             )
-    #     return (
-    #         b.renewableCurtailmentInvestment
-    #         == m.investmentFactor[investment_stage] * renewableCurtailmentRep
-    #     )
-
-    ## NOTE: Constraint (13) in the reference paper
-    # Minimum per-stage renewable generation requirement
+    # [ESR Question: Do we need to add the flag for investment? Should
+    # we better put this flag when calling this function?]
     if m.config["include_investment"]:
 
-        @b.Constraint()
+        # NOTE: This is constraint (13) in reference [1]
+        @b.Constraint(doc="Minimum per-stage renewable generation requirement")
         def renewable_generation_requirement(b):
             renewableSurplusRepresentative = 0
             ## TODO: preprocess loads for the appropriate sum here
@@ -412,3 +295,72 @@ def add_investment_constraints(
                 renewableSurplusRepresentative + b.quotaDeficit
                 >= m.renewableQuota[investment_stage] * ed
             )
+
+    # Add legacy equations below. These equations are not used in
+    # current versions of the model. [TODO: Determine if we need them
+    # in future versions of the model.]
+
+    """
+    # NOTE: renewableCapacityValue is a percentage of renewableCapacity
+    # TODO: renewableCapacityValue ==> renewableCapacityFactor
+    # NOTE: reserveMargin is a percentage of peakLoad
+    # TODO: check and re-enable with additional bounding transform before bigm
+    # TODO: renewableCapacityValue... should this be time iterated? is it tech based?
+    # is it site based? who can say?
+
+    @b.Constraint(doc="Planning reserve requirement constraint")
+    def planning_reserve_requirement(b):
+        return (
+            sum(
+                m.renewableCapacityNameplate[gen]
+                * m.renewableCapacityValue[gen]
+                * (b.renewableOperational[gen] + b.renewableInstalled[gen])
+                for gen in m.renewableGenerators
+            )
+            + sum(
+                m.thermalCapacity[gen]
+                * (
+                    b.genOperational[gen].indicator_var.get_associated_binary()
+                    + b.genInstalled[gen].indicator_var.get_associated_binary()
+                )
+                for gen in m.thermalGenerators
+            )
+            >= (1 + m.reserveMargin[investment_stage]) * m.peakLoad[investment_stage]
+        )
+
+    # NOTE: temporarily disabled maximum investment as default option
+    # TODO: These capacities shouldn't be enabled by default since they can
+    # easily cause absurd results/possibly even infeasibility.  Will need to add
+    # user-defined handling for this.
+
+    @b.Constraint(
+        m.regions,
+        doc="Maximum investment stage installation for thermal generators",
+    )
+    def maximum_thermal_investment(b, region):
+        return (
+            sum(
+                m.thermalCapacity[gen]
+                * b.genInstalled[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators & m.gensAtRegion[region]
+            )
+            <= b.maxThermalInvestment[region]
+        )
+
+    @b.Constraint(
+        m.regions,
+        doc="Maximum investment stage installation for renewable generators",
+    )
+    def maximum_renewable_investment(b, region):
+        return (
+            sum(
+                m.renewableCapacityNameplate[gen]
+                * b.genInstalled[gen].indicator_var.get_associated_binary()
+                for gen in m.renewableGenerators & m.gensAtRegion[region]
+            )
+            <= b.maxRenewableInvestment[region]
+            if m.renewableGenerators & m.gensAtRegion[region]
+            else pyo.Constraint.Skip
+        )
+  
+    """
