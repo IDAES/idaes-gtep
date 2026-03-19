@@ -687,3 +687,65 @@ def add_generators_logical_constraints(m):
             if stage != 1
             else pyo.LogicalConstraint.Skip
         )
+
+
+def add_dispatch_generators_variables(m, b):
+
+    def thermal_generation_limits(
+        b, thermalGen, doc="Bounds on active generation of thermal generators"
+    ):
+        return (0, m.thermalCapacity[thermalGen])
+
+    b.thermalGeneration = pyo.Var(
+        m.thermalGenerators,
+        domain=pyo.NonNegativeReals,
+        bounds=thermal_generation_limits,
+        initialize=0,
+        units=u.MW,
+        doc="Thermal generation",
+    )
+
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+
+        def thermal_reactive_generation_limits(
+            b, thermalGen, doc="Bounds on thermal generator reactive generation"
+        ):
+            return (0, m.thermalReactiveCapacity[thermalGen])
+
+        b.thermalReactiveGeneration = pyo.Var(
+            m.thermalGenerators,
+            domain=pyo.Reals,
+            bounds=thermal_reactive_generation_limits,
+            initialize=0,
+            units=u.MVAR,
+            doc="Thermal generation",
+        )
+
+    # [ESR: Still deciding if this should be Nameplate]
+    def renewable_generation_limits(
+        b, renewableGen, doc="Bounds on active generation of renewable generator in MW"
+    ):
+        return (0, m.renewableCapacityNameplate[renewableGen])
+
+    b.renewableGeneration = pyo.Var(
+        m.renewableGenerators,
+        domain=pyo.NonNegativeReals,
+        bounds=renewable_generation_limits,
+        initialize=0,
+        units=u.MW,
+        doc="Renewable generation",
+    )
+
+    def curtailment_limits(
+        b, renewableGen, doc="Bounds on renewable generator curtailment in MW"
+    ):
+        return (0, m.renewableCapacityNameplate[renewableGen])
+
+    b.renewableCurtailment = pyo.Var(
+        m.renewableGenerators,
+        domain=pyo.NonNegativeReals,
+        bounds=curtailment_limits,
+        initialize=0,
+        units=u.MW,
+        doc="Curtailment of renewable generators",
+    )

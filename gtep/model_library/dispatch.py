@@ -21,119 +21,25 @@ import math
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+import gtep.model_library.gen as gens
+import gtep.model_library.storage as stor
+
 
 def add_dispatch_variables(b, dispatch_period):
-    """Add dispatch-associated variables to representative period block."""
+    """This method adds dispatch-associated variables to
+    representative period block.
+
+    """
 
     m = b.model()
     c_p = b.parent_block()
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
-    def thermal_generation_limits(
-        b, thermalGen, doc="Bounds on active generation of thermal generators"
-    ):
-        return (0, m.thermalCapacity[thermalGen])
+    # Add variables and bounds for generators and storage, when needed
+    gens.add_dispatch_generators_variables(m, b)
 
-    b.thermalGeneration = pyo.Var(
-        m.thermalGenerators,
-        domain=pyo.NonNegativeReals,
-        bounds=thermal_generation_limits,
-        initialize=0,
-        units=u.MW,
-        doc="Thermal generation",
-    )
-
-    """ Battery --> Storage Parameters """
-    if m.config["storage"]:
-
-        def storage_capacity_limits(b, bat):
-            return (
-                m.minStorageChargeLevel[bat],
-                m.storageCapacity[bat],
-            )  # The lower bound should be > 0 - data input
-
-        # TODO: Note that this does not fix initial battery capacity at the first dispatch period - need to adjust constraint
-        def init_storage_capacity(b, bat):
-            return m.initStorageChargeLevel[bat]
-
-        b.storageChargeLevel = pyo.Var(
-            m.storage,
-            domain=pyo.NonNegativeReals,
-            bounds=storage_capacity_limits,
-            initialize=init_storage_capacity,
-            units=u.MW,
-        )
-
-        # Define bounds on charging/discharging capability. Note that constraints
-        # enforce that there are min & max charge/discharge levels if the bat is in
-        # the charging or discharging state
-        def storage_charge_limits(b, bat):
-            return (0, m.chargeMax[bat])
-
-        def storage_discharge_limits(b, bat):
-            return (0, m.dischargeMax[bat])
-
-        b.storageCharged = pyo.Var(
-            m.storage,
-            domain=pyo.NonNegativeReals,
-            bounds=storage_charge_limits,
-            initialize=0,
-            units=u.MW,
-        )
-
-        b.storageDischarged = pyo.Var(
-            m.storage,
-            domain=pyo.NonNegativeReals,
-            bounds=storage_discharge_limits,
-            initialize=0,
-            units=u.MW,
-        )
-
-    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
-        # Define bounds on thermal generator reactive generation
-        def thermal_reactive_generation_limits(b, thermalGen):
-            return (0, m.thermalReactiveCapacity[thermalGen])
-
-        b.thermalReactiveGeneration = pyo.Var(
-            m.thermalGenerators,
-            domain=pyo.Reals,
-            bounds=thermal_reactive_generation_limits,
-            initialize=0,
-            units=u.MVAR,
-            doc="Thermal generation",
-        )
-
-    # [ESR WIP: Still deciding if this should be Nameplate]
-    def renewable_generation_limits(
-        b, renewableGen, doc="Bounds on active generation of renewable generator in MW"
-    ):
-        return (0, m.renewableCapacityNameplate[renewableGen])
-
-    b.renewableGeneration = pyo.Var(
-        m.renewableGenerators,
-        domain=pyo.NonNegativeReals,
-        bounds=renewable_generation_limits,
-        initialize=0,
-        units=u.MW,
-        doc="Renewable generation",
-    )
-
-    # Define bounds on renewable generator curtailment
-    def curtailment_limits(
-        b, renewableGen, doc="Bounds on renewable generator curtailment in MW"
-    ):
-        return (0, m.renewableCapacityNameplate[renewableGen])
-
-    b.renewableCurtailment = pyo.Var(
-        m.renewableGenerators,
-        domain=pyo.NonNegativeReals,
-        bounds=curtailment_limits,
-        initialize=0,
-        units=u.MW,
-        doc="Curtailment of renewable generators",
-    )
-
+    # Add expressions for thermal and renewable generators
     @b.Expression(
         m.renewableGenerators, doc="Surplus generation per renewable generator in MW"
     )
@@ -142,7 +48,6 @@ def add_dispatch_variables(b, dispatch_period):
             b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
         )
 
-    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
         return (
@@ -151,7 +56,6 @@ def add_dispatch_variables(b, dispatch_period):
             * m.curtailmentCost
         )
 
-    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
         return (
@@ -160,7 +64,6 @@ def add_dispatch_variables(b, dispatch_period):
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
-    # [ESR WIP: Added the dispatch period length.]
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
         return (
@@ -170,8 +73,8 @@ def add_dispatch_variables(b, dispatch_period):
         )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
-        # Per generator reactive power cost
-        @b.Expression(m.thermalGenerators)
+
+        @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
             return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
 
@@ -183,7 +86,6 @@ def add_dispatch_variables(b, dispatch_period):
         doc="Load shed per bus",
     )
 
-    # [ESR WIP: Add the dispatch period length.]
     @b.Expression(m.buses, doc="Load shed cost per bus in $")
     def loadShedCost(b, bus):
         return (
@@ -191,18 +93,6 @@ def add_dispatch_variables(b, dispatch_period):
             * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
-
-    if m.config["storage"]:
-        """Per-Battery Operational cost variables"""
-
-        @b.Expression(m.storage)
-        def storageChargingCost(b, bat):
-            return b.storageCharged[bat] * m.chargingCost[bat]
-
-        # JSC addn Per Battery Discharging Cost
-        @b.Expression(m.storage)
-        def storageDischargingCost(b, bat):
-            return b.storageDischarged[bat] * m.dischargingCost[bat]
 
     # Track total dispatch values and costs
     @b.Expression(doc="Total surplus power for renewable generators in MW")
@@ -230,6 +120,9 @@ def add_dispatch_variables(b, dispatch_period):
     @b.Expression()
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
+
+    if m.config["storage"]:
+        stor.add_dispatch_storage_variables(m)  # includes costs variables
 
     if m.config["storage"]:
         """Per-Battery Operational costs"""
