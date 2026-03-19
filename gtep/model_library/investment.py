@@ -217,7 +217,6 @@ def add_investment_constraints(
     if m.config["storage"]:
         stor.add_investment_storage_constraints(m, b, investment_stage)
 
-
     """@b.Constraint()
     def planning_reserve_requirement(b):
         return (
