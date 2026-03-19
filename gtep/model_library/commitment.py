@@ -22,7 +22,7 @@ from pyomo.environ import units as u
 import gtep.model_library.storage as stor
 
 
-def add_commitment_variables(b, commitment_period):
+def add_commitment_disjuncts(b, commitment_period):
     """This method adds discrete alternatives and constraints
     associated to the commitment period block. It defines a
     Disjunction with disjuncts representing the alternatives for
@@ -302,7 +302,7 @@ def add_commitment_variables(b, commitment_period):
     # Add constraints within disjunctions on battery storage
     # commitment (charging/discharging/off) if storage is needed.
     if m.config["storage"]:
-        stor.add_storage_constraints(m, b, commitment_period)
+        stor.add_storage_disjuncts(m, b, commitment_period)
 
 
 def add_commitment_constraints(b, comm_per):

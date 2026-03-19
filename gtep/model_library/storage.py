@@ -154,7 +154,7 @@ def add_storage_params(m):
     }
 
 
-def add_storage_constraints(m, b, commitment_period):
+def add_storage_disjuncts(m, b, commitment_period):
     """This method includes the battery storage charging and
     discharging constraints
 

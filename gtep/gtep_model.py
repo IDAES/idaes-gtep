@@ -276,7 +276,7 @@ def commitment_period_rule(b, commitment_period):
 
     ## TODO: if commitment is neglected but dispatch is still desired, pull something different here? or simply don't enforce linked commitment constraints?
     if m.config["include_commitment"]:
-        commit.add_commitment_variables(b, commitment_period)
+        commit.add_commitment_disjuncts(b, commitment_period)
 
     commit.add_commitment_constraints(b, commitment_period)
 
