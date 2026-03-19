@@ -476,6 +476,54 @@ def add_investment_storage_constraints(m, b, investment_stage):
             for bat in m.storage
         )
 
+    # Add legacy equation below. This is not used in current version
+    # of the model. [TODO: Check if we want to add this constraint in
+    # future versions of the model.]
+    """ 
+    # Initial, untested attempt for enforcing identical storage level
+    at beginning and end of representative periods. [TODO: Update to
+    use init and end batteryChargeLevel?]
+
+    @b.Constraint(
+    b.representativePeriods,
+    m.batteryStorageSystems,
+    doc="Enforces that we have identical storage level at the beginning and end of representative period",
+    )
+    def consistent_battery_charge_level_commitment(b, rep_per, bat):
+        return (
+
+                b.representativePeriod[rep_per]
+                .commitmentPeriod[
+                    b.representativePeriod[rep_per]
+                    .commitmentPeriods.first()
+                    ]
+                    .dispatchPeriod[
+                        b.representativePeriod[rep_per]
+                        .commitmentPeriod[
+                            b.representativePeriod[rep_per]
+                            .commitmentPeriods.first()
+                            ]
+                            .dispatchPeriods.first()
+                        ]
+                        .batteryChargeLevel[bat]
+                  ==
+                  b.representativePeriod[rep_per]
+                  .commitmentPeriod[
+                      b.representativePeriod[rep_per]
+                      .commitmentPeriods.last()
+                      ]
+                      .dispatchPeriod[
+                          b.representativePeriod[rep_per]
+                          .commitmentPeriod[
+                              b.representativePeriod[rep_per]
+                              .commitmentPeriods.last()
+                              ]
+                              .dispatchPeriods.last()
+                          ]
+                          .batteryChargeLevel[bat]
+        )
+    """
+
 
 def add_storage_disjuncts(b, storage_set):
     """This method implements a Disjunction and its disjuncts to model
