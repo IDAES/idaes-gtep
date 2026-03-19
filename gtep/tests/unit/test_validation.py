@@ -98,8 +98,10 @@ class TestValidation(unittest.TestCase):
             self.assertAlmostEqual(output[idx], expected[idx])
 
         # test unexpected case of bools; commented out for now bc assertWarns throws error
-        # with self.assertWarns(UserWarning):
-        #     sum_variable_values_by_index({"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3})
+        with self.assertRaises(ValueError):
+            sum_variable_values_by_index(
+                {"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3}
+            )
 
     def test_safe_write_dataframe_to_csv(self):
         with TempfileManager.new_context() as tempfile:

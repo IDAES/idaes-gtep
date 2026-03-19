@@ -19,7 +19,6 @@ import logging
 from collections import defaultdict
 import pandas as pd
 from numbers import Number
-from warnings import warn
 
 logger = logging.getLogger(__name__)
 
@@ -88,18 +87,17 @@ def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Num
     """
     Takes an input dict of variables and values, groups by index, and computes the sum of values.
     This function expects the variable values to be non-bool Numbers (e.g., int, float) and
-    warns if a different type is passed in via `value_dict`.
+    raises an error if a different type is passed in via `value_dict`.
 
     :param value_dict:  Dictionary of the form {var[idx]: value}.
     :type value_dict:   dict[str, Number]
     :returns:           Dictionary of the form {idx: summed_value}.
     """
-    # throw warning if we're trying to sum something that isn't a number (incl. bool)
+    # Raise an error if we're trying to sum something that isn't a number (incl. bool)
     value_types = [type(value) for value in value_dict.values()]
     if any([t == bool or not issubclass(t, Number) for t in value_types]):
-        warn(
-            f"Expected variable values to be numeric, but got the following types: {set(value_types)}",
-            UserWarning,
+        raise ValueError(
+            f"Expected variable values to be numeric, but got the following types: {set(value_types)}"
         )
 
     result = defaultdict(float)
