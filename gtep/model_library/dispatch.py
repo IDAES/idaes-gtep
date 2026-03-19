@@ -147,8 +147,10 @@ def add_dispatch_variables(b, dispatch_period):
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
-            + b.chargingCostDispatch
-            + b.dischargingCostDispatch
+            # [ESR: Commented since storageCostDispatch already
+            # includes the sum of these two terms.]
+            # + b.chargingCostDispatch
+            # + b.dischargingCostDispatch
             + b.storageCostDispatch
         )
 
