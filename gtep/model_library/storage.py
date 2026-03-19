@@ -154,7 +154,7 @@ def add_storage_params(m):
     }
 
 
-def add_storage_disjuncts(m, b, commitment_period):
+def add_storage_state_disjuncts(m, b, commitment_period):
     """This method includes the battery storage charging and
     discharging constraints
 
@@ -450,10 +450,10 @@ def add_storage_disjuncts(m, b, commitment_period):
         )
 
 
-def add_investment_storage_variables(b):
-    b.storageCostInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
+# def add_investment_storage_variables(b):
+#     b.storageCostInvestment = pyo.Var(
+#         within=pyo.NonNegativeReals, initialize=0, units=u.USD
+#     )
 
 
 def add_investment_storage_constraints(m, b, investment_stage):
@@ -532,7 +532,7 @@ def add_investment_storage_constraints(m, b, investment_stage):
     """
 
 
-def add_storage_disjuncts(b, storage_set):
+def add_storage_status_disjuncts(b, storage_set):
     """This method implements a Disjunction and its disjuncts to model
     the selection of the storage units status. The possible
     alternatives for each storage unit are represented as a disjunct

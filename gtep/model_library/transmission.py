@@ -47,7 +47,7 @@ def add_investment_transmission_constraints(m, b, investment_stage):
         )
 
 
-def add_transmission_disjuncts(b, transmission_set):
+def add_transmission_status_disjuncts(b, transmission_set):
     """This method implements a Disjunction and its disjuncts to model
     the selection of the transmission lines status. The possible
     alternatives for each transmission line are represented as a
