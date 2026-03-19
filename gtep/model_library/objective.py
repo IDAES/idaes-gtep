@@ -32,8 +32,10 @@ def create_objective_function(m):
         m.operatingCost = sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
-        m.storageCost = sum(
-            m.investmentStage[stage].storageCostInvestment for stage in m.stages
+        m.storageCost = (
+            sum(m.investmentStage[stage].storageCostInvestment for stage in m.stages)
+            if m.config["storage"] == True
+            else 0
         )
         m.expansionCost = sum(
             m.investmentStage[stage].investment_cost for stage in m.stages

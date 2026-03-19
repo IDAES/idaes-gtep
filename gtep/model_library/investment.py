@@ -45,6 +45,14 @@ def add_investment_variables(b, investment_stage):
     m = b.model()
     b.investmentStage = investment_stage
 
+    # Track and accumulate costs and penalties
+    b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
+    b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
+    if m.config["include_commitment"]:
+        commit.add_investment_commitment_variables(b)
+    if m.config["storage"]:
+        stor.add_investment_storage_variables(b)
+
     # Declare thermal generator disjuncts (operational, installed,
     # retired, disabled, extended)
     @b.Disjunct(m.thermalGenerators)
@@ -103,19 +111,6 @@ def add_investment_variables(b, investment_stage):
     # Add transmission lines status alternatives, if needed
     if m.config["transmission"]:
         transm.add_transmission_disjuncts(b, m.transmission)
-
-    # Track and accumulate costs and penalties
-    b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
-    b.operatingCostInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
-    b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
-    b.renewableCurtailmentInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
-    b.storageCostInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
 
 
 def add_investment_constraints(

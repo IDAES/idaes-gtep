@@ -17,6 +17,7 @@ Transmission Expansion Planning (GTEP) Model
 """
 
 import pyomo.environ as pyo
+from pyomo.environ import units as u
 
 
 def add_storage_params(m):
@@ -447,6 +448,12 @@ def add_storage_constraints(m, b, commitment_period):
                 i_p.storExtended[bat].indicator_var,
             )
         )
+
+
+def add_investment_storage_variables(b):
+    b.storageCostInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    )
 
 
 def add_investment_storage_constraints(m, b, investment_stage):

@@ -372,6 +372,14 @@ def add_commitment_constraints(b, comm_per):
         )
 
 
+def add_investment_commitment_variables(b):
+    b.operatingCostInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    )
+    b.renewableCurtailmentInvestment = pyo.Var(
+        within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    )
+
 def add_investment_commitment_constraints(m, b, investment_stage):
 
     @b.Constraint(doc="Curtailment penalties for investment period")
