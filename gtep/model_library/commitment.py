@@ -23,15 +23,26 @@ import gtep.model_library.storage as stor
 
 
 def add_commitment_variables(b, commitment_period):
-    """Add variables and disjuncts to commitment period block."""
+    """This method adds discrete alternatives and constraints
+    associated to the commitment period block. It defines a
+    Disjunction with disjuncts representing the alternatives for
+    generators status operation. The alternatives are:
+
+    genOn:        Generator is operating and producing power.
+    genStartup:   Generator is starting up during this period.
+    genShutdown:  Generator is shutting down during this period.
+    genOff:       Generator is offline and not producing power.
+
+    """
+
     m = b.model()
     r_p = b.parent_block()
     i_p = r_p.parent_block()
 
-    # Define disjunction on generator status: on/startup/shutdown/off
+    # Define disjunction on generator status operation:
+    # on/startup/shutdown/off
     @b.Disjunct(m.thermalGenerators)
     def genOn(disj, generator):
-        # operating limits
         b = disj.parent_block()
 
         @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
@@ -103,7 +114,7 @@ def add_commitment_variables(b, commitment_period):
             else:
                 return pyo.Constraint.Skip
 
-        ##NOTE: maxSpinningReserve is a percentage of thermalCapacity
+        # NOTE: maxSpinningReserve is a percentage of thermalCapacity
         @disj.Constraint(
             b.dispatchPeriods, m.thermalGenerators, doc="Maximum spinning reserve"
         )
@@ -113,13 +124,13 @@ def add_commitment_variables(b, commitment_period):
                 <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
             )
 
-        ##FIXME: add quick start reserve = 0
+    # [TODO: add quick start reserve = 0]
 
     @b.Disjunct(m.thermalGenerators)
     def genStartup(disj, generator):
         b = disj.parent_block()
 
-        @disj.Constraint(b.dispatchPeriods, doc="Operating limits")
+        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return (
                 0 * u.MW
@@ -134,8 +145,7 @@ def add_commitment_variables(b, commitment_period):
                 <= m.thermalMin[generator]
             )
 
-        # (Original) TODO: is this max necessary? I would like to
-        # remove
+        # [TODO: Define if the max() function is necessary here.]
         @disj.Constraint(
             b.dispatchPeriods,
             m.thermalGenerators,
@@ -179,16 +189,14 @@ def add_commitment_variables(b, commitment_period):
     def genShutdown(disj, generator):
         b = disj.parent_block()
 
-        # operating limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 >= 0 * u.MW
             )
 
-        # Maximum operating limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
         def operating_limit_max(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -196,13 +204,16 @@ def add_commitment_variables(b, commitment_period):
                 <= m.thermalMin[generator]
             )
 
-        ## RMA:
-        ## We may need to turn off ramp down constraints for feasibility purposes
-        ## We will need to think about this for future work, but commenting this out
-        ## is probably fine for the purposes of this paper
+        # [RMA: We may need to turn off ramp down constraints for
+        # feasibility purposes. We will need to think about this for
+        # future work, but commenting this out is probably fine for
+        # the purposes of this paper.]
 
-        # Ramp down constraints for generators shutting down
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        @disj.Constraint(
+            b.dispatchPeriods,
+            m.thermalGenerators,
+            doc="Ramp down constraints for generators shutting down",
+        )
         def ramp_down_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
                 return (
@@ -241,25 +252,28 @@ def add_commitment_variables(b, commitment_period):
     def genOff(disj, generator):
         b = disj.parent_block()
 
-        # operating limits
-        @disj.Constraint(b.dispatchPeriods)
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
         def operating_limit_max(disj, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 <= 0 * u.MW
             )
 
-        # Maximum quickstart reserve constraint
-        ## NOTE: maxQuickstartReserve is a percentage of thermalCapacity
-        ##FIXME: This isn't needed.  instead we need to set spinning reserve to 0.
-        @disj.Constraint(b.dispatchPeriods, m.thermalGenerators)
+        # NOTE: maxQuickstartReserve is a percentage of
+        # thermalCapacity. [TODO: This isn't needed so, instead, we
+        # need to set spinning reserve to 0.]
+        @disj.Constraint(
+            b.dispatchPeriods,
+            m.thermalGenerators,
+            doc="Maximum quickstart reserve constraint",
+        )
         def max_quickstart_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].quickstartReserve[generator]
                 <= m.maxQuickstartReserve[generator] * m.thermalCapacity[generator]
             )
 
-    @b.Disjunction(m.thermalGenerators)
+    @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
     def genStatus(disj, generator):
         return [
             disj.genOn[generator],
@@ -268,8 +282,10 @@ def add_commitment_variables(b, commitment_period):
             disj.genOff[generator],
         ]
 
-    # Generators cannot be committed unless they are operational or just installed
-    @b.LogicalConstraint(m.thermalGenerators)
+    @b.LogicalConstraint(
+        m.thermalGenerators,
+        doc="Enforces that generators cannot be committed unless they are operational or just installed",
+    )
     def commit_active_gens_only(b, generator):
         return pyo.lor(
             b.genOn[generator].indicator_var,
@@ -283,16 +299,18 @@ def add_commitment_variables(b, commitment_period):
             )
         )
 
-    """
-    Create constraints within disjunctions on battery storage commitment (charging/discharging/off)
-    """
-
+    # Add constraints within disjunctions on battery storage
+    # commitment (charging/discharging/off) if storage is needed.
     if m.config["storage"]:
         stor.add_storage_constraints(m, b, commitment_period)
 
 
 def add_commitment_constraints(b, comm_per):
-    """Add commitment-associated disjunctions and constraints to representative period block."""
+    """This method adds the commitment disjunctions and constraints to
+    representative period block.
+
+    """
+
     m = b.model()
     r_p = b.parent_block()
     i_p = r_p.parent_block()
@@ -300,20 +318,15 @@ def add_commitment_constraints(b, comm_per):
     @b.Expression(doc="Total renewable surplus/deficit for commitment block")
     def renewableSurplusCommitment(b):
         return sum(
-            # [ESR WIP: Q: Commenting the commitment period since I
-            # don't think we need to include it.]
-            # pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
             b.dispatchPeriod[disp_per].renewableSurplusDispatch  # in MW
             for disp_per in b.dispatchPeriods
         )
 
-    # Define total operating costs for commitment block
-    ## TODO: Replace this constraint with expressions using bounds transform
-    ## NOTE: expressions are stored in gtep_cleanup branch
-    ## costs considered need to be re-assessed and account for missing data
+    # Define total operating costs for commitment block. [TODO:
+    # Replace this constraint with expressions using bounds transform
+    # and check if the costs considered need to be re-assessed and
+    # account for missing data.]
 
-    # [ESR WIP: The fixed costs for thermal and renewable generators
-    # are included in the dispatch stage.]
     @b.Expression()
     def operatingCostCommitment(b):
         if m.config["include_commitment"]:
@@ -351,18 +364,21 @@ def add_commitment_constraints(b, comm_per):
                 for disp_per in b.dispatchPeriods
             )
 
-    # Define total storage costs for commitment block
-    ## TODO: Replace this constraint with expressions using bounds transform
-    ## NOTE: expressions are stored in gtep_cleanup branch
-    ## costs considered need to be re-assessed and account for missing data
-    """ Compute Battery Storage cost per dispatch period"""
+    # Define total storage costs for commitment block. [TODO: Replace
+    # this constraint with expressions using bounds transform and
+    # check if costs considered need to be re-assessed and account for
+    # missing data.]
 
-    @b.Expression()
-    def storageCostCommitment(b):
-        return sum(
-            b.dispatchPeriod[disp_per].storageCostDispatch
-            for disp_per in b.dispatchPeriods
-        )
+    # Compute Battery Storage cost per dispatch period if storage is
+    # needed
+    if m.config["storage"]:
+
+        @b.Expression()
+        def storageCostCommitment(b):
+            return sum(
+                b.dispatchPeriod[disp_per].storageCostDispatch
+                for disp_per in b.dispatchPeriods
+            )
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):
@@ -379,6 +395,7 @@ def add_investment_commitment_variables(b):
     b.renewableCurtailmentInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
+
 
 def add_investment_commitment_constraints(m, b, investment_stage):
 
