@@ -215,7 +215,7 @@ class DataProcessing:
     def get_ng_costs(self, ng_cost_path: Path) -> pd.DataFrame:
         """
         Reads in natural gas costs data, sourced from [2], with the
-        quantity (e.g., Refence case) on the index.
+        quantity (e.g., Reference case) on the index.
 
         :param ng_cost_path:    Path to CSV with natural gas costs.
         :type ng_cost_path:     pathlib.Path
