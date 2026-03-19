@@ -59,7 +59,7 @@ def add_investment_variables(b, investment_stage):
         return
 
     @b.Disjunction(m.thermalGenerators)
-    def investStatus(disj, gen):
+    def genInvestStatus(disj, gen):
         return [
             disj.genOperational[gen],
             disj.genInstalled[gen],
@@ -69,71 +69,10 @@ def add_investment_variables(b, investment_stage):
         ]
 
     if m.config["storage"]:
-
-        @b.Disjunct(m.storage)
-        def storOperational(disj, bat):
-            return
-
-        @b.Disjunct(m.storage)
-        def storInstalled(disj, bat):
-            return
-
-        @b.Disjunct(m.storage)
-        def storRetired(disj, bat):
-            return
-
-        @b.Disjunct(m.storage)
-        def storDisabled(disj, bat):
-            return
-
-        @b.Disjunct(m.storage)
-        def storExtended(disj, bat):
-            return
-
-        @b.Disjunction(m.storage)
-        def storInvestStatus(disj, bat):
-            return [
-                disj.storOperational[bat],
-                disj.storInstalled[bat],
-                disj.storRetired[bat],
-                disj.storDisabled[bat],
-                disj.storExtended[bat],
-            ]
+        stor.add_storage_disjuncts(b, m.storage)
 
     if m.config["transmission"]:
-        # Line disjuncts. For now mimicking thermal generator disjuncts,
-        # though different states may need to be defined
-        @b.Disjunct(m.transmission)
-        def branchOperational(disj, branch):
-            return
-
-        @b.Disjunct(m.transmission)
-        def branchInstalled(disj, branch):
-            return
-
-        @b.Disjunct(m.transmission)
-        def branchRetired(disj, branch):
-            return
-
-        @b.Disjunct(m.transmission)
-        def branchDisabled(disj, branch):
-            return
-
-        @b.Disjunct(m.transmission)
-        def branchExtended(disj, branch):
-            return
-
-        # JSC update (done?)
-        # @KyleSkolfield: do we differentiate between line and transformer investments?
-        @b.Disjunction(m.transmission)
-        def branchInvestStatus(disj, branch):
-            return [
-                disj.branchOperational[branch],
-                disj.branchInstalled[branch],
-                disj.branchRetired[branch],
-                disj.branchDisabled[branch],
-                disj.branchExtended[branch],
-            ]
+        transm.add_transmission_disjuncts(b, m.transmission)
 
     # Renewable generator MW values (operational, installed, retired, extended)
     b.renewableOperational = pyo.Var(
@@ -331,8 +270,8 @@ def add_investment_constraints(
         baseline_cost = (
             sum(
                 # [ESR WIP: When including the disjunction
-                # investStatus, think if we should replace this cost
-                # with generatorInstallationCost.]
+                # genInvestStatus, think if we should replace this
+                # cost with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen]
                 * m.thermalCapacity[gen]  # in MW
                 * m.capitalMultiplier[gen]
@@ -347,7 +286,7 @@ def add_investment_constraints(
             )
             + sum(
                 # [ESR WIP: When including the disjunction
-                # investStatus, think if we should replace this cost
+                # genInvestStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
                 m.generatorInvestmentCost[gen] * m.extensionMultiplier[gen]
                 # [ESR WIP: Add missing term to include the capacity

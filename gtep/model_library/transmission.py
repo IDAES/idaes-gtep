@@ -33,10 +33,67 @@ def add_transmission_constraints(m, b, investment_stage):
             b.branchOperational[branch].indicator_var.fix(True)
 
 
-def add_transmission_logical_constraints(m):
+def add_transmission_disjuncts(b, transmission_set):
+    """This method implements a Disjunction and its disjuncts to model
+    the selection of the transmission lines status. The possible
+    alternatives for each transmission line are represented as a
+    disjunct expression within the function. The options are:
 
-    # If a branch is online at time t, it must have been online or installed at time t-1
-    @m.LogicalConstraint(m.stages, m.transmission)
+    branchOperational: Line is active and transmitting power.
+    branchInstalled:   Line is newly added and active.
+    branchRetired:     Line is removed from service.
+    branchDisabled:    Line is temporarily out of service.
+    branchExtended:    Line is upgraded beyond its original capacity.
+
+    """
+
+    # For now, mimicking thermal generator disjuncts. [TODO: Check if
+    # we need to define different states for transmission lines.]
+    @b.Disjunct(transmission_set)
+    def branchOperational(disj, branch):
+        return
+
+    @b.Disjunct(transmission_set)
+    def branchInstalled(disj, branch):
+        return
+
+    @b.Disjunct(transmission_set)
+    def branchRetired(disj, branch):
+        return
+
+    @b.Disjunct(transmission_set)
+    def branchDisabled(disj, branch):
+        return
+
+    @b.Disjunct(transmission_set)
+    def branchExtended(disj, branch):
+        return
+
+    # [TODO: Do we differentiate between line and transformer
+    # investments?]
+    @b.Disjunction(transmission_set)
+    def branchInvestStatus(disj, branch):
+        return [
+            disj.branchOperational[branch],
+            disj.branchInstalled[branch],
+            disj.branchRetired[branch],
+            disj.branchDisabled[branch],
+            disj.branchExtended[branch],
+        ]
+
+
+def add_transmission_logical_constraints(m):
+    """This method defines logical constraints to ensure that
+    transmission lines statuses transitions are operationally
+    consistent over time, across the investment stages.
+
+    """
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is online at time t, it must have been online or installed at time t-1",
+    )
     def consistent_branch_operation(m, stage, branch):
         return (
             m.investmentStage[stage]
@@ -49,8 +106,11 @@ def add_transmission_logical_constraints(m):
             else pyo.LogicalConstraint.Skip
         )
 
-    # If a branch is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.transmission)
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is online at time t, it must be online, extended, or retired at time t+1",
+    )
     def consistent_branch_operation_future(m, stage, branch):
         return (
             m.investmentStage[stage - 1]
@@ -64,8 +124,11 @@ def add_transmission_logical_constraints(m):
             else pyo.LogicalConstraint.Skip
         )
 
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is retired in period t-1, it should be disabled in period t",
+    )
     def full_branch_retirement(m, stage, branch):
         return (
             m.investmentStage[stage - 1]
@@ -77,8 +140,11 @@ def add_transmission_logical_constraints(m):
             else pyo.LogicalConstraint.Skip
         )
 
-    # If a branch is disabled at time t-1, it must stay disabled or be installed at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is disabled at time t-1, it must stay disabled or be installed at time t",
+    )
     def consistent_branch_disabled(m, stage, branch):
         return (
             m.investmentStage[stage - 1]
@@ -91,8 +157,11 @@ def add_transmission_logical_constraints(m):
             else pyo.LogicalConstraint.Skip
         )
 
-    # If a branch is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.transmission)
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is extended at time t-1, it must stay extended or be retired at time t",
+    )
     def consistent_branch_extended(m, stage, branch):
         return (
             m.investmentStage[stage - 1]
@@ -105,8 +174,11 @@ def add_transmission_logical_constraints(m):
             else pyo.LogicalConstraint.Skip
         )
 
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.transmission)
+    @m.LogicalConstraint(
+        m.stages,
+        m.transmission,
+        doc="Enforces that, if a branch is installed in period t-1, it must be operational in period t",
+    )
     def full_branch_investment(m, stage, branch):
         return (
             m.investmentStage[stage - 1]
