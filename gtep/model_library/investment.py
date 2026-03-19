@@ -19,6 +19,7 @@ Generation and Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 import gtep.model_library.commitment as commit
@@ -26,15 +27,7 @@ import gtep.model_library.commitment as commit
 
 def add_investment_variables(b, investment_stage):
     """This method adds variables and disjuncts to the investment
-    stage block. It includes a Disjunction and its disjuncts to model
-    the selection of the thermal generators status. The alternatives
-    are:
-
-    genOperational: Generator is active and producing power.
-    genInstalled:   Generator is newly added and active.
-    genRetired:     Generator is removed from service.
-    genDisabled:    Generator is temporarily out of service.
-    genExtended:    Generator is upgraded beyond its original capacity.
+    stage block.
 
     :param b: Investment block
     :param investment_stage: Investment stage index or name
@@ -50,68 +43,25 @@ def add_investment_variables(b, investment_stage):
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
     if m.config["include_commitment"]:
         commit.add_investment_commitment_variables(b)
+
+    # [TODO: Check how to add this only when storage is
+    # included. Commented condition for now since it throws an error
+    # during testing.]
     # if m.config["storage"]:
     #     stor.add_investment_storage_variables(b)
     b.storageCostInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
 
-    # Declare thermal generator disjuncts (operational, installed,
-    # retired, disabled, extended)
-    @b.Disjunct(m.thermalGenerators)
-    def genOperational(disj, gen):
-        return
+    # Add status disjuncts for thermal and renewable generators. Note,
+    # this should always included in the model.
+    gens.add_generators_status_disjuncts(b, m.thermalGenerators, m.renewableGenerators)
 
-    @b.Disjunct(m.thermalGenerators)
-    def genInstalled(disj, gen):
-        return
-
-    @b.Disjunct(m.thermalGenerators)
-    def genRetired(disj, gen):
-        return
-
-    @b.Disjunct(m.thermalGenerators)
-    def genDisabled(disj, gen):
-        return
-
-    @b.Disjunct(m.thermalGenerators)
-    def genExtended(disj, gen):
-        return
-
-    @b.Disjunction(m.thermalGenerators)
-    def genInvestStatus(disj, gen):
-        return [
-            disj.genOperational[gen],
-            disj.genInstalled[gen],
-            disj.genRetired[gen],
-            disj.genDisabled[gen],
-            disj.genExtended[gen],
-        ]
-
-    # Declare renewable generators status as variables, instead of
-    # disjuncts. The alternatives are operational, installed, retired,
-    # and extended. [TODO: Convert these to discrete decisions.]
-    b.renewableOperational = pyo.Var(
-        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
-    )
-    b.renewableInstalled = pyo.Var(
-        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
-    )
-    b.renewableRetired = pyo.Var(
-        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
-    )
-    b.renewableExtended = pyo.Var(
-        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
-    )
-    b.renewableDisabled = pyo.Var(
-        m.renewableGenerators, within=pyo.NonNegativeReals, initialize=0, units=u.MW
-    )
-
-    # Add storage status alternatives, if needed
+    # Add storage status disjuncts, when needed
     if m.config["storage"]:
         stor.add_storage_status_disjuncts(b, m.storage)
 
-    # Add transmission lines status alternatives, if needed
+    # Add transmission lines status disjuncts, when needed
     if m.config["transmission"]:
         transm.add_transmission_status_disjuncts(b, m.transmission)
 
@@ -127,35 +77,15 @@ def add_investment_constraints(
 
     m = b.model()
 
-    for gen in m.thermalGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(False)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(True)
-
-    for gen in m.renewableGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(0)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+    # Add constraints for generators and transmission lines and
+    # storage, when needed. These constraints include fixing indicator
+    # variables based on "in_service" data for the units and the
+    # calculation of investment cost.
+    gens.add_investment_generators_constraints(m, b, investment_stage)
 
     if m.config["transmission"]:
         transm.add_investment_transmission_constraints(m, b, investment_stage)
 
-    # Fixing in-service batteries initial investment state based on
-    # input. [TODO: Also initialize storage level (state of charge)]
     if m.config["storage"]:
         stor.add_investment_storage_constraints(m, b, investment_stage)
 
@@ -169,51 +99,7 @@ def add_investment_constraints(
     @b.Expression(doc="Investment costs for the investment period in $")
     def investment_cost(b):
         baseline_cost = (
-            sum(
-                # [ESR: When including the disjunction
-                # genInvestStatus, think if we should replace this
-                # cost with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen]
-                * m.thermalCapacity[gen]  # in MW
-                * m.capitalMultiplier[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators
-            )
-            + sum(
-                m.generatorInvestmentCost[gen]
-                * m.capitalMultiplier[gen]
-                * b.renewableInstalled[gen]  # in MW
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                # [ESR WIP: When including the disjunction
-                # genInvestStatus, think if we should replace this cost
-                # with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen]
-                * m.extensionMultiplier[gen]
-                * m.thermalCapacity[gen]
-                * b.genExtended[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators
-            )
-            + sum(
-                m.generatorInvestmentCost[gen]
-                * m.extensionMultiplier[gen]
-                * b.renewableExtended[gen]
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                m.generatorInvestmentCost[gen]
-                * m.retirementMultiplier[gen]
-                * b.renewableRetired[gen]
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                m.generatorInvestmentCost[gen]
-                * m.retirementMultiplier[gen]
-                * m.thermalCapacity[gen]
-                * b.genRetired[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators
-            )
+            b.generators_investment_cost
             + (
                 b.storage_investment_cost
                 if m.config["storage"] == True
@@ -231,7 +117,7 @@ def add_investment_constraints(
         commit.add_investment_commitment_constraints(m, b, investment_stage)
 
     # [BLN: Convert this to a constraint using operatingCostInvestment
-    # Var. May also need to move it]
+    # Var. May also need to move it.]
     @b.Constraint(doc="Operating costs for investment period")
     def rule_operatingCostInvestment(b):
         return b.operatingCostInvestment == (
@@ -240,8 +126,9 @@ def add_investment_constraints(
             else 0
         )
 
-    # [ESR Question: Do we need to add the flag for investment? Should
-    # we better put this flag when calling this function?]
+    # [ESR Question: Do we need to add the flag for investment when
+    # inside investment? Should we better put this flag when calling
+    # this function?]
     if m.config["include_investment"]:
 
         # NOTE: This is constraint (13) in reference [1]
@@ -262,72 +149,3 @@ def add_investment_constraints(
                 renewableSurplusRepresentative + b.quotaDeficit
                 >= m.renewableQuota[investment_stage] * ed
             )
-
-    # Add legacy equations below. These equations are not used in
-    # current versions of the model. [TODO: Determine if we need them
-    # in future versions of the model.]
-
-    """
-    # NOTE: renewableCapacityValue is a percentage of renewableCapacity
-    # TODO: renewableCapacityValue ==> renewableCapacityFactor
-    # NOTE: reserveMargin is a percentage of peakLoad
-    # TODO: check and re-enable with additional bounding transform before bigm
-    # TODO: renewableCapacityValue... should this be time iterated? is it tech based?
-    # is it site based? who can say?
-
-    @b.Constraint(doc="Planning reserve requirement constraint")
-    def planning_reserve_requirement(b):
-        return (
-            sum(
-                m.renewableCapacityNameplate[gen]
-                * m.renewableCapacityValue[gen]
-                * (b.renewableOperational[gen] + b.renewableInstalled[gen])
-                for gen in m.renewableGenerators
-            )
-            + sum(
-                m.thermalCapacity[gen]
-                * (
-                    b.genOperational[gen].indicator_var.get_associated_binary()
-                    + b.genInstalled[gen].indicator_var.get_associated_binary()
-                )
-                for gen in m.thermalGenerators
-            )
-            >= (1 + m.reserveMargin[investment_stage]) * m.peakLoad[investment_stage]
-        )
-
-    # NOTE: temporarily disabled maximum investment as default option
-    # TODO: These capacities shouldn't be enabled by default since they can
-    # easily cause absurd results/possibly even infeasibility.  Will need to add
-    # user-defined handling for this.
-
-    @b.Constraint(
-        m.regions,
-        doc="Maximum investment stage installation for thermal generators",
-    )
-    def maximum_thermal_investment(b, region):
-        return (
-            sum(
-                m.thermalCapacity[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators & m.gensAtRegion[region]
-            )
-            <= b.maxThermalInvestment[region]
-        )
-
-    @b.Constraint(
-        m.regions,
-        doc="Maximum investment stage installation for renewable generators",
-    )
-    def maximum_renewable_investment(b, region):
-        return (
-            sum(
-                m.renewableCapacityNameplate[gen]
-                * b.genInstalled[gen].indicator_var.get_associated_binary()
-                for gen in m.renewableGenerators & m.gensAtRegion[region]
-            )
-            <= b.maxRenewableInvestment[region]
-            if m.renewableGenerators & m.gensAtRegion[region]
-            else pyo.Constraint.Skip
-        )
-  
-    """
