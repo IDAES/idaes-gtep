@@ -48,6 +48,7 @@ import gtep.model_library.objective as obj_comp
 import gtep.model_library.components as comps
 import gtep.model_library.representative_period as rep_period
 import gtep.model_library.scaling as scaling
+import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
@@ -334,13 +335,11 @@ def investment_stage_rule(b, investment_stage):
         for p in m.representativePeriods
         # if m.representativePeriodStage[p] == investment_stage
     ]
-    inv.add_investment_variables(b, investment_stage)
+    inv.add_investment_params_and_variables(b, investment_stage)
 
     b.representativePeriod = pyo.Block(
         b.representativePeriods, rule=representative_period_rule
     )
-    b.maxThermalInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
-    b.maxRenewableInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
 
     inv.add_investment_constraints(b, investment_stage)
 
@@ -356,156 +355,11 @@ def model_create_investment_stages(m, stages):
 
     m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
 
-    ## Generator Retirement Constraints
-    ## TODO: needs to be tested
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def gen_retirement(m, stage, gen):
-        return (
-            (
-                m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
-                .genOperational[gen]
-                .indicator_var
-                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[
-                    gen
-                ]
-            ).implies(
-                m.investmentStage[stage].genRetired[gen].indicator_var
-                | m.investmentStage[stage].genExtended[gen].indicator_var
-            )
-            if stage > pyo.value(m.lifetimes[gen])
-            else pyo.LogicalConstraint.Skip
-        )
+    # Add logical constraints for generators and transmission lines
+    # and storage, when needed. These logical constraints ensure that
+    # their status are operationally consistent over time
+    gens.add_generators_logical_constraints(m)
 
-    # Total renewable generation (in MW) operational at a given stage
-    # is equal to what was operational and/or installed in the previous stage
-    # less what was retired in the previous stage
-    @m.Constraint(m.stages, m.renewableGenerators)
-    def renewable_stats_link(m, stage, gen):
-        return (
-            m.investmentStage[stage].renewableOperational[gen]
-            == m.investmentStage[stage - 1].renewableOperational[gen]
-            + m.investmentStage[stage - 1].renewableInstalled[gen]
-            - m.investmentStage[stage - 1].renewableExtended[gen]
-            - m.investmentStage[stage - 1].renewableRetired[gen]
-            if stage != 1
-            else pyo.Constraint.Skip
-        )
-
-    @m.Constraint(m.stages, m.renewableGenerators)
-    def renewable_retirement_link(m, stage, gen):
-        return (
-            m.investmentStage[stage].renewableRetired[gen]
-            == m.investmentStage[stage - 1].renewableRetired[gen]
-            - m.investmentStage[stage - 1].renewableDisabled[gen]
-            if stage != 1
-            else pyo.Constraint.Skip
-        )
-
-    @m.Constraint(m.stages, m.renewableGenerators)
-    def renewable_extension_link(m, stage, gen):
-        return (
-            m.investmentStage[stage].renewableExtended[gen]
-            == m.investmentStage[stage - 1].renewableExtended[gen]
-            - m.investmentStage[stage - 1].renewableRetired[gen]
-            if stage != 1
-            else pyo.Constraint.Skip
-        )
-
-    @m.Constraint(m.stages, m.renewableGenerators)
-    def renewable_capacity_enforcement(m, stage, gen):
-        return (
-            m.investmentStage[stage].renewableOperational[gen]
-            + m.investmentStage[stage].renewableInstalled[gen]
-            + m.investmentStage[stage].renewableExtended[gen]
-            + m.investmentStage[stage].renewableRetired[gen]
-            + m.investmentStage[stage].renewableRetired[gen]
-            <= m.renewableCapacityNameplate[gen]
-        )
-
-    # If a gen is online at time t, it must have been online or installed at time t-1
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_operation(m, stage, gen):
-        return (
-            m.investmentStage[stage]
-            .genOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage - 1].genOperational[gen].indicator_var
-                | m.investmentStage[stage - 1].genInstalled[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # If a gen is online at time t, it must be online, extended, or retired at time t+1
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_operation_future(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genOperational[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genOperational[gen].indicator_var
-                | m.investmentStage[stage].genExtended[gen].indicator_var
-                | m.investmentStage[stage].genRetired[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # Retirement in period t-1 implies disabled in period t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def full_retirement(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genRetired[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genDisabled[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # If a gen is disabled at time t-1, it must stay disabled  at time t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_disabled(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genDisabled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genDisabled[gen].indicator_var
-                | m.investmentStage[stage].genInstalled[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # If a gen is extended at time t-1, it must stay extended or be retired at time t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def consistent_extended(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genExtended[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genExtended[gen].indicator_var
-                | m.investmentStage[stage].genRetired[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # Installation in period t-1 implies operational in period t
-    @m.LogicalConstraint(m.stages, m.thermalGenerators)
-    def full_investment(m, stage, gen):
-        return (
-            m.investmentStage[stage - 1]
-            .genInstalled[gen]
-            .indicator_var.implies(
-                m.investmentStage[stage].genOperational[gen].indicator_var
-            )
-            if stage != 1
-            else pyo.LogicalConstraint.Skip
-        )
-
-    # Storage Constraints same as gen constraints
     if m.config["storage"]:
         stor.add_storage_logical_constraints(m)
 

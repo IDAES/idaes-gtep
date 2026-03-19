@@ -509,3 +509,181 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 i_p.genExtended[generator].indicator_var,
             )
         )
+
+
+def add_generators_logical_constraints(m):
+    """This method defines logical constraints to ensure that thermal
+    and renewable generators statuses transitions are operationally
+    consistent over time, across the investment stages.
+
+    """
+
+    # [TODO: This needs to be tested.]
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Thermal generator retirement",
+    )
+    def thermalgen_retirement(m, stage, gen):
+        return (
+            (
+                m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
+                .genOperational[gen]
+                .indicator_var
+                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[
+                    gen
+                ]
+            ).implies(
+                m.investmentStage[stage].genRetired[gen].indicator_var
+                | m.investmentStage[stage].genExtended[gen].indicator_var
+            )
+            if stage > pyo.value(m.lifetimes[gen])
+            else pyo.LogicalConstraint.Skip
+        )
+
+    # Total renewable generation (in MW) operational at a given stage
+    # is equal to what was operational and/or installed in the previous stage
+    # less what was retired in the previous stage
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_stats_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableOperational[gen]
+            == m.investmentStage[stage - 1].renewableOperational[gen]
+            + m.investmentStage[stage - 1].renewableInstalled[gen]
+            - m.investmentStage[stage - 1].renewableExtended[gen]
+            - m.investmentStage[stage - 1].renewableRetired[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
+
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_retirement_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableRetired[gen]
+            == m.investmentStage[stage - 1].renewableRetired[gen]
+            - m.investmentStage[stage - 1].renewableDisabled[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
+
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_extension_link(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableExtended[gen]
+            == m.investmentStage[stage - 1].renewableExtended[gen]
+            - m.investmentStage[stage - 1].renewableRetired[gen]
+            if stage != 1
+            else pyo.Constraint.Skip
+        )
+
+    @m.Constraint(m.stages, m.renewableGenerators)
+    def renewable_capacity_enforcement(m, stage, gen):
+        return (
+            m.investmentStage[stage].renewableOperational[gen]
+            + m.investmentStage[stage].renewableInstalled[gen]
+            + m.investmentStage[stage].renewableExtended[gen]
+            + m.investmentStage[stage].renewableRetired[gen]
+            + m.investmentStage[stage].renewableRetired[gen]
+            <= m.renewableCapacityNameplate[gen]
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is online at time t, it must have been online or installed at time t-1",
+    )
+    def consistent_operation(m, stage, gen):
+        return (
+            m.investmentStage[stage]
+            .genOperational[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage - 1].genOperational[gen].indicator_var
+                | m.investmentStage[stage - 1].genInstalled[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is online at time t, it must be online, extended, or retired at time t+1",
+    )
+    def consistent_operation_future(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genOperational[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genOperational[gen].indicator_var
+                | m.investmentStage[stage].genExtended[gen].indicator_var
+                | m.investmentStage[stage].genRetired[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is retired in period t-1, it must be disabled in period t",
+    )
+    def full_retirement(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genRetired[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genDisabled[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is disabled at time t-1, it must stay disabled  at time t",
+    )
+    def consistent_disabled(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genDisabled[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genDisabled[gen].indicator_var
+                | m.investmentStage[stage].genInstalled[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is extended at time t-1, it must stay extended or be retired at time t",
+    )
+    def consistent_extended(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genExtended[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genExtended[gen].indicator_var
+                | m.investmentStage[stage].genRetired[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )
+
+    @m.LogicalConstraint(
+        m.stages,
+        m.thermalGenerators,
+        doc="Enforces that, if a thermal gen is installed in period t-1, it must be operational in period t",
+    )
+    def full_investment(m, stage, gen):
+        return (
+            m.investmentStage[stage - 1]
+            .genInstalled[gen]
+            .indicator_var.implies(
+                m.investmentStage[stage].genOperational[gen].indicator_var
+            )
+            if stage != 1
+            else pyo.LogicalConstraint.Skip
+        )

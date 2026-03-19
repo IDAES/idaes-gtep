@@ -25,7 +25,7 @@ import gtep.model_library.transmission as transm
 import gtep.model_library.commitment as commit
 
 
-def add_investment_variables(b, investment_stage):
+def add_investment_params_and_variables(b, investment_stage):
     """This method adds variables and disjuncts to the investment
     stage block.
 
@@ -38,7 +38,11 @@ def add_investment_variables(b, investment_stage):
     m = b.model()
     b.investmentStage = investment_stage
 
-    # Track and accumulate costs and penalties
+    # Add parameters
+    b.maxThermalInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
+    b.maxRenewableInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
+
+    # Add variables to track and accumulate costs and penalties
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
     if m.config["include_commitment"]:
