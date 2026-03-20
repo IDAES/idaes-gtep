@@ -167,6 +167,8 @@ class ExpansionPlanningModel:
         )
 
         model_create_investment_stages(m, self.stages)
+        # create_stages(m, self.stages)
+
         obj_comp.create_objective_function(m)
 
         self.model = m
@@ -320,6 +322,7 @@ def investment_stage_rule(b, investment_stage):
     :b: Investment block
     :investment_stage: ID for current investment stage
     """
+
     m = b.parent_block()
 
     b.year = m.years[investment_stage - 1]
@@ -330,17 +333,17 @@ def investment_stage_rule(b, investment_stage):
     # investment year
     comps.model_data_costs(m, b.year)
 
+    inv.add_investment_params_and_variables(b, investment_stage)
+
     b.representativePeriods = [
         p
         for p in m.representativePeriods
         # if m.representativePeriodStage[p] == investment_stage
     ]
-    inv.add_investment_params_and_variables(b, investment_stage)
 
     b.representativePeriod = pyo.Block(
         b.representativePeriods, rule=representative_period_rule
     )
-
     inv.add_investment_constraints(b, investment_stage)
 
 
@@ -354,6 +357,82 @@ def model_create_investment_stages(m, stages):
     """
 
     m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
+
+    # Add logical constraints for generators and transmission lines
+    # and storage, when needed. These logical constraints ensure that
+    # their status are operationally consistent over time
+    gens.add_generators_logical_constraints(m)
+
+    if m.config["storage"]:
+        stor.add_storage_logical_constraints(m)
+
+    if m.config["transmission"]:
+        transm.add_transmission_logical_constraints(m)
+
+
+def create_stages(m, stages):
+    """Creates investment, commitment, and dispatch stages using Blocks
+
+    :m: Pyomo model object
+    :stages: Number of investment stages in planning horizon
+
+    """
+
+    # m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
+    m.investmentStage = pyo.Block(m.stages)
+
+    ############# Add all eqns in investment_stage rule
+    for stg in m.stages:
+        m.investmentStage[stg].year = m.years[stg - 1]
+
+        print(f"m.investmentStage[{stg}].year = {m.investmentStage[stg].year}")
+
+        # Declare costs parameters here since they depend on the
+        # investment year
+        comps.model_data_costs(m, m.investmentStage[stg].year)
+
+        # Declare investment parameters and variables. This includes the
+        # status disjunction for generators and transmission lines and
+        # storage, when needed
+        inv.add_investment_params_and_variables(m.investmentStage[stg], stg)
+
+        # [ESR WIP: Comment this for now since we are not using the if
+        # statement and it becomes equivalent to
+        # m.representativePeriods. Check if we need this for future
+        # versions.]
+        m.investmentStage[stg].representativePeriods = [
+            p for p in m.representativePeriods
+        ]
+        m.investmentStage[stg].representativePeriod = pyo.Block(
+            m.investmentStage[stg].representativePeriods,
+            rule=representative_period_rule,
+            # m.investmentStage[stg].representativePeriods,
+            # m.representativePeriods,
+        )
+
+    # #------------------
+    # # Add all eqns of representative_period_rule here
+    # b = b.representativePeriod
+    # b.representative_date = m.data.representative_dates[representative_period - 1]
+    # broken_date = list(re.split(r"[-: ]", b.representative_date))
+    # b.month = int(broken_date[1])
+    # b.day = int(broken_date[2])
+    # b.currentPeriod = representative_period
+
+    # if m.config["include_commitment"] or m.config["include_redispatch"]:
+    #     b.commitmentPeriods = pyo.RangeSet(
+    #         m.numCommitmentPeriods[representative_period]
+    #     )
+    #     b.commitmentPeriod = pyo.Block(b.commitmentPeriods, rule=commitment_period_rule)
+    #     # b.commitmentPeriod = pyo.Block(b.commitmentPeriods)
+
+    #     rep_period.add_representative_period_variables(b, representative_period)
+    #     rep_period.add_representative_period_constraints(b, representative_period)
+    # #----------------
+
+    for stg in m.stages:
+        inv.add_investment_constraints(m.investmentStage[stg], stg)
+    #############
 
     # Add logical constraints for generators and transmission lines
     # and storage, when needed. These logical constraints ensure that
