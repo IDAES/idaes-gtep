@@ -16,7 +16,10 @@ Expansion Planning (GTEP) Model
 
 """
 
+import math
+
 import pyomo.environ as pyo
+from pyomo.environ import units as u
 
 
 def add_investment_transmission_constraints(m, b, investment_stage):
@@ -203,3 +206,243 @@ def add_transmission_logical_constraints(m):
             if stage != 1
             else pyo.LogicalConstraint.Skip
         )
+
+
+def add_transmission_state_disjuncts(m, b, i_p):
+    """This method defines constraints and a Disjunction with
+    disjuncts representing the alternatives for transmission lines
+    state operation. The alternatives are:
+
+    branchInUse:     Line is used.
+    branchNotInUse:  Line is not used.
+
+    """
+
+    @b.Disjunct(m.transmission)
+    def branchInUse(disj, branch):
+        b = disj.parent_block()
+
+        def bus_angle_bounds(disj, bus, doc="Voltage angle"):
+            return (-1000, 1000)
+            return (-math.pi / 6, math.pi / 6)
+
+        # Create bus angle variables for the buses associated with
+        # the branch that is in use
+        disj.branch_buses = [
+            bb
+            for bb in m.buses
+            if (
+                m.transmission[branch]["from_bus"] == bb
+                or m.transmission[branch]["to_bus"] == bb
+            )
+        ]
+
+        disj.busAngle = pyo.Var(
+            disj.branch_buses,
+            domain=pyo.Reals,
+            initialize=0,
+            bounds=bus_angle_bounds,
+        )
+
+        def delta_bus_angle_bounds(disj, bus, doc="Voltage angle"):
+            return (-math.pi / 6, math.pi / 6)
+
+        def delta_bus_angle_rule(disj, doc="Maximum bus angle discrepancy"):
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            return disj.busAngle[tb] - disj.busAngle[fb]
+
+        disj.deltaBusAngle = pyo.Var(
+            domain=pyo.Reals,
+            bounds=delta_bus_angle_bounds,
+            rule=delta_bus_angle_rule,
+        )
+
+        if m.config["flow_model"] == "ACP":
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
+            reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6)
+
+            # Transformer tap ratio and phase shift
+            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
+                reactance *= m.md.data["elements"]["branch"][branch][
+                    "transformer_tap_ratio"
+                ]
+                phase_shift = m.md.data["elements"]["branch"][branch][
+                    "transformer_phase_shift"
+                ]
+            else:
+                phase_shift = 0
+
+            admittance = 1 / complex(resistance, reactance)
+            G = admittance.real
+            B = admittance.imag
+
+            # Define voltage magnitude variables for from and to buses
+            disj.voltage_from = pyo.Var(bounds=(0, 2))
+            disj.voltage_to = pyo.Var(bounds=(0, 2))
+
+            # Define active and reactive power flow variables
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
+
+            # Polar Active Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_p(disj):
+                return disj.P_flow == (
+                    disj.voltage_from**2 * G
+                    - disj.voltage_from
+                    * disj.voltage_to
+                    * (
+                        G * pyo.cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        + B
+                        * pyo.sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                    )
+                )
+
+            # Polar Reactive Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_q(disj):
+                return disj.Q_flow == (
+                    -disj.voltage_from**2 * B
+                    - disj.voltage_from
+                    * disj.voltage_to
+                    * (
+                        G * pyo.sin(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                        - B
+                        * pyo.cos(disj.busAngle[fb] - disj.busAngle[tb] + phase_shift)
+                    )
+                )
+
+        if m.config["flow_model"] == "ACR":
+            fb = m.transmission[branch]["from_bus"]
+            tb = m.transmission[branch]["to_bus"]
+            resistance = m.md.data["elements"]["branch"][branch].get("resistance", 0.0)
+            reactance = m.md.data["elements"]["branch"][branch].get("reactance", 1e-6)
+
+            # Transformer tap ratio and phase shift
+            if m.md.data["elements"]["branch"][branch]["branch_type"] == "transformer":
+                reactance *= m.md.data["elements"]["branch"][branch][
+                    "transformer_tap_ratio"
+                ]
+                phase_shift = m.md.data["elements"]["branch"][branch][
+                    "transformer_phase_shift"
+                ]
+            else:
+                phase_shift = 0
+
+            admittance = 1 / complex(resistance, reactance)
+            G = admittance.real
+            B = admittance.imag
+
+            # Define rectangular voltage variables for from and to buses
+            disj.real_voltage_from = pyo.Var(bounds=(0, 2))
+            disj.real_voltage_to = pyo.Var(bounds=(-2, 2))
+            disj.imag_voltage_from = pyo.Var(bounds=(0, 2))
+            disj.imag_voltage_to = pyo.Var(bounds=(-2, 2))
+
+            # Define active and reactive power flow variables
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
+
+            # Rectangular Active Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_p(disj):
+                Vf_r = disj.real_voltage_from
+                Vf_i = disj.imag_voltage_from
+                Vt_r = disj.real_voltage_to
+                Vt_i = disj.imag_voltage_to
+
+                # Active Power Flow Equation
+                return disj.P_flow == (
+                    G * (Vf_r**2 + Vf_i**2)
+                    - G * (Vf_r * Vt_r + Vf_i * Vt_i)
+                    - B * (Vf_r * Vt_i - Vf_i * Vt_r)
+                )
+
+            # Rectangular Reactive Power Flow Constraint
+            @disj.Constraint()
+            def ac_power_flow_q(disj):
+                Vf_r = disj.real_voltage_from
+                Vf_i = disj.imag_voltage_from
+                Vt_r = disj.real_voltage_to
+                Vt_i = disj.imag_voltage_to
+
+                # Reactive Power Flow Equation
+                return disj.Q_flow == (
+                    B * (Vf_r**2 + Vf_i**2)
+                    + B * (Vf_r * Vt_r + Vf_i * Vt_i)
+                    - G * (Vf_r * Vt_i - Vf_i * Vt_r)
+                )
+
+        if m.config["flow_model"] == "DC":
+
+            @disj.Constraint()
+            def dc_power_flow(disj):
+                fb = m.transmission[branch]["from_bus"]
+                tb = m.transmission[branch]["to_bus"]
+                reactance = m.md.data["elements"]["branch"][branch]["reactance"]
+                if (
+                    m.md.data["elements"]["branch"][branch]["branch_type"]
+                    == "transformer"
+                ):
+                    reactance *= m.md.data["elements"]["branch"][branch][
+                        "transformer_tap_ratio"
+                    ]
+                    shift = m.md.data["elements"]["branch"][branch][
+                        "transformer_phase_shift"
+                    ]
+                else:
+                    shift = 0
+
+                # [TODO: Fix the units in this constraint.]
+                return b.powerFlow[branch] / u.MW == (-1 / reactance) * (
+                    disj.busAngle[tb] - disj.busAngle[fb] + shift
+                )
+
+    @b.Disjunct(m.transmission)
+    def branchNotInUse(disj, branch):
+
+        # Fixing power flow to 0 and not creating bus angle variables
+        # for branches that are not in use.
+        @disj.Constraint()
+        def dc_power_flow(disj):
+            return b.powerFlow[branch] == 0 * u.MW
+
+        return
+
+    # Branches are either in-use or not. This disjunction may provide the
+    # basis for transmission switching in the future.
+    @b.Disjunction(m.transmission)
+    def branchInUseStatus(disj, branch):
+        return [disj.branchInUse[branch], disj.branchNotInUse[branch]]
+
+    # [ESR: Do we really need this flag here if we are already adding
+    # the branches?]
+    if m.config["transmission"]:
+
+        # [TODO: Update this when switching is implemented.]
+        @b.LogicalConstraint(
+            m.transmission,
+            doc="Enforces that, if a branch is in use, it must be active",
+        )
+        def must_use_active_branches(b, branch):
+            return b.branchInUse[branch].indicator_var.implies(
+                pyo.lor(
+                    i_p.branchOperational[branch].indicator_var,
+                    i_p.branchInstalled[branch].indicator_var,
+                    i_p.branchExtended[branch].indicator_var,
+                )
+            )
+
+        # JSC update - If a branch is not in use, it must be inactive.
+        # Update this when switching is implemented
+        @b.LogicalConstraint(m.transmission)
+        def cannot_use_inactive_branches(b, branch):
+            return b.branchNotInUse[branch].indicator_var.implies(
+                pyo.lor(
+                    i_p.branchDisabled[branch].indicator_var,
+                    i_p.branchRetired[branch].indicator_var,
+                )
+            )
