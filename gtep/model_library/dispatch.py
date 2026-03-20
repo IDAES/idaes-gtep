@@ -122,36 +122,29 @@ def add_dispatch_variables(b, dispatch_period):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
     if m.config["storage"]:
-        stor.add_dispatch_storage_variables_and_constraints(
-            m, b
-        )  # includes costs variables
+        # Add storage variables and constraints. It also includes
+        # operational costs variables.
+        stor.add_dispatch_storage_variables_and_constraints(m, b)
 
-    if m.config["storage"]:
-        """Per-Battery Operational costs"""
-        b.chargingCostDispatch = sum(b.storageChargingCost.values())
-
-        b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
-
-        b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
-    else:
-        b.chargingCostDispatch = 0
-        b.dischargingCostDispatch = 0
-        b.storageCostDispatch = 0
-
-    # BLN TODO: Check the config check in the Expression rule
+    # [BLN TODO: Check the config check in the Expression rule.]
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
+
+        # [ESR WIP: If I don't add the 0 value for storage cost
+        # dispatch, the optimal solution has a value of 0. Check why
+        # this is hapenning.]
+        if m.config["storage"]:
+            storage_term = b.storageCostDispatch
+        else:
+            storage_term = 0
+
         return (
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
-            # [ESR: Commented since storageCostDispatch already
-            # includes the sum of these two terms.]
-            # + b.chargingCostDispatch
-            # + b.dischargingCostDispatch
-            + b.storageCostDispatch
+            + storage_term
         )
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
@@ -166,8 +159,8 @@ def add_dispatch_variables(b, dispatch_period):
             m.transmissionCapacity[branch],
         )
 
-    # (Original) NOTE: this is an abuse of units and needs to be fixed for
-    # variable temporal resolution
+    # [TODO: Check units since it needs to be fixed for variable
+    # temporal resolution.]
     b.powerFlow = pyo.Var(
         m.transmission,
         domain=pyo.Reals,

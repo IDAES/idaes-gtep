@@ -747,13 +747,8 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     def storageDischargingCost(b, bat):
         return b.storageDischarged[bat] * m.dischargingCost[bat]
 
-    # [ESR: Comment these for now.]
-    # b.chargingCostDispatch = sum(b.storageChargingCost.values())
-    # b.dischargingCostDispatch = sum(b.storageDischargingCost.values())
-    # b.storageCostDispatch = b.chargingCostDispatch + b.dischargingCostDispatch
-    # @b.Expression()
-    # def storageCostDispatch(b):
-    #     return (
-    #         sum(b.storageChargingCost[bat] for bat in m.storage)
-    #         + sum(b.storageDischargingCost[bat] for bat in m.storage)
-    #     )
+    @b.Expression()
+    def storageCostDispatch(b):
+        return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
+            b.storageDischargingCost[bat] for bat in m.storage
+        )
