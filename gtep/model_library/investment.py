@@ -100,8 +100,7 @@ def add_investment_constraints(
     # revisited AND possibly depends on data format. NOTE: It is
     # _rare_ for these values to be defined at all, let alone
     # consistently.]
-    @b.Expression(doc="Investment costs for the investment period in $")
-    def investment_cost(b):
+    def investment_cost_rule(b):
         baseline_cost = (
             b.generators_investment_cost
             + (
@@ -117,18 +116,27 @@ def add_investment_constraints(
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
+    b.investment_cost = pyo.Expression(
+        rule=investment_cost_rule,
+        doc="Investment costs for the investment period in $",
+    )
+
     if m.config["include_commitment"]:
         commit.add_investment_commitment_constraints(m, b, investment_stage)
 
     # [BLN: Convert this to a constraint using operatingCostInvestment
     # Var. May also need to move it.]
-    @b.Constraint(doc="Operating costs for investment period")
-    def rule_operatingCostInvestment(b):
+    def operatingCostInvestment_rule(b):
         return b.operatingCostInvestment == (
             b.commitmentOperatingCostInvestment
             if m.config["include_commitment"] == True
             else 0
         )
+
+    b.operatingCostInvestment_rule = pyo.Constraint(
+        rule=operatingCostInvestment_rule,
+        doc="Operating costs for investment period",
+    )
 
     # [ESR Question: Do we need to add the flag for investment when
     # inside investment? Should we better put this flag when calling
@@ -136,8 +144,7 @@ def add_investment_constraints(
     if m.config["include_investment"]:
 
         # NOTE: This is constraint (13) in reference [1]
-        @b.Constraint(doc="Minimum per-stage renewable generation requirement")
-        def renewable_generation_requirement(b):
+        def renewable_generation_requirement_rule(b):
             renewableSurplusRepresentative = 0
             ## TODO: preprocess loads for the appropriate sum here
             ed = 0
@@ -153,3 +160,8 @@ def add_investment_constraints(
                 renewableSurplusRepresentative + b.quotaDeficit
                 >= m.renewableQuota[investment_stage] * ed
             )
+
+        b.renewable_generation_requirement = pyo.Constraint(
+            rule=renewable_generation_requirement_rule,
+            doc="Minimum per-stage renewable generation requirement",
+        )

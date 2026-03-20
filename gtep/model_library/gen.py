@@ -18,6 +18,7 @@ Expansion Planning (GTEP) Model
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from pyomo.gdp import Disjunction, Disjunct
 
 
 def add_generators_status_disjuncts(b, thermalgens_set, renewablegens_set):
@@ -41,36 +42,6 @@ def add_generators_status_disjuncts(b, thermalgens_set, renewablegens_set):
 
     """
 
-    @b.Disjunct(thermalgens_set)
-    def genOperational(disj, gen):
-        return
-
-    @b.Disjunct(thermalgens_set)
-    def genInstalled(disj, gen):
-        return
-
-    @b.Disjunct(thermalgens_set)
-    def genRetired(disj, gen):
-        return
-
-    @b.Disjunct(thermalgens_set)
-    def genDisabled(disj, gen):
-        return
-
-    @b.Disjunct(thermalgens_set)
-    def genExtended(disj, gen):
-        return
-
-    @b.Disjunction(thermalgens_set)
-    def genInvestStatus(disj, gen):
-        return [
-            disj.genOperational[gen],
-            disj.genInstalled[gen],
-            disj.genRetired[gen],
-            disj.genDisabled[gen],
-            disj.genExtended[gen],
-        ]
-
     # Declare renewable generators status as variables, instead of
     # disjuncts. The alternatives are operational, installed, retired,
     # and extended. [TODO: Convert these to discrete decisions.]
@@ -89,6 +60,37 @@ def add_generators_status_disjuncts(b, thermalgens_set, renewablegens_set):
     b.renewableDisabled = pyo.Var(
         renewablegens_set, within=pyo.NonNegativeReals, initialize=0, units=u.MW
     )
+
+    def genOperational_rule(disj, gen):
+        return
+
+    def genInstalled_rule(disj, gen):
+        return
+
+    def genRetired_rule(disj, gen):
+        return
+
+    def genDisabled_rule(disj, gen):
+        return
+
+    def genExtended_rule(disj, gen):
+        return
+
+    def genInvestStatus_rule(disj, gen):
+        return [
+            disj.genOperational[gen],
+            disj.genInstalled[gen],
+            disj.genRetired[gen],
+            disj.genDisabled[gen],
+            disj.genExtended[gen],
+        ]
+
+    b.genOperational = Disjunct(thermalgens_set, rule=genOperational_rule)
+    b.genInstalled = Disjunct(thermalgens_set, rule=genInstalled_rule)
+    b.genRetired = Disjunct(thermalgens_set, rule=genRetired_rule)
+    b.genDisabled = Disjunct(thermalgens_set, rule=genDisabled_rule)
+    b.genExtended = Disjunct(thermalgens_set, rule=genExtended_rule)
+    b.genInvestStatus = Disjunction(thermalgens_set, rule=genInvestStatus_rule)
 
 
 def add_investment_generators_constraints(m, b, investment_stage):
@@ -120,8 +122,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
         ):
             b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
 
-    @b.Expression(doc="Generators investment costs in $")
-    def generators_investment_cost(b):
+    def generators_investment_cost_rule(b):
         return (
             sum(
                 # [ESR: When including the disjunction
@@ -169,6 +170,10 @@ def add_investment_generators_constraints(m, b, investment_stage):
                 for gen in m.thermalGenerators
             )
         )
+
+    b.generators_investment_cost = pyo.Expression(
+        rule=generators_investment_cost_rule, doc="Generators investment costs in $"
+    )
 
     # Add legacy equations below. These equations are not used in
     # current versions of the model. [TODO: Determine if we need them

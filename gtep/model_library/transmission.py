@@ -20,6 +20,7 @@ import math
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from pyomo.gdp import Disjunct, Disjunction
 
 
 def add_investment_transmission_constraints(m, b, investment_stage):
@@ -35,8 +36,7 @@ def add_investment_transmission_constraints(m, b, investment_stage):
         ):
             b.branchOperational[branch].indicator_var.fix(True)
 
-    @b.Expression(doc="Transmission investment costs in $")
-    def transmission_investment_cost(b):
+    def transmission_investment_cost_rule(b):
         return sum(
             m.branchInvestmentCost[branch]
             * m.branchCapitalMultiplier[branch]
@@ -48,6 +48,11 @@ def add_investment_transmission_constraints(m, b, investment_stage):
             * b.branchExtended[branch].indicator_var.get_associated_binary()
             for branch in m.transmission
         )
+
+    b.transmission_investment_cost = pyo.Expression(
+        rule=transmission_investment_cost_rule,
+        doc="Transmission investment costs in $",
+    )
 
 
 def add_transmission_status_disjuncts(b, transmission_set):
@@ -65,31 +70,24 @@ def add_transmission_status_disjuncts(b, transmission_set):
     """
 
     # For now, mimicking thermal generator disjuncts. [TODO: Check if
-    # we need to define different states for transmission lines.]
-    @b.Disjunct(transmission_set)
-    def branchOperational(disj, branch):
+    # we need to define different states for transmission lines or if
+    # we differentiate between line and transformer investments?]
+    def branchOperational_rule(disj, branch):
         return
 
-    @b.Disjunct(transmission_set)
-    def branchInstalled(disj, branch):
+    def branchInstalled_rule(disj, branch):
         return
 
-    @b.Disjunct(transmission_set)
-    def branchRetired(disj, branch):
+    def branchRetired_rule(disj, branch):
         return
 
-    @b.Disjunct(transmission_set)
-    def branchDisabled(disj, branch):
+    def branchDisabled_rule(disj, branch):
         return
 
-    @b.Disjunct(transmission_set)
-    def branchExtended(disj, branch):
+    def branchExtended_rule(disj, branch):
         return
 
-    # [TODO: Do we differentiate between line and transformer
-    # investments?]
-    @b.Disjunction(transmission_set)
-    def branchInvestStatus(disj, branch):
+    def branchInvestStatus_rule(disj, branch):
         return [
             disj.branchOperational[branch],
             disj.branchInstalled[branch],
@@ -97,6 +95,13 @@ def add_transmission_status_disjuncts(b, transmission_set):
             disj.branchDisabled[branch],
             disj.branchExtended[branch],
         ]
+
+    b.branchOperational = Disjunct(transmission_set, rule=branchOperational_rule)
+    b.branchInstalled = Disjunct(transmission_set, rule=branchInstalled_rule)
+    b.branchRetired = Disjunct(transmission_set, rule=branchRetired_rule)
+    b.branchDisabled = Disjunct(transmission_set, rule=branchDisabled_rule)
+    b.branchExtended = Disjunct(transmission_set, rule=branchExtended_rule)
+    b.branchInvestStatus = Disjunction(transmission_set, rule=branchInvestStatus_rule)
 
 
 def add_transmission_logical_constraints(m):
