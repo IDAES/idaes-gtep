@@ -166,8 +166,8 @@ class ExpansionPlanningModel:
             m, self.num_commit, self.num_dispatch, self.duration_dispatch
         )
 
-        model_create_investment_stages(m, self.stages)
-        # create_stages(m, self.stages)
+        # model_create_investment_stages(m, self.stages)
+        create_stages(m, self.stages)
 
         obj_comp.create_objective_function(m)
 
@@ -411,8 +411,7 @@ def create_stages(m, stages):
             # m.representativePeriods,
         )
 
-        # ------------------
-        # Add all eqns of representative_period_rule here
+        # ------------------ Add all eqns of representative_period_rule here
         for representative_period in m.investmentStage[stg].representativePeriods:
             b_rep = m.investmentStage[stg].representativePeriod[representative_period]
             b_rep.representative_date = m.data.representative_dates[
@@ -427,10 +426,91 @@ def create_stages(m, stages):
                 b_rep.commitmentPeriods = pyo.RangeSet(
                     m.numCommitmentPeriods[representative_period]
                 )
-                b_rep.commitmentPeriod = pyo.Block(
-                    b_rep.commitmentPeriods, rule=commitment_period_rule
-                )
-                # b_rep.commitmentPeriod = pyo.Block(b.commitmentPeriods)
+                # b_rep.commitmentPeriod = pyo.Block(
+                #     b_rep.commitmentPeriods, rule=commitment_period_rule
+                # )
+                b_rep.commitmentPeriod = pyo.Block(b_rep.commitmentPeriods)
+
+                # --.--.--.--.--.--.-- Add all eqns of commitment_period_rule below
+                for commitment_period in b_rep.commitmentPeriods:
+                    b_comm = b_rep.commitmentPeriod[commitment_period]
+                    b_comm.commitmentPeriod = commitment_period
+                    b_comm.commitmentPeriodLength = pyo.Param(
+                        within=pyo.PositiveReals, default=1, units=u.hr
+                    )
+                    b_comm.dispatchPeriods = pyo.RangeSet(
+                        m.numDispatchPeriods[b_rep.currentPeriod]
+                    )
+                    b_comm.carbonTax = pyo.Param(default=0)
+                    b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
+
+                    # [TODO: update properties for this time period!]
+                    if m.data_list:
+                        m.md = m.data_list[
+                            m.investmentStage[stg].representativePeriods.index(
+                                b_rep.currentPeriod
+                            )
+                        ]
+
+                    # [ESR WIP: Corrected to be in the block "b", not
+                    # in "m" and renamed to "Expected" to distinguihs
+                    # it from the "Nameplate".]
+                    b_comm.renewableCapacityExpected = {}
+                    units_renewable_capacity = u.MW
+                    for renewableGen in m.renewableGenerators:
+                        if (
+                            type(
+                                m.md.data["elements"]["generator"][renewableGen][
+                                    "p_max"
+                                ]
+                            )
+                            == float
+                        ):
+                            b_comm.renewableCapacityExpected[renewableGen] = (
+                                0 * units_renewable_capacity
+                            )
+                        else:
+                            b_comm.renewableCapacityExpected[renewableGen] = (
+                                m.md.data["elements"]["generator"][renewableGen][
+                                    "p_max"
+                                ]["values"][commitment_period - 1]
+                                * units_renewable_capacity
+                            )
+
+                    # [TODO: Redesign load scaling and allow nature of
+                    # it as argument.]
+                    scaling.add_load_scaling(
+                        m,
+                        b_comm,
+                        commitment_period,
+                        m.investmentStage[stg].investmentStage,
+                    )
+
+                    # [TODO: This feels REALLY inelegant and
+                    # bad. Also, Something weird happens if I say
+                    # periodLength has a unit.]
+                    for period in b_comm.dispatchPeriods:
+                        b_comm.dispatchPeriod[period].periodLength = pyo.Param(
+                            within=pyo.PositiveReals, default=1
+                        )
+                        disp.add_dispatch_variables(
+                            b_comm.dispatchPeriod[period], period
+                        )
+
+                    # [TODO: If commitment is neglected but dispatch
+                    # is still desired, pull something different here?
+                    # or simply don't enforce linked commitment
+                    # constraints?]
+                    if m.config["include_commitment"]:
+                        commit.add_commitment_disjuncts(b_comm, commitment_period)
+
+                    commit.add_commitment_constraints(b_comm, commitment_period)
+
+                    for period in b_comm.dispatchPeriods:
+                        disp.add_dispatch_constraints(
+                            b_comm.dispatchPeriod[period], period
+                        )
+                # --.--.--.--.--.--.--
 
                 rep_period.add_representative_period_variables(
                     b_rep, representative_period
