@@ -11,8 +11,9 @@
 # for full copyright and license information.
 #################################################################################
 
-"""Variables and Constraints for the Investment Stage in the
-Generation and Transmission Expansion Planning (GTEP) Model
+"""Defines all relevant variables and constraints for the investment
+stage in the Generation and Transmission Expansion Planning (GTEP)
+model.
 
 """
 
@@ -26,46 +27,53 @@ import gtep.model_library.commitment as commit
 
 
 def add_investment_params_and_variables(b, investment_stage):
-    """This method adds variables and disjuncts to the investment
+    """This method defines variables and disjuncts to the investment
     stage block.
 
     :param b: Investment block
     :param investment_stage: Investment stage index or name
-    :return: None
 
     """
 
     m = b.model()
-    b.investmentStage = investment_stage
 
-    # Add parameters
+    # Add investment parameters.
     b.maxThermalInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
     b.maxRenewableInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
 
     # Add variables to track and accumulate costs and penalties
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
-    if m.config["include_commitment"]:
-        commit.add_investment_commitment_variables(b)
 
-    # [TODO: Check how to add this only when storage is
-    # included. Commented condition for now since it throws an error
-    # during testing.]
+    # [TODO: Add this only when storage is included. Commented
+    # condition for now since it causes an error during testing.]
     # if m.config["storage"]:
     #     stor.add_investment_storage_variables(b)
     b.storageCostInvestment = pyo.Var(
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
 
-    # Add status disjuncts for thermal and renewable generators. Note,
-    # this should always included in the model.
+    if m.config["include_commitment"]:
+        commit.add_investment_commitment_variables(b)
+
+
+def add_investment_disjuncts(b):
+    """This method adds the status disjuncts for thermal and renewable
+    generators and transmission lines and storage, when
+    needed. Options are: operational, installed, retired, disabled, or
+    extended.
+
+    """
+
+    m = b.model()
+
+    #  NOTE: The disjuncts for generators should always be included in
+    #  the model.
     gens.add_generators_status_disjuncts(b, m.thermalGenerators, m.renewableGenerators)
 
-    # Add storage status disjuncts, when needed
     if m.config["storage"]:
         stor.add_storage_status_disjuncts(b, m.storage)
 
-    # Add transmission lines status disjuncts, when needed
     if m.config["transmission"]:
         transm.add_transmission_status_disjuncts(b, m.transmission)
 

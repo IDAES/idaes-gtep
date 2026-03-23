@@ -235,21 +235,24 @@ def create_stages(m, stages):
         b_inv.year = m.years[investment_stage - 1]
         print(f"{b_inv}.year = {b_inv.year}")
 
-        # Declare costs parameters here since they depend on the
-        # investment year
+        # Declare costs parameters for each stage, since they depend
+        # on the investment year.
         comps.add_model_cost_parameters(m, b_inv.year)
 
-        # Declare investment parameters and variables. This includes the
-        # status disjunction for generators and transmission lines and
-        # storage, when needed
+        # Declare investment parameters, variables, and status
+        # disjuncts for generators and transmission lines and storage,
+        # when needed. Disjuncts alternatives are: operational,
+        # installed, retired, disabled, or extended.
         inv.add_investment_params_and_variables(b_inv, investment_stage)
+        inv.add_investment_disjuncts(b_inv)
 
+        # Declare the representative period set and blocks
         b_inv.representativePeriods = [p for p in m.representativePeriods]
         b_inv.representativePeriod = pyo.Block(b_inv.representativePeriods)
 
         # --------------------------------------------------------------
-        # Add representative_period Block and all its variables and
-        # equations.
+        # Add all the variables and equations needed during the
+        # representative_period.
         for representative_period in b_inv.representativePeriods:
             b_rep = b_inv.representativePeriod[representative_period]
             b_rep.representative_date = m.data.representative_dates[
@@ -290,7 +293,7 @@ def create_stages(m, stages):
                         m,
                         b_comm,
                         commitment_period,
-                        b_inv.investmentStage,
+                        investment_stage,
                     )
 
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
