@@ -136,7 +136,8 @@ def add_investment_commitment_variables(b):
 
 def add_investment_commitment_constraints(m, b, investment_stage):
 
-    def renewable_curtailment_cost_rule(b):
+    @b.Constraint(doc="Curtailment penalties for investment period")
+    def renewable_curtailment_cost(b):
         renewableCurtailmentRep = 0
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
@@ -154,12 +155,8 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
-    b.renewable_curtailment_cost = pyo.Constraint(
-        rule=renewable_curtailment_cost_rule,
-        doc="Curtailment penalties for investment period",
-    )
-
-    def commitmentOperatingCostInvestment_rule(b):
+    @b.Expression(doc="Operating costs for investment period")
+    def commitmentOperatingCostInvestment(b):
         return m.investmentFactor[investment_stage] * sum(
             sum(
                 m.weights[rep_per]
@@ -170,8 +167,3 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             )
             for rep_per in b.representativePeriods
         )
-
-    b.commitmentOperatingCostInvestment = pyo.Expression(
-        rule=commitmentOperatingCostInvestment_rule,
-        doc="Operating costs for investment period",
-    )
