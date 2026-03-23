@@ -24,7 +24,9 @@ import gtep.model_library.storage as stor
 import gtep.model_library.scaling as scaling
 
 
-def add_params(m, b, commitment_period, investmentStage):
+def add_commitment_parameters(b, commitment_period, investmentStage):
+
+    m = b.model()
 
     b.commitmentPeriodLength = pyo.Param(
         within=pyo.PositiveReals, default=1, units=u.hr

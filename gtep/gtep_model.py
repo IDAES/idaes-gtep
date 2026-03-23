@@ -289,8 +289,7 @@ def create_stages(m, stages):
                             b_inv.representativePeriods.index(b_rep.currentPeriod)
                         ]
 
-                    commit.add_params(
-                        m,
+                    commit.add_commitment_parameters(
                         b_comm,
                         commitment_period,
                         investment_stage,
@@ -321,6 +320,10 @@ def create_stages(m, stages):
                     # or simply don't enforce linked commitment
                     # constraints?]
                     if m.config["include_commitment"]:
+                        # Add disjuncts with operational state of
+                        # generators (on/startup/shutdown/off) and
+                        # storage (charging/discharging/off), when
+                        # needed.
                         commit.add_commitment_disjuncts(b_comm, commitment_period)
 
                     commit.add_commitment_constraints(b_comm, commitment_period)
@@ -330,9 +333,15 @@ def create_stages(m, stages):
                 rep_period.add_representative_period_variables(
                     b_rep, representative_period
                 )
-                rep_period.add_representative_period_constraints(
-                    b_rep, representative_period
-                )
+                if m.config["include_commitment"]:
+                    # These logical constraint ensure the state
+                    # disjuncts stay consistent. [TODO ESR: Check if
+                    # consistent_commitment_downtime *should be*
+                    # outside the if statement for
+                    # include_commitment. I put it inside for now.]
+                    rep_period.add_representative_period_logical_constraints(
+                        b_rep, representative_period
+                    )
             # --------------------------------------------------------------
 
     for investment_stage in m.stages:
