@@ -302,7 +302,7 @@ def create_stages(m, stages):
                         b_comm.dispatchPeriod[period].periodLength = pyo.Param(
                             initialize=1,
                             within=pyo.PositiveReals,
-                            units=u.minutes,
+                            # units=u.minutes,
                         )
                         disp.add_dispatch_variables(
                             b_comm.dispatchPeriod[period], period
