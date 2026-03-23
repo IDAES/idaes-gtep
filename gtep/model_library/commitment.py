@@ -21,8 +21,51 @@ from pyomo.environ import units as u
 
 import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
+import gtep.model_library.scaling as scaling
 
 
+def add_params(m, b, commitment_period, investmentStage):
+
+    b.commitmentPeriodLength = pyo.Param(
+        within=pyo.PositiveReals, default=1, units=u.hr
+    )
+    b.carbonTax = pyo.Param(default=0)
+
+    # [ESR: Corrected to be in the commitment block "b", not in main
+    # model "m".]
+    b.renewableCapacityExpected = {}
+
+    units_renewable_capacity = u.MW
+    for renewableGen in m.renewableGenerators:
+        if (
+                type(
+                    m.md.data["elements"]["generator"][renewableGen][
+                        "p_max"
+                    ]
+                )
+                == float
+        ):
+            b.renewableCapacityExpected[renewableGen] = (
+                0 * units_renewable_capacity
+            )
+        else:
+            b.renewableCapacityExpected[renewableGen] = (
+                m.md.data["elements"]["generator"][renewableGen][
+                    "p_max"
+                ]["values"][commitment_period - 1]
+                * units_renewable_capacity
+            )
+
+    # [TODO: Redesign load scaling and allow nature of
+    # it as argument.]
+    scaling.add_load_scaling(
+        m,
+        b,
+        commitment_period,
+        investmentStage,
+    )
+
+                    
 def add_commitment_disjuncts(b, commitment_period):
     """This method adds discrete alternatives and constraints
     associated to the commitment period block.

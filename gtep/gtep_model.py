@@ -379,44 +379,41 @@ def create_stages(m, stages):
 
     """
 
-    # m.investmentStage = pyo.Block(m.stages, rule=investment_stage_rule)
+    # Add investment stage Block and all its equations and
+    # variables. this block is the main block where all the stages
+    # will be included in a nested way.
     m.investmentStage = pyo.Block(m.stages)
 
-    ############# Add all eqns in investment_stage rule
-    for stg in m.stages:
-        m.investmentStage[stg].year = m.years[stg - 1]
-
-        print(f"m.investmentStage[{stg}].year = {m.investmentStage[stg].year}")
+    for investment_stage in m.stages:
+        b_inv = m.investmentStage[investment_stage]
+        b_inv.year = m.years[investment_stage - 1]
+        print(f"{b_inv}.year = {b_inv.year}")
 
         # Declare costs parameters here since they depend on the
         # investment year
-        comps.model_data_costs(m, m.investmentStage[stg].year)
+        comps.model_data_costs(m, b_inv.year)
 
         # Declare investment parameters and variables. This includes the
         # status disjunction for generators and transmission lines and
         # storage, when needed
-        inv.add_investment_params_and_variables(m.investmentStage[stg], stg)
+        inv.add_investment_params_and_variables(b_inv, investment_stage)
 
-        # [ESR WIP: Comment this for now since we are not using the if
-        # statement and it becomes equivalent to
-        # m.representativePeriods. Check if we need this for future
-        # versions.]
-        m.investmentStage[stg].representativePeriods = [
+        b_inv.representativePeriods = [
             p for p in m.representativePeriods
         ]
-        m.investmentStage[stg].representativePeriod = pyo.Block(
-            m.investmentStage[stg].representativePeriods,
-            # rule=representative_period_rule,
-            # m.investmentStage[stg].representativePeriods,
-            # m.representativePeriods,
-        )
+        b_inv.representativePeriod = pyo.Block(b_inv.representativePeriods)
 
-        # ------------------ Add all eqns of representative_period_rule here
-        for representative_period in m.investmentStage[stg].representativePeriods:
-            b_rep = m.investmentStage[stg].representativePeriod[representative_period]
+        #--------------------------------------------------------------
+        # Add representative_period Block and all its variables and
+        # equations.
+        for representative_period in b_inv.representativePeriods:
+            b_rep = b_inv.representativePeriod[representative_period]
             b_rep.representative_date = m.data.representative_dates[
                 representative_period - 1
             ]
+
+            # [ESR WIP: Comment out for now since it is not
+            # used. Check if we need this in future versions.]
             # broken_date = list(re.split(r"[-: ]", b_rep[per].representative_date))
             # b_rep.month = int(broken_date[1])
             # b_rep.day = int(broken_date[2])
@@ -426,76 +423,50 @@ def create_stages(m, stages):
                 b_rep.commitmentPeriods = pyo.RangeSet(
                     m.numCommitmentPeriods[representative_period]
                 )
-                # b_rep.commitmentPeriod = pyo.Block(
-                #     b_rep.commitmentPeriods, rule=commitment_period_rule
-                # )
                 b_rep.commitmentPeriod = pyo.Block(b_rep.commitmentPeriods)
 
-                # --.--.--.--.--.--.-- Add all eqns of commitment_period_rule below
+                # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
+                # Add commitment Block and all its equations and
+                # constraints
                 for commitment_period in b_rep.commitmentPeriods:
                     b_comm = b_rep.commitmentPeriod[commitment_period]
                     b_comm.commitmentPeriod = commitment_period
-                    b_comm.commitmentPeriodLength = pyo.Param(
-                        within=pyo.PositiveReals, default=1, units=u.hr
-                    )
                     b_comm.dispatchPeriods = pyo.RangeSet(
                         m.numDispatchPeriods[b_rep.currentPeriod]
                     )
-                    b_comm.carbonTax = pyo.Param(default=0)
                     b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
 
                     # [TODO: update properties for this time period!]
                     if m.data_list:
                         m.md = m.data_list[
-                            m.investmentStage[stg].representativePeriods.index(
+                            b_inv.representativePeriods.index(
                                 b_rep.currentPeriod
                             )
                         ]
 
-                    # [ESR WIP: Corrected to be in the block "b", not
-                    # in "m" and renamed to "Expected" to distinguihs
-                    # it from the "Nameplate".]
-                    b_comm.renewableCapacityExpected = {}
-                    units_renewable_capacity = u.MW
-                    for renewableGen in m.renewableGenerators:
-                        if (
-                            type(
-                                m.md.data["elements"]["generator"][renewableGen][
-                                    "p_max"
-                                ]
-                            )
-                            == float
-                        ):
-                            b_comm.renewableCapacityExpected[renewableGen] = (
-                                0 * units_renewable_capacity
-                            )
-                        else:
-                            b_comm.renewableCapacityExpected[renewableGen] = (
-                                m.md.data["elements"]["generator"][renewableGen][
-                                    "p_max"
-                                ]["values"][commitment_period - 1]
-                                * units_renewable_capacity
-                            )
-
-                    # [TODO: Redesign load scaling and allow nature of
-                    # it as argument.]
-                    scaling.add_load_scaling(
-                        m,
-                        b_comm,
-                        commitment_period,
-                        m.investmentStage[stg].investmentStage,
+                    commit.add_params(
+                        m, b_comm, commitment_period, b_inv.investmentStage,
                     )
 
+                    #=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
+                    # Add dispatch equations
+                    
                     # [TODO: This feels REALLY inelegant and
-                    # bad. Also, Something weird happens if I say
-                    # periodLength has a unit.]
+                    # bad. Check a better way of declaring these.]
                     for period in b_comm.dispatchPeriods:
                         b_comm.dispatchPeriod[period].periodLength = pyo.Param(
-                            within=pyo.PositiveReals, default=1
+                            initialize=1,
+                            within=pyo.PositiveReals,
+                            units=u.minutes,
                         )
                         disp.add_dispatch_variables(
                             b_comm.dispatchPeriod[period], period
                         )
+                        disp.add_dispatch_constraints(
+                            b_comm.dispatchPeriod[period], period
+                        )
+
+                    #=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
                     # [TODO: If commitment is neglected but dispatch
                     # is still desired, pull something different here?
@@ -506,11 +477,7 @@ def create_stages(m, stages):
 
                     commit.add_commitment_constraints(b_comm, commitment_period)
 
-                    for period in b_comm.dispatchPeriods:
-                        disp.add_dispatch_constraints(
-                            b_comm.dispatchPeriod[period], period
-                        )
-                # --.--.--.--.--.--.--
+                # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
 
                 rep_period.add_representative_period_variables(
                     b_rep, representative_period
@@ -518,10 +485,10 @@ def create_stages(m, stages):
                 rep_period.add_representative_period_constraints(
                     b_rep, representative_period
                 )
-        # ----------------
+            #--------------------------------------------------------------
 
-    for stg in m.stages:
-        inv.add_investment_constraints(m.investmentStage[stg], stg)
+    for investment_stage in m.stages:
+        inv.add_investment_constraints(m.investmentStage[investment_stage], investment_stage)
     #############
 
     # Add logical constraints for generators and transmission lines

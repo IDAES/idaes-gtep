@@ -372,7 +372,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                         # [ESR: Make sure the time units are consistent
                         # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength)  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -388,7 +388,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                         # [ESR: Make sure the time units are consistent
                         # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength)  # in minutes 
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -435,7 +435,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                         # [ESR: Make sure the time units are consistent
                         # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength)  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -451,7 +451,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                         # [ESR: Make sure the time units are consistent
                         # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * b.dispatchPeriod[dispatchPeriod].periodLength
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].periodLength)  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
