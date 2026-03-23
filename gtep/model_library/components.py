@@ -22,13 +22,22 @@ from pyomo.environ import units as u
 import gtep.model_library.storage as stor
 
 
-def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
+def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
 
     :m: Pyomo model object
     :stages: Number of stages in investment horizon
     """
+
+    # [TODO: make sure time units are both definable and consistent
+    # without being forced.]
+    m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
+
+    m.representativePeriods = pyo.Set(
+        initialize=rep_per,
+        doc="Set of representative periods for each planning period",
+    )
 
     m.buses = pyo.Set(
         initialize=m.md.data["elements"]["bus"].keys(), doc="Individual buses"
@@ -42,8 +51,8 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Regions / clusters of buses",
     )
 
-    ## TODO: Right now, this means that branches can only be specified entirely as standard
-    ## or as dc ... not mix-and-match
+    # NOTE: Right now, this means that branches can only be specified
+    # entirely as standard or as dc ... not mix-and-match.
     if len(m.md.data["elements"]["branch"]) == 0:
         m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
 
@@ -81,15 +90,13 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Renewable generators; subset of all generators",
     )
 
-    # [ESR WIP: Add set for transmission lines, relevant in
-    # model_data_references.]
     m.lines = pyo.Set(
         initialize=m.transmission.keys(), doc="Individual transmission lines"
     )
 
     m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
 
-    ## NOTE: will want to cover baseline generator types in IDAES
+    # NOTE: We will want to cover baseline generator types in IDAES
     # This should be updated for battery. @JKS is this using the
     # built-in structure from EGRET or just a placeholder?
     if m.md.data["elements"].get("storage"):
@@ -98,17 +105,8 @@ def model_set_declaration(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             doc="Potential storage units",
         )
 
-    ## TODO: make sure time units are both definable and consistent without being forced
 
-    m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
-
-    m.representativePeriods = pyo.Set(
-        initialize=rep_per,
-        doc="Set of representative periods for each planning period",
-    )
-
-
-def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
+def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -181,8 +179,6 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Minimum output of each thermal generator",
     )
 
-    # [ESR WIP: Rename since the name was repeated in the
-    # commitment_period_rule function. Check if this is correct.]
     m.renewableCapacityNameplate = pyo.Param(
         m.renewableGenerators,
         initialize={
@@ -208,32 +204,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Maximum output of each renewable generator",
     )
 
-    # TODO: WHAT HAVE I DONE HERE I HATE IT and JSC made it worse...
-
-    # [ESR WIP: Take only the value for renewable capacity when using
-    # max() to avoid errors.]
-    # BLN: Pretty sure this should be removed but double check commented constraint using this
-    """ m.renewableCapacityValue = pyo.Param(
-        m.renewableGenerators,
-        initialize={
-            renewableGen: (
-                0
-                if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
-                == float
-                else min(
-                    m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"]
-                )
-                / max(1, pyo.value(m.renewableCapacityNameplate[renewableGen]))
-            )
-            for renewableGen in m.renewableGenerators
-        },
-        mutable=True,
-        units=u.dimensionless,
-        doc="Fraction of generation capacity that can be reliably counted toward planning reserve",
-    )
- """
-    # [ESR WIP: From case data, the value is divided by 100, which is
-    # the per units conversion.]
+    # NOTE: From case data, the value is divided by 100, which is the
+    # per units conversion.
     m.transmissionCapacity = pyo.Param(
         m.lines,
         initialize={
@@ -267,16 +239,12 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
             ]
             for thermalGen in m.thermalGenerators
         },
-        # mutable=True,
         units=u.dimensionless,
         doc="Maximum fraction of maximum thermal generation output that can be supplied as quickstart reserve",
     )
 
-    # [ESR WIP: When creating a Param for loads, an error occurs since
-    # the load at each bus is a dictionary. To avoid this, I
-    # initialized a m.loads parameter with a value of 0 and scaled it
-    # with the right value in commitment_period_rule. I also created a
-    # new set for the buses that have loads.]
+    # Initialize the m.loads parameter with a value of 0 and scaled it
+    # with the right value in the commitment stage.
     m.loads = pyo.Param(
         m.buses,
         initialize={load_n: 0 for load_n in m.buses},
@@ -285,18 +253,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Demand at each bus",
     )
 
-    # [ESR WIP: Commented for now since it is not use in this case but
-    # might be used in the future when considering ACOPF]
-    # m.lossRate = pyo.Param(
-    #     m.transmission,
-    #     initialize={branch: (m.md.data["elements"]["branch"][branch].get("loss_rate") or 0)
-    #                 for branch in m.transmission},
-    #     mutable=True,
-    #     # units=,
-    #     doc="Per-distance-unit multiplicative loss rate for each transmission line"
-    # )
-
-    ## NOTE: lazy fixing for dc_branch and branch... but should be an ok lazy fix
+    # [TODO: Fixing for dc_branch and branch, but we should revisit
+    # this.]
     m.distance = pyo.Param(
         m.transmission,
         initialize={
@@ -308,8 +266,9 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Distance between terminal buses for each transmission line",
     )
 
-    # TODO: Add cost of investment in each new branch to input data. Currently
-    # selected 0 to ensure investments will be selected if needed
+    # Initialize investment costs in each new transmission
+    # line. Currently selected the value of 0 to ensure investments
+    # will be selected, if needed.
     m.branchInvestmentCost = pyo.Param(
         m.transmission,
         initialize={
@@ -321,7 +280,7 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Investment cost for each new branch",
     )
 
-    # JSC TODO: Add branch capital multiplier to input data.
+    # [JSC TODO: Add branch capital multiplier to input data.]
     m.branchCapitalMultiplier = pyo.Param(
         m.transmission,
         initialize={
@@ -347,8 +306,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Cost of life extension for each generator expressed as a fraction of initial investment cost",
     )
 
-    ## TODO: These should go into each stage -- check where these
-    ## values should come from
+    # [TODO: These should go into each stage. Check where these values
+    # should come from.]
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
@@ -358,28 +317,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
-    # (Original) NOTE: Lazy approx for NPV. [TODO: don't lazily approx
-    # NPV, add it into unit handling and calculate from actual time
-    # frames]
-
-    # [ESR WIP: Commented since it is already included in the costs we
-    # have from preprocessing stage.]
-    # for stage in m.stages:
-    #     m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
-
-    # # [ESR WIP: Commented for now but depends on the type of data we
-    # # are using for generators.]
-    # m.startFuel = pyo.Param(
-    #     m.generators,
-    #     initialize={gen: m.md.data["elements"]["generator"][gen]["start_fuel"]
-    #                 for gen in m.generators},
-    #     mutable=True,
-    #     # units=
-    #     doc="Amount of fuel required to be consumed for startup process for each generator"
-    # )
-
-    # [ESR WIP: Original fuel cost. This is re-defined in the function
-    # investment_stage_rule with values from preprocessed data.]
+    # Initialize fuel cost. This is re-calculated during the
+    # investment stage with values from preprocessing data.
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
         initialize={
@@ -406,7 +345,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Full lifecycle CO_2 emission factor for each generator",
     )
 
-    # [ESR WIP: Include start-up cost only in thermal generators assuming a natural gas plant.]
+    # Include start-up cost only in thermal generators assuming a
+    # natural gas plant.
     m.startupCost = pyo.Param(
         m.thermalGenerators,
         initialize={
@@ -443,7 +383,7 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Cost of life extension for each generator expressed as a fraction of initial investment cost",
     )
 
-    # BLN: TODO: Check what value should be used here
+    # [BLN TODO: Check what value should be used here]
     m.retirementMultiplier = pyo.Param(
         m.generators,
         initialize={
@@ -454,9 +394,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Cost of life retirement for each generator expressed as a fraction of initial investment cost",
     )
 
-    # [ESR WIP: Replace original generator investment costs with costs
-    # from preprocessed data. These are fixed to 0 here but re-defined
-    # in the function investment_stage_rule.]
+    # Initialize generator investment costs to 0 and re-defined them
+    # during investment stage using data from preprocessing.
     m.generatorInvestmentCost = pyo.Param(
         m.generators,
         initialize={gen: 1 for gen in m.generators},
@@ -540,9 +479,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         == region
     }
 
-    # [ESR WIP: Declare fixed and operating costs here to avoid
-    # multiple declarations of the same parameter. Set the value to 1
-    # for now and updated in function investment_stage_rule.]
+    # Initialize fixed and variable costs and update values during
+    # investment stage.
     m.fixedCost = pyo.Param(
         m.generators,
         initialize={gen: 1 for gen in m.generators},
@@ -558,11 +496,8 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
         doc="Variable costs",
     )
 
-    # [ESR WIP: Declare and initialize curtailment and load shed costs
-    # as parameters. These are re-calculated in
-    # investment_stage_rule. Also, note that the original
-    # "loadShedCost" was renamed "loadShedCostperCurtailment" to avoid
-    # repetition. ]
+    # Initialize curtailment and load shed costs as parameters and
+    # re-calculate them during the investment stage.
     m.curtailmentCost = pyo.Param(
         initialize=1,
         units=u.USD / (u.MW * u.hr),
@@ -578,8 +513,40 @@ def model_data_references(m, num_commit, num_dispatch, duration_dispatch):
     if m.config["storage"] == True:
         stor.add_storage_params(m)
 
+    # Add legacy parameters.These parameters are commented in the
+    # original model. Keep here to check if we should include them in
+    # future version of the model.
+    """
+    # NOTE: Commented for now since it is not use in this case but
+    # might be used in the future when considering ACOPF.
+    # m.lossRate = pyo.Param(
+    #     m.transmission,
+    #     initialize={branch: (m.md.data["elements"]["branch"][branch].get("loss_rate") or 0)
+    #                 for branch in m.transmission},
+    #     mutable=True,
+    #     # units=,
+    #     doc="Per-distance-unit multiplicative loss rate for each transmission line"
+    # )
 
-def model_data_costs(m, year):
+    # Simple approximation for NPV. NOTE: This is commented for now
+    # since it is already included in the costs we have from
+    # preprocessing stage.
+    for stage in m.stages:
+        m.investmentFactor[stage] *= 1 / ((1.04) ** (5 * stage))
+
+    # NOTE: Commented for now but depends on the type of data we
+    # are using for generators.
+    m.startFuel = pyo.Param(
+        m.generators,
+        initialize={gen: m.md.data["elements"]["generator"][gen]["start_fuel"]
+                    for gen in m.generators},
+        mutable=True,
+        doc="Amount of fuel required to be consumed for startup process for each generator"
+    )
+    """
+
+
+def add_model_cost_parameters(m, year):
     """This method saves lists with all relevant costs (fixed and
     variable operating costs, fuel costs, and investment costs) for
     thermal and renewable generators. Refer to gtep_data_processing
@@ -638,7 +605,7 @@ def model_data_costs(m, year):
         m.genRenewableFuelCost.append(1)
 
     # Update data for fixed and variable costs (previously defined
-    # with random default values in model_data_references) since they
+    # with random default values in add_model_parameters) since they
     # depend on the investment year. Also, convert the units to be
     # consistent.
     units_fixed_cost = u.USD / (u.kW * u.year)
@@ -657,8 +624,8 @@ def model_data_costs(m, year):
                 m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
             )
 
-            # [WIP: Add fuel costs from preprocessed data. Consider
-            # this cost is for Natural Gas generators, not coal.]
+            # Add fuel costs from preprocessed data. Consider this
+            # cost is for Natural Gas generators, not coal.
             m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
 
         else:
@@ -680,12 +647,9 @@ def model_data_costs(m, year):
     # inv cost = $/Mw
     # fuel cost = $/MWh
 
-    # Cost per MW of curtailed renewable energy (Original) NOTE: what
-    # should this be valued at?  This being both curtailment and load
-    # shed.
-
-    # [WIP: Recalculate curtailment and load shed costa since they
-    # depend on the recalculated "fuelCost"]
+    # Cost per MW of curtailed renewable energy. This equation
+    # re-calculates curtailment and load shed costa since they depend
+    # on the re-defined parameter "fuelCost".
     m.curtailmentCost = 2 * max(
         pyo.value(m.fuelCost[gen]) for gen in m.thermalGenerators
     )

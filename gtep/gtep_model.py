@@ -158,11 +158,11 @@ class ExpansionPlanningModel:
         # about how to do some scaling in this data.]
         m.mc = self.cost_data
 
-        comps.model_set_declaration(
+        comps.add_model_sets(
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
 
-        comps.model_data_references(
+        comps.add_model_parameters(
             m, self.num_commit, self.num_dispatch, self.duration_dispatch
         )
 
@@ -237,7 +237,7 @@ def create_stages(m, stages):
 
         # Declare costs parameters here since they depend on the
         # investment year
-        comps.model_data_costs(m, b_inv.year)
+        comps.add_model_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters and variables. This includes the
         # status disjunction for generators and transmission lines and
