@@ -36,8 +36,9 @@ def add_representative_period_constraints(b, rep_per):
     i_p = b.parent_block()
 
     if m.config["include_commitment"]:
-        ##FIXME this needs to be updated for variable length commitment periods
-        ## do this by (pre) processing the set of commitment periods for req_shutdown_periods
+        # [TODO: This needs to be updated for variable length
+        # commitment periods. Do this by (pre) processing the set of
+        # commitment periods for req_shutdown_periods.]
         @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
         def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
             req_shutdown_periods = ceil(
