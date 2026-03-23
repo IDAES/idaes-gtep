@@ -296,7 +296,7 @@ def representative_period_rule(b, representative_period):
 
     m = b.model()
     i_s = b.parent_block()
-    print("b:", b)
+
     b.representative_date = m.data.representative_dates[representative_period - 1]
     broken_date = list(re.split(r"[-: ]", b.representative_date))
     b.month = int(broken_date[1])
@@ -411,16 +411,18 @@ def create_stages(m, stages):
             # m.representativePeriods,
         )
 
-        #------------------
+        # ------------------
         # Add all eqns of representative_period_rule here
         for representative_period in m.investmentStage[stg].representativePeriods:
             b_rep = m.investmentStage[stg].representativePeriod[representative_period]
-            b_rep.representative_date = m.data.representative_dates[representative_period - 1]
+            b_rep.representative_date = m.data.representative_dates[
+                representative_period - 1
+            ]
             # broken_date = list(re.split(r"[-: ]", b_rep[per].representative_date))
             # b_rep.month = int(broken_date[1])
             # b_rep.day = int(broken_date[2])
             b_rep.currentPeriod = representative_period
-        
+
             if m.config["include_commitment"] or m.config["include_redispatch"]:
                 b_rep.commitmentPeriods = pyo.RangeSet(
                     m.numCommitmentPeriods[representative_period]
@@ -429,10 +431,14 @@ def create_stages(m, stages):
                     b_rep.commitmentPeriods, rule=commitment_period_rule
                 )
                 # b_rep.commitmentPeriod = pyo.Block(b.commitmentPeriods)
-                
-                rep_period.add_representative_period_variables(b_rep, representative_period)
-                rep_period.add_representative_period_constraints(b_rep, representative_period)
-        #----------------
+
+                rep_period.add_representative_period_variables(
+                    b_rep, representative_period
+                )
+                rep_period.add_representative_period_constraints(
+                    b_rep, representative_period
+                )
+        # ----------------
 
     for stg in m.stages:
         inv.add_investment_constraints(m.investmentStage[stg], stg)
