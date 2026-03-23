@@ -18,16 +18,19 @@ Transmission Expansion Planning (GTEP) Model
 
 
 def create_objective_function(m):
-    """Creates objective function.  Total cost is operating cost plus
-    expansion cost plus penalty cost (penalties include generation
-    deficits, renewable quota deficits, and curtailment)
-
+    """This method defines the objective function for the GTEP model
+    as the minimization of the total cost. The total cost is
+    calculated as the sum of operating costs, expansion costs, and
+    penalty costs (which account for generation deficits, renewable
+    quota deficits, and curtailment).
+    
     :param m: Pyomo GTEP model.
 
     """
 
-    """ Added Battery Storage Cost to Objective Function """
 
+    # NOTE: We add battery storage cost only when "storage" is set to
+    # True in the configuration input, otherwise its cost value is 0.
     if len(m.stages) > 1:
         m.operatingCost = sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
@@ -55,7 +58,7 @@ def create_objective_function(m):
         else:
             return (
                 m.investmentStage[1].operatingCostInvestment
-                + m.investmentStage[1].storageCostInvestment  # JSC Addn
+                + m.investmentStage[1].storageCostInvestment
                 + m.investmentStage[1].expansionCost
                 + m.deficitPenalty[1]
                 * m.investmentFactor[1]
