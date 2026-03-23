@@ -293,9 +293,10 @@ def representative_period_rule(b, representative_period):
     :b: Representative period block
     :representative_period: corresponding representative period label
     """
+
     m = b.model()
     i_s = b.parent_block()
-
+    print("b:", b)
     b.representative_date = m.data.representative_dates[representative_period - 1]
     broken_date = list(re.split(r"[-: ]", b.representative_date))
     b.month = int(broken_date[1])
@@ -405,30 +406,33 @@ def create_stages(m, stages):
         ]
         m.investmentStage[stg].representativePeriod = pyo.Block(
             m.investmentStage[stg].representativePeriods,
-            rule=representative_period_rule,
+            # rule=representative_period_rule,
             # m.investmentStage[stg].representativePeriods,
             # m.representativePeriods,
         )
 
-    # #------------------
-    # # Add all eqns of representative_period_rule here
-    # b = b.representativePeriod
-    # b.representative_date = m.data.representative_dates[representative_period - 1]
-    # broken_date = list(re.split(r"[-: ]", b.representative_date))
-    # b.month = int(broken_date[1])
-    # b.day = int(broken_date[2])
-    # b.currentPeriod = representative_period
-
-    # if m.config["include_commitment"] or m.config["include_redispatch"]:
-    #     b.commitmentPeriods = pyo.RangeSet(
-    #         m.numCommitmentPeriods[representative_period]
-    #     )
-    #     b.commitmentPeriod = pyo.Block(b.commitmentPeriods, rule=commitment_period_rule)
-    #     # b.commitmentPeriod = pyo.Block(b.commitmentPeriods)
-
-    #     rep_period.add_representative_period_variables(b, representative_period)
-    #     rep_period.add_representative_period_constraints(b, representative_period)
-    # #----------------
+        #------------------
+        # Add all eqns of representative_period_rule here
+        for representative_period in m.investmentStage[stg].representativePeriods:
+            b_rep = m.investmentStage[stg].representativePeriod[representative_period]
+            b_rep.representative_date = m.data.representative_dates[representative_period - 1]
+            # broken_date = list(re.split(r"[-: ]", b_rep[per].representative_date))
+            # b_rep.month = int(broken_date[1])
+            # b_rep.day = int(broken_date[2])
+            b_rep.currentPeriod = representative_period
+        
+            if m.config["include_commitment"] or m.config["include_redispatch"]:
+                b_rep.commitmentPeriods = pyo.RangeSet(
+                    m.numCommitmentPeriods[representative_period]
+                )
+                b_rep.commitmentPeriod = pyo.Block(
+                    b_rep.commitmentPeriods, rule=commitment_period_rule
+                )
+                # b_rep.commitmentPeriod = pyo.Block(b.commitmentPeriods)
+                
+                rep_period.add_representative_period_variables(b_rep, representative_period)
+                rep_period.add_representative_period_constraints(b_rep, representative_period)
+        #----------------
 
     for stg in m.stages:
         inv.add_investment_constraints(m.investmentStage[stg], stg)
