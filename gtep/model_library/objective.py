@@ -11,7 +11,7 @@
 # for full copyright and license information.
 #################################################################################
 
-"""Create the objective function component in the Generation and
+"""Defines the objective function component in the Generation and
 Transmission Expansion Planning (GTEP) Model
 
 """
@@ -23,11 +23,10 @@ def create_objective_function(m):
     calculated as the sum of operating costs, expansion costs, and
     penalty costs (which account for generation deficits, renewable
     quota deficits, and curtailment).
-    
+
     :param m: Pyomo GTEP model.
 
     """
-
 
     # NOTE: We add battery storage cost only when "storage" is set to
     # True in the configuration input, otherwise its cost value is 0.
