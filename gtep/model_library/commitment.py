@@ -37,22 +37,13 @@ def add_params(m, b, commitment_period, investmentStage):
 
     units_renewable_capacity = u.MW
     for renewableGen in m.renewableGenerators:
-        if (
-                type(
-                    m.md.data["elements"]["generator"][renewableGen][
-                        "p_max"
-                    ]
-                )
-                == float
-        ):
-            b.renewableCapacityExpected[renewableGen] = (
-                0 * units_renewable_capacity
-            )
+        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float:
+            b.renewableCapacityExpected[renewableGen] = 0 * units_renewable_capacity
         else:
             b.renewableCapacityExpected[renewableGen] = (
-                m.md.data["elements"]["generator"][renewableGen][
-                    "p_max"
-                ]["values"][commitment_period - 1]
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
+                    commitment_period - 1
+                ]
                 * units_renewable_capacity
             )
 
@@ -65,7 +56,7 @@ def add_params(m, b, commitment_period, investmentStage):
         investmentStage,
     )
 
-                    
+
 def add_commitment_disjuncts(b, commitment_period):
     """This method adds discrete alternatives and constraints
     associated to the commitment period block.
