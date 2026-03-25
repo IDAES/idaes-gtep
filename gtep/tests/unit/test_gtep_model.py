@@ -47,10 +47,24 @@ def patch_unit_handlers():
 
 
 # Helper functions
-def read_debug_model():
+def read_debug_model(
+    stages=2,
+    num_reps=4,
+    len_reps=16,
+    num_commit=12,
+    num_dispatch=12,
+    duration_dispatch=15,
+):
     curr_dir = dirname(abspath(__file__))
     debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-    dataObject = ExpansionPlanningData()
+    dataObject = ExpansionPlanningData(
+        stages=stages,
+        num_reps=num_reps,
+        len_reps=len_reps,
+        num_commit=num_commit,
+        num_dispatch=num_dispatch,
+        duration_dispatch=duration_dispatch,
+    )
     dataObject.load_prescient(debug_data_path)
     return dataObject
 
@@ -77,11 +91,6 @@ class TestGTEP(unittest.TestCase):
         # properly with non-default values
         modObject = ExpansionPlanningModel(
             data=data_object,
-            stages=2,
-            num_reps=4,
-            len_reps=16,
-            num_commit=12,
-            num_dispatch=12,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
@@ -125,14 +134,15 @@ class TestGTEP(unittest.TestCase):
     def test_model_unit_consistency(self):
         # Test that the ExpansionPlanningModel has consistent units and spot check that
         # components have their expected units
-        data_object = read_debug_model()
-        modObject = ExpansionPlanningModel(
-            data=data_object,
+        data_object = read_debug_model(
             stages=2,
             num_reps=2,
             len_reps=2,
             num_commit=2,
             num_dispatch=2,
+        )
+        modObject = ExpansionPlanningModel(
+            data=data_object,
         )
         modObject.create_model()
         m = modObject.model
@@ -187,10 +197,10 @@ class TestGTEP(unittest.TestCase):
 
     def test_solve_bigm(self):
         # Solve the debug model as is
-        data_object = read_debug_model()
-        modObject = ExpansionPlanningModel(
-            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        data_object = read_debug_model(
+            stages=1, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
+        modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
 
         # Check for consistent units
@@ -214,9 +224,11 @@ class TestGTEP(unittest.TestCase):
 
     def test_no_investment(self):
         # Solve the debug model with no investment
-        data_object = read_debug_model()
+        data_object = read_debug_model(
+            stages=1, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        )
         modObject = ExpansionPlanningModel(
-            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object,
         )
         modObject.config["include_investment"] = False
         modObject.create_model()
@@ -262,7 +274,14 @@ class TestGTEP(unittest.TestCase):
             "Land-Based Wind",
         ]
 
-        data_processing_object = DataProcessing()
+        data_processing_object = DataProcessing(
+            stages=2,
+            num_reps=2,
+            len_reps=1,
+            num_commit=6,
+            num_dispatch=4,
+            duration_dispatch=15,
+        )
         data_processing_object.load_gen_data(
             bus_data_path=bus_data_path,
             cost_data_path=cost_data_path,
@@ -271,14 +290,8 @@ class TestGTEP(unittest.TestCase):
 
         # Populate and create GTEP model
         mod_object = ExpansionPlanningModel(
-            stages=2,
             data=data_object,
             cost_data=data_processing_object,
-            num_reps=2,
-            len_reps=1,
-            num_commit=6,
-            num_dispatch=4,
-            duration_dispatch=15,
         )
 
         mod_object.config["include_investment"] = True

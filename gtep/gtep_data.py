@@ -27,8 +27,21 @@ import pandas as pd
 class ExpansionPlanningData:
     """Standard data storage class for the IDAES GTEP model."""
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        stages=2,
+        num_reps=4,
+        len_reps=1,
+        num_commit=24,
+        num_dispatch=1,
+        duration_dispatch=60,
+    ):
+        self.stages = stages
+        self.num_reps = num_reps
+        self.len_reps = len_reps
+        self.num_commit = num_commit
+        self.num_dispatch = num_dispatch
+        self.duration_dispatch = duration_dispatch
 
     def load_prescient(self, data_path, options_dict=None):
         """Loads data structured via Prescient data loader.
