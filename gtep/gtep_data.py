@@ -61,17 +61,21 @@ class ExpansionPlanningData:
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
         """
         self.data_type = "prescient"
-        options_dict = {
-            "data_path": data_path,
-            "input_format": "rts-gmlc",
-            "start_date": "01-01-2020",
-            "num_days": 365,
-            "sced_horizon": 1,
-            "sced_frequency_minutes": 60,
-            "ruc_horizon": 36,
-        }
-
+        # create prescient config object with defaults
         prescient_options = PrescientConfig()
+
+        if options_dict is None:
+            # set basic configurations that do not match prescient defaults
+            options_dict = {
+                "data_path": data_path,
+                "num_days": 365,
+                "ruc_horizon": 36,
+            }
+
+        else:
+            # ensure data path is included in options dictionary
+            options_dict["data_path"] = data_path
+
         prescient_options.set_value(options_dict)
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
