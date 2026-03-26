@@ -20,7 +20,6 @@
 from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
-import datetime
 import pandas as pd
 import os
 
@@ -91,6 +90,7 @@ class ExpansionPlanningData:
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
+
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 

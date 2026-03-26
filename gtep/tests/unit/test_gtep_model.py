@@ -85,13 +85,14 @@ class TestGTEP(unittest.TestCase):
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
-        self.assertEqual(modObject.stages, 1)
+        self.assertEqual(modObject.stages, 2)
         self.assertEqual(modObject.formulation, None)
         self.assertIsInstance(modObject.model.md, ModelData)
-        self.assertEqual(modObject.num_reps, 3)
-        self.assertEqual(modObject.len_reps, 24)
+        self.assertEqual(modObject.num_reps, 4)
+        self.assertEqual(modObject.len_reps, 1)
         self.assertEqual(modObject.num_commit, 24)
-        self.assertEqual(modObject.num_dispatch, 4)
+        self.assertEqual(modObject.num_dispatch, 1)
+        self.assertEqual(modObject.duration_dispatch, 60)
 
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
@@ -101,6 +102,7 @@ class TestGTEP(unittest.TestCase):
             len_reps=16,
             num_commit=12,
             num_dispatch=12,
+            duration_dispatch=30,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -115,6 +117,7 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.len_reps, 16)
         self.assertEqual(modObject.num_commit, 12)
         self.assertEqual(modObject.num_dispatch, 12)
+        self.assertEqual(modObject.duration_dispatch, 30)
 
         # We have expansion blocks and they are where and what we think they are
         expansion_blocks = modObject.model.component("investmentStage")
@@ -246,6 +249,8 @@ class TestGTEP(unittest.TestCase):
         modObject = ExpansionPlanningModel(
             data=data_object,
         )
+
+        modObject = ExpansionPlanningModel(data=data_object)
         modObject.config["include_investment"] = False
         modObject.create_model()
 
