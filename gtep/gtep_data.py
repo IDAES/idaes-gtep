@@ -36,7 +36,15 @@ class ExpansionPlanningData:
         num_dispatch=1,
         duration_dispatch=60,
     ):
+        """Initialize generation & expansion planning data object.
 
+        :param stages: integer number of investment periods
+        :param num_reps: integer number of representative periods per investment period
+        :param len_reps: (for now integer) length of each representative period (in hours)
+        :param num_commit: integer number of commitment periods per representative period
+        :param num_dispatch: integer number of dispatch periods per commitment period
+        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
+        """
         self.stages = stages
         self.num_reps = num_reps
         self.len_reps = len_reps
@@ -47,7 +55,12 @@ class ExpansionPlanningData:
     def load_prescient(
         self,
         data_path,
-        representative_dates,
+        representative_dates=[
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+            "2020-07-05 00:00",
+            "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+        ],
         representative_weights={},
         options_dict=None,
     ):
@@ -60,7 +73,6 @@ class ExpansionPlanningData:
 
         """
         self.data_type = "prescient"
-
         # create prescient config object with defaults
         prescient_options = PrescientConfig()
 
@@ -103,7 +115,7 @@ class ExpansionPlanningData:
             minutes_per_timestep=sced_freq_min,
         )
 
-        # fill in renewable actuals and maybe demand idk
+        # fill in renewable actuals
         data_provider.populate_with_actuals(
             options=prescient_options,
             num_time_periods=total_num_steps,
@@ -263,33 +275,26 @@ class ExpansionPlanningData:
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
-        # Many of these items are hardcoded for the time being
+        ##many of these are hard coded, but they are not set later in the process as of now
         """Fills in necessary but unspecified data information."""
-        if "elements" in self.md.data:
-            if "generator" in self.md.data["elements"]:
+        if "elements" in self.md.data.keys():
+            if "generator" in self.md.data["elements"].keys():
                 for gen in self.md.data["elements"]["generator"]:
                     # set lifetime value to default first
                     self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-                    if "fuel" in self.md.data["elements"]["generator"][gen]:
-                        # update lifetime value if checks pass
+                    if "fuel" in self.md.data["elements"]["generator"][gen].keys():
                         if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
                             if (
-                                "in_service"
-                                in self.md.data["elements"]["generator"][gen]
+                                self.md.data["elements"]["generator"][gen]["in_service"]
+                                == False
                             ):
-                                if (
-                                    self.md.data["elements"]["generator"][gen][
-                                        "in_service"
-                                    ]
-                                    == False
-                                ):
-                                    self.md.data["elements"]["generator"][gen][
-                                        "lifetime"
-                                    ] = 1
-                                else:
-                                    self.md.data["elements"]["generator"][gen][
-                                        "lifetime"
-                                    ] = 2
+                                self.md.data["elements"]["generator"][gen][
+                                    "lifetime"
+                                ] = 1
+                            else:
+                                self.md.data["elements"]["generator"][gen][
+                                    "lifetime"
+                                ] = 2
 
                     self.md.data["elements"]["generator"][gen][
                         "spinning_reserve_frac"
@@ -315,14 +320,14 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
                     self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
                     self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
-            if "branch" in self.md.data["elements"]:
+            if "branch" in self.md.data["elements"].keys():
                 for branch in self.md.data["elements"]["branch"]:
                     self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
                     self.md.data["elements"]["branch"][branch]["distance"] = 1
                     self.md.data["elements"]["branch"][branch][
                         "capital_cost"
                     ] = 10000000
-        if "system" in self.md.data:
+        if "system" in self.md.data.keys():
             self.md.data["system"]["min_operating_reserve"] = 0.1
             self.md.data["system"]["min_spinning_reserve"] = 0.1
 
@@ -330,7 +335,6 @@ class ExpansionPlanningData:
         """Imports storage data.
 
         :param data_path: filepath for storage data csv file
-
         """
         try:
             storage_path = data_path + "/storage.csv"
@@ -352,7 +356,6 @@ class ExpansionPlanningData:
         """Imports generator data for texas case study.
 
         :param data_path: filepath for generator data csv file
-
         """
         # check that datapath is coming from a texas case study directory
         if "Texas" or "Coal" not in data_path:

@@ -48,28 +48,24 @@ def patch_unit_handlers():
 
 # Helper functions
 def read_debug_model(
-    stages=2,
-    num_reps=4,
-    len_reps=1,
+    stages=1,
+    num_reps=3,
+    len_reps=24,
     num_commit=24,
-    num_dispatch=1,
-    duration_dispatch=60,
+    num_dispatch=4,
+    duration_dispatch=15,
 ):
-
     curr_dir = dirname(abspath(__file__))
     debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
     dataObject = ExpansionPlanningData(
-        stages, num_reps, len_reps, num_commit, num_dispatch, duration_dispatch
+        stages=stages,
+        num_reps=num_reps,
+        len_reps=len_reps,
+        num_commit=num_commit,
+        num_dispatch=num_dispatch,
+        duration_dispatch=duration_dispatch,
     )
-    dataObject.load_prescient(
-        debug_data_path,
-        [
-            "2020-01-28 00:00",
-            "2020-04-23 00:00",
-            "2020-07-05 00:00",
-            "2020-10-14 00:00",
-        ],
-    )
+    dataObject.load_prescient(debug_data_path)
     return dataObject
 
 
@@ -78,7 +74,13 @@ class TestGTEP(unittest.TestCase):
     def test_model_init(self):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with default values, including building a Pyomo.ConcreteModel object
-        data_object = read_debug_model()
+        data_object = read_debug_model(
+            stages=1,
+            num_reps=3,
+            len_reps=24,
+            num_commit=24,
+            num_dispatch=4,
+        )
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
@@ -102,9 +104,9 @@ class TestGTEP(unittest.TestCase):
             num_dispatch=12,
             duration_dispatch=30,
         )
-
-        modObject = ExpansionPlanningModel(data=data_object)
-
+        modObject = ExpansionPlanningModel(
+            data=data_object,
+        )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
@@ -149,10 +151,15 @@ class TestGTEP(unittest.TestCase):
         # Test that the ExpansionPlanningModel has consistent units and spot check that
         # components have their expected units
         data_object = read_debug_model(
-            stages=2, num_reps=2, len_reps=2, num_commit=2, num_dispatch=2
+            stages=2,
+            num_reps=2,
+            len_reps=2,
+            num_commit=2,
+            num_dispatch=2,
         )
-
-        modObject = ExpansionPlanningModel(data=data_object)
+        modObject = ExpansionPlanningModel(
+            data=data_object,
+        )
         modObject.create_model()
         m = modObject.model
 
@@ -207,9 +214,8 @@ class TestGTEP(unittest.TestCase):
     def test_solve_bigm(self):
         # Solve the debug model as is
         data_object = read_debug_model(
-            stages=1, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
         )
-
         modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
 
@@ -235,7 +241,13 @@ class TestGTEP(unittest.TestCase):
     def test_no_investment(self):
         # Solve the debug model with no investment
         data_object = read_debug_model(
-            stages=1, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            num_reps=1,
+            len_reps=1,
+            num_commit=1,
+            num_dispatch=1,
+        )
+        modObject = ExpansionPlanningModel(
+            data=data_object,
         )
 
         modObject = ExpansionPlanningModel(data=data_object)
@@ -266,7 +278,12 @@ class TestGTEP(unittest.TestCase):
         # Test ExpansionPlanningModel with cost data
         # This model originated from driver_esr.py
         data_object = read_debug_model(
-            stages=2, num_reps=2, len_reps=1, num_commit=6, num_dispatch=15
+            stages=2,
+            num_reps=2,
+            len_reps=1,
+            num_commit=6,
+            num_dispatch=4,
+            duration_dispatch=15,
         )
 
         curr_dir = dirname(abspath(__file__))
