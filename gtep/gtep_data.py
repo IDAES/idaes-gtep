@@ -239,11 +239,15 @@ class ExpansionPlanningData:
         self.load_scaling = load_scaling_df
 
     def import_outage_data(self, load_file_name):
+        """Imports outage data.
+
+        :param load_file_name: filepath for adjusted forecast excel file
+
+        """
         outage_list = pd.read_csv(load_file_name)
         percentile_threshold = 0.9
         threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
         filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
-        import re
 
         filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
             r" (\d+):"
