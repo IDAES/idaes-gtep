@@ -306,6 +306,10 @@ class ExpansionPlanningData:
         self.md.data["system"]["min_spinning_reserve"] = 0.1
 
     def load_storage_csv(self, data_path):
+        """Imports storage data.
+
+        :param data_path: filepath for storage data csv file
+        """
         try:
             storage_path = data_path + "/storage.csv"
             storage_df = pd.read_csv(storage_path)
