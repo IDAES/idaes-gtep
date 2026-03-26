@@ -43,7 +43,18 @@ class ExpansionPlanningData:
         self.num_dispatch = num_dispatch
         self.duration_dispatch = duration_dispatch
 
-    def load_prescient(self, data_path, options_dict=None):
+    def load_prescient(
+        self,
+        data_path,
+        representative_dates=[
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+            "2020-07-05 00:00",
+            "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+        ],
+        representative_weights={},
+        options_dict=None,
+    ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
@@ -102,26 +113,19 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
+        self.representative_dates = representative_dates
 
-        ## RMA:
-        ## Change the last date for whatever extreme day is needed based on the given run(s)
+        if not representative_weights:
+            # set the weight for each day to the total weight divided by number of days
+            total_weight = prescient_options.num_days * self.stages
+            weight_per_date = int(total_weight / (len(representative_dates)))
+            self.representative_weights = {
+                key: weight_per_date
+                for date, key in enumerate(self.representative_dates)
+            }
 
         time_keys = self.md.data["system"]["time_keys"]
-        self.representative_dates = [
-            "2020-01-28 00:00",
-            "2020-04-23 00:00",
-            "2020-07-05 00:00",
-            "2020-10-14 00:00",
-        ]
 
-        ## FIXME:
-        ## RESIL WEEK ONLY
-        ## but we'll want something similar just less insane in the future
-        if len(self.representative_dates) == 5:
-            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91, 5: 1}
-        else:
-            self.representative_weights = {1: 91, 2: 91, 3: 91, 4: 91}
-        # self.representative_weights = {1:1}
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + 24]
