@@ -108,18 +108,19 @@ class ExpansionPlanningData:
         period_per_step = int(metadata_df.loc["Periods_per_Step"]["DAY_AHEAD"])
         total_num_steps = prescient_options.num_days * period_per_step
 
-        x = datetime.datetime(2020, 1, 1)
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
-            options=prescient_options, num_time_steps=24 * 365, minutes_per_timestep=60
+            options=prescient_options,
+            num_time_steps=total_num_steps,
+            minutes_per_timestep=sced_freq_min,
         )
 
-        # fill in renewable actuals and maybe demand idk
+        # fill in renewable actuals
         data_provider.populate_with_actuals(
             options=prescient_options,
-            num_time_periods=24 * 365,
-            time_period_length_minutes=60,
-            start_time=x,
+            num_time_periods=total_num_steps,
+            time_period_length_minutes=sced_freq_min,
+            start_time=data_provider._start_time,
             model=self.md,
         )
 
