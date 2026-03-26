@@ -80,18 +80,19 @@ class TestGTEP(unittest.TestCase):
             len_reps=24,
             num_commit=24,
             num_dispatch=4,
+            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
-        self.assertEqual(modObject.stages, 2)
+        self.assertEqual(modObject.stages, 1)
         self.assertEqual(modObject.formulation, None)
         self.assertIsInstance(modObject.model.md, ModelData)
-        self.assertEqual(modObject.num_reps, 4)
-        self.assertEqual(modObject.len_reps, 1)
+        self.assertEqual(modObject.num_reps, 3)
+        self.assertEqual(modObject.len_reps, 24)
         self.assertEqual(modObject.num_commit, 24)
-        self.assertEqual(modObject.num_dispatch, 1)
+        self.assertEqual(modObject.num_dispatch, 4)
         self.assertEqual(modObject.duration_dispatch, 60)
 
         # Test that the ExpansionPlanningModel object can read a default dataset and init
