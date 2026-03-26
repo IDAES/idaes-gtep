@@ -22,6 +22,7 @@ from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 import datetime
 import pandas as pd
+import os
 
 
 class ExpansionPlanningData:
@@ -88,16 +89,31 @@ class ExpansionPlanningData:
             # ensure data path is included in options dictionary
             options_dict["data_path"] = data_path
 
+        # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
         # Use prescient data provider to load in sequential data for representative periods
         data_list = []
 
-        x = datetime.datetime(2020, 1, 1)
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
+
+        # grab details from simulation objects file (data provider above throws error if no simulation_objects.csv exists)
+        metadata_path = os.path.join(data_path, "simulation_objects.csv")
+        metadata_df = pd.read_csv(metadata_path, index_col=0)
+
+        # save to variable for easy calling
+        sced_freq_min = prescient_options.sced_frequency_minutes
+
+        # This step is grabbing DAY_AHEAD information for now
+        # (in the future we may want to update to grab the "REAL_TIME" data if the data has reliable data since the actuals model is looking for real time data info)
+        period_per_step = int(metadata_df.loc["Periods_per_Step"]["DAY_AHEAD"])
+        total_num_steps = prescient_options.num_days * period_per_step
+
+        x = datetime.datetime(2020, 1, 1)
         # populate an egret model data with the basic stuff
         self.md = data_provider.get_initial_actuals_model(
             options=prescient_options, num_time_steps=24 * 365, minutes_per_timestep=60
         )
+
         # fill in renewable actuals and maybe demand idk
         data_provider.populate_with_actuals(
             options=prescient_options,
