@@ -161,7 +161,7 @@ class ExpansionPlanningData:
 
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
-            time_key_set = time_keys[key_idx : key_idx + 24]
+            time_key_set = time_keys[key_idx : key_idx + period_per_step]
             data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
