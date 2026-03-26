@@ -275,35 +275,61 @@ class ExpansionPlanningData:
         self.bus_hours = self.bus_hours.astype(int)
 
     def load_default_data_settings(self):
-        ## TODO: too many of these are hard coded; everything should check if it exists too.
+        ##many of these are hard coded, but they are not set later in the process as of now
         """Fills in necessary but unspecified data information."""
-        for gen in self.md.data["elements"]["generator"]:
-            if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
-                if self.md.data["elements"]["generator"][gen]["in_service"] == False:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 1
-                else:
-                    self.md.data["elements"]["generator"][gen]["lifetime"] = 2
-            else:
-                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-                self.md.data["elements"]["generator"][gen]["lifetime"] = 3
-            self.md.data["elements"]["generator"][gen]["spinning_reserve_frac"] = 0.1
-            self.md.data["elements"]["generator"][gen]["quickstart_reserve_frac"] = 0.1
-            self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
-            self.md.data["elements"]["generator"][gen]["extension_multiplier"] = 0
-            self.md.data["elements"]["generator"][gen]["max_operating_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["max_spinning_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["max_quickstart_reserve"] = 1
-            self.md.data["elements"]["generator"][gen]["ramp_up_rate"] = 0.1
-            self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
-            self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
-            self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
-            self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
-        for branch in self.md.data["elements"]["branch"]:
-            self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
-            self.md.data["elements"]["branch"][branch]["distance"] = 1
-            self.md.data["elements"]["branch"][branch]["capital_cost"] = 10000000
-        self.md.data["system"]["min_operating_reserve"] = 0.1
-        self.md.data["system"]["min_spinning_reserve"] = 0.1
+        if "elements" in self.md.data.keys():
+            if "generator" in self.md.data["elements"].keys():
+                for gen in self.md.data["elements"]["generator"]:
+                    # set lifetime value to default first
+                    self.md.data["elements"]["generator"][gen]["lifetime"] = 3
+                    if "fuel" in self.md.data["elements"]["generator"][gen].keys():
+                        if self.md.data["elements"]["generator"][gen]["fuel"] == "C":
+                            if (
+                                self.md.data["elements"]["generator"][gen]["in_service"]
+                                == False
+                            ):
+                                self.md.data["elements"]["generator"][gen][
+                                    "lifetime"
+                                ] = 1
+                            else:
+                                self.md.data["elements"]["generator"][gen][
+                                    "lifetime"
+                                ] = 2
+
+                    self.md.data["elements"]["generator"][gen][
+                        "spinning_reserve_frac"
+                    ] = 0.1
+                    self.md.data["elements"]["generator"][gen][
+                        "quickstart_reserve_frac"
+                    ] = 0.1
+                    self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "extension_multiplier"
+                    ] = 0
+                    self.md.data["elements"]["generator"][gen][
+                        "max_operating_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "max_spinning_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen][
+                        "max_quickstart_reserve"
+                    ] = 1
+                    self.md.data["elements"]["generator"][gen]["ramp_up_rate"] = 0.1
+                    self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
+                    self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
+                    self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
+                    self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
+            if "branch" in self.md.data["elements"].keys():
+                for branch in self.md.data["elements"]["branch"]:
+                    self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
+                    self.md.data["elements"]["branch"][branch]["distance"] = 1
+                    self.md.data["elements"]["branch"][branch][
+                        "capital_cost"
+                    ] = 10000000
+        if "system" in self.md.data.keys():
+            self.md.data["system"]["min_operating_reserve"] = 0.1
+            self.md.data["system"]["min_spinning_reserve"] = 0.1
 
     def load_storage_csv(self, data_path):
         """Imports storage data.
