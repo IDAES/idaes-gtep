@@ -36,6 +36,15 @@ class ExpansionPlanningData:
         num_dispatch=1,
         duration_dispatch=60,
     ):
+        """Initialize generation & expansion planning data object.
+
+        :param stages: integer number of investment periods
+        :param num_reps: integer number of representative periods per investment period
+        :param len_reps: (for now integer) length of each representative period (in hours)
+        :param num_commit: integer number of commitment periods per representative period
+        :param num_dispatch: integer number of dispatch periods per commitment period
+        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
+        """
         self.stages = stages
         self.num_reps = num_reps
         self.len_reps = len_reps
@@ -58,7 +67,10 @@ class ExpansionPlanningData:
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
+        :param representative_dates: List of time points to include Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
+
         """
         self.data_type = "prescient"
         # create prescient config object with defaults
