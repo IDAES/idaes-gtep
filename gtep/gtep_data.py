@@ -323,6 +323,14 @@ class ExpansionPlanningData:
             self.md.data["elements"]["storage"] = {}
 
     def texas_case_study_updates(self, data_path):
+        """Imports generator data for texas case study.
+
+        :param data_path: filepath for generator data csv file
+        """
+        # check that datapath is coming from a texas case study directory
+        if "Texas" or "Coal" not in data_path:
+            raise ValueError("The data path provided is not a Texas case study")
+
         generator_update_path = data_path + "/gen.csv"
         generator_df = pd.read_csv(generator_update_path)
         bonus_feature_list = [
