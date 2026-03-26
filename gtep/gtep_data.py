@@ -166,13 +166,29 @@ class ExpansionPlanningData:
 
         self.representative_data = data_list
 
-    def import_load_scaling(self, load_file_name):
+    def import_load_scaling(self, load_file_name, forecast_years=[2025, 2030, 2035]):
+        """Imports load scaling data for forecast years.
+
+        :param load_file_name: filepath for adjusted forecast excel file
+        :param forecast_years: list of years to forecast, defaults to [2025, 2030, 2035]
+
+        """
         adjusted_forecast = pd.read_excel(load_file_name)
+
+        # check years are valid
+        if len(forecast_years) < self.stages:
+            raise ValueError(
+                "Not enough forecast years for the number of stages of investment"
+            )
+        elif any(year < 2020 or year > 2050 for year in forecast_years):
+            raise ValueError(
+                "The list of years includes a year before 2020 or after 2050."
+            )
+
         adjusted_forecast_by_period = adjusted_forecast[
-            (adjusted_forecast["year"] == 2025)
-            | (adjusted_forecast["year"] == 2030)
-            | (adjusted_forecast["year"] == 2035)
+            adjusted_forecast["year"].isin(forecast_years)
         ]
+
         base_zones = [
             "base_economic_coast",
             "base_economic_east",
