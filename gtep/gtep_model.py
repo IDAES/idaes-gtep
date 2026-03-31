@@ -163,7 +163,10 @@ class ExpansionPlanningModel:
         )
 
         comps.add_model_parameters(
-            m, self.num_commit, self.num_dispatch, self.duration_dispatch
+            m,
+            self.num_commit,
+            self.num_dispatch,
+            self.duration_dispatch,
         )
 
         create_stages(m, self.stages)
@@ -311,7 +314,10 @@ def create_stages(m, stages):
                         within=pyo.PositiveReals,
                         # units=u.minutes,
                     )
-                    disp.add_dispatch_variables(b_comm.dispatchPeriod[period], period)
+
+                    disp.add_dispatch_variables(
+                        b_comm.dispatchPeriod[period], period, m.dispatchPeriodLength
+                    )
                     disp.add_dispatch_constraints(b_comm.dispatchPeriod[period], period)
 
                 # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
