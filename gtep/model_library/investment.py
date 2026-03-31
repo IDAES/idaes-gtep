@@ -53,8 +53,8 @@ def add_investment_params_and_variables(b, investment_stage):
         within=pyo.NonNegativeReals, initialize=0, units=u.USD
     )
 
-    if m.config["include_commitment"]:
-        commit.add_investment_commitment_variables(b)
+    # if m.config["include_commitment"]:
+    commit.add_investment_commitment_variables(b)
 
 
 def add_investment_disjuncts(b):
@@ -125,22 +125,12 @@ def add_investment_constraints(
         )
         return m.investmentFactor[investment_stage] * baseline_cost
 
-    if m.config["include_commitment"]:
-        commit.add_investment_commitment_constraints(m, b, investment_stage)
-
-    # [BLN: Convert this to a constraint using operatingCostInvestment
-    # Var. May also need to move it.]
-    @b.Constraint(doc="Operating costs for investment period")
-    def operatingCostInvestment_constraint(b):
-        return b.operatingCostInvestment == (
-            b.commitmentOperatingCostInvestment
-            if m.config["include_commitment"] == True
-            else 0
-        )
+    # if m.config["include_commitment"]:
+    commit.add_investment_commitment_constraints(m, b, investment_stage)
 
     # [ESR Question: Do we need to add the flag for investment when
-    # inside investment? Should we better put this flag when calling
-    # this function?]
+    # inside investment? Is this supposed to be commitment and not
+    # investment, based on the name?]
     if m.config["include_investment"]:
 
         # NOTE: This is constraint (13) in reference [1]

@@ -519,6 +519,72 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         )
 
 
+def fix_generators_state_disjuncts_to_On(m, b):
+    """This method fixes the generator state disjuncts to 'On' and
+    leaves all other disjuncts inactive. This method is used when unit
+    commitment is not modeled, ensuring generators are always
+    considered operational while startup, shutdown, and offline states
+    are ignored.
+
+    """
+
+    @b.Disjunct(m.thermalGenerators)
+    def genOn(disj, generator):
+        b = disj.parent_block()
+
+        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
+        def operating_limit_min(d, dispatchPeriod):
+            return (
+                m.thermalMin[generator]
+                <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            )
+
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
+        def operating_limit_max(d, dispatchPeriod):
+            return (
+                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
+                <= m.thermalCapacity[generator]
+            )
+
+        # NOTE: maxSpinningReserve is a percentage of thermalCapacity
+        @disj.Constraint(
+            b.dispatchPeriods, m.thermalGenerators, doc="Maximum spinning reserve"
+        )
+        def max_spinning_reserve(disj, dispatchPeriod, generator):
+            return (
+                b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
+                <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
+            )
+
+    @b.Disjunct(m.thermalGenerators)
+    def genStartup(disj, generator):
+        return
+
+    @b.Disjunct(m.thermalGenerators)
+    def genShutdown(disj, generator):
+        return
+
+    @b.Disjunct(m.thermalGenerators)
+    def genOff(disj, generator):
+        return
+
+    @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
+    def genStatus(disj, generator):
+        return [
+            disj.genOn[generator],
+            disj.genStartup[generator],
+            disj.genShutdown[generator],
+            disj.genOff[generator],
+        ]
+
+    for gen in m.thermalGenerators:
+        b.genOn[gen].indicator_var.fix(True)
+        b.genStartup[gen].indicator_var.fix(False)
+        b.genShutdown[gen].indicator_var.fix(False)
+        b.genOff[gen].indicator_var.fix(False)
+
+
 def add_generators_logical_constraints(m):
     """This method defines logical constraints to ensure that thermal
     and renewable generators statuses transitions are operationally
