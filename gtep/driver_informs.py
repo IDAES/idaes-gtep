@@ -56,7 +56,7 @@ candidate_gens = [
     "Land-Based Wind",
 ]
 
-start_date = "12-31"
+#start_date = "01-01"
 
 data_processing_object = DataProcessing()
 data_processing_object.load_gen_data(
@@ -68,10 +68,10 @@ data_processing_object.load_gen_data(
 
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
-    stages=1,
+    stages=2,#1,
     data=data_object,
     cost_data=data_processing_object,
-    num_reps=1,
+    num_reps=6,#1,
     len_reps=24,#168,
     num_commit=24,#168,
     num_dispatch=1,
@@ -155,8 +155,6 @@ for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
                         var[index].indicator_var
                     )
 
-## RMA:
-## You may want to save a few more things from the Expressions
 
 costs = {}
 for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
@@ -170,14 +168,11 @@ for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True)
 import json
 import os
 
-## RMA:
-## You can change where results are saved down here
-
 folder_name = "congestion_5"
-renewable_investment_name = folder_name + "/renewable_investments.json"
-dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
-load_shed_name = f"5_results/load_shed/load_shed_{start_date}.json" #folder_name + 
-costs_name = folder_name + "/costs.json"
+renewable_investment_name = folder_name + "/renewable_investments_mrf_days.json"
+dispatchable_investment_name = folder_name + "/dispatchable_investments_mrf_days.json"
+load_shed_name = folder_name + "/load_shed_mrf_days.json" #folder_name + f"123_results/load_shed/load_shed_{start_date}.json" #folder_name + "/load_shed.json"
+costs_name = folder_name + "/costs_mrf_days.json"
 
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -192,20 +187,20 @@ with open(costs_name, "w") as fil:
 with open(load_shed_name, "w") as fil:
     json.dump(load_shed, fil)
 
-flows = {}
-for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
-    for index in var:
-        if "Flow" in var.name:
-            flows[var.name + "." + str(index)] = pyo.value(var[index])
-with open(f"5_results/power_flows/power_flows_{start_date}.json", "w") as fil:
-    json.dump(flows, fil)
+#flows = {}
+#for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
+#    for index in var:
+#        if "Flow" in var.name:
+#            flows[var.name + "." + str(index)] = pyo.value(var[index])
+#with open(f"123_results/power_flows/power_flows_{start_date}.json", "w") as fil:
+#    json.dump(flows, fil)
 
-max_flows = {}
-for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
-    for index in var:
-        if "Flow" in var.name:
-            max_flows[var.name + "." + str(index)] = pyo.value(var[index].ub)
-with open(f"5_results/max_flows/max_flows_{start_date}.json", "w") as fil:
-    json.dump(max_flows, fil)
+#max_flows = {}
+#for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
+#    for index in var:
+#        if "Flow" in var.name:
+#            max_flows[var.name + "." + str(index)] = pyo.value(var[index].ub)
+#with open(f"123_results/max_flows/max_flows_{start_date}.json", "w") as fil:
+#    json.dump(max_flows, fil)
 
 mod_object.timer.toc("we've dumped; get everybody and the stuff together")
