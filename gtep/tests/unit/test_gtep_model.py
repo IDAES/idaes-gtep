@@ -258,7 +258,7 @@ class TestGTEP(unittest.TestCase):
         ng_cost_path = abspath(
             join(
                 data_path,
-                "Table_1._Total_Energy_Supply_Disposition_and_Price_Summary.csv",
+                "Total_Energy_Supply_Disposition_and_Price_Summary.csv",
             )
         )
         candidate_gens = [
