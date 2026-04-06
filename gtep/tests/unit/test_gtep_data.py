@@ -126,7 +126,10 @@ def mock_gmlc_provider():
         model_mock = unittest.mock.Mock()
         model_mock.data = {
             "elements": {
-                "generator": {"gen1": {}, "gen2-c": {}},
+                "generator": {
+                    "gen1": {"fuel": "C", "in_service": True},
+                    "gen2-c": {"fuel": "None", "in_service": True},
+                },
                 "branch": {"branch1": {}, "branch2-c": {}},
                 "storage": {"stor1": {}},
             },
@@ -519,3 +522,47 @@ class TestExpansionPlanningData:
         assert pd.api.types.is_integer_dtype(df["Bus Number"])
         assert (df["hour"] == 20).any()
         assert (df["Bus Number"] == 1004).any()
+
+    # -------------------------------------------------LOAD_DEFAULT_DATA_SETTINGS------------------------------------------------------------ #
+    def test_load_default_data_settings(
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
+    ):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=str(test_data_path))
+
+        testObject.load_default_data_settings()
+
+        # Check generators
+        for gen_name, gen in testObject.md.data["elements"]["generator"].items():
+            if gen.get("fuel") == "C":
+                if gen.get("in_service") is False:
+                    assert gen["lifetime"] == 1
+                else:
+                    assert gen["lifetime"] == 2
+            else:
+                assert gen["lifetime"] == 3
+
+            # Check other fixed attributes
+            assert gen["spinning_reserve_frac"] == 0.1
+            assert gen["quickstart_reserve_frac"] == 0.1
+            assert gen["capital_multiplier"] == 1
+            assert gen["extension_multiplier"] == 0
+            assert gen["max_operating_reserve"] == 1
+            assert gen["max_spinning_reserve"] == 1
+            assert gen["max_quickstart_reserve"] == 1
+            assert gen["ramp_up_rate"] == 0.1
+            assert gen["ramp_down_rate"] == 0.1
+            assert gen["emissions_factor"] == 1
+            assert gen["start_fuel"] == 1
+            assert gen["investment_cost"] == 1
+
+        # Check branches
+        for branch in testObject.md.data["elements"]["branch"].values():
+            assert branch["loss_rate"] == 0
+            assert branch["distance"] == 1
+            assert branch["capital_cost"] == 10000000
+
+        # Check system
+        system = testObject.md.data["system"]
+        assert system["min_operating_reserve"] == 0.1
+        assert system["min_spinning_reserve"] == 0.1
