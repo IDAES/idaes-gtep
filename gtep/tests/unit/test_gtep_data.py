@@ -18,10 +18,11 @@ import pytest
 from gtep.gtep_data import ExpansionPlanningData
 import prescient.simulator.config
 import pandas as pd
+from pathlib import Path
 
 
 @pytest.fixture
-def simulation_objects_csv(tmp_path):
+def test_data_path(tmp_path):
     # Create a minimal simulation_objects.csv file with expected content
     csv_content = """index,DAY_AHEAD
 Periods_per_Step,24
@@ -34,6 +35,15 @@ Periods_per_Step,24
 100MW_400MWh_1,3,None,'battery',400,320,320,80,1,1,100,10,400,1,0,0,175,0,1,400,400,100,100,FALSE,1,1,1490.89,372.7225"""
     )
     return tmp_path
+
+
+@pytest.fixture
+def actual_load_path():
+    test_dir = Path(__file__).parent
+    # Navigate up to 'gtep' directory, then into 'data'
+    data_dir = test_dir.parent.parent / "data"
+    excel_path = data_dir / "Texas_2000" / "ERCOT-Adjusted-Forecast.xlsb"
+    return excel_path
 
 
 @pytest.fixture
@@ -120,7 +130,7 @@ class TestExpansionPlanningData:
 
     # -------------------------------------------------LOAD_PRESCIENT------------------------------------------------------------ #
     def test_options_dict(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test passing in an options dictionary
         testObject = ExpansionPlanningData()
@@ -130,35 +140,33 @@ class TestExpansionPlanningData:
             "ruc_horizon": 12,
         }
 
-        testObject.load_prescient(
-            data_path=str(simulation_objects_csv), options_dict=options
-        )
+        testObject.load_prescient(data_path=str(test_data_path), options_dict=options)
         mock_prescient_config.set_value.assert_called_once()
         passed_dict = mock_prescient_config.set_value.call_args[0][0]
-        assert passed_dict["data_path"] == str(simulation_objects_csv)
+        assert passed_dict["data_path"] == str(test_data_path)
         assert passed_dict["num_days"] == 100
         assert passed_dict["ruc_horizon"] == 12
 
     def test_no_options_dict(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
 
         # Test not passing in an options dictionary
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
         mock_prescient_config.set_value.assert_called_once()
         passed_dict = mock_prescient_config.set_value.call_args[0][0]
         # Default options should be set
-        assert passed_dict["data_path"] == str(simulation_objects_csv)
+        assert passed_dict["data_path"] == str(test_data_path)
         assert passed_dict["num_days"] == 365
         assert passed_dict["ruc_horizon"] == 36
 
     def test_default_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test no representative dates passed in, initializing with defaults
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
         # default dates:
         expected_dates = [
             "2020-01-28 00:00",
@@ -169,12 +177,12 @@ class TestExpansionPlanningData:
         assert testObject.representative_dates == expected_dates
 
     def test_passed_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test new representative dates passed in, replacing defaults
         testObject = ExpansionPlanningData()
         testObject.load_prescient(
-            data_path=str(simulation_objects_csv),
+            data_path=str(test_data_path),
             representative_dates=[
                 "2020-01-28 00:00",
                 "2020-04-23 00:00",
@@ -192,7 +200,7 @@ class TestExpansionPlanningData:
         assert testObject.representative_dates == expected_dates
 
     def test_representative_date_not_in_time_keys(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test passing invalid/not covered dates
         testObject = ExpansionPlanningData()
@@ -204,35 +212,35 @@ class TestExpansionPlanningData:
         ]
         with pytest.raises(ValueError):
             testObject.load_prescient(
-                data_path=str(simulation_objects_csv), representative_dates=bad_dates
+                data_path=str(test_data_path), representative_dates=bad_dates
             )
 
     def test_empty_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test an empty list passed to overwrite defaults without setting new dates
         testObject = ExpansionPlanningData()
         with pytest.raises(ZeroDivisionError):
             testObject.load_prescient(
-                data_path=str(simulation_objects_csv), representative_dates=[]
+                data_path=str(test_data_path), representative_dates=[]
             )
 
     def test_invalid_representative_dates_type(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test setting None for the dates, overwriting defaults without adding new dates
         testObject = ExpansionPlanningData()
         with pytest.raises(TypeError):
             testObject.load_prescient(
-                data_path=str(simulation_objects_csv), representative_dates=None
+                data_path=str(test_data_path), representative_dates=None
             )
 
     def test_default_representative_weights(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test no representative weights passed in, so the function calculates them
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
 
         total_weight = mock_prescient_config.num_days * testObject.stages
         assert total_weight == (365 * 2)
@@ -243,7 +251,7 @@ class TestExpansionPlanningData:
             assert w == expected_weight
 
     def test_no_representative_weights_passed_5_dates(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test no representative weights passed in and custom dates passed in, so the function calculates them
         dates = [
@@ -256,7 +264,7 @@ class TestExpansionPlanningData:
 
         testObject = ExpansionPlanningData()
         testObject.load_prescient(
-            data_path=str(simulation_objects_csv), representative_dates=dates
+            data_path=str(test_data_path), representative_dates=dates
         )
 
         total_weight = mock_prescient_config.num_days * testObject.stages
@@ -268,18 +276,18 @@ class TestExpansionPlanningData:
             assert w == expected_weight
 
     def test_passed_representative_weights(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test representative weights passed in
         weights = {1: 91, 2: 91, 3: 91, 4: 91}
         testObject = ExpansionPlanningData()
         testObject.load_prescient(
-            data_path=str(simulation_objects_csv), representative_weights=weights
+            data_path=str(test_data_path), representative_weights=weights
         )
         assert testObject.representative_weights == weights
 
     def test_key_function_calls(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test that each function is called within the load_prescient function
         testObject = ExpansionPlanningData()
@@ -294,7 +302,7 @@ class TestExpansionPlanningData:
             ) as mock_load_storage,
         ):
 
-            testObject.load_prescient(data_path=str(simulation_objects_csv))
+            testObject.load_prescient(data_path=str(test_data_path))
 
             # External calls
             mock_prescient_config.set_value.assert_called_once()
@@ -303,16 +311,16 @@ class TestExpansionPlanningData:
 
             # Internal calls
             mock_load_defaults.assert_called_once()
-            mock_load_storage.assert_called_once_with(str(simulation_objects_csv))
+            mock_load_storage.assert_called_once_with(str(test_data_path))
 
     def test_total_num_steps_calculation(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Check that the total number of time steps is calculated based in the number of days in the config
         mock_prescient_config.num_days = 365
 
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
 
         # period_per_step is 24
         expected_total_steps = 365 * 24
@@ -322,13 +330,13 @@ class TestExpansionPlanningData:
         assert call_args["num_time_steps"] == expected_total_steps
 
     def test_total_num_steps_calculation_2_years(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Check that the total number of time steps is calculated based in the number of days in the config
         mock_prescient_config.num_days = 730
 
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
 
         # period_per_step is 24
         expected_total_steps = 730 * 24
@@ -338,11 +346,11 @@ class TestExpansionPlanningData:
         assert call_args["num_time_steps"] == expected_total_steps
 
     def test_in_service_flags_set(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         # Test in service flags are being set properly
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
 
         assert (
             testObject.md.data["elements"]["generator"]["gen2-c"]["in_service"] == False
@@ -372,10 +380,10 @@ class TestExpansionPlanningData:
             testObject.load_prescient(data_path=str(tmp_path))
 
     def test_clone_at_time_keys_called_correctly(
-        self, mock_prescient_config, mock_gmlc_provider, simulation_objects_csv
+        self, mock_prescient_config, mock_gmlc_provider, test_data_path
     ):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=str(simulation_objects_csv))
+        testObject.load_prescient(data_path=str(test_data_path))
 
         # Patch clone_at_time_keys on the existing model instance
         with unittest.mock.patch.object(
@@ -383,11 +391,39 @@ class TestExpansionPlanningData:
         ) as mock_clone:
 
             # Call load_prescient again to trigger cloning with patched method
-            testObject.load_prescient(data_path=str(simulation_objects_csv))
+            testObject.load_prescient(data_path=str(test_data_path))
 
             # Check that clone_at_time_keys was called once per representative date
             expected_calls = len(testObject.representative_dates)
             assert mock_clone.call_count == expected_calls
 
+    # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
+    def test_import_load_scaling_normal_with_actual_file(self, actual_load_path):
+        # test successful passthrough of load scaling function
+        testObject = ExpansionPlanningData()
+        testObject.import_load_scaling(actual_load_path)
 
-# -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
+        df = testObject.load_scaling
+        assert isinstance(df, pd.DataFrame)
+        expected_columns = ["year", "month", "day", "hour"] + [
+            str(i) for i in range(1, 9)
+        ]
+        for col in expected_columns:
+            assert col in df.columns
+        assert not df.empty
+
+    def test_import_load_scaling_incorrect_num_years(self, actual_load_path):
+        # Test value error raised if the length of forecast years is incorrect
+        testObject = ExpansionPlanningData(stages=3)
+        forecast_years = [2025, 2030]
+
+        with pytest.raises(ValueError):
+            testObject.import_load_scaling(actual_load_path, forecast_years)
+
+    def test_import_load_scaling_incorrect_years_too_early(self, actual_load_path):
+        # Test value error raised if the forecast years are outside the supported ranges
+        testObject = ExpansionPlanningData(stages=3)
+        forecast_years = [2019, 2030, 2055]
+
+        with pytest.raises(ValueError):
+            testObject.import_load_scaling(actual_load_path, forecast_years)

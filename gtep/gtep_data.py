@@ -175,6 +175,7 @@ class ExpansionPlanningData:
 
         """
         adjusted_forecast = pd.read_excel(load_file_name)
+        print((adjusted_forecast["year"]).unique)
 
         # check years are valid
         if len(forecast_years) < self.stages:
@@ -188,7 +189,7 @@ class ExpansionPlanningData:
 
         adjusted_forecast_by_period = adjusted_forecast[
             adjusted_forecast["year"].isin(forecast_years)
-        ]
+        ].copy()
 
         base_zones = [
             "base_economic_coast",
