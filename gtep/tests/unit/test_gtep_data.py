@@ -21,6 +21,7 @@ import pandas as pd
 from pathlib import Path
 
 
+# Data Path Fixture (Load Prescient)
 @pytest.fixture
 def test_data_path(tmp_path):
     # Create a minimal simulation_objects.csv file with expected content
@@ -37,6 +38,7 @@ Periods_per_Step,24
     return tmp_path
 
 
+# Load Data File Fixture (Import Load)
 @pytest.fixture
 def actual_load_path():
     test_dir = Path(__file__).parent
@@ -46,6 +48,58 @@ def actual_load_path():
     return excel_path
 
 
+# Outage Data File Fixtures (Import Outages)
+@pytest.fixture
+def outage_data(tmp_path):
+    outage_content = """fips_code,lim_timestamp,case_4b_prob,date
+48001,5/20/25 0:00,0,20-May
+48025,5/20/25 3:00,0,20-May
+48025,5/20/25 4:00,0,20-May
+48025,5/20/25 5:00,0,20-May
+48025,5/20/25 6:00,0,20-May
+48025,5/20/25 7:00,0,20-May
+48025,5/20/25 8:00,0,20-May
+48025,5/20/25 9:00,0,20-May
+48025,5/20/25 10:00,0,20-May
+48027,5/20/25 20:00,0,20-May
+48163,5/20/25 20:00,0.006944444,20-May"""
+    outage_csv = tmp_path / "outage.csv"
+    outage_csv.write_text(outage_content)
+
+    return outage_csv
+
+
+@pytest.fixture
+def county_fips_csv(tmp_path):
+    dir_path = tmp_path / "gtep" / "data" / "123_Bus_Resil_Week"
+    dir_path.mkdir(parents=True, exist_ok=True)
+    content = """county_number,County,FIPS,,
+1,Anderson,48001,,
+13,Bee,48025,,
+27,Burnet,48053,,
+82,Frio,48163,,
+"""
+    file = dir_path / "county_fips_match.csv"
+    file.write_text(content)
+    return file
+
+
+@pytest.fixture
+def bus_data_csv(tmp_path):
+    dir_path = tmp_path / "gtep" / "data" / "123_Bus_Resil_Week"
+    dir_path.mkdir(parents=True, exist_ok=True)
+    content = """Bus Number,County
+1001,Anderson
+1002,Bee
+1003,Burnet
+1004,Frio
+"""
+    file = dir_path / "Bus_data_gen_weights_mappings.csv"
+    file.write_text(content)
+    return file
+
+
+# Function Mocks (Load Prescient)
 @pytest.fixture
 def mock_prescient_config():
     mock_instance = create_autospec(
@@ -427,3 +481,41 @@ class TestExpansionPlanningData:
 
         with pytest.raises(ValueError):
             testObject.import_load_scaling(actual_load_path, forecast_years)
+
+    # -------------------------------------------------IMPORT_OUTAGE_DATA------------------------------------------------------------ #
+    def test_import_outage_data(
+        self, outage_data, county_fips_csv, bus_data_csv, monkeypatch
+    ):
+        testObject = ExpansionPlanningData()
+
+        # Load DataFrames from temp CSV files for patching
+        df_outage = pd.read_csv(outage_data)
+        df_county_fips = pd.read_csv(county_fips_csv)
+        df_bus_data = pd.read_csv(bus_data_csv)
+
+        # Patch pd.read_csv to return appropriate DataFrame based on input path
+        def mock_read_csv(filepath, *args, **kwargs):
+            if filepath == str(outage_data):
+                return df_outage
+            elif filepath.endswith("county_fips_match.csv"):
+                return df_county_fips
+            elif filepath.endswith("Bus_data_gen_weights_mappings.csv"):
+                return df_bus_data
+            else:
+                raise FileNotFoundError(f"Unexpected file path: {filepath}")
+
+        monkeypatch.setattr(pd, "read_csv", mock_read_csv)
+
+        # Patch to_csv to avoid actual file writes during test
+        monkeypatch.setattr(pd.DataFrame, "to_csv", lambda self, *args, **kwargs: None)
+
+        testObject.import_outage_data(str(outage_data))
+
+        assert hasattr(testObject, "bus_hours")
+        df = testObject.bus_hours
+        assert isinstance(df, pd.DataFrame)
+        assert set(df.columns) == {"hour", "Bus Number"}
+        assert pd.api.types.is_integer_dtype(df["hour"])
+        assert pd.api.types.is_integer_dtype(df["Bus Number"])
+        assert (df["hour"] == 20).any()
+        assert (df["Bus Number"] == 1004).any()
