@@ -287,27 +287,27 @@ def create_stages(m, stages):
                 b_comm = b_rep.commitmentPeriod[commitment_period]
                 b_comm.commitmentPeriod = commitment_period
 
-                # [TODO: update properties for this time period!]
-                if m.data_list:
-                    m.md = m.data_list[
-                        b_inv.representativePeriods.index(b_rep.currentPeriod)
-                    ]
-
-                commit.add_commitment_parameters(
-                    b_comm,
-                    commitment_period,
-                    investment_stage,
-                )
-
                 if m.config["include_redispatch"]:
                     b_comm.dispatchPeriods = pyo.RangeSet(
                         m.numDispatchPeriods[b_rep.currentPeriod]
                     )
                     b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
-                    
+
+                    # [TODO: update properties for this time period!]
+                    if m.data_list:
+                        m.md = m.data_list[
+                            b_inv.representativePeriods.index(b_rep.currentPeriod)
+                        ]
+
+                    commit.add_commitment_parameters(
+                        b_comm,
+                        commitment_period,
+                        investment_stage,
+                    )
+
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
                     # Add dispatch equations
-                    
+
                     # [TODO: This feels REALLY inelegant and
                     # bad. Check a better way of declaring these.]
                     for period in b_comm.dispatchPeriods:
@@ -318,9 +318,13 @@ def create_stages(m, stages):
                         )
 
                         disp.add_dispatch_variables(
-                            b_comm.dispatchPeriod[period], period, m.dispatchPeriodLength
+                            b_comm.dispatchPeriod[period],
+                            period,
+                            m.dispatchPeriodLength,
                         )
-                        disp.add_dispatch_constraints(b_comm.dispatchPeriod[period], period)
+                        disp.add_dispatch_constraints(
+                            b_comm.dispatchPeriod[period], period
+                        )
 
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
@@ -328,7 +332,7 @@ def create_stages(m, stages):
                     # is still desired, pull something different here?
                     # or simply don't enforce linked commitment
                     # constraints?]
-                    
+
                     # Adds disjuncts representing generator operational
                     # states (on, startup, shutdown, off) and storage
                     # states (charging, discharging, off) as needed. [ESR
