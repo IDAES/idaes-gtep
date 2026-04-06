@@ -38,6 +38,23 @@ Periods_per_Step,24
     return tmp_path
 
 
+# Texas Data Path Fixture (texas_case_study)
+@pytest.fixture
+def texas_data_path(tmp_path):
+    csv_content = """GEN UID,Bus ID,Unit Type,Fuel,capex1,capex2,capex3,fuel_cost1,fuel_cost2,fuel_cost3,fixed_ops1,fixed_ops2,fixed_ops3,var_ops1,var_ops2,var_ops3
+1,107,NUC,N,7040.489322,6966.178959,6731.224251,7.210946358,7.294679868,7.378403404,145.96,145.96,145.96,2.84,2.84,2.84
+2,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
+3,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
+4,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
+"""
+    dir_path = tmp_path / "Texas_2000"
+    dir_path.mkdir(parents=True, exist_ok=True)
+    excel_path = dir_path / "gen.csv"
+    excel_path.write_text(csv_content)
+
+    return dir_path
+
+
 # Load Data File Fixture (Import Load)
 @pytest.fixture
 def actual_load_path():
@@ -127,8 +144,9 @@ def mock_gmlc_provider():
         model_mock.data = {
             "elements": {
                 "generator": {
-                    "gen1": {"fuel": "C", "in_service": True},
-                    "gen2-c": {"fuel": "None", "in_service": True},
+                    "1": {"fuel": "C", "in_service": True},
+                    "2": {"fuel": "None", "in_service": True},
+                    "2-c": {"fuel": "None", "in_service": True},
                 },
                 "branch": {"branch1": {}, "branch2-c": {}},
                 "storage": {"stor1": {}},
@@ -409,9 +427,7 @@ class TestExpansionPlanningData:
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=str(test_data_path))
 
-        assert (
-            testObject.md.data["elements"]["generator"]["gen2-c"]["in_service"] == False
-        )
+        assert testObject.md.data["elements"]["generator"]["2-c"]["in_service"] == False
         assert (
             testObject.md.data["elements"]["branch"]["branch2-c"]["in_service"] == False
         )
@@ -617,3 +633,52 @@ class TestExpansionPlanningData:
         # Storage should be set to empty dict
         storage = testObject.md.data["elements"].get("storage", None)
         assert storage == {}
+
+    # -------------------------------------------------TEXAS_CASE_STUDY_UPDATES----------------------------------------------------------- #
+    def test_texas_case_study(
+        self, mock_gmlc_provider, mock_prescient_config, test_data_path, texas_data_path
+    ):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=str(test_data_path))
+
+        # testObject.representative_data = [unittest.mock.Mock()]
+        # testObject.representative_data[0].data = testObject.md.data
+
+        # Call the method under test
+        testObject.texas_case_study_updates(str(texas_data_path))
+
+        generator = testObject.md.data["elements"].get("generator", None)
+        assert generator is not None
+
+        expected_columns = [
+            "capex1",
+            "capex2",
+            "capex3",
+            "fuel_cost1",
+            "fuel_cost2",
+            "fuel_cost3",
+            "fixed_ops1",
+            "fixed_ops2",
+            "fixed_ops3",
+            "var_ops1",
+            "var_ops2",
+            "var_ops3",
+        ]
+
+        # Check that each expected column is added to each generator
+        for gen_name, gen_data in generator.items():
+            for col in expected_columns:
+                assert col in gen_data, f"Column {col} missing in generator {gen_name}"
+        # check example values
+        gen1 = generator.get("1")
+        assert gen1 is not None
+        assert abs(gen1["capex1"] - 7040.489322) < 1e-6
+        assert abs(gen1["fuel_cost1"] - 7.210946358) < 1e-6
+
+    def test_texas_case_study_invalid_data_path(self):
+        # Test that an error is raised if not a Texas case Study
+        testObject = ExpansionPlanningData()
+        invalid_path = "/some/invalid/path"
+
+        with pytest.raises(ValueError, match="not a Texas case study"):
+            testObject.texas_case_study_updates(invalid_path)

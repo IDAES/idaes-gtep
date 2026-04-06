@@ -360,7 +360,7 @@ class ExpansionPlanningData:
         :param data_path: filepath for generator data csv file
         """
         # check that datapath is coming from a texas case study directory
-        if "Texas" or "Coal" not in data_path:
+        if ("Texas" not in data_path) and ("Coal" not in data_path):
             raise ValueError("The data path provided is not a Texas case study")
 
         generator_update_path = data_path + "/gen.csv"
