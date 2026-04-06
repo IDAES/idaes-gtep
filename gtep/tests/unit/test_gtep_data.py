@@ -566,3 +566,54 @@ class TestExpansionPlanningData:
         system = testObject.md.data["system"]
         assert system["min_operating_reserve"] == 0.1
         assert system["min_spinning_reserve"] == 0.1
+
+    # -------------------------------------------------LOAD_STORAGE_CSV------------------------------------------------------------ #
+    def test_load_storage_csv_success(
+        self, test_data_path, mock_gmlc_provider, mock_prescient_config
+    ):
+        testObject = ExpansionPlanningData()
+        # Setup md with empty data structure to avoid errors
+        testObject.md = mock_gmlc_provider.get_initial_actuals_model.return_value
+        testObject.load_storage_csv(str(test_data_path))
+
+        # Check that storage data was loaded into md.data["elements"]["storage"]
+        storage = testObject.md.data["elements"].get("storage", None)
+        assert storage is not None
+        assert isinstance(storage, dict)
+
+        # Check that storage keys include the name from your CSV fixture
+        assert "100MW_400MWh_1" in storage
+
+        # Check some expected keys in storage data
+        expected_keys = {
+            "bus",
+            "generator",
+            "storage_type",
+            "energy_capacity",
+            "initial_state_of_charge",
+            "investment_cost",
+            "investment_cost_kwh",
+        }
+        for key in expected_keys:
+            assert key in storage["100MW_400MWh_1"]
+
+    def test_load_storage_csv_file_not_found(
+        self, tmp_path, mock_gmlc_provider, mock_prescient_config
+    ):
+        testObject = ExpansionPlanningData()
+        testObject.md = mock_gmlc_provider.get_initial_actuals_model.return_value
+
+        # Use a directory without storage.csv
+        missing_path = tmp_path
+
+        with unittest.mock.patch("builtins.print") as mock_print:
+            testObject.load_storage_csv(str(missing_path))
+
+            # Should print warning about missing file
+            mock_print.assert_called_once()
+            args = mock_print.call_args[0][0]
+            assert "does not exist" in args
+
+        # Storage should be set to empty dict
+        storage = testObject.md.data["elements"].get("storage", None)
+        assert storage == {}
