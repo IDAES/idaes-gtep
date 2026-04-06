@@ -286,10 +286,6 @@ def create_stages(m, stages):
             for commitment_period in b_rep.commitmentPeriods:
                 b_comm = b_rep.commitmentPeriod[commitment_period]
                 b_comm.commitmentPeriod = commitment_period
-                b_comm.dispatchPeriods = pyo.RangeSet(
-                    m.numDispatchPeriods[b_rep.currentPeriod]
-                )
-                b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
 
                 # [TODO: update properties for this time period!]
                 if m.data_list:
@@ -303,40 +299,46 @@ def create_stages(m, stages):
                     investment_stage,
                 )
 
-                # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
-                # Add dispatch equations
-
-                # [TODO: This feels REALLY inelegant and
-                # bad. Check a better way of declaring these.]
-                for period in b_comm.dispatchPeriods:
-                    b_comm.dispatchPeriod[period].periodLength = pyo.Param(
-                        initialize=1,
-                        within=pyo.PositiveReals,
-                        # units=u.minutes,
+                if m.config["include_redispatch"]:
+                    b_comm.dispatchPeriods = pyo.RangeSet(
+                        m.numDispatchPeriods[b_rep.currentPeriod]
                     )
+                    b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
+                    
+                    # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
+                    # Add dispatch equations
+                    
+                    # [TODO: This feels REALLY inelegant and
+                    # bad. Check a better way of declaring these.]
+                    for period in b_comm.dispatchPeriods:
+                        b_comm.dispatchPeriod[period].periodLength = pyo.Param(
+                            initialize=1,
+                            within=pyo.PositiveReals,
+                            # units=u.minutes,
+                        )
 
-                    disp.add_dispatch_variables(
-                        b_comm.dispatchPeriod[period], period, m.dispatchPeriodLength
-                    )
-                    disp.add_dispatch_constraints(b_comm.dispatchPeriod[period], period)
+                        disp.add_dispatch_variables(
+                            b_comm.dispatchPeriod[period], period, m.dispatchPeriodLength
+                        )
+                        disp.add_dispatch_constraints(b_comm.dispatchPeriod[period], period)
 
-                # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
+                    # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
-                # [TODO: If commitment is neglected but dispatch
-                # is still desired, pull something different here?
-                # or simply don't enforce linked commitment
-                # constraints?]
+                    # [TODO: If commitment is neglected but dispatch
+                    # is still desired, pull something different here?
+                    # or simply don't enforce linked commitment
+                    # constraints?]
+                    
+                    # Adds disjuncts representing generator operational
+                    # states (on, startup, shutdown, off) and storage
+                    # states (charging, discharging, off) as needed. [ESR
+                    # NOTE: If commitment is not included, generator state
+                    # is fixed to 'on'; storage operational logic remains
+                    # unchanged.
+                    commit.add_commitment_disjuncts(b_comm, commitment_period)
 
-                # Adds disjuncts representing generator operational
-                # states (on, startup, shutdown, off) and storage
-                # states (charging, discharging, off) as needed. [ESR
-                # NOTE: If commitment is not included, generator state
-                # is fixed to 'on'; storage operational logic remains
-                # unchanged.
-                commit.add_commitment_disjuncts(b_comm, commitment_period)
-
-                # Adds cost-related commitment constraints
-                commit.add_commitment_constraints(b_comm, commitment_period)
+                    # Adds cost-related commitment constraints
+                    commit.add_commitment_constraints(b_comm, commitment_period)
 
                 # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
 
