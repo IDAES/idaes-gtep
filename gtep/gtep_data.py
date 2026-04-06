@@ -147,6 +147,7 @@ class ExpansionPlanningData:
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
         self.representative_dates = representative_dates
+        self.representative_weights = representative_weights
 
         if not representative_weights:
             # set the weight for each day to the total weight divided by number of days
@@ -154,7 +155,7 @@ class ExpansionPlanningData:
             weight_per_date = int(total_weight / (len(representative_dates)))
             self.representative_weights = {
                 key: weight_per_date
-                for date, key in enumerate(self.representative_dates)
+                for key, date in enumerate(self.representative_dates)
             }
 
         time_keys = self.md.data["system"]["time_keys"]
