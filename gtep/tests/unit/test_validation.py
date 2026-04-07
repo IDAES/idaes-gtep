@@ -99,7 +99,6 @@ class TestValidation(unittest.TestCase):
         for idx in output:
             self.assertAlmostEqual(output[idx], expected[idx])
 
-        # test unexpected case of bools; commented out for now bc assertWarns throws error
         with self.assertRaises(ValueError):
             sum_variable_values_by_index(
                 {"var1[i]": True, "var2[i]": 0.1, "var1[j]": 3}
