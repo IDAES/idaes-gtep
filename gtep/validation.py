@@ -72,14 +72,14 @@ def extract_variable_values(
     :returns:                   Dictionary of the form {var_name: var_value}
     """
     # TODO: modify once solution object has sets
-    end_investment_values_dict = {
+    return_values_dict = {
         name: var["value"]
         for name, var in primals_dict.items()
         if variable_type in name
         and any([status in name for status in element_statuses])
     }
 
-    return end_investment_values_dict
+    return return_values_dict
 
 
 def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Number]:
