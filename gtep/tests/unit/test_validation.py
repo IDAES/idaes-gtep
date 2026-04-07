@@ -70,7 +70,13 @@ class TestValidation(unittest.TestCase):
         cls.solution = get_solution_object()
 
     def test_safe_extract_variable_index(self):
-        input_output_pairs = [("var[i]", "i"), ("var", "var"), ("var]", "var]")]
+        input_output_pairs = [
+            ("var[i]", "i"),
+            ("var", "var"),
+            ("var]", "var]"),
+            ("var[i,j]", "i,j"),
+            ("blk[i].var[j]", "j"),
+        ]
         for input, output in input_output_pairs:
             self.assertEqual(safe_extract_variable_index(input), output)
 

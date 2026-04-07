@@ -24,16 +24,17 @@ import pandas as pd
 
 def safe_extract_variable_index(variable_name: str) -> str:
     """
-    Takes a variable name and extracts the index (enclosed in square brackets).
-    If no matches are found, returns the whole variable name.
+    Takes a variable name and extracts the index, assumed to be enclosed in
+    the last set of square brackets. If no matches are found,
+    returns the whole variable name.
 
     :param variable_name:   Variable name.
     :type variable_name:    str
     :returns:               Index, not including the square brackets.
     """
     # TODO: possibly modify once solution object has sets
-    search_result = re.search(r"\[.*\]", variable_name)
-    return search_result.group(0)[1:-1] if search_result else variable_name
+    search_result = re.search(r"\[([^\[\]]*)\]$", variable_name)
+    return search_result.group(1) if search_result else variable_name
 
 
 def extract_primals_last_investment_stage(
