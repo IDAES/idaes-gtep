@@ -169,6 +169,7 @@ def populate_generators(
     end_renew_idxs = sum_variable_values_by_index(
         extract_variable_values(primals, "renewable")
     )
+    # for renewables, variable values are MW of capacity rather than indicator variables; doesn't make sense to check > 0.5
     end_renew_idx_list = list(end_renew_idxs.keys())
 
     # update renewables with values from last investment period
