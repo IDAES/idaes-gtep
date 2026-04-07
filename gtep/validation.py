@@ -49,7 +49,7 @@ def extract_primals_last_investment_stage(
     """
     # TODO: modify once solution object has sets
     sol_dict = sol_object._to_dict()["results"]["primals_tree"]
-    end_investment_stage = list(sol_dict.keys())[0]  # more robust way to do this?
+    end_investment_stage = list(sol_dict.keys())[0]  # last stage appears first
     return sol_dict[end_investment_stage]
 
 
@@ -94,7 +94,7 @@ def sum_variable_values_by_index(value_dict: dict[str, Number]) -> dict[str, Num
     :returns:           Dictionary of the form {idx: summed_value}.
     """
     # Raise an error if we're trying to sum something that isn't a number (incl. bool)
-    value_types = [type(value) for value in value_dict.values()]
+    value_types = set([type(value) for value in value_dict.values()])
     if any([t == bool or not issubclass(t, Number) for t in value_types]):
         raise ValueError(
             f"Expected variable values to be numeric, but got the following types: {set(value_types)}"
