@@ -48,7 +48,7 @@ def create_test_model(
     quota_deficit=[0, 0],
     renewable_curtailment=[0, 0],
     expansion_cost=None,
-    defecit_penalty={1: 0, 2: 0},
+    deficit_penalty={1: 0, 2: 0},
     investment_factor={1: 0, 2: 0},
     storage=True,
 ):
@@ -77,7 +77,7 @@ def create_test_model(
 
     m.investmentStage = investment_stage
 
-    m.deficitPenalty = defecit_penalty
+    m.deficitPenalty = deficit_penalty
     m.investmentFactor = investment_factor
 
     # Config with storage True
@@ -94,7 +94,7 @@ def test_objective_multiple_stages_storage_true():
         invest_cost=[200, 300],
         quota_deficit=[10, 20],
         renewable_curtailment=[5, 10],
-        defecit_penalty={1: 2, 2: 3},
+        deficit_penalty={1: 2, 2: 3},
         investment_factor={1: 1.5, 2: 2.0},
     )
 
@@ -134,7 +134,7 @@ def test_objective_multiple_stages_storage_false():
         invest_cost=[200, 300],
         quota_deficit=[10, 20],
         renewable_curtailment=[5, 10],
-        defecit_penalty={1: 2, 2: 3},
+        deficit_penalty={1: 2, 2: 3},
         investment_factor={1: 1.5, 2: 2.0},
         storage=False,
     )
@@ -175,7 +175,7 @@ def test_objective_single_stage():
         invest_cost=[200],
         quota_deficit=[10],
         renewable_curtailment=[5],
-        defecit_penalty={1: 2},
+        deficit_penalty={1: 2},
         investment_factor={1: 1.5},
         storage=False,
     )
@@ -206,7 +206,7 @@ def test_storage_cost_zero_when_storage_false():
         invest_cost=[200, 300],
         quota_deficit=[10, 20],
         renewable_curtailment=[5, 10],
-        defecit_penalty={1: 2, 2: 3},
+        deficit_penalty={1: 2, 2: 3},
         investment_factor={1: 1.5, 2: 2.0},
         storage=False,
     )
@@ -264,7 +264,7 @@ def test_many_stages_stress():
         invest_cost=[item * 2.0 for item in stages],
         quota_deficit=[item * 0.1 for item in stages],
         renewable_curtailment=[item * 0.05 for item in stages],
-        defecit_penalty={item: 1.0 for item in stages},
+        deficit_penalty={item: 1.0 for item in stages},
         investment_factor={item: 1.0 for item in stages},
     )
 
