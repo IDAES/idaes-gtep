@@ -532,10 +532,12 @@ def fix_generators_state_disjuncts_to_On(m, b):
     def genOn(disj, generator):
         b = disj.parent_block()
 
+        # For now, we do not allow reserves unless we do commitment
+
         @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
         def operating_limit_min(d, dispatchPeriod):
             return (
-                m.thermalMin[generator]
+                0 * u.MW
                 <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
             )
 
@@ -545,16 +547,6 @@ def fix_generators_state_disjuncts_to_On(m, b):
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
                 <= m.thermalCapacity[generator]
-            )
-
-        # NOTE: maxSpinningReserve is a percentage of thermalCapacity
-        @disj.Constraint(
-            b.dispatchPeriods, m.thermalGenerators, doc="Maximum spinning reserve"
-        )
-        def max_spinning_reserve(disj, dispatchPeriod, generator):
-            return (
-                b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
-                <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
             )
 
     @b.Disjunct(m.thermalGenerators)
