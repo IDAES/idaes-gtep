@@ -19,6 +19,9 @@
 import pandas as pd
 from pathlib import Path
 from gtep.config_data import ConfigData
+from os.path import join, dirname, abspath
+
+datadir = join(dirname(abspath(str(__file__))), "data")
 
 """
 References
@@ -292,6 +295,6 @@ class DataProcessing:
         self.gen_data_target.head()
 
         if save_csv:
-            self.gen_data_target.to_csv(
-                "data/costs/candidate_generators_initial_list.csv", index=False
+            filename = join(datadir, "costs", "candidate_generators_initial_list.csv")
+            self.gen_data_target.to_csv(filename, index=False
             )
