@@ -46,7 +46,7 @@ def get_dispatch_block():
         block = current_block.component(component_name)
         first_idx = block.index_set().at(1)
         current_block = block[first_idx]
-        
+
     return current_block
 
 
