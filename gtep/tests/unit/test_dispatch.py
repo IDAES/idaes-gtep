@@ -86,7 +86,7 @@ class TestDispatch(unittest.TestCase):
             ),
         )
         for parent, name, expected_type, index in to_check:
-            self.assertHasAttr(parent, name)
+            self.assertTrue(hasattr(parent, name))
             self.assertIsInstance(parent.component(name), expected_type)
             if index is None:
                 self.assertFalse(parent.component(name).is_indexed())
