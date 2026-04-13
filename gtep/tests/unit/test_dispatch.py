@@ -56,57 +56,6 @@ def get_dispatch_block():
     return current_block
 
 
-class PyomoCheckHelper:
-    def __init__(
-        self,
-        td: TestDispatch,
-        block: BlockData,
-        name: str,
-        obj_type: type,
-        index: pyo.Set = None,
-        expr: function = None,
-    ):
-        """
-        Class that stores expected attributes for a pyomo object. Calling
-        the .check() method runs asserts to check for those attributes.
-        """
-        self.td = td
-        self.block = block
-        self.name = name
-        self.obj_type = obj_type
-        self.index = index
-        self.expr = expr
-
-    def _check_exists(self):
-        self.td.assertTrue(hasattr(self.block, self.name))
-
-    def _check_type(self):
-        self.td.assertIsInstance(self.block.component(self.name), self.obj_type)
-
-    def _check_index(self):
-        if self.index is None:
-            self.td.assertFalse(self.block.component(self.name).is_indexed())
-        else:
-            self.td.assertTrue(self.block.component(self.name).is_indexed())
-            self.td.assertIs(self.block.component(self.name).index_set(), self.index)
-
-    def _check_expr(self):
-        if self.expr is None:
-            self.td.assertFalse(hasattr(self.block.component(self.name), "expr"))
-        else:
-            for i in self.index:
-                self.td.assertExpressionsStructurallyEqual(
-                    self.expr(i),
-                    self.block.component(self.name)[i].expr,
-                )
-
-    def check(self):
-        self._check_exists()
-        self._check_type()
-        self._check_index()
-        self._check_expr()
-
-
 class TestDispatch(unittest.TestCase):
 
     @classmethod
@@ -155,3 +104,54 @@ class TestDispatch(unittest.TestCase):
 
         for check_helper in to_check:
             check_helper.check()
+
+
+class PyomoCheckHelper:
+    def __init__(
+        self,
+        td: TestDispatch,
+        block: BlockData,
+        name: str,
+        obj_type: type,
+        index: pyo.Set = None,
+        expr: function = None,
+    ):
+        """
+        Class that stores expected properties for a pyomo object. Calling
+        the .check() method runs asserts to check for those properties.
+        """
+        self.td = td
+        self.block = block
+        self.name = name
+        self.obj_type = obj_type
+        self.index = index
+        self.expr = expr
+
+    def _check_exists(self):
+        self.td.assertTrue(hasattr(self.block, self.name))
+
+    def _check_type(self):
+        self.td.assertIsInstance(self.block.component(self.name), self.obj_type)
+
+    def _check_index(self):
+        if self.index is None:
+            self.td.assertFalse(self.block.component(self.name).is_indexed())
+        else:
+            self.td.assertTrue(self.block.component(self.name).is_indexed())
+            self.td.assertIs(self.block.component(self.name).index_set(), self.index)
+
+    def _check_expr(self):
+        if self.expr is None:
+            self.td.assertFalse(hasattr(self.block.component(self.name), "expr"))
+        else:
+            for i in self.index:
+                self.td.assertExpressionsStructurallyEqual(
+                    self.expr(i),
+                    self.block.component(self.name)[i].expr,
+                )
+
+    def check(self):
+        self._check_exists()
+        self._check_type()
+        self._check_index()
+        self._check_expr()
