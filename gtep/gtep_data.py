@@ -384,5 +384,5 @@ class ExpansionPlanningData:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
                         data_point.data["elements"]["generator"][gen][col] = float(
-                            generator_df[generator_df["GEN UID"] == gen][col]
+                            generator_df[generator_df["GEN UID"] == gen][col].iloc[0]
                         )
