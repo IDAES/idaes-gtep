@@ -56,7 +56,7 @@ def get_dispatch_block():
     return current_block
 
 
-class CheckHelper:
+class PyomoCheckHelper:
     def __init__(
         self,
         td: TestDispatch,
@@ -85,7 +85,7 @@ class CheckHelper:
 
     def _check_index(self):
         if self.index is None:
-            self.td.assertFalse(self)
+            self.td.assertFalse(self.block.component(self.name).is_indexed())
         else:
             self.td.assertTrue(self.block.component(self.name).is_indexed())
             self.td.assertIs(self.block.component(self.name).index_set(), self.index)
@@ -115,8 +115,8 @@ class TestDispatch(unittest.TestCase):
         cls.m = cls.b.model()
 
     def test_add_dispatch_variables(self):
-        to_check = (
-            CheckHelper(
+        to_check = [
+            PyomoCheckHelper(
                 self,
                 self.b,
                 "renewableGenerationSurplus",
@@ -127,7 +127,7 @@ class TestDispatch(unittest.TestCase):
                     - self.b.renewableCurtailment[i]
                 ),
             ),
-            CheckHelper(
+            PyomoCheckHelper(
                 self,
                 self.b,
                 "renewableCurtailmentCost",
@@ -139,7 +139,7 @@ class TestDispatch(unittest.TestCase):
                     * self.m.curtailmentCost
                 ),
             ),
-            CheckHelper(
+            PyomoCheckHelper(
                 self,
                 self.b,
                 "thermalGeneratorCost",
@@ -151,7 +151,7 @@ class TestDispatch(unittest.TestCase):
                     * (self.m.fixedCost[i] + self.m.varCost[i])
                 ),
             ),
-        )
+        ]
 
         for check_helper in to_check:
             check_helper.check()
