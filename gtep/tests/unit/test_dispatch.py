@@ -65,34 +65,34 @@ class TestDispatch(unittest.TestCase):
     def test_add_dispatch_variables(self):
 
         ### CHECK ALL SETS/VARS/ETC WE EXPECT EXIST ###
+        # format: (parent, name, type, index)
         to_check = (
-            (self.m, "renewableGenerators", pyo.Set),
-            (self.m, "dispatchPeriodLengthHours", pyo.Param),
-            (self.m, "curtailmentCost", pyo.Param),
-            (self.b, "renewableGeneration", pyo.Var),
-            (self.b, "renewableCurtailment", pyo.Var),
-            (self.b, "renewableGenerationSurplus", pyo.Expression),
-            (self.b, "renewableCurtailmentCost", pyo.Expression),
+            (self.m, "renewableGenerators", pyo.Set, None),
+            (self.m, "dispatchPeriodLengthHours", pyo.Param, None),
+            (self.m, "curtailmentCost", pyo.Param, None),
+            (self.b, "renewableGeneration", pyo.Var, self.m.renewableGenerators),
+            (self.b, "renewableCurtailment", pyo.Var, self.m.renewableGenerators),
+            (
+                self.b,
+                "renewableGenerationSurplus",
+                pyo.Expression,
+                self.m.renewableGenerators,
+            ),
+            (
+                self.b,
+                "renewableCurtailmentCost",
+                pyo.Expression,
+                self.m.renewableGenerators,
+            ),
         )
-        for parent, name, expected_type in to_check:
+        for parent, name, expected_type, index in to_check:
             self.assertHasAttr(parent, name)
             self.assertIsInstance(parent.component(name), expected_type)
-
-        ### CHECK THINGS ARE INDEXED BY WHAT WE EXPECT ###
-        indexed_by = [
-            (
-                self.m.renewableGenerators,
-                [
-                    self.b.renewableGeneration,
-                    self.b.renewableCurtailment,
-                    self.b.renewableGenerationSurplus,
-                    self.b.renewableCurtailmentCost,
-                ],
-            ),
-        ]
-        for index, objects in indexed_by:
-            for obj in objects:
-                self.assertIs(obj.index_set(), index)
+            if index is None:
+                self.assertFalse(parent.component(name).is_indexed())
+            else:
+                self.assertTrue(parent.component(name).is_indexed())
+                self.assertIs(parent.component(name).index_set(), index)
 
         ### CHECK EXPRESSIONS ###
         for renew in self.m.renewableGenerators:
