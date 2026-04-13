@@ -38,6 +38,39 @@ Periods_per_Step,24
     return tmp_path
 
 
+# Load scaling File
+@pytest.fixture
+def load_scaling_data_path(tmp_path):
+    # create a mock ercot_adjusted_forecast file
+    info = {
+        "year": [2025, 2037, 2044],
+        "month": [1, 2, 9],
+        "day": [1, 17, 28],
+        "hour": [3, 1, 2],
+        "base_economic_coast": [10000, 13000, 21000],
+        "base_economic_east": [1500, 2000, 2700],
+        "base_economic_fwest": [5000, 8000, 9000],
+        "base_economic_ncent": [12000, 14000, 22000],
+        "base_economic_north": [1200, 1600, 2100],
+        "base_economic_scent": [6000, 8000, 10000],
+        "base_economic_south": [3000, 4500, 6000],
+        "base_economic_west": [1200, 1500, 1800],
+        "coast_net": [11000, 18000, 27000],
+        "east_net": [1500, 2100, 3000],
+        "fwest_net": [7000, 12000, 21000],
+        "ncent_net": [13000, 20000, 29000],
+        "north_net": [1500, 6000, 12000],
+        "scent_net": [7000, 20000, 34000],
+        "south_net": [3000, 6000, 8000],
+        "west_net": [1200, 3000, 8000],
+    }
+    df = pd.DataFrame(info)
+    file_path = tmp_path / "load_scale.xlsx"
+
+    df.to_excel(file_path, index=False, header=True)
+    return file_path
+
+
 # Texas Data Path Fixture (texas_case_study)
 @pytest.fixture
 def texas_data_path(tmp_path):
@@ -471,10 +504,10 @@ class TestExpansionPlanningData:
             assert mock_clone.call_count == expected_calls
 
     # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
-    def test_import_load_scaling_normal_with_actual_file(self, actual_load_path):
+    def test_import_load_scaling_normal(self, load_scaling_data_path):
         # test successful passthrough of load scaling function
         testObject = ExpansionPlanningData()
-        testObject.import_load_scaling(actual_load_path)
+        testObject.import_load_scaling(load_scaling_data_path)
 
         df = testObject.load_scaling
         assert isinstance(df, pd.DataFrame)
@@ -485,21 +518,23 @@ class TestExpansionPlanningData:
             assert col in df.columns
         assert not df.empty
 
-    def test_import_load_scaling_incorrect_num_years(self, actual_load_path):
+    def test_import_load_scaling_incorrect_num_years(self, load_scaling_data_path):
         # Test value error raised if the length of forecast years is incorrect
         testObject = ExpansionPlanningData(stages=3)
         forecast_years = [2025, 2030]
 
         with pytest.raises(ValueError):
-            testObject.import_load_scaling(actual_load_path, forecast_years)
+            testObject.import_load_scaling(load_scaling_data_path, forecast_years)
 
-    def test_import_load_scaling_incorrect_years_too_early(self, actual_load_path):
+    def test_import_load_scaling_incorrect_years_too_early(
+        self, load_scaling_data_path
+    ):
         # Test value error raised if the forecast years are outside the supported ranges
         testObject = ExpansionPlanningData(stages=3)
         forecast_years = [2019, 2030, 2055]
 
         with pytest.raises(ValueError):
-            testObject.import_load_scaling(actual_load_path, forecast_years)
+            testObject.import_load_scaling(load_scaling_data_path, forecast_years)
 
     # -------------------------------------------------IMPORT_OUTAGE_DATA------------------------------------------------------------ #
     def test_import_outage_data(
