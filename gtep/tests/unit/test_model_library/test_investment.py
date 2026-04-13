@@ -30,24 +30,21 @@ from unittest.mock import patch
 from pint import UnitRegistry
 
 
-# Create a custom pint UnitRegistry with USD and MW defined
-ureg = UnitRegistry()
-ureg.define("USD = [currency]")
-ureg.define("MW = megawatt")
-
-# Create Pyomo units container with this registry
-custom_units = u._PyomoUnitsContainer(ureg)
-
-
 # helper function
-def create_test_inv(include_commit=True):
+def create_test_inv(include_commit=True, storage=True, transmission=True):
     m = pyo.ConcreteModel("GTEP Model")
     m.stages = [1]
-    m.config["include_commitment"] = include_commit
-    m.config["storage"] = True
+    m.config = {
+        "include_commitment": include_commit,
+        "storage": storage,
+        "transmission": transmission,
+    }
 
     m.regions = pyo.Set(initialize=["R1", "R2"])
     m.thermalGenerators = pyo.Set(initialize=["Gen1", "Gen2"])
+    m.renewableGenerators = pyo.Set(initialize=["Ren1", "Ren2"])
+    m.storage = pyo.Set(initialize=["Stor1"])
+    m.transmission = pyo.Set(initialize=["Line1"])
 
     m.investmentStage = pyo.Block(m.stages)
     inv = m.investmentStage[1]
@@ -85,5 +82,62 @@ def create_test_inv(include_commit=True):
 #         assert pyo.value(b.storageCostInvestment) == 0
 
 
-def test_add_investment_disjuncts():
-    pass
+# ------------------------------------ADD INVESTMENT DISJUNTS------------------------------------ #
+@patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
+@patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
+@patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
+def test_add_investment_disjuncts(mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv(storage=True, transmission=True)
+
+    # Call the function under test
+    add_investment_disjuncts(inv)
+
+    # Check that generator disjuncts are always added
+    mock_gens.assert_called_once_with(inv, m.thermalGenerators, m.renewableGenerators)
+
+    # Check that storage disjuncts are added if storage config is True
+    mock_stor.assert_called_once_with(inv, m.storage)
+
+    # Check that transmission disjuncts are added if transmission config is True
+    mock_transm.assert_called_once_with(inv, m.transmission)
+
+
+@patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
+@patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
+@patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
+def test_add_investment_disjuncts_no_storage(mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv(storage=False, transmission=True)
+
+    add_investment_disjuncts(inv)
+
+    mock_gens.assert_called_once_with(inv, m.thermalGenerators, m.renewableGenerators)
+    mock_stor.assert_not_called()
+    mock_transm.assert_called_once_with(inv, m.transmission)
+
+
+@patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
+@patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
+@patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
+def test_add_investment_disjuncts_no_transmission(mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv(storage=True, transmission=False)
+
+    add_investment_disjuncts(inv)
+
+    mock_gens.assert_called_once_with(inv, m.thermalGenerators, m.renewableGenerators)
+    mock_stor.assert_called_once_with(inv, m.storage)
+    mock_transm.assert_not_called()
+
+
+@patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
+@patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
+@patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
+def test_add_investment_disjuncts_no_storage_no_transmission(
+    mock_transm, mock_stor, mock_gens
+):
+    inv, m = create_test_inv(storage=False, transmission=False)
+
+    add_investment_disjuncts(inv)
+
+    mock_gens.assert_called_once_with(inv, m.thermalGenerators, m.renewableGenerators)
+    mock_stor.assert_not_called()
+    mock_transm.assert_not_called()
