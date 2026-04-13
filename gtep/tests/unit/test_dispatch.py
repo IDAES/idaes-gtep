@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
+from pyomo.core.base.block import BlockData
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -55,6 +56,57 @@ def get_dispatch_block():
     return current_block
 
 
+class CheckHelper:
+    def __init__(
+        self,
+        td: TestDispatch,
+        block: BlockData,
+        name: str,
+        obj_type: type,
+        index: pyo.Set = None,
+        expr: function = None,
+    ):
+        """
+        Class that stores expected attributes for a pyomo object. Calling
+        the .check() method runs asserts to check for those attributes.
+        """
+        self.td = td
+        self.block = block
+        self.name = name
+        self.obj_type = obj_type
+        self.index = index
+        self.expr = expr
+
+    def _check_exists(self):
+        self.td.assertTrue(hasattr(self.block, self.name))
+
+    def _check_type(self):
+        self.td.assertIsInstance(self.block.component(self.name), self.obj_type)
+
+    def _check_index(self):
+        if self.index is None:
+            self.td.assertFalse(self)
+        else:
+            self.td.assertTrue(self.block.component(self.name).is_indexed())
+            self.td.assertIs(self.block.component(self.name).index_set(), self.index)
+
+    def _check_expr(self):
+        if self.expr is None:
+            self.td.assertFalse(hasattr(self.block.component(self.name), "expr"))
+        else:
+            for i in self.index:
+                self.td.assertExpressionsStructurallyEqual(
+                    self.expr(i),
+                    self.block.component(self.name)[i].expr,
+                )
+
+    def check(self):
+        self._check_exists()
+        self._check_type()
+        self._check_index()
+        self._check_expr()
+
+
 class TestDispatch(unittest.TestCase):
 
     @classmethod
@@ -63,52 +115,43 @@ class TestDispatch(unittest.TestCase):
         cls.m = cls.b.model()
 
     def test_add_dispatch_variables(self):
-
-        ### CHECK ALL SETS/VARS/ETC WE EXPECT EXIST ###
-        # format: (parent, name, type, index)
         to_check = (
-            (self.m, "renewableGenerators", pyo.Set, None),
-            (self.m, "dispatchPeriodLengthHours", pyo.Param, None),
-            (self.m, "curtailmentCost", pyo.Param, None),
-            (self.b, "renewableGeneration", pyo.Var, self.m.renewableGenerators),
-            (self.b, "renewableCurtailment", pyo.Var, self.m.renewableGenerators),
-            (
+            CheckHelper(
+                self,
                 self.b,
                 "renewableGenerationSurplus",
                 pyo.Expression,
                 self.m.renewableGenerators,
+                (
+                    lambda i: self.b.renewableGeneration[i]
+                    - self.b.renewableCurtailment[i]
+                ),
             ),
-            (
+            CheckHelper(
+                self,
                 self.b,
                 "renewableCurtailmentCost",
                 pyo.Expression,
                 self.m.renewableGenerators,
+                (
+                    lambda i: self.b.renewableCurtailment[i]
+                    * self.m.dispatchPeriodLengthHours
+                    * self.m.curtailmentCost
+                ),
+            ),
+            CheckHelper(
+                self,
+                self.b,
+                "thermalGeneratorCost",
+                pyo.Expression,
+                self.m.thermalGenerators,
+                (
+                    lambda i: self.b.thermalGeneration[i]
+                    * self.m.dispatchPeriodLengthHours
+                    * (self.m.fixedCost[i] + self.m.varCost[i])
+                ),
             ),
         )
-        for parent, name, expected_type, index in to_check:
-            self.assertTrue(hasattr(parent, name))
-            self.assertIsInstance(parent.component(name), expected_type)
-            if index is None:
-                self.assertFalse(parent.component(name).is_indexed())
-            else:
-                self.assertTrue(parent.component(name).is_indexed())
-                self.assertIs(parent.component(name).index_set(), index)
 
-        ### CHECK EXPRESSIONS ###
-        for renew in self.m.renewableGenerators:
-
-            # renewableGenerationSurplus
-            actual = self.b.renewableGenerationSurplus[renew].expr
-            expected = (
-                self.b.renewableGeneration[renew] - self.b.renewableCurtailment[renew]
-            )
-            self.assertExpressionsStructurallyEqual(actual, expected)
-
-            # renewableCurtailmentCost
-            actual = self.b.renewableCurtailmentCost[renew].expr
-            expected = (
-                self.b.renewableCurtailment[renew]
-                * self.m.dispatchPeriodLengthHours
-                * self.m.curtailmentCost
-            )
-            self.assertExpressionsStructurallyEqual(actual, expected)
+        for check_helper in to_check:
+            check_helper.check()
