@@ -79,6 +79,7 @@ def texas_data_path(tmp_path):
 2,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
 3,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
 4,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
+2-c,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
 """
     dir_path = tmp_path / "Texas_2000"
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -676,8 +677,16 @@ class TestExpansionPlanningData:
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=str(test_data_path))
 
-        # testObject.representative_data = [unittest.mock.Mock()]
-        # testObject.representative_data[0].data = testObject.md.data
+        generators = testObject.md.data["elements"].get("generator", {})
+        fixed_generators = {}
+        for gen_key, gen_val in generators.items():
+            fixed_generators[str(gen_key)] = gen_val
+        testObject.md.data["elements"]["generator"] = fixed_generators
+
+        # Setup representative_data with the expected structure
+        mock_data_point = unittest.mock.Mock()
+        mock_data_point.data = testObject.md.data
+        testObject.representative_data = [mock_data_point]
 
         # Call the method under test
         testObject.texas_case_study_updates(str(texas_data_path))
@@ -704,6 +713,7 @@ class TestExpansionPlanningData:
         for gen_name, gen_data in generator.items():
             for col in expected_columns:
                 assert col in gen_data, f"Column {col} missing in generator {gen_name}"
+
         # check example values
         gen1 = generator.get("1")
         assert gen1 is not None
