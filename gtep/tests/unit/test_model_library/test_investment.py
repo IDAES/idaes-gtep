@@ -31,14 +31,29 @@ from pint import UnitRegistry
 
 
 # helper function
-def create_test_inv(include_commit=True, storage=True, transmission=True):
+def create_test_inv(
+    include_commit=True, storage=True, transmission=True, include_investment=True
+):
     m = pyo.ConcreteModel("GTEP Model")
     m.stages = [1]
     m.config = {
         "include_commitment": include_commit,
         "storage": storage,
         "transmission": transmission,
+        "include_investment": include_investment,
     }
+    m.investmentFactor = {1: 1.0}
+    m.weights = {1: 1.0}
+    m.renewableQuota = {1: 0.5}
+
+    class CommitmentPeriod:
+        def __init__(self):
+            self.renewableSurplusCommitment = 10
+
+    class RepresentativePeriod:
+        def __init__(self):
+            self.commitmentPeriods = [1]
+            self.commitmentPeriod = {1: CommitmentPeriod()}
 
     m.regions = pyo.Set(initialize=["R1", "R2"])
     m.thermalGenerators = pyo.Set(initialize=["Gen1", "Gen2"])
@@ -48,6 +63,18 @@ def create_test_inv(include_commit=True, storage=True, transmission=True):
 
     m.investmentStage = pyo.Block(m.stages)
     inv = m.investmentStage[1]
+
+    # constraint attributes
+    inv.representativePeriods = [1]
+    inv.representativePeriod = {1: RepresentativePeriod()}
+
+    inv.generators_investment_cost = 100
+    inv.storage_investment_cost = 10
+    inv.transmission_investment_cost = 10
+    inv.commitmentOperatingCostInvestment = 20
+    inv.operatingCostInvestment = pyo.Var(initialize=0)
+    inv.quotaDeficit = 0
+
     return inv, m
 
 
@@ -141,3 +168,53 @@ def test_add_investment_disjuncts_no_storage_no_transmission(
     mock_gens.assert_called_once_with(inv, m.thermalGenerators, m.renewableGenerators)
     mock_stor.assert_not_called()
     mock_transm.assert_not_called()
+
+
+# ------------------------------------ADD INVESTMENT CONSTRAINTS------------------------------------ #
+# @patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+# @patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+# @patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+# @patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+# def test_add_investment_constraints(mock_commitment, mock_transm, mock_stor, mock_gens):
+#     inv, m = create_test_inv()
+
+#     add_investment_constraints(inv, 1)
+
+#     # Check external function calls based on config
+#     mock_gens.assert_called_once_with(m, inv, 1)
+#     mock_transm.assert_called_once_with(m, inv, 1)
+#     mock_stor.assert_called_once_with(m, inv, 1)
+#     mock_commitment.assert_called_once_with(m, inv, 1)
+
+#     assert hasattr(inv, "investment_cost")
+#     expected_baseline = (
+#         inv.generators_investment_cost
+#         + inv.storage_investment_cost
+#         + inv.transmission_investment_cost
+#     )
+#     expected_value = m.investmentFactor[1] * expected_baseline
+#     val = pyo.value(inv.investment_cost)
+#     assert val == expected_value
+
+#     # Check operatingCostInvestment_constraint exists and works
+#     assert hasattr(inv, "operatingCostInvestment_constraint")
+#     con = inv.operatingCostInvestment_constraint
+#     rhs_val = inv.commitmentOperatingCostInvestment
+#     inv.operatingCostInvestment.set_value(rhs_val)
+#     assert pyo.value(con.body) == pytest.approx(0)
+
+#     # Check renewable_generation_requirement constraint
+#     assert hasattr(inv, "renewable_generation_requirement")
+#     con = inv.renewable_generation_requirement
+
+#     mock_surplus = 0
+#     for rep_per in m.representativePeriods:
+#         for com_per in m.representativePeriod[rep_per].commitmentPeriods:
+#             mock_surplus += (
+#                 m.weights[rep_per]
+#                 * m.representativePeriod[rep_per]
+#                 .commitmentPeriod[com_per]
+#                 .renewableSurplusCommitment
+#             )
+
+#     assert mock_surplus + inv.quotaDeficit >= m.renewableQuota[1] * 0
