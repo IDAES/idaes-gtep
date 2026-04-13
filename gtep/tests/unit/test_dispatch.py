@@ -12,19 +12,21 @@
 #################################################################################
 
 
-from os.path import abspath, join, dirname
+from pathlib import Path
 import pyomo.common.unittest as unittest
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 
-curr_dir = dirname(abspath(__file__))
-input_data_source = abspath(join(curr_dir, "..", "..", "data", "5bus"))
+curr_dir = Path(__file__).resolve().parent
+input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
 def get_dispatch_block():
     # create model
     data_object = ExpansionPlanningData()
-    data_object.load_prescient(input_data_source)
+    data_object.load_prescient(
+        str(input_data_source)  # load_prescient should accept pathlib paths
+    )
     mod_object = ExpansionPlanningModel(
         stages=2,
         data=data_object,
@@ -60,6 +62,10 @@ class TestDispatch(unittest.TestCase):
     def test_add_dispatch_variables(self):
 
         # renewableGenerationSurplus
+        self.assertHasAttr(self.m, "renewableGenerators")
+        self.assertHasAttr(self.b, "renewableGenerationSurplus")
+        self.assertHasAttr(self.b, "renewableGeneration")
+        self.assertHasAttr(self.b, "renewableCurtailment")
         for renew in self.m.renewableGenerators:
             actual = self.b.renewableGenerationSurplus[renew].expr
             expected = (
