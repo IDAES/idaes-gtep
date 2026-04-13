@@ -15,9 +15,6 @@
 and Transmission Expansion Planning (GTEP) Model
 
 """
-
-import math
-
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -26,7 +23,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, dispatch_period):
+def add_dispatch_variables(b, dispatch_period):  # dispatch_period not used...?
     """This method adds dispatch-associated variables to
     representative period block.
 
