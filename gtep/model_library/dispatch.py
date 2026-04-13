@@ -51,7 +51,7 @@ def add_dispatch_variables(b, dispatch_period):  # dispatch_period not used...?
     def renewableCurtailmentCost(b, renewableGen):
         return (
             b.renewableCurtailment[renewableGen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.dispatchPeriodLengthHours
             * m.curtailmentCost
         )
 
@@ -59,16 +59,14 @@ def add_dispatch_variables(b, dispatch_period):  # dispatch_period not used...?
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.dispatchPeriodLengthHours
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
         return (
-            b.renewableGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            b.renewableGeneration[gen] * m.dispatchPeriodLengthHours * m.fixedCost[gen]
         )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
@@ -89,7 +87,7 @@ def add_dispatch_variables(b, dispatch_period):  # dispatch_period not used...?
     def loadShedCost(b, bus):
         return (
             b.loadShed[bus]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.dispatchPeriodLengthHours
             * m.loadShedCostperCurtailment  # $/MWh
         )
 

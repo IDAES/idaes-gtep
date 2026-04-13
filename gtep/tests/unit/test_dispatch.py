@@ -13,7 +13,10 @@
 
 
 from pathlib import Path
+
 import pyomo.common.unittest as unittest
+import pyomo.environ as pyo
+
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 
@@ -61,14 +64,51 @@ class TestDispatch(unittest.TestCase):
 
     def test_add_dispatch_variables(self):
 
-        # renewableGenerationSurplus
-        self.assertHasAttr(self.m, "renewableGenerators")
-        self.assertHasAttr(self.b, "renewableGenerationSurplus")
-        self.assertHasAttr(self.b, "renewableGeneration")
-        self.assertHasAttr(self.b, "renewableCurtailment")
+        ### CHECK ALL SETS/VARS/ETC WE EXPECT EXIST ###
+        to_check = (
+            (self.m, "renewableGenerators", pyo.Set),
+            (self.m, "dispatchPeriodLengthHours", pyo.Param),
+            (self.m, "curtailmentCost", pyo.Param),
+            (self.b, "renewableGeneration", pyo.Var),
+            (self.b, "renewableCurtailment", pyo.Var),
+            (self.b, "renewableGenerationSurplus", pyo.Expression),
+            (self.b, "renewableCurtailmentCost", pyo.Expression),
+        )
+        for parent, name, expected_type in to_check:
+            self.assertHasAttr(parent, name)
+            self.assertIsInstance(parent.component(name), expected_type)
+
+        ### CHECK THINGS ARE INDEXED BY WHAT WE EXPECT ###
+        indexed_by = [
+            (
+                self.m.renewableGenerators,
+                [
+                    self.b.renewableGeneration,
+                    self.b.renewableCurtailment,
+                    self.b.renewableGenerationSurplus,
+                    self.b.renewableCurtailmentCost,
+                ],
+            ),
+        ]
+        for index, objects in indexed_by:
+            for obj in objects:
+                self.assertIs(obj.index_set(), index)
+
+        ### CHECK EXPRESSIONS ###
         for renew in self.m.renewableGenerators:
+
+            # renewableGenerationSurplus
             actual = self.b.renewableGenerationSurplus[renew].expr
             expected = (
                 self.b.renewableGeneration[renew] - self.b.renewableCurtailment[renew]
+            )
+            self.assertExpressionsStructurallyEqual(actual, expected)
+
+            # renewableCurtailmentCost
+            actual = self.b.renewableCurtailmentCost[renew].expr
+            expected = (
+                self.b.renewableCurtailment[renew]
+                * self.m.dispatchPeriodLengthHours
+                * self.m.curtailmentCost
             )
             self.assertExpressionsStructurallyEqual(actual, expected)
