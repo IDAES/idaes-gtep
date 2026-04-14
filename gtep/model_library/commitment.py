@@ -105,11 +105,8 @@ def add_commitment_constraints(b, comm_per):
     # transform and check if the costs considered need to be
     # re-assessed and account for missing data.]
 
-    # [ESR Note: Renamed operatingCostCommitment to operatingCost
-    # since it also represents the dispatch cost when
-    # include_commitment is set to False.]
     @b.Expression(doc="Total operating costs for commitment block in $")
-    def operatingCost(b):
+    def operatingCostCommitment(b):
         # [ESR Note: This term includes the op cost for each
         # 15-min dispatch period.]
         op_cost_dispatch = sum(
@@ -191,12 +188,6 @@ def add_investment_commitment_constraints(m, b, investment_stage):
     # [BLN: Convert this to a constraint using operatingCostInvestment
     # Var. May also need to move it.]
 
-    # [ESR Note: Rename operatingCostCommitment to just operatingCost
-    # since it varies depengin on include_commitment. If True, the
-    # variable includes the dispatch op costs and genOn and genStartup
-    # op costs, but when False, it only includes the dispatch op
-    # costs.]
-
     @b.Constraint(doc="Operating costs for investment period")
     def operatingCostInvestment_constraint(b):
         return b.operatingCostInvestment == (
@@ -206,7 +197,7 @@ def add_investment_commitment_constraints(m, b, investment_stage):
                     m.weights[rep_per]
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
-                    .operatingCost
+                    .operatingCostCommitment
                     for com_per in b.representativePeriod[rep_per].commitmentPeriods
                 )
                 for rep_per in b.representativePeriods
