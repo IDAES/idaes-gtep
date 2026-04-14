@@ -136,11 +136,8 @@ def add_commitment_constraints(b, comm_per):
         else:
             return op_cost_dispatch  # + op_cost_gen_state  # ESR Q: Check if we need this term
 
-    # [ESR Note: Renamed renewableCurtailmentCommitment to
-    # renewableCurtailment since it also represents the dispatch cost
-    # when include_commitment is set to False.]
     @b.Expression(doc="Total curtailment for commitment block in MW")
-    def renewableCurtailment(b):
+    def renewableCurtailmentCommitment(b):
         return sum(
             b.dispatchPeriod[disp_per].renewableCurtailmentDispatch
             for disp_per in b.dispatchPeriods
@@ -163,9 +160,6 @@ def add_investment_commitment_variables(b):
 
 def add_investment_commitment_constraints(m, b, investment_stage):
 
-    # [ESR Note: Renamed renewableCurtailmentCommitment to
-    # renewableCurtailment since it includes only the curtailment
-    # during dispatch.]
     @b.Constraint(doc="Curtailment penalties for investment period")
     def renewable_curtailment_cost(b):
         renewableCurtailmentRep = 0
@@ -176,7 +170,7 @@ def add_investment_commitment_constraints(m, b, investment_stage):
                     * m.commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
-                    .renewableCurtailment  # in MW
+                    .renewableCurtailmentCommitment  # in MW
                     # [ESR Question: Do we need to include this term here?]
                     * m.curtailmentCost
                 )  # units are in $
