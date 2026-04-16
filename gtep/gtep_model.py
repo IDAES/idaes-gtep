@@ -296,7 +296,7 @@ def create_stages(
         for representative_period in b_inv.representativePeriods:
             b_rep = b_inv.representativePeriod[representative_period]
 
-            b_rep.periodLength = pyo.Param(
+            b_rep.representativePeriodLength = pyo.Param(
                 initialize=duration_representative_period[representative_period - 1],
                 within=pyo.PositiveReals,
                 units=u.hr,
@@ -328,7 +328,7 @@ def create_stages(
             for commitment_period in b_rep.commitmentPeriods:
                 b_comm = b_rep.commitmentPeriod[commitment_period]
 
-                b_comm.periodLength = pyo.Param(
+                b_comm.commitmentPeriodLength = pyo.Param(
                     initialize=duration_commitment[commitment_period - 1],
                     within=pyo.PositiveReals,
                     units=u.hr,
@@ -362,7 +362,7 @@ def create_stages(
                     for dispatch_period in b_comm.dispatchPeriods:
                         b_disp = b_comm.dispatchPeriod[dispatch_period]
 
-                        b_disp.periodLength = pyo.Param(
+                        b_disp.dispatchPeriodLength = pyo.Param(
                             initialize=duration_dispatch[dispatch_period - 1],
                             within=pyo.PositiveReals,
                             units=u.minutes,
@@ -371,7 +371,7 @@ def create_stages(
                         disp.add_dispatch_variables(
                             b_disp,
                             dispatch_period,
-                            b_disp.periodLength,
+                            b_disp.dispatchPeriodLength,
                         )
                         disp.add_dispatch_constraints(b_disp, dispatch_period)
 

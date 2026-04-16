@@ -98,6 +98,7 @@ def add_commitment_constraints(b, comm_per):
             for disp_per in b.dispatchPeriods
         )
 
+
     # [ESR TODO: Replace this constraint with expressions using bounds
     # transform and check if the costs considered need to be
     # re-assessed and account for missing data.]
@@ -114,7 +115,7 @@ def add_commitment_constraints(b, comm_per):
         if m.config["include_commitment"]:
             op_cost_gen_state = sum(
                 m.fixedCost[gen]
-                * b.periodLength
+                * b.commitmentPeriodLength
                 * m.thermalCapacity[gen]
                 * (
                     b.genOn[gen].indicator_var.get_associated_binary()
@@ -133,7 +134,7 @@ def add_commitment_constraints(b, comm_per):
         else:
             op_cost_gen_state = sum(
                 m.fixedCost[gen]
-                * b.periodLength
+                * b.commitmentPeriodLength
                 * m.thermalCapacity[gen]
                 * b.genOn[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
@@ -173,7 +174,7 @@ def add_investment_commitment_constraints(m, b, investment_stage):
                     m.weights[rep_per]
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
-                    .periodLength
+                    .commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .renewableCurtailmentCommitment  # in MW
