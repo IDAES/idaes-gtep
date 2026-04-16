@@ -78,7 +78,7 @@ def add_commitment_disjuncts(b, commitment_period):
         gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
     else:
 
-        gens.fix_generators_state_disjuncts_to_On(m, b)
+        gens.generators_status_always_on(m, b)
 
     if m.config["storage"]:
         stor.add_storage_state_disjuncts(m, b, commitment_period)
@@ -104,7 +104,6 @@ def add_commitment_constraints(b, comm_per):
     # [ESR TODO: Replace this constraint with expressions using bounds
     # transform and check if the costs considered need to be
     # re-assessed and account for missing data.]
-
     @b.Expression(doc="Total operating costs for commitment block in $")
     def operatingCostCommitment(b):
         # [ESR Note: This term includes the op cost for each
@@ -115,26 +114,34 @@ def add_commitment_constraints(b, comm_per):
         )
         # [ESR: Assuming we are paying for the full capacity of our
         # generator and should be included to have consistent units.]
-        op_cost_gen_state = sum(
-            m.fixedCost[gen]
-            * b.commitmentPeriodLength
-            * m.thermalCapacity[gen]
-            * (
-                b.genOn[gen].indicator_var.get_associated_binary()
-                + b.genShutdown[gen].indicator_var.get_associated_binary()
-                + b.genStartup[gen].indicator_var.get_associated_binary()
-            )
-            for gen in m.thermalGenerators
-        )
-        op_cost_gen_startup = sum(
-            m.startupCost[gen] * b.genStartup[gen].indicator_var.get_associated_binary()
-            for gen in m.thermalGenerators
-        )
-
         if m.config["include_commitment"]:
+            op_cost_gen_state = sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.thermalCapacity[gen]
+                * (
+                    b.genOn[gen].indicator_var.get_associated_binary()
+                    + b.genShutdown[gen].indicator_var.get_associated_binary()
+                    + b.genStartup[gen].indicator_var.get_associated_binary()
+                )
+                for gen in m.thermalGenerators
+            )
+            op_cost_gen_startup = sum(
+                m.startupCost[gen]
+                * b.genStartup[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators
+            )
+
             return op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup
         else:
-            return op_cost_dispatch  # + op_cost_gen_state  # ESR Q: Check if we need this term
+            op_cost_gen_state = sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.thermalCapacity[gen]
+                * b.genOn[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators
+            )
+            return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):

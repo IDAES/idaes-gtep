@@ -519,9 +519,9 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         )
 
 
-def fix_generators_state_disjuncts_to_On(m, b):
-    """This method fixes the generator state disjuncts to 'On' and
-    leaves all other disjuncts inactive. This method is used when unit
+def generators_status_always_on(m, b):
+    """This method defines only one disjunct to enforce that
+    generators are always 'On'. This method is used when unit
     commitment is not modeled, ensuring generators are always
     considered operational while startup, shutdown, and offline states
     are ignored.
@@ -549,32 +549,11 @@ def fix_generators_state_disjuncts_to_On(m, b):
                 <= m.thermalCapacity[generator]
             )
 
-    @b.Disjunct(m.thermalGenerators)
-    def genStartup(disj, generator):
-        return
-
-    @b.Disjunct(m.thermalGenerators)
-    def genShutdown(disj, generator):
-        return
-
-    @b.Disjunct(m.thermalGenerators)
-    def genOff(disj, generator):
-        return
-
     @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
     def genStatus(disj, generator):
         return [
             disj.genOn[generator],
-            disj.genStartup[generator],
-            disj.genShutdown[generator],
-            disj.genOff[generator],
         ]
-
-    for gen in m.thermalGenerators:
-        b.genOn[gen].indicator_var.fix(True)
-        b.genStartup[gen].indicator_var.fix(False)
-        b.genShutdown[gen].indicator_var.fix(False)
-        b.genOff[gen].indicator_var.fix(False)
 
 
 def add_generators_logical_constraints(m):
