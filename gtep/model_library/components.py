@@ -106,7 +106,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         )
 
 
-def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
+def add_model_parameters(m, num_commit, num_dispatch):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -120,9 +120,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
 
     # Add parameters related to the representative periods for the
     # different stages
-    m.representativePeriodLength = pyo.Param(
-        m.representativePeriods, within=pyo.PositiveReals, default=24, units=u.hr
-    )
     m.numCommitmentPeriods = pyo.Param(
         m.representativePeriods,
         within=pyo.PositiveIntegers,
@@ -134,15 +131,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         within=pyo.PositiveIntegers,
         default=2,
         initialize=num_dispatch,
-    )
-    m.commitmentPeriodLength = pyo.Param(
-        within=pyo.PositiveReals, default=1, units=u.hr
-    )
-
-    # [TODO: Index by dispatch period? Certainly index by
-    # commitment period.]
-    m.dispatchPeriodLength = pyo.Param(
-        within=pyo.PositiveReals, initialize=duration_dispatch, units=u.minutes
     )
 
     # Add power-related parameters

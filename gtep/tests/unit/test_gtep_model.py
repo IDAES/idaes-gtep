@@ -169,47 +169,26 @@ class TestGTEP(unittest.TestCase):
         assert_units_consistent(m)
 
         # Check that subset of model components have expected units
+        m_inv = m.investmentStage[1]
+        m_rep_period = m_inv.representativePeriod[1]
+        m_commit = m_rep_period.commitmentPeriod[1]
+        m_disp = m_commit.dispatchPeriod[1]
+        
+        assert_units_equivalent(m_rep_period.periodLength, u.h)
+        assert_units_equivalent(m_commit.periodLength, u.h)
+        assert_units_equivalent(m_disp.periodLength, u.min)
         assert_units_equivalent(m.renewable_capacity_enforcement[1, "10_PV"].expr, u.MW)
-        assert_units_equivalent(
-            m.investmentStage[1].renewable_curtailment_cost.expr, u.USD
-        )
-        assert_units_equivalent(
-            m.investmentStage[1]
-            .representativePeriod[1]
-            .commitmentPeriod[1]
-            .dispatchPeriod[1]
-            .flow_balance["bus1"]
-            .expr,
-            u.MW,
-        )
-        assert_units_equivalent(m.commitmentPeriodLength, u.h)
-        assert_units_equivalent(m.dispatchPeriodLength, u.min)
+        assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
+        assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.dimensionless)
         assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
-            m.investmentStage[1]
-            .representativePeriod[1]
-            .commitmentPeriod[1]
-            .dispatchPeriod[1]
-            .spinningReserve,
+            m_commit.genOn["3_CT"].operating_limit_min[1].expr,
             u.MW,
         )
         assert_units_equivalent(
-            m.investmentStage[1]
-            .representativePeriod[1]
-            .commitmentPeriod[1]
-            .genOn["3_CT"]
-            .operating_limit_min[1]
-            .expr,
-            u.MW,
-        )
-        assert_units_equivalent(
-            m.investmentStage[1]
-            .representativePeriod[1]
-            .commitmentPeriod[1]
-            .genOn["4_STEAM"]
-            .max_spinning_reserve[1, "4_STEAM"]
-            .expr,
+            m_commit.genOn["4_STEAM"].max_spinning_reserve[1, "4_STEAM"].expr,
             u.MW,
         )
 

@@ -94,6 +94,8 @@ class ExpansionPlanningModel:
         len_reps=24,
         num_commit=24,
         num_dispatch=4,
+        duration_representative_period=24,
+        duration_commitment=1,
         duration_dispatch=15,
     ):
         """Initialize generation & expansion planning model object.
@@ -118,12 +120,40 @@ class ExpansionPlanningModel:
         self.len_reps = len_reps
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
-        self.duration_dispatch = duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
+        self.duration_representative_period = self._ensure_list_length(
+            "representative periods", duration_representative_period, num_reps, 24
+        )
+        self.duration_commitment = self._ensure_list_length(
+            "commitment", duration_commitment, num_commit, 1
+        )
+        self.duration_dispatch = self._ensure_list_length(
+            "dispatch", duration_dispatch, num_dispatch, 15
+        )
 
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
+
+    @staticmethod
+    def _ensure_list_length(name, param, expected_length, default_value):
+        """This method ensures that any of the duration parameters is
+        a list of expected_length (equal to number of each
+        stage). If no value is given, a default value is used for
+        each time period.
+
+        """
+        if param is None:
+            return [default_value] * expected_length
+        elif isinstance(param, list):
+            if len(param) != expected_length:
+                print(
+                    f"\n***WARNING: The list {param} for the duration_{name} parameter has a length ({len(param)}), which does not match the expected number of {name} periods ({expected_length}). We will use {default_value} as the default value.\n"
+                )
+                return [default_value] * expected_length
+            return param
+        else:
+            return [param] * expected_length
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
@@ -166,10 +196,15 @@ class ExpansionPlanningModel:
             m,
             self.num_commit,
             self.num_dispatch,
-            self.duration_dispatch,
         )
 
-        create_stages(m, self.stages)
+        create_stages(
+            m,
+            self.stages,
+            self.duration_representative_period,
+            self.duration_commitment,
+            self.duration_dispatch,
+        )
 
         obj_comp.create_objective_function(m)
 
@@ -214,7 +249,9 @@ class ExpansionPlanningModel:
             json.dump(really_bad_var_coef_list, fil)
 
 
-def create_stages(m, stages):
+def create_stages(
+    m, stages, duration_representative_period, duration_commitment, duration_dispatch
+):
     """This method constructs the block structure for the Generation
     and Transmission Expansion Planning (GTEP) model. It creates
     investment, representative period, and commitment blocks for each
@@ -258,6 +295,13 @@ def create_stages(m, stages):
         # representative_period.
         for representative_period in b_inv.representativePeriods:
             b_rep = b_inv.representativePeriod[representative_period]
+
+            b_rep.periodLength = pyo.Param(
+                initialize=duration_representative_period[representative_period - 1],
+                within=pyo.PositiveReals,
+                units=u.hr,
+            )
+
             b_rep.representative_date = m.data.representative_dates[
                 representative_period - 1
             ]
@@ -269,12 +313,10 @@ def create_stages(m, stages):
             # b_rep.day = int(broken_date[2])
             b_rep.currentPeriod = representative_period
 
-            # [ESR NOTE: Include commitment blocks regardless of the
-            # value of include_commitment.  When include_commitment is
-            # False, generators are assumed to be always online, and
+            # Include commitment blocks regardless of the value of
+            # include_commitment.  When False, generators are on and
             # operational costs are determined solely by dispatch
-            # decisions. No redispatch for now.]
-            # if m.config["include_commitment"] or m.config["include_redispatch"]:
+            # decisions.
             b_rep.commitmentPeriods = pyo.RangeSet(
                 m.numCommitmentPeriods[representative_period]
             )
@@ -285,6 +327,13 @@ def create_stages(m, stages):
             # constraints
             for commitment_period in b_rep.commitmentPeriods:
                 b_comm = b_rep.commitmentPeriod[commitment_period]
+
+                b_comm.periodLength = pyo.Param(
+                    initialize=duration_commitment[commitment_period - 1],
+                    within=pyo.PositiveReals,
+                    units=u.hr,
+                )
+
                 b_comm.commitmentPeriod = commitment_period
 
                 if m.config["include_redispatch"]:
@@ -310,21 +359,21 @@ def create_stages(m, stages):
 
                     # [TODO: This feels REALLY inelegant and
                     # bad. Check a better way of declaring these.]
-                    for period in b_comm.dispatchPeriods:
-                        b_comm.dispatchPeriod[period].periodLength = pyo.Param(
-                            initialize=1,
+                    for dispatch_period in b_comm.dispatchPeriods:
+                        b_disp = b_comm.dispatchPeriod[dispatch_period]
+
+                        b_disp.periodLength = pyo.Param(
+                            initialize=duration_dispatch[dispatch_period - 1],
                             within=pyo.PositiveReals,
-                            # units=u.minutes,
+                            units=u.minutes,
                         )
 
                         disp.add_dispatch_variables(
-                            b_comm.dispatchPeriod[period],
-                            period,
-                            m.dispatchPeriodLength,
+                            b_disp,
+                            dispatch_period,
+                            b_disp.periodLength,
                         )
-                        disp.add_dispatch_constraints(
-                            b_comm.dispatchPeriod[period], period
-                        )
+                        disp.add_dispatch_constraints(b_disp, dispatch_period)
 
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
@@ -349,8 +398,8 @@ def create_stages(m, stages):
             rep_period.add_representative_period_variables(b_rep, representative_period)
 
             if m.config["include_commitment"]:
-                # These logical constraint ensure the state
-                # disjuncts stay consistent.
+                # These logical constraints ensure the state disjuncts
+                # stay consistent.
                 rep_period.add_representative_period_logical_constraints(
                     b_rep, representative_period
                 )
