@@ -97,9 +97,18 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.formulation, None)
         self.assertIsInstance(modObject.model.md, ModelData)
         self.assertEqual(modObject.num_reps, 3)
-        self.assertEqual(modObject.len_reps, 24)
-        self.assertEqual(modObject.num_commit, 24)
-        self.assertEqual(modObject.num_dispatch, 4)
+        self.assertEqual(modObject.num_commit, {1: 6, 2: 6, 3: 6})
+        self.assertEqual(
+            modObject.num_dispatch,
+            {
+                1: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
+                2: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
+                3: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
+            },
+        )
+        self.assertEqual(
+            modObject.duration_representative_period, {1: 24, 2: 24, 3: 24}
+        )
 
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
@@ -107,7 +116,6 @@ class TestGTEP(unittest.TestCase):
             data=data_object,
             stages=2,
             num_reps=4,
-            len_reps=16,
             num_commit=12,
             num_dispatch=12,
         )
@@ -118,9 +126,68 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.formulation, None)
         self.assertIsInstance(modObject.model.md, ModelData)
         self.assertEqual(modObject.num_reps, 4)
-        self.assertEqual(modObject.len_reps, 16)
-        self.assertEqual(modObject.num_commit, 12)
-        self.assertEqual(modObject.num_dispatch, 12)
+        self.assertEqual(modObject.num_commit, {1: 12, 2: 12, 3: 12, 4: 12})
+        self.assertEqual(
+            modObject.num_dispatch,
+            {
+                1: {
+                    1: 12,
+                    2: 12,
+                    3: 12,
+                    4: 12,
+                    5: 12,
+                    6: 12,
+                    7: 12,
+                    8: 12,
+                    9: 12,
+                    10: 12,
+                    11: 12,
+                    12: 12,
+                },
+                2: {
+                    1: 12,
+                    2: 12,
+                    3: 12,
+                    4: 12,
+                    5: 12,
+                    6: 12,
+                    7: 12,
+                    8: 12,
+                    9: 12,
+                    10: 12,
+                    11: 12,
+                    12: 12,
+                },
+                3: {
+                    1: 12,
+                    2: 12,
+                    3: 12,
+                    4: 12,
+                    5: 12,
+                    6: 12,
+                    7: 12,
+                    8: 12,
+                    9: 12,
+                    10: 12,
+                    11: 12,
+                    12: 12,
+                },
+                4: {
+                    1: 12,
+                    2: 12,
+                    3: 12,
+                    4: 12,
+                    5: 12,
+                    6: 12,
+                    7: 12,
+                    8: 12,
+                    9: 12,
+                    10: 12,
+                    11: 12,
+                    12: 12,
+                },
+            },
+        )
 
         # We have expansion blocks and they are where and what we think they are
         expansion_blocks = modObject.model.component("investmentStage")
@@ -158,7 +225,6 @@ class TestGTEP(unittest.TestCase):
             data=data_object,
             stages=2,
             num_reps=2,
-            len_reps=2,
             num_commit=2,
             num_dispatch=2,
         )
@@ -196,7 +262,7 @@ class TestGTEP(unittest.TestCase):
         # Solve the debug model as is
         data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.create_model()
 
@@ -223,7 +289,7 @@ class TestGTEP(unittest.TestCase):
         # Solve the debug model with no investment
         data_object = read_debug_model()
         modObject = ExpansionPlanningModel(
-            data=data_object, num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+            data=data_object, num_reps=1, num_commit=1, num_dispatch=1
         )
         modObject.config["include_investment"] = False
         modObject.create_model()
@@ -259,7 +325,6 @@ class TestGTEP(unittest.TestCase):
             data=dataObject,
             cost_data=dataProcessingObject,
             num_reps=2,
-            len_reps=1,
             num_commit=6,
             num_dispatch=4,
             duration_dispatch=15,
@@ -308,7 +373,6 @@ class TestGTEP(unittest.TestCase):
             data=dataObject,
             cost_data=dataProcessingObject,
             num_reps=2,
-            len_reps=1,
             num_commit=6,
             num_dispatch=4,
             duration_dispatch=15,

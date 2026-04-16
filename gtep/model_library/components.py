@@ -106,7 +106,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         )
 
 
-def add_model_parameters(m, num_commit, num_dispatch):
+def add_model_parameters(m):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -117,21 +117,6 @@ def add_model_parameters(m, num_commit, num_dispatch):
     # Add investment years. [TODO: Make sure this value comes from a
     # configuration arg and not hardcoded values.]
     m.years = [2025, 2030, 2035]
-
-    # Add parameters related to the representative periods for the
-    # different stages
-    m.numCommitmentPeriods = pyo.Param(
-        m.representativePeriods,
-        within=pyo.PositiveIntegers,
-        default=2,
-        initialize=num_commit,
-    )
-    m.numDispatchPeriods = pyo.Param(
-        m.representativePeriods,
-        within=pyo.PositiveIntegers,
-        default=2,
-        initialize=num_dispatch,
-    )
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(

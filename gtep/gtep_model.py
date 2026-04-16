@@ -91,8 +91,7 @@ class ExpansionPlanningModel:
         data=None,
         cost_data=None,
         num_reps=3,
-        len_reps=24,
-        num_commit=24,
+        num_commit=6,
         num_dispatch=4,
         duration_representative_period=24,
         duration_commitment=1,
@@ -105,7 +104,6 @@ class ExpansionPlanningModel:
         :param data: full set of model data
         :param cost_data: full set of cost data for all generators
         :param num_reps: integer number of representative periods per investment period
-        :param len_reps: (for now integer) length of each representative period (in hours)
         :param num_commit: integer number of commitment periods per representative period
         :param num_dispatch: integer number of dispatch periods per commitment period
         :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
@@ -116,44 +114,37 @@ class ExpansionPlanningModel:
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
-        self.num_reps = num_reps
-        self.len_reps = len_reps
-        self.num_commit = num_commit
-        self.num_dispatch = num_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
-        self.duration_representative_period = self._ensure_list_length(
-            "representative periods", duration_representative_period, num_reps, 24
+        self.num_reps = num_reps
+        self.num_commit = num_commit
+        self.num_dispatch = num_dispatch
+        self.duration_representative_period = duration_representative_period
+        self.duration_commitment = duration_commitment
+        self.duration_dispatch = duration_dispatch
+
+        (
+            self.num_commit,
+            self.num_dispatch,
+            self.duration_representative_period,
+            self.duration_commitment,
+            self.duration_dispatch,
+        ) = self._expand_period_structure_dict(
+            self.num_reps,
+            self.num_commit,
+            self.num_dispatch,
+            self.duration_representative_period,
+            self.duration_commitment,
+            self.duration_dispatch,
         )
-        self.duration_commitment = self._ensure_list_length(
-            "commitment", duration_commitment, num_commit, 1
-        )
-        self.duration_dispatch = self._ensure_list_length(
-            "dispatch", duration_dispatch, num_dispatch, 15
-        )
+
+        # print(self.num_commit)
+        # print(self.num_dispatch)
+        # print(self.duration_commitment)
+        # print(self.duration_dispatch)
 
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
-
-    @staticmethod
-    def _ensure_list_length(name, param, expected_length, default_value):
-        """This method ensures that any of the duration parameters is
-        a list of expected_length (equal to number of each
-        stage). If no value is given, a default value is used for
-        each time period.
-
-        """
-        if param is None:
-            return [default_value] * expected_length
-        elif isinstance(param, list):
-            if len(param) != expected_length:
-                print(
-                    f"\n***WARNING: The list {param} for the duration_{name} parameter has a length ({len(param)}), which does not match the expected number of {name} periods ({expected_length}). We will use {default_value} as the default value.\n"
-                )
-                return [default_value] * expected_length
-            return param
-        else:
-            return [param] * expected_length
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
@@ -192,15 +183,13 @@ class ExpansionPlanningModel:
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
 
-        comps.add_model_parameters(
-            m,
-            self.num_commit,
-            self.num_dispatch,
-        )
+        comps.add_model_parameters(m)
 
         create_stages(
             m,
             self.stages,
+            self.num_commit,
+            self.num_dispatch,
             self.duration_representative_period,
             self.duration_commitment,
             self.duration_dispatch,
@@ -248,9 +237,85 @@ class ExpansionPlanningModel:
         with open(outfile, "w") as fil:
             json.dump(really_bad_var_coef_list, fil)
 
+    def _expand_period_structure_dict(
+        self,
+        num_reps,
+        num_commit,
+        num_dispatch,
+        duration_representative_period,
+        duration_commitment,
+        duration_dispatch,
+    ):
+        def get(val, *idx):
+            for i in idx:
+                if isinstance(val, (int, float)):
+                    return val
+                elif isinstance(val, list):
+                    val = val[i - 1]
+                elif isinstance(val, dict):
+                    val = val[i]
+                else:
+                    raise ValueError("Unsupported type in period structure")
+            return val
+
+        duration_rep_dict = {
+            rep: get(duration_representative_period, rep)
+            for rep in range(1, num_reps + 1)
+        }
+        num_commit_dict = {rep: get(num_commit, rep) for rep in range(1, num_reps + 1)}
+
+        duration_commit_dict = {}
+        num_dispatch_dict = {}
+        duration_dispatch_dict = {}
+        for rep in range(1, num_reps + 1):
+            ncom = num_commit_dict[rep]
+            duration_commit_dict[rep] = {
+                com: get(duration_commitment, rep, com) for com in range(1, ncom + 1)
+            }
+            num_dispatch_dict[rep] = {
+                com: get(num_dispatch, rep, com) for com in range(1, ncom + 1)
+            }
+            duration_dispatch_dict[rep] = {}
+            for com in range(1, ncom + 1):
+                ndisp = num_dispatch_dict[rep][com]
+                duration_dispatch_dict[rep][com] = {
+                    disp: get(duration_dispatch, rep, com, disp)
+                    for disp in range(1, ndisp + 1)
+                }
+
+            # Consistency check: sum of dispatch durations should
+            # equal the commitment duration
+            dispatch_sum_hr = pyo.units.convert(
+                sum(
+                    duration_dispatch_dict[rep][com][disp]
+                    for disp in range(1, ndisp + 1)
+                )
+                * u.minutes,
+                to_units=u.hours,
+            )
+            commitment_hr = duration_commit_dict[rep][com]
+            if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
+                print(
+                    f"WARNING: The summation of dispatch durations is not the same as the commitment duration ({pyo.value(dispatch_sum_hr)} hr(s) vs {commitment_hr} hr(s)). Make sure these match!"
+                )
+
+        return (
+            num_commit_dict,
+            num_dispatch_dict,
+            duration_rep_dict,
+            duration_commit_dict,
+            duration_dispatch_dict,
+        )
+
 
 def create_stages(
-    m, stages, duration_representative_period, duration_commitment, duration_dispatch
+    m,
+    stages,
+    num_commit,
+    num_dispatch,
+    duration_representative_period,
+    duration_commitment,
+    duration_dispatch,
 ):
     """This method constructs the block structure for the Generation
     and Transmission Expansion Planning (GTEP) model. It creates
@@ -297,7 +362,7 @@ def create_stages(
             b_rep = b_inv.representativePeriod[representative_period]
 
             b_rep.representativePeriodLength = pyo.Param(
-                initialize=duration_representative_period[representative_period - 1],
+                initialize=duration_representative_period[representative_period],
                 within=pyo.PositiveReals,
                 units=u.hr,
             )
@@ -317,9 +382,8 @@ def create_stages(
             # include_commitment.  When False, generators are on and
             # operational costs are determined solely by dispatch
             # decisions.
-            b_rep.commitmentPeriods = pyo.RangeSet(
-                m.numCommitmentPeriods[representative_period]
-            )
+            n_commit = num_commit[representative_period]
+            b_rep.commitmentPeriods = pyo.RangeSet(n_commit)
             b_rep.commitmentPeriod = pyo.Block(b_rep.commitmentPeriods)
 
             # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
@@ -329,7 +393,9 @@ def create_stages(
                 b_comm = b_rep.commitmentPeriod[commitment_period]
 
                 b_comm.commitmentPeriodLength = pyo.Param(
-                    initialize=duration_commitment[commitment_period - 1],
+                    initialize=duration_commitment[representative_period][
+                        commitment_period
+                    ],
                     within=pyo.PositiveReals,
                     units=u.hr,
                 )
@@ -337,9 +403,8 @@ def create_stages(
                 b_comm.commitmentPeriod = commitment_period
 
                 if m.config["include_redispatch"]:
-                    b_comm.dispatchPeriods = pyo.RangeSet(
-                        m.numDispatchPeriods[b_rep.currentPeriod]
-                    )
+                    n_dispatch = num_dispatch[representative_period][commitment_period]
+                    b_comm.dispatchPeriods = pyo.RangeSet(n_dispatch)
                     b_comm.dispatchPeriod = pyo.Block(b_comm.dispatchPeriods)
 
                     # [TODO: update properties for this time period!]
@@ -361,9 +426,10 @@ def create_stages(
                     # bad. Check a better way of declaring these.]
                     for dispatch_period in b_comm.dispatchPeriods:
                         b_disp = b_comm.dispatchPeriod[dispatch_period]
-
                         b_disp.dispatchPeriodLength = pyo.Param(
-                            initialize=duration_dispatch[dispatch_period - 1],
+                            initialize=duration_dispatch[representative_period][
+                                commitment_period
+                            ][dispatch_period],
                             within=pyo.PositiveReals,
                             units=u.minutes,
                         )

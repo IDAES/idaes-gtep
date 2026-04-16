@@ -55,11 +55,11 @@ mod_object = ExpansionPlanningModel(
     stages=2,
     data=data_object,
     cost_data=data_processing_object,
-    num_reps=2,
-    len_reps=1,
-    num_commit=6,
-    num_dispatch=4,
-    # [ESR: in min by default, for now]
+    num_reps=4,
+    num_commit=12,
+    num_dispatch=12,
+    duration_representative_period=24,
+    duration_commitment=1,
     duration_dispatch=15,
 )
 
