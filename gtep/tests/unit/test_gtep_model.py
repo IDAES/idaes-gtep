@@ -173,7 +173,7 @@ class TestGTEP(unittest.TestCase):
         m_rep_period = m_inv.representativePeriod[1]
         m_commit = m_rep_period.commitmentPeriod[1]
         m_disp = m_commit.dispatchPeriod[1]
-        
+
         assert_units_equivalent(m_rep_period.periodLength, u.h)
         assert_units_equivalent(m_commit.periodLength, u.h)
         assert_units_equivalent(m_disp.periodLength, u.min)
