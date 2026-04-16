@@ -48,7 +48,6 @@ def get_solution_object():
         stages=2,
         data=data_object,
         num_reps=2,
-        len_reps=1,
         num_commit=6,
         num_dispatch=4,
     )
