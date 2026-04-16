@@ -114,7 +114,7 @@ class PyomoCheckHelper:
         name: str,
         obj_type: type,
         index: pyo.Set = None,
-        expr: function = None,
+        expr = None,
     ):
         """
         Class that stores expected properties for a pyomo object. Calling
