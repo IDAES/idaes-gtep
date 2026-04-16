@@ -98,7 +98,6 @@ def add_commitment_constraints(b, comm_per):
             for disp_per in b.dispatchPeriods
         )
 
-
     # [ESR TODO: Replace this constraint with expressions using bounds
     # transform and check if the costs considered need to be
     # re-assessed and account for missing data.]

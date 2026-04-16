@@ -174,9 +174,9 @@ class TestGTEP(unittest.TestCase):
         m_commit = m_rep_period.commitmentPeriod[1]
         m_disp = m_commit.dispatchPeriod[1]
 
-        assert_units_equivalent(m_rep_period.periodLength, u.h)
-        assert_units_equivalent(m_commit.periodLength, u.h)
-        assert_units_equivalent(m_disp.periodLength, u.min)
+        assert_units_equivalent(m_rep_period.representativePeriodLength, u.h)
+        assert_units_equivalent(m_commit.commitmentPeriodLength, u.h)
+        assert_units_equivalent(m_disp.dispatchPeriodLength, u.min)
         assert_units_equivalent(m.renewable_capacity_enforcement[1, "10_PV"].expr, u.MW)
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
