@@ -240,7 +240,16 @@ def test_storage_cost_zero_when_storage_false():
 
 
 def test_multiple_stages_zero_costs():
-    m = create_test_model(invest_cost=[0, 0])
+    m = create_test_model(
+        stages=[1, 2],
+        op_cost=[0, 0],
+        storage_cost=[0, 0],
+        invest_cost=[0, 0],
+        quota_deficit=[0, 0],
+        renewable_curtailment=[0, 0],
+        deficit_penalty={1: 0, 2: 0},
+        investment_factor={1: 0, 2: 0},
+    )
     create_objective_function(m)
 
     assert hasattr(m, "total_cost_objective_rule")
@@ -250,7 +259,16 @@ def test_multiple_stages_zero_costs():
 
 
 def test_single_stage_zero_costs():
-    m = create_test_model(stages=[1], expansion_cost=[0])
+    m = create_test_model(
+        stages=[1],
+        op_cost=[0],
+        storage_cost=[0],
+        quota_deficit=[0],
+        renewable_curtailment=[0],
+        expansion_cost=[0],
+        deficit_penalty={1: 0},
+        investment_factor={1: 0},
+    )
     create_objective_function(m)
 
     assert hasattr(m, "total_cost_objective_rule")
