@@ -163,7 +163,10 @@ class ExpansionPlanningModel:
         )
 
         comps.add_model_parameters(
-            m, self.num_commit, self.num_dispatch, self.duration_dispatch
+            m,
+            self.num_commit,
+            self.num_dispatch,
+            self.duration_dispatch,
         )
 
         create_stages(m, self.stages)
@@ -266,18 +269,25 @@ def create_stages(m, stages):
             # b_rep.day = int(broken_date[2])
             b_rep.currentPeriod = representative_period
 
-            if m.config["include_commitment"] or m.config["include_redispatch"]:
-                b_rep.commitmentPeriods = pyo.RangeSet(
-                    m.numCommitmentPeriods[representative_period]
-                )
-                b_rep.commitmentPeriod = pyo.Block(b_rep.commitmentPeriods)
+            # [ESR NOTE: Include commitment blocks regardless of the
+            # value of include_commitment.  When include_commitment is
+            # False, generators are assumed to be always online, and
+            # operational costs are determined solely by dispatch
+            # decisions. No redispatch for now.]
+            # if m.config["include_commitment"] or m.config["include_redispatch"]:
+            b_rep.commitmentPeriods = pyo.RangeSet(
+                m.numCommitmentPeriods[representative_period]
+            )
+            b_rep.commitmentPeriod = pyo.Block(b_rep.commitmentPeriods)
 
-                # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
-                # Add commitment Block and all its equations and
-                # constraints
-                for commitment_period in b_rep.commitmentPeriods:
-                    b_comm = b_rep.commitmentPeriod[commitment_period]
-                    b_comm.commitmentPeriod = commitment_period
+            # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
+            # Add commitment Block and all its equations and
+            # constraints
+            for commitment_period in b_rep.commitmentPeriods:
+                b_comm = b_rep.commitmentPeriod[commitment_period]
+                b_comm.commitmentPeriod = commitment_period
+
+                if m.config["include_redispatch"]:
                     b_comm.dispatchPeriods = pyo.RangeSet(
                         m.numDispatchPeriods[b_rep.currentPeriod]
                     )
@@ -306,8 +316,11 @@ def create_stages(m, stages):
                             within=pyo.PositiveReals,
                             # units=u.minutes,
                         )
+
                         disp.add_dispatch_variables(
-                            b_comm.dispatchPeriod[period], period
+                            b_comm.dispatchPeriod[period],
+                            period,
+                            m.dispatchPeriodLength,
                         )
                         disp.add_dispatch_constraints(
                             b_comm.dispatchPeriod[period], period
@@ -319,29 +332,28 @@ def create_stages(m, stages):
                     # is still desired, pull something different here?
                     # or simply don't enforce linked commitment
                     # constraints?]
-                    if m.config["include_commitment"]:
-                        # Add disjuncts with operational state of
-                        # generators (on/startup/shutdown/off) and
-                        # storage (charging/discharging/off), when
-                        # needed.
-                        commit.add_commitment_disjuncts(b_comm, commitment_period)
 
+                    # Adds disjuncts representing generator operational
+                    # states (on, startup, shutdown, off) and storage
+                    # states (charging, discharging, off) as needed. [ESR
+                    # NOTE: If commitment is not included, generator state
+                    # is fixed to 'on'; storage operational logic remains
+                    # unchanged.
+                    commit.add_commitment_disjuncts(b_comm, commitment_period)
+
+                    # Adds cost-related commitment constraints
                     commit.add_commitment_constraints(b_comm, commitment_period)
 
                 # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
 
-                rep_period.add_representative_period_variables(
+            rep_period.add_representative_period_variables(b_rep, representative_period)
+
+            if m.config["include_commitment"]:
+                # These logical constraint ensure the state
+                # disjuncts stay consistent.
+                rep_period.add_representative_period_logical_constraints(
                     b_rep, representative_period
                 )
-                if m.config["include_commitment"]:
-                    # These logical constraint ensure the state
-                    # disjuncts stay consistent. [TODO ESR: Check if
-                    # consistent_commitment_downtime *should be*
-                    # outside the if statement for
-                    # include_commitment. I put it inside for now.]
-                    rep_period.add_representative_period_logical_constraints(
-                        b_rep, representative_period
-                    )
             # --------------------------------------------------------------
 
     for investment_stage in m.stages:
