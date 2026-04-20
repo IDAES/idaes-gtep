@@ -144,11 +144,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.dispatchPeriodLength = pyo.Param(
         within=pyo.PositiveReals, initialize=duration_dispatch, units=u.minutes
     )
-    m.dispatchPeriodLengthHours = pyo.Param(
-        within=pyo.PositiveReals,
-        initialize=pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr),
-        units=u.hr,
-    )
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(
