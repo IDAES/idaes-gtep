@@ -24,7 +24,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, dispatch_period):
+def add_dispatch_variables(b):
     """This method adds dispatch-associated variables to
     representative period block.
     """
@@ -205,7 +205,7 @@ def add_dispatch_variables(b, dispatch_period):
     )
 
 
-def add_dispatch_constraints(b, disp_per):
+def add_dispatch_constraints(b):
     """This method adds dispatch-associated inequalities to the
     representative period block.
 

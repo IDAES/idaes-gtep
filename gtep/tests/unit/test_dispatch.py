@@ -17,6 +17,7 @@ from pathlib import Path
 import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
 from pyomo.core.base.block import BlockData
+from pyomo.environ import units as u
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
@@ -84,7 +85,7 @@ class TestDispatch(unittest.TestCase):
                 self.m.renewableGenerators,
                 (
                     lambda i: self.b.renewableCurtailment[i]
-                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=pyo.units.hr)
+                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=u.hr)
                     * self.m.curtailmentCost
                 ),
             ),
@@ -96,7 +97,7 @@ class TestDispatch(unittest.TestCase):
                 self.m.thermalGenerators,
                 (
                     lambda i: self.b.thermalGeneration[i]
-                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=pyo.units.hr)
+                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=u.hr)
                     * (self.m.fixedCost[i] + self.m.varCost[i])
                 ),
             ),
