@@ -14,7 +14,6 @@
 Unit tests for the function to create the objective function component
 """
 
-
 import pytest
 import pyomo.environ as pyo
 from gtep.model_library.objective import create_objective_function
@@ -41,15 +40,15 @@ class StageData:
 
 # helper function
 def create_test_model(
-    stages=[1, 2],
-    op_cost=[0, 0],
-    storage_cost=[0, 0],
+    stages=None,
+    op_cost=None,
+    storage_cost=None,
     invest_cost=None,
-    quota_deficit=[0, 0],
-    renewable_curtailment=[0, 0],
+    quota_deficit=None,
+    renewable_curtailment=None,
     expansion_cost=None,
-    deficit_penalty={1: 0, 2: 0},
-    investment_factor={1: 0, 2: 0},
+    deficit_penalty=None,
+    investment_factor=None,
     storage=True,
 ):
     m = pyo.ConcreteModel()
@@ -87,8 +86,11 @@ def create_test_model(
 
 
 # ----------------------------------UNIT TESTS-----------------------------------------#
+
+
 def test_objective_multiple_stages_storage_true():
     m = create_test_model(
+        stages=[1, 2],
         op_cost=[100, 150],
         storage_cost=[50, 75],
         invest_cost=[200, 300],
@@ -129,6 +131,7 @@ def test_objective_multiple_stages_storage_true():
 
 def test_objective_multiple_stages_storage_false():
     m = create_test_model(
+        stages=[1, 2],
         op_cost=[100, 150],
         storage_cost=[50, 75],
         invest_cost=[200, 300],
@@ -178,6 +181,7 @@ def test_objective_single_stage():
         deficit_penalty={1: 2},
         investment_factor={1: 1.5},
         storage=False,
+        storage_cost=[0],
     )
 
     create_objective_function(m)
@@ -201,6 +205,7 @@ def test_objective_single_stage():
 
 def test_storage_cost_zero_when_storage_false():
     m = create_test_model(
+        stages=[1, 2],
         op_cost=[100, 150],
         storage_cost=[50, 75],
         invest_cost=[200, 300],
