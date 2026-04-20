@@ -67,6 +67,12 @@ def prepare_model_and_cost_data():
             "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
         )
     )
+    ng_cost_path = abspath(
+        join(
+            data_path,
+            "Total_Energy_Supply_Disposition_and_Price_Summary.csv",
+        )
+    )
     candidate_gens = [
         "Natural Gas_CT",
         "Natural Gas_FE",
@@ -78,6 +84,7 @@ def prepare_model_and_cost_data():
     dataProcessingObject.load_gen_data(
         bus_data_path=bus_data_path,
         cost_data_path=cost_data_path,
+        ng_cost_path=ng_cost_path,
         candidate_gens=candidate_gens,
     )
     return dataObject, dataProcessingObject
