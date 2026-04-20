@@ -320,7 +320,6 @@ def create_stages(m, stages):
                         disp.add_dispatch_variables(
                             b_comm.dispatchPeriod[period],
                             period,
-                            m.dispatchPeriodLength,
                         )
                         disp.add_dispatch_constraints(
                             b_comm.dispatchPeriod[period], period

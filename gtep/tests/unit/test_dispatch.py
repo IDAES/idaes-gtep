@@ -84,7 +84,7 @@ class TestDispatch(unittest.TestCase):
                 self.m.renewableGenerators,
                 (
                     lambda i: self.b.renewableCurtailment[i]
-                    * self.m.dispatchPeriodLengthHours
+                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=pyo.units.hr)
                     * self.m.curtailmentCost
                 ),
             ),
@@ -96,7 +96,7 @@ class TestDispatch(unittest.TestCase):
                 self.m.thermalGenerators,
                 (
                     lambda i: self.b.thermalGeneration[i]
-                    * self.m.dispatchPeriodLengthHours
+                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=pyo.units.hr)
                     * (self.m.fixedCost[i] + self.m.varCost[i])
                 ),
             ),
