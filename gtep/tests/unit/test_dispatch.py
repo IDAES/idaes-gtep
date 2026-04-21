@@ -42,7 +42,7 @@ def get_dispatch_block():
     )
     mod_object.create_model()
 
-    # get first dispatch block
+    # get first dispatch block -- TODO: should we check all the dispatch blocks?
     current_block = mod_object.model
     for component_name in [
         "investmentStage",
@@ -133,9 +133,21 @@ class TestDispatch(unittest.TestCase):
                 name="loadShed",
                 obj_type=pyo.Var,
                 index=self.m.buses,
-                # domain=pyo.NonNegativeReals,
+                domain=pyo.NonNegativeReals,
                 # initialize=0,
-                # units=u.MW,
+                units=u.MW,
+            ),
+            PyomoCheckHelper(
+                td=self,
+                parent=self.b,
+                name="loadShedCost",
+                obj_type=pyo.Expression,
+                index=self.m.buses,
+                expr=(
+                    lambda i: self.b.loadShed[i]
+                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                    * self.m.loadShedCostperCurtailment
+                ),
             ),
         ]
 
@@ -151,6 +163,8 @@ class PyomoCheckHelper:
         name: str,
         obj_type: type,
         index: pyo.Set = None,
+        domain: pyo.Set = None,
+        units=u.dimensionless,
         expr=None,
         condition: bool = True,
     ):
@@ -163,8 +177,13 @@ class PyomoCheckHelper:
         :param name:        Expected name of the pyomo object.
         :param obj_type:    Expected type of the pyomo object.
         :param index:       Expected indexing object of the pyomo object.
+        :param domain:      Expected domain of the pyomo object. Defaults to `None`, in which
+                                case the object is expected to have no `domain` attribute.
+        :param units:       Expected units of the pyomo object. Defaults to
+                                `pyomo.environ.units.dimensionless`, corresponding to the case
+                                that the object is dimensionless (or does not have a defined unit).
         :param expr:        Expected expression of the pyomo object. Defaults to `None`,
-                                in which case the object is expected to have no expression.
+                                in which case the object is expected to have no `expr` attribute.
         :param condition:   Flag that determines whether this pyomo object should be present.
                                 If `condition=True`, checks proceed based on the other arguments.
                                 If `condition=False`, we check that `block` does __not__ have an
@@ -175,6 +194,7 @@ class PyomoCheckHelper:
         :type name:         str
         :type obj_type:     type
         :type index:        pyomo.environ.Set | None
+        :type domain:       pyomo.environ.Set | None
         :type expr:         function
         :type condition:    bool
         """
@@ -183,33 +203,46 @@ class PyomoCheckHelper:
         self.name = name
         self.obj_type = obj_type
         self.index = index
+        self.domain = domain
+        self.units = units
         self.expr = expr
         self.condition = condition
 
     def _check_exists(self):
         self.td.assertTrue(hasattr(self.parent, self.name))
+        self.obj = self.parent.component(self.name)
 
     def _check_does_not_exist(self):
         self.td.assertFalse(hasattr(self.parent, self.name))
 
     def _check_type(self):
-        self.td.assertIsInstance(self.parent.component(self.name), self.obj_type)
+        self.td.assertIsInstance(self.obj, self.obj_type)
 
     def _check_index(self):
         if self.index is None:
-            self.td.assertFalse(self.parent.component(self.name).is_indexed())
+            self.td.assertFalse(self.obj.is_indexed())
         else:
-            self.td.assertTrue(self.parent.component(self.name).is_indexed())
-            self.td.assertIs(self.parent.component(self.name).index_set(), self.index)
+            self.td.assertTrue(self.obj.is_indexed())
+            self.td.assertIs(self.obj.index_set(), self.index)
+
+    def _check_domain(self):
+        if self.domain is not None:
+            for i in self.obj.index_set():
+                self.td.assertIs(self.obj[i].domain, self.domain)
+        else:
+            self.td.assertFalse(hasattr(self.obj, "domain"))
+
+    def _check_units(self):
+        self.td.assertEqual(u.get_units(self.obj), self.units)
 
     def _check_expr(self):
         if self.expr is None:
-            self.td.assertFalse(hasattr(self.parent.component(self.name), "expr"))
+            self.td.assertFalse(hasattr(self.obj, "expr"))
         else:
-            for i in self.index:
+            for i in self.obj.index_set():
                 self.td.assertExpressionsStructurallyEqual(
                     self.expr(i),
-                    self.parent.component(self.name)[i].expr,
+                    self.obj[i].expr,
                 )
 
     def check(self):
@@ -217,6 +250,8 @@ class PyomoCheckHelper:
             self._check_exists()
             self._check_type()
             self._check_index()
+            self._check_domain()
+            self._check_units()
             self._check_expr()
         else:
             self._check_does_not_exist()
