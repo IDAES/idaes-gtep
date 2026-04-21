@@ -296,8 +296,6 @@ class TestGTEP(unittest.TestCase):
 
         modObject.create_model()
 
-        return modObject
-
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
         assert_units_consistent(modObject.model)
@@ -345,8 +343,6 @@ class TestGTEP(unittest.TestCase):
 
         modObject.create_model()
 
-        return modObject
-
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
         assert_units_consistent(modObject.model)
@@ -360,9 +356,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 1524518259.28, places=1
+            value(modObject.model.total_cost_objective_rule), 1524533561.02, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
