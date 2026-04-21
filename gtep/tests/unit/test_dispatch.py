@@ -67,39 +67,75 @@ class TestDispatch(unittest.TestCase):
     def test_add_dispatch_variables(self):
         to_check = [
             PyomoCheckHelper(
-                self,
-                self.b,
-                "renewableGenerationSurplus",
-                pyo.Expression,
-                self.m.renewableGenerators,
-                (
+                td=self,
+                parent=self.b,
+                name="renewableGenerationSurplus",
+                obj_type=pyo.Expression,
+                index=self.m.renewableGenerators,
+                expr=(
                     lambda i: self.b.renewableGeneration[i]
                     - self.b.renewableCurtailment[i]
                 ),
             ),
             PyomoCheckHelper(
-                self,
-                self.b,
-                "renewableCurtailmentCost",
-                pyo.Expression,
-                self.m.renewableGenerators,
-                (
+                td=self,
+                parent=self.b,
+                name="renewableCurtailmentCost",
+                obj_type=pyo.Expression,
+                index=self.m.renewableGenerators,
+                expr=(
                     lambda i: self.b.renewableCurtailment[i]
-                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
                     * self.m.curtailmentCost
                 ),
             ),
             PyomoCheckHelper(
-                self,
-                self.b,
-                "thermalGeneratorCost",
-                pyo.Expression,
-                self.m.thermalGenerators,
-                (
+                td=self,
+                parent=self.b,
+                name="thermalGeneratorCost",
+                obj_type=pyo.Expression,
+                index=self.m.thermalGenerators,
+                expr=(
                     lambda i: self.b.thermalGeneration[i]
-                    * pyo.units.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
                     * (self.m.fixedCost[i] + self.m.varCost[i])
                 ),
+            ),
+            PyomoCheckHelper(
+                td=self,
+                parent=self.b,
+                name="renewableGeneratorCost",
+                obj_type=pyo.Expression,
+                index=self.m.renewableGenerators,
+                expr=(
+                    lambda i: self.b.renewableGeneration[i]
+                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                    * self.m.fixedCost[i]
+                ),
+            ),
+            PyomoCheckHelper(
+                td=self,
+                parent=self.b,
+                name="reactiveGeneratorCost",
+                obj_type=pyo.Expression,
+                index=self.m.thermalGenerators,
+                expr=(
+                    lambda i: self.b.thermalReactiveGeneration[i] * self.m.fuelCost[i]
+                ),
+                condition=(
+                    self.m.config["flow_model"] == "ACR"
+                    or self.m.config["flow_model"] == "ACP"
+                ),
+            ),
+            PyomoCheckHelper(
+                td=self,
+                parent=self.b,
+                name="loadShed",
+                obj_type=pyo.Var,
+                index=self.m.buses,
+                # domain=pyo.NonNegativeReals,
+                # initialize=0,
+                # units=u.MW,
             ),
         ]
 
@@ -111,48 +147,76 @@ class PyomoCheckHelper:
     def __init__(
         self,
         td: TestDispatch,
-        block: BlockData,
+        parent: BlockData,
         name: str,
         obj_type: type,
         index: pyo.Set = None,
         expr=None,
+        condition: bool = True,
     ):
         """
         Class that stores expected properties for a pyomo object. Calling
         the .check() method runs asserts to check for those properties.
+
+        :param td:          TestDispatch instance.
+        :param parent:      Expected parent object that holds the pyomo object.
+        :param name:        Expected name of the pyomo object.
+        :param obj_type:    Expected type of the pyomo object.
+        :param index:       Expected indexing object of the pyomo object.
+        :param expr:        Expected expression of the pyomo object. Defaults to `None`,
+                                in which case the object is expected to have no expression.
+        :param condition:   Flag that determines whether this pyomo object should be present.
+                                If `condition=True`, checks proceed based on the other arguments.
+                                If `condition=False`, we check that `block` does __not__ have an
+                                attribute `name`, and no other checks are performed.
+                                Defaults to `True`.
+        :type td:           TestDispatch
+        :type parent:       BlockData
+        :type name:         str
+        :type obj_type:     type
+        :type index:        pyomo.environ.Set | None
+        :type expr:         function
+        :type condition:    bool
         """
         self.td = td
-        self.block = block
+        self.parent = parent
         self.name = name
         self.obj_type = obj_type
         self.index = index
         self.expr = expr
+        self.condition = condition
 
     def _check_exists(self):
-        self.td.assertTrue(hasattr(self.block, self.name))
+        self.td.assertTrue(hasattr(self.parent, self.name))
+
+    def _check_does_not_exist(self):
+        self.td.assertFalse(hasattr(self.parent, self.name))
 
     def _check_type(self):
-        self.td.assertIsInstance(self.block.component(self.name), self.obj_type)
+        self.td.assertIsInstance(self.parent.component(self.name), self.obj_type)
 
     def _check_index(self):
         if self.index is None:
-            self.td.assertFalse(self.block.component(self.name).is_indexed())
+            self.td.assertFalse(self.parent.component(self.name).is_indexed())
         else:
-            self.td.assertTrue(self.block.component(self.name).is_indexed())
-            self.td.assertIs(self.block.component(self.name).index_set(), self.index)
+            self.td.assertTrue(self.parent.component(self.name).is_indexed())
+            self.td.assertIs(self.parent.component(self.name).index_set(), self.index)
 
     def _check_expr(self):
         if self.expr is None:
-            self.td.assertFalse(hasattr(self.block.component(self.name), "expr"))
+            self.td.assertFalse(hasattr(self.parent.component(self.name), "expr"))
         else:
             for i in self.index:
                 self.td.assertExpressionsStructurallyEqual(
                     self.expr(i),
-                    self.block.component(self.name)[i].expr,
+                    self.parent.component(self.name)[i].expr,
                 )
 
     def check(self):
-        self._check_exists()
-        self._check_type()
-        self._check_index()
-        self._check_expr()
+        if self.condition:
+            self._check_exists()
+            self._check_type()
+            self._check_index()
+            self._check_expr()
+        else:
+            self._check_does_not_exist()

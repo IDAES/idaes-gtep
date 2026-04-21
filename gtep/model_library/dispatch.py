@@ -50,7 +50,7 @@ def add_dispatch_variables(b):
     def renewableCurtailmentCost(b, renewableGen):
         return (
             b.renewableCurtailment[renewableGen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.curtailmentCost
         )
 
@@ -58,7 +58,7 @@ def add_dispatch_variables(b):
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
@@ -66,7 +66,7 @@ def add_dispatch_variables(b):
     def renewableGeneratorCost(b, gen):
         return (
             b.renewableGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
 
@@ -88,7 +88,7 @@ def add_dispatch_variables(b):
     def loadShedCost(b, bus):
         return (
             b.loadShed[bus]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
