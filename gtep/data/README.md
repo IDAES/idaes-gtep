@@ -13,7 +13,7 @@ needed data files. Each file serves a specific purpose in providing
 the necessary data for the model.
 
 | File                | Type    | Description                                             |
-|---------------------|-------------------------------------------------------------------|
+|---------------------|---------|---------------------------------------------------------|
 | case_name           | M       | Includes the base MVA, bus, branch, and generators data |
 | DAY_AHEAD_load      | CSV     | Forecast of electricity demand expected load            |
 | DAY_AHEAD_renewables| CSV     | Forecast of expected generation for renewable generators|
@@ -30,14 +30,14 @@ The script generates several output files that are structured for easy
 integration into IDAES-GTEP models. Each output file contains specific
 data required for modeling and simulation.
 
-| File                  | Type    | Description                                             |
-|-----------------------|-------------------------------------------------------------------|
-| bus                   | CSV     | Includes bus ID, name, base KV, bus type, load, etc.    |
-| branch                | CSV     | Includes the branch ID, the from and to bus information, and reactance and rating values|
-| gen                   | CSV     | Includes generators names, maximum and minimum operation points, ramp rates, etc.       |
-| initial_status        | CSV     | Defines the initial levels of each generator in the case |
-| reserves              | CSV     | Declares the reserves products and their requirementes. By default, it is empty |
-| simulation_parameters | CSV     | Defines all the time parameters in the model             |
+| File                  | Type    | Description                                                                                                    |
+|-----------------------|---------|----------------------------------------------------------------------------------------------------------------|
+| bus                   | CSV     | Includes bus ID, name, base KV, bus type, load, etc.                                                           |
+| branch                | CSV     | Includes the branch ID, the from and to bus information, and reactance and rating values                       |
+| gen                   | CSV     | Includes generators names, maximum and minimum operation points, ramp rates, etc.                              |
+| initial_status        | CSV     | Defines the initial levels of each generator in the case                                                       |
+| reserves              | CSV     | Declares the reserves products and their requirementes. By default, it is empty                                |
+| simulation_parameters | CSV     | Defines all the time parameters in the model                                                                   |
 | timeseries_pointers   | CSV     | Includes the informaton that describes the simulation category and the data files required for each simulation |
 
 
