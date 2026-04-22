@@ -12,7 +12,7 @@ def main(mfile):
 
     # Add name of .m file
     data_file = mfile
-    
+
     # Specify the path to your .m file
     path = os.path.dirname(os.path.realpath(__file__))
     data_path = os.path.join(path, f"{data_file}.m")
@@ -25,7 +25,9 @@ def main(mfile):
     create_and_save_data(data_file, data_path, gen_data, "gen", info_text=info_text)
 
     branch_data, info_text = read_data_from_m_file(data_path, "branch")
-    create_and_save_data(data_file, data_path, branch_data, "branch", info_text=info_text)
+    create_and_save_data(
+        data_file, data_path, branch_data, "branch", info_text=info_text
+    )
 
     # Create other files
     csv_file_name = "reserves.csv"
@@ -36,7 +38,7 @@ def main(mfile):
 
     create_pointers(path, data_file)
 
-    
+
 def create_and_save_data(data_file, data_path, data, data_type, info_text):
     """This method processes and saves the data from a specified type
     (bus, generator, generator cost, or branch) into a CSV file.  This
@@ -53,11 +55,10 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
     - data_type (str): A string indicating the type of data being
                        processed and it can be 'bus', 'gen', or
                        'branch
-    - info_text (str): Optional text containing generator setpoint 
+    - info_text (str): Optional text containing generator setpoint
                        replacement notes.
 
     """
-
 
     # Define the headers for the .csv file based on the data type
     if data_type == "bus":
@@ -139,7 +140,6 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
             else:
                 val = "Ref"
 
-
             bus_id = int(row[0])
             bus_name = f"bus{int(bus_id)}"  # Creating a Bus Name based on Bus ID
             base_kv = row[9]
@@ -204,42 +204,24 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
             # add bus_id data. To do this, check if in_text_pmax
             # matches pmax and if it does, save the bus_id
             for gen_info in generator_setpoints.values():
-                if gen_info['in_text_pg'] == pg:
-                    bus_id = gen_info['bus_id'] 
+                if gen_info["in_text_pg"] == pg:
+                    bus_id = gen_info["bus_id"]
                     break  # Exit the loop once a match is found
 
             # Define operational limits and fuel types for each
             # generator type. NOTE: These limits are assumed for the
             # purpose of data generation.
             other_generator_info = {
-                "HYDRO": {   # Hydroelectric
-                    "limits": (0, 20),
-                    "fuel": "H"
-                },
-                "WIND": {  # Wind
-                    "limits": (20, 50),
-                    "fuel": "W"
-                },
-                "PV": {  # Photovoltaic
-                    "limits": (51, 100),
-                    "fuel": "S"
-                },
-                "CT": {  # Combustion Turbine (Gas)
-                    "limits": (101, 300),
-                    "fuel": "G"
-                },
+                "HYDRO": {"limits": (0, 20), "fuel": "H"},  # Hydroelectric
+                "WIND": {"limits": (20, 50), "fuel": "W"},  # Wind
+                "PV": {"limits": (51, 100), "fuel": "S"},  # Photovoltaic
+                "CT": {"limits": (101, 300), "fuel": "G"},  # Combustion Turbine (Gas)
                 "RTPV": {  # Renewable Photovoltaic (Solar)
                     "limits": (301, 600),
-                    "fuel": "S"
+                    "fuel": "S",
                 },
-                "STEAM": {  # Steam Turbine (Coal)
-                    "limits": (601, 5000),
-                    "fuel": "C"
-                },
-                "CC": {  # Combined Cycle (Gas)
-                    "limits": (101, 300),
-                    "fuel": "G"
-                }
+                "STEAM": {"limits": (601, 5000), "fuel": "C"},  # Steam Turbine (Coal)
+                "CC": {"limits": (101, 300), "fuel": "G"},  # Combined Cycle (Gas)
             }
             # operational_limits = {
             #     "HYDRO": (0, 20),
@@ -251,7 +233,9 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
             # }
 
             for generator_type, info in other_generator_info.items():
-                min_limit, max_limit = info["limits"]  # Access limits from the inner dictionary
+                min_limit, max_limit = info[
+                    "limits"
+                ]  # Access limits from the inner dictionary
                 if min_limit <= pmax <= max_limit:
                     unit_type = generator_type
                     fuel = info["fuel"]
@@ -294,7 +278,7 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
                 hr_incr_4,
             ]
 
-        elif data_type == "branch":      
+        elif data_type == "branch":
             branch_uid = f"branch_{int(row[0])}_{int(row[1])}"
             from_bus = int(row[0])
             to_bus = int(row[1])
@@ -305,7 +289,7 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
             lte_rating = row[6]
             stw_rating = row[7]
             tr_ratio = row[8]
-            
+
             columns = [
                 branch_uid,
                 from_bus,
@@ -338,10 +322,13 @@ def create_and_save_data(data_file, data_path, data, data_type, info_text):
     print(f"Successfully created CSV file: '{csv_filename}'")
 
     if data_type == "gen":
-        
+
         # Create the custom CSV file with the specified structure
-        initial_status_csv_filename = os.path.join(output_directory, 'initial_status.csv')
+        initial_status_csv_filename = os.path.join(
+            output_directory, "initial_status.csv"
+        )
         create_initial_status_csv(initial_status_csv_filename, df_data)
+
 
 def create_initial_status_csv(csv_filename, df_data):
     """
@@ -377,13 +364,14 @@ def create_initial_status_csv(csv_filename, df_data):
         custom_df = pd.DataFrame(columns=header)
         custom_df.loc[0] = values1
         custom_df.loc[1] = values2
-        
+
         # Write the custom DataFrame to a CSV file
         custom_df.to_csv(csv_filename, index=False, header=True)
         print(f"Successfully created CSV file: '{csv_filename}'")
     else:
         print("No data available to create the custom CSV file.")
-        
+
+
 def read_data_from_m_file(file_path, data_type):
     """This method reads specified data from a .m file based on the
        provided data type (bus, generator, or branch) and extracts it
@@ -392,17 +380,17 @@ def read_data_from_m_file(file_path, data_type):
 
     Input Parameters:
     - file_path (str): The path to the .m file to be read.
-    - data_type (str): The type of data to extract. The valid options are 
+    - data_type (str): The type of data to extract. The valid options are
                        'bus', 'gen', and 'branch'.
 
     Returns:
-    - data (list of lists): A list containing the extracted data, where 
-                             each inner list corresponds to a row of data 
+    - data (list of lists): A list containing the extracted data, where
+                             each inner list corresponds to a row of data
                              from the specified section of the .m file.
     - info_text (str): The extracted generator setpoint replacement notes.
 
     """
-    
+
     # Read original data file
     with open(file_path, "r") as file:
         lines = file.readlines()
@@ -412,7 +400,7 @@ def read_data_from_m_file(file_path, data_type):
     data_section = False
     info_text = ""
     info_section = False
-    
+
     # Determine the section to look for based on the data type
     section_identifier = {
         "bus": "mpc.bus =",
@@ -433,7 +421,6 @@ def read_data_from_m_file(file_path, data_type):
                 cleaned_line = line.strip().rstrip(";")
                 data.append(list(map(float, cleaned_line.split())))
 
-                
     # Collect information for generators from the .m file notes
     for line in lines:
         # Check for the generator setpoint replacement notes section
@@ -445,8 +432,8 @@ def read_data_from_m_file(file_path, data_type):
                 info_section = False  # End of info section
             else:
                 # Remove the "% INFO" prefix and append the line
-                cleaned_line = line.replace('% INFO    : ', '').strip()
-                info_text += cleaned_line + '\n'  # Append relevant info lines
+                cleaned_line = line.replace("% INFO    : ", "").strip()
+                info_text += cleaned_line + "\n"  # Append relevant info lines
 
     return data, info_text
 
@@ -465,33 +452,38 @@ def extract_generator_setpoints(info_text):
 
     """
     generator_setpoints = {}
-    lines = info_text.strip().split('\n')
+    lines = info_text.strip().split("\n")
     count_lines = 0
     for line in lines:
         count_lines += 1
         if "Gen at bus" in line:
-            parts = line.split(':')
+            parts = line.split(":")
             bus_info = parts[0].strip()  # e.g., "Gen at bus n"
-            pg_info = parts[1].strip()    # e.g., "Pg=0.0, Qg=0.0 -> Pg=0.0, Qg=0.0"
+            pg_info = parts[1].strip()  # e.g., "Pg=0.0, Qg=0.0 -> Pg=0.0, Qg=0.0"
 
             if " Pg" in pg_info:
                 # Extract bus ID from "Gen at bus X"
                 bus_id = int(bus_info.split()[-1])
 
                 # Extract the updated Pg value (the value before the '->')
-                updated_pg = float(pg_info.split('->')[0].split(',')[0].split('=')[1].strip())
+                updated_pg = float(
+                    pg_info.split("->")[0].split(",")[0].split("=")[1].strip()
+                )
 
                 # Extract new Pg value (the value after the '->') for matching with Pmax
-                in_text_pg = float(pg_info.split('->')[1].split(',')[0].split('=')[1].strip())
-                
+                in_text_pg = float(
+                    pg_info.split("->")[1].split(",")[0].split("=")[1].strip()
+                )
+
                 # Store the original Pg value and bus info in the dictionary
                 generator_setpoints[f"bus_info_line{count_lines}"] = {
-                    'in_text_pg': in_text_pg,
-                    'updated_pg': updated_pg,
-                    'bus_id': bus_id,
+                    "in_text_pg": in_text_pg,
+                    "updated_pg": updated_pg,
+                    "bus_id": bus_id,
                 }
 
     return generator_setpoints
+
 
 def create_reserve_product(path, data_file, csv_filename, data=None):
     """Creates a CSV file with specified headers for reserve products.
@@ -536,7 +528,7 @@ def create_simulation_parameters(path, data_file, csv_filename):
             "REAL_TIME": 300,
         },
         {
-	    "Simulation_Parameters": "Date_From",
+            "Simulation_Parameters": "Date_From",
             "Description": "simulation beginning period",
             "DAY_AHEAD": "01/01/2020 0:00",
             "REAL_TIME": "01/01/2020 0:00",
@@ -559,7 +551,6 @@ def create_simulation_parameters(path, data_file, csv_filename):
             "DAY_AHEAD": 3600,
             "REAL_TIME": 300,
         },
-        
     ]
 
     # Create a DataFrame from the data
@@ -569,6 +560,7 @@ def create_simulation_parameters(path, data_file, csv_filename):
     csv_filepath = os.path.join(path, data_file, csv_filename)
     df.to_csv(csv_filepath, index=False, header=True)
     print(f"Successfully created CSV file: '{data_file}/{csv_filename}'")
+
 
 def create_pointers(path, data_file):
     # Define the filenames
@@ -581,48 +573,57 @@ def create_pointers(path, data_file):
     dam_renewables_file = os.path.join(path, data_file, dam_renewables_filename)
     dam_load_file = os.path.join(path, data_file, dam_load_filename)
     rtm_renewables_file = os.path.join(path, data_file, rtm_renewables_filename)
-    rtm_load_file = os.path.join(path, data_file, rtm_load_filename)    
+    rtm_load_file = os.path.join(path, data_file, rtm_load_filename)
     output_file = "timeseries_pointers.csv"
 
     # Check if the files exist
     for i in [
-            dam_renewables_file,
-            dam_load_file,
-            rtm_renewables_file,
-            rtm_load_file,
+        dam_renewables_file,
+        dam_load_file,
+        rtm_renewables_file,
+        rtm_load_file,
     ]:
         if not os.path.exists(i):
-            print(f"File not found: {i}. Please make sure to provide those files so the timeseries_pointers file can be generated.")
+            print(
+                f"File not found: {i}. Please make sure to provide those files so the timeseries_pointers file can be generated."
+            )
             return
 
-    
     # Prepare the data for CSV file
     simulation_data = []
 
     # Read the renewables file and skip the first four columns
     for fname in [dam_renewables_file, rtm_renewables_file]:
-        simulation_name = "_".join(os.path.splitext(os.path.basename(fname))[0].split("_")[:-1])
-        
+        simulation_name = "_".join(
+            os.path.splitext(os.path.basename(fname))[0].split("_")[:-1]
+        )
+
         renewables_df = pd.read_csv(fname)
         renewables_columns = renewables_df.columns[4:]
 
         # Extract the filename
         filename = os.path.basename(fname)
-    
+
         for generator in renewables_columns:
             if generator in ["1_HYDRO", "2_RTPV"]:
 
                 # Add PMIN MW row only to Hydro and RTPV generators
-                simulation_data.append([simulation_name, "Generator", generator, "PMIN MW", filename])
-    
-            simulation_data.append([simulation_name, "Generator", generator, "PMAX MW", filename])
+                simulation_data.append(
+                    [simulation_name, "Generator", generator, "PMIN MW", filename]
+                )
+
+            simulation_data.append(
+                [simulation_name, "Generator", generator, "PMAX MW", filename]
+            )
 
     for fname in [dam_load_file, rtm_load_file]:
-        simulation_name = "_".join(os.path.splitext(os.path.basename(fname))[0].split("_")[:-1])
-        
-        # Read the load file and skip the first four columns 
+        simulation_name = "_".join(
+            os.path.splitext(os.path.basename(fname))[0].split("_")[:-1]
+        )
+
+        # Read the load file and skip the first four columns
         load_df = pd.read_csv(fname)
-        load_columns = load_df.columns[4:]  
+        load_columns = load_df.columns[4:]
 
         # Extract the filename
         filename = os.path.basename(fname)
@@ -630,11 +631,16 @@ def create_pointers(path, data_file):
         # Add data from the load file
         for area in load_columns:
             simulation_data.append([simulation_name, "Area", area, "MW Load", filename])
-        
+
     # Create a DataFrame from the simulation data and sort the data to
     # have "DAY_AHEAD" first and then the object type
-    simulation_data.sort(key=lambda x: (x[0] != "DAY_AHEAD", x[1] != "Generator", x[3] != "PMIN MW"))
-    simulation_df = pd.DataFrame(simulation_data, columns=["Simulation", "Category", "Object", "Parameter", "Data File"])
+    simulation_data.sort(
+        key=lambda x: (x[0] != "DAY_AHEAD", x[1] != "Generator", x[3] != "PMIN MW")
+    )
+    simulation_df = pd.DataFrame(
+        simulation_data,
+        columns=["Simulation", "Category", "Object", "Parameter", "Data File"],
+    )
 
     # Write the DataFrame to a new CSV file
     csv_filename = "timeseries_pointers"
@@ -642,9 +648,7 @@ def create_pointers(path, data_file):
     simulation_df.to_csv(csv_filepath, index=False)
     print(f"Successfully created CSV file: '{data_file}/{csv_filename}'")
 
+
 if __name__ == "__main__":
 
     main()
-
-
-    

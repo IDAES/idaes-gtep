@@ -38,7 +38,7 @@ data required for modeling and simulation.
 | initial_status        | CSV     | Defines the initial levels of each generator in the case                                                       |
 | reserves              | CSV     | Declares the reserves products and their requirementes. By default, it is empty                                |
 | simulation_parameters | CSV     | Defines all the time parameters in the model                                                                   |
-| timeseries_pointers   | CSV     | Includes the informaton that describes the simulation category and the data files required for each simulation |
+| timeseries_pointers   | CSV     | Includes the information that describes the simulation category and the data files required for each simulation |
 
 
 ## How to Run the Script
