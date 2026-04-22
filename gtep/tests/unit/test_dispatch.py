@@ -65,94 +65,75 @@ class TestDispatch(unittest.TestCase):
         cls.m = cls.b.model()
 
     def test_add_dispatch_variables(self):
-        to_check = [
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="renewableGenerationSurplus",
-                obj_type=pyo.Expression,
-                index=self.m.renewableGenerators,
-                expr=(
-                    lambda i: self.b.renewableGeneration[i]
-                    - self.b.renewableCurtailment[i]
-                ),
+        check_helper = PyomoCheckHelper(self, self.b)
+        check_helper.add_object(
+            name="renewableGenerationSurplus",
+            obj_type=pyo.Expression,
+            index=self.m.renewableGenerators,
+            expr=(
+                lambda i: self.b.renewableGeneration[i] - self.b.renewableCurtailment[i]
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="renewableCurtailmentCost",
-                obj_type=pyo.Expression,
-                index=self.m.renewableGenerators,
-                expr=(
-                    lambda i: self.b.renewableCurtailment[i]
-                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
-                    * self.m.curtailmentCost
-                ),
+        )
+        check_helper.add_object(
+            name="renewableCurtailmentCost",
+            obj_type=pyo.Expression,
+            index=self.m.renewableGenerators,
+            expr=(
+                lambda i: self.b.renewableCurtailment[i]
+                * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                * self.m.curtailmentCost
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="thermalGeneratorCost",
-                obj_type=pyo.Expression,
-                index=self.m.thermalGenerators,
-                expr=(
-                    lambda i: self.b.thermalGeneration[i]
-                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
-                    * (self.m.fixedCost[i] + self.m.varCost[i])
-                ),
+        )
+        check_helper.add_object(
+            name="thermalGeneratorCost",
+            obj_type=pyo.Expression,
+            index=self.m.thermalGenerators,
+            expr=(
+                lambda i: self.b.thermalGeneration[i]
+                * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                * (self.m.fixedCost[i] + self.m.varCost[i])
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="renewableGeneratorCost",
-                obj_type=pyo.Expression,
-                index=self.m.renewableGenerators,
-                expr=(
-                    lambda i: self.b.renewableGeneration[i]
-                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
-                    * self.m.fixedCost[i]
-                ),
+        )
+        check_helper.add_object(
+            name="renewableGeneratorCost",
+            obj_type=pyo.Expression,
+            index=self.m.renewableGenerators,
+            expr=(
+                lambda i: self.b.renewableGeneration[i]
+                * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                * self.m.fixedCost[i]
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="reactiveGeneratorCost",
-                obj_type=pyo.Expression,
-                index=self.m.thermalGenerators,
-                expr=(
-                    lambda i: self.b.thermalReactiveGeneration[i] * self.m.fuelCost[i]
-                ),
-                condition=(
-                    self.m.config["flow_model"] == "ACR"
-                    or self.m.config["flow_model"] == "ACP"
-                ),
+        )
+        check_helper.add_object(
+            name="reactiveGeneratorCost",
+            obj_type=pyo.Expression,
+            index=self.m.thermalGenerators,
+            expr=(lambda i: self.b.thermalReactiveGeneration[i] * self.m.fuelCost[i]),
+            condition=(
+                self.m.config["flow_model"] == "ACR"
+                or self.m.config["flow_model"] == "ACP"
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="loadShed",
-                obj_type=pyo.Var,
-                index=self.m.buses,
-                domain=pyo.NonNegativeReals,
-                # initialize=0,
-                units=u.MW,
+        )
+        check_helper.add_object(
+            name="loadShed",
+            obj_type=pyo.Var,
+            index=self.m.buses,
+            domain=pyo.NonNegativeReals,
+            # initialize=0,
+            units=u.MW,
+        )
+        check_helper.add_object(
+            name="loadShedCost",
+            obj_type=pyo.Expression,
+            index=self.m.buses,
+            expr=(
+                lambda i: self.b.loadShed[i]
+                * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
+                * self.m.loadShedCostperCurtailment
             ),
-            PyomoCheckHelper(
-                td=self,
-                parent=self.b,
-                name="loadShedCost",
-                obj_type=pyo.Expression,
-                index=self.m.buses,
-                expr=(
-                    lambda i: self.b.loadShed[i]
-                    * u.convert(self.m.dispatchPeriodLength, to_units=u.hr)
-                    * self.m.loadShedCostperCurtailment
-                ),
-            ),
-        ]
+        )
 
-        for check_helper in to_check:
-            check_helper.check()
+        check_helper.check_all()
 
 
 class PyomoCheckHelper:
@@ -160,6 +141,21 @@ class PyomoCheckHelper:
         self,
         td: TestDispatch,
         parent: BlockData,
+    ):
+        """
+        Class that stores expected properties for pyomo objects. Calling
+        the `.check_all()` method runs asserts to check for
+        those properties on each object.
+
+        :param td:          TestDispatch instance.
+        :param parent:      Expected parent object that holds the pyomo objects.
+        """
+        self.td = td
+        self.parent = parent
+        self.object_properties = []
+
+    def add_object(
+        self,
         name: str,
         obj_type: type,
         index: pyo.Set = None,
@@ -169,11 +165,8 @@ class PyomoCheckHelper:
         condition: bool = True,
     ):
         """
-        Class that stores expected properties for a pyomo object. Calling
-        the .check() method runs asserts to check for those properties.
+        Add a pyomo object to check.
 
-        :param td:          TestDispatch instance.
-        :param parent:      Expected parent object that holds the pyomo object.
         :param name:        Expected name of the pyomo object.
         :param obj_type:    Expected type of the pyomo object.
         :param index:       Expected indexing object of the pyomo object.
@@ -198,60 +191,76 @@ class PyomoCheckHelper:
         :type expr:         function
         :type condition:    bool
         """
-        self.td = td
-        self.parent = parent
-        self.name = name
-        self.obj_type = obj_type
-        self.index = index
-        self.domain = domain
-        self.units = units
-        self.expr = expr
-        self.condition = condition
+        self.object_properties.append(
+            {
+                "name": name,
+                "obj_type": obj_type,
+                "index": index,
+                "domain": domain,
+                "units": units,
+                "expr": expr,
+                "condition": condition,
+            }
+        )
 
-    def _check_exists(self):
-        self.td.assertTrue(hasattr(self.parent, self.name))
-        self.obj = self.parent.component(self.name)
+    def _check_exists(self, properties):
+        self.td.assertTrue(hasattr(self.parent, properties["name"]))
 
-    def _check_does_not_exist(self):
-        self.td.assertFalse(hasattr(self.parent, self.name))
+    def _check_does_not_exist(self, properties):
+        self.td.assertFalse(hasattr(self.parent, properties["name"]))
 
-    def _check_type(self):
-        self.td.assertIsInstance(self.obj, self.obj_type)
+    def _check_type(self, properties):
+        self.td.assertIsInstance(
+            self.parent.component(properties["name"]), properties["obj_type"]
+        )
 
-    def _check_index(self):
-        if self.index is None:
-            self.td.assertFalse(self.obj.is_indexed())
+    def _check_index(self, properties):
+        if properties["index"] is None:
+            self.td.assertFalse(self.parent.component(properties["name"]).is_indexed())
         else:
-            self.td.assertTrue(self.obj.is_indexed())
-            self.td.assertIs(self.obj.index_set(), self.index)
+            self.td.assertTrue(self.parent.component(properties["name"]).is_indexed())
+            self.td.assertIs(
+                self.parent.component(properties["name"]).index_set(),
+                properties["index"],
+            )
 
-    def _check_domain(self):
-        if self.domain is not None:
-            for i in self.obj.index_set():
-                self.td.assertIs(self.obj[i].domain, self.domain)
+    def _check_domain(self, properties):
+        if properties["domain"] is not None:
+            for i in self.parent.component(properties["name"]).index_set():
+                self.td.assertIs(
+                    self.parent.component(properties["name"])[i].domain,
+                    properties["domain"],
+                )
         else:
-            self.td.assertFalse(hasattr(self.obj, "domain"))
+            self.td.assertFalse(
+                hasattr(self.parent.component(properties["name"]), "domain")
+            )
 
-    def _check_units(self):
-        self.td.assertEqual(u.get_units(self.obj), self.units)
+    def _check_units(self, properties):
+        self.td.assertEqual(
+            u.get_units(self.parent.component(properties["name"])), properties["units"]
+        )
 
-    def _check_expr(self):
-        if self.expr is None:
-            self.td.assertFalse(hasattr(self.obj, "expr"))
+    def _check_expr(self, properties):
+        if properties["expr"] is None:
+            self.td.assertFalse(
+                hasattr(self.parent.component(properties["name"]), "expr")
+            )
         else:
-            for i in self.obj.index_set():
+            for i in self.parent.component(properties["name"]).index_set():
                 self.td.assertExpressionsStructurallyEqual(
-                    self.expr(i),
-                    self.obj[i].expr,
+                    properties["expr"](i),
+                    self.parent.component(properties["name"])[i].expr,
                 )
 
-    def check(self):
-        if self.condition:
-            self._check_exists()
-            self._check_type()
-            self._check_index()
-            self._check_domain()
-            self._check_units()
-            self._check_expr()
-        else:
-            self._check_does_not_exist()
+    def check_all(self):
+        for properties in self.object_properties:
+            if properties["condition"]:
+                self._check_exists(properties)
+                self._check_type(properties)
+                self._check_index(properties)
+                self._check_domain(properties)
+                self._check_units(properties)
+                self._check_expr(properties)
+            else:
+                self._check_does_not_exist(properties)
