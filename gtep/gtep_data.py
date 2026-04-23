@@ -55,12 +55,7 @@ class ExpansionPlanningData:
     def load_prescient(
         self,
         data_path,
-        representative_dates=[
-            "2020-01-28 00:00",
-            "2020-04-23 00:00",
-            "2020-07-05 00:00",
-            "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
-        ],
+        representative_dates=None,
         representative_weights={},
         options_dict=None,
     ):
@@ -146,6 +141,13 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
+        if self.representative_dates is None:
+            representative_dates = [
+                "2020-01-28 00:00",
+                "2020-04-23 00:00",
+                "2020-07-05 00:00",
+                "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+            ]
         self.representative_dates = representative_dates
 
         if not representative_weights:
@@ -166,7 +168,7 @@ class ExpansionPlanningData:
 
         self.representative_data = data_list
 
-    def import_load_scaling(self, load_file_name, forecast_years=[2025, 2030, 2035]):
+    def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.
 
         :param load_file_name: filepath for adjusted forecast excel file
@@ -174,6 +176,9 @@ class ExpansionPlanningData:
 
         """
         adjusted_forecast = pd.read_excel(load_file_name)
+
+        if forecast_years is None:
+            forecast_years = [2025, 2030, 2035]
 
         # check years are valid
         if len(forecast_years) < self.stages:
