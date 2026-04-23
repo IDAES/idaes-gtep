@@ -17,7 +17,7 @@ Model
 """
 
 
-def add_load_scaling(m, b, commitment_period, investment_stage):
+def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
     # Create a false load directory. [TODO: Commented for now since it
     # is not used. Check with team if we want to preserve this for

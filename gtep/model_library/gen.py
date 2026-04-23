@@ -519,6 +519,43 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         )
 
 
+def generators_status_always_on(m, b):
+    """This method defines only one disjunct to enforce that
+    generators are always 'On'. This method is used when unit
+    commitment is not modeled, ensuring generators are always
+    considered operational while startup, shutdown, and offline states
+    are ignored.
+
+    """
+
+    @b.Disjunct(m.thermalGenerators)
+    def genOn(disj, generator):
+        b = disj.parent_block()
+
+        # For now, we do not allow reserves unless we do commitment
+
+        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
+        def operating_limit_min(d, dispatchPeriod):
+            return (
+                0 * u.MW
+                <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            )
+
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
+        def operating_limit_max(d, dispatchPeriod):
+            return (
+                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
+                <= m.thermalCapacity[generator]
+            )
+
+    @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
+    def genStatus(disj, generator):
+        return [
+            disj.genOn[generator],
+        ]
+
+
 def add_generators_logical_constraints(m):
     """This method defines logical constraints to ensure that thermal
     and renewable generators statuses transitions are operationally

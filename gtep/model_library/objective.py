@@ -63,5 +63,5 @@ def create_objective_function(m):
                 * m.investmentFactor[1]
                 * m.investmentStage[1].quotaDeficit
                 + m.investmentStage[1].renewableCurtailmentInvestment
-                + m.investmentStage[1].storageCostInvestment
+                # + m.investmentStage[1].storageCostInvestment  # this term is already included above
             )

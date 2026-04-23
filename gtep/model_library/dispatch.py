@@ -26,7 +26,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, dispatch_period):
+def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     """This method adds dispatch-associated variables to
     representative period block.
 
@@ -53,7 +53,7 @@ def add_dispatch_variables(b, dispatch_period):
     def renewableCurtailmentCost(b, renewableGen):
         return (
             b.renewableCurtailment[renewableGen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.curtailmentCost
         )
 
@@ -61,7 +61,7 @@ def add_dispatch_variables(b, dispatch_period):
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
@@ -69,7 +69,7 @@ def add_dispatch_variables(b, dispatch_period):
     def renewableGeneratorCost(b, gen):
         return (
             b.renewableGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
 
@@ -91,7 +91,7 @@ def add_dispatch_variables(b, dispatch_period):
     def loadShedCost(b, bus):
         return (
             b.loadShed[bus]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
