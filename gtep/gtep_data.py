@@ -146,7 +146,7 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
-        if self.representative_dates is None:
+        if representative_dates is None:
             representative_dates = [
                 "2020-01-28 00:00",
                 "2020-04-23 00:00",
