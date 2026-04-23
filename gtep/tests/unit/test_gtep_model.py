@@ -368,7 +368,14 @@ class TestGTEP(unittest.TestCase):
     def test_with_cost_data_and_no_commitment(self):
         # Test ExpansionPlanningModel with cost data and no commitment
         # This model originated from driver_esr.py
-        dataObject, dataProcessingObject = prepare_model_and_cost_data()
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+            stages=2,
+            num_reps=2,
+            len_reps=1,
+            num_commit=6,
+            num_dispatch=4,
+            duration_dispatch=15,
+        )
 
         # Populate and create GTEP model
         modObject = ExpansionPlanningModel(
