@@ -22,6 +22,7 @@ from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 import pandas as pd
 import os
+from pathlib import Path
 
 
 class ExpansionPlanningData:
@@ -70,6 +71,10 @@ class ExpansionPlanningData:
         self.data_type = "prescient"
         # create prescient config object with defaults
         prescient_options = PrescientConfig()
+
+        # work around for prescient throwing an error with Path objects
+        if isinstance(data_path, Path):
+            data_path = str(data_path)
 
         if options_dict is None:
             # set basic configurations that do not match prescient defaults
