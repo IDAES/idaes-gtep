@@ -69,9 +69,23 @@ def read_debug_model(
     return dataObject
 
 
-def prepare_model_and_cost_data():
+def prepare_model_and_cost_data(
+    stages=1,
+    num_reps=3,
+    len_reps=24,
+    num_commit=24,
+    num_dispatch=4,
+    duration_dispatch=15,
+):
     # Prepare model and cost data
-    dataObject = read_debug_model()
+    dataObject = read_debug_model(
+        stages,
+        num_reps,
+        len_reps,
+        num_commit,
+        num_dispatch,
+        duration_dispatch,
+    )
     curr_dir = dirname(abspath(__file__))
     data_path = abspath(join(curr_dir, "..", "..", "data", "costs"))
     bus_data_path = abspath(join(data_path, "Bus_data_gen_weights_mappings.csv"))
@@ -306,7 +320,7 @@ class TestGTEP(unittest.TestCase):
     def test_with_cost_data_and_commitment(self):
         # Test ExpansionPlanningModel with cost data
         # This model originated from driver_esr.py
-        data_object = read_debug_model(
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
             stages=2,
             num_reps=2,
             len_reps=1,
@@ -357,9 +371,9 @@ class TestGTEP(unittest.TestCase):
         dataObject, dataProcessingObject = prepare_model_and_cost_data()
 
         # Populate and create GTEP model
-        mod_object = ExpansionPlanningModel(
-            data=data_object,
-            cost_data=data_processing_object,
+        modObject = ExpansionPlanningModel(
+            data=dataObject,
+            cost_data=dataProcessingObject,
         )
 
         modObject.config["include_investment"] = True
