@@ -62,7 +62,7 @@ class ExpansionPlanningData:
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
         :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
 
