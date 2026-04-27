@@ -86,39 +86,28 @@ class ExpansionPlanningModel:
     def __init__(
         self,
         config=None,
-        stages=1,
         formulation=None,
         data=None,
         cost_data=None,
-        num_reps=3,
-        len_reps=24,
-        num_commit=24,
-        num_dispatch=4,
-        duration_dispatch=15,
     ):
         """Initialize generation & expansion planning model object.
 
-        :param stages: integer number of investment periods
         :param formulation: Egret stuff, to be filled
         :param data: full set of model data
         :param cost_data: full set of cost data for all generators
-        :param num_reps: integer number of representative periods per investment period
-        :param len_reps: (for now integer) length of each representative period (in hours)
-        :param num_commit: integer number of commitment periods per representative period
-        :param num_dispatch: integer number of dispatch periods per commitment period
-        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
+
         :return: Pyomo model for full GTEP
         """
 
-        self.stages = stages
+        self.stages = data.stages
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
-        self.num_reps = num_reps
-        self.len_reps = len_reps
-        self.num_commit = num_commit
-        self.num_dispatch = num_dispatch
-        self.duration_dispatch = duration_dispatch
+        self.num_reps = data.num_reps
+        self.len_reps = data.len_reps
+        self.num_commit = data.num_commit
+        self.num_dispatch = data.num_dispatch
+        self.duration_dispatch = data.duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
 
