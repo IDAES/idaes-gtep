@@ -28,17 +28,16 @@ input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 def get_dispatch_block():
     # create model
-    data_object = ExpansionPlanningData()
-    data_object.load_prescient(
-        str(input_data_source)  # load_prescient should accept pathlib paths
-    )
-    mod_object = ExpansionPlanningModel(
+    data_object = ExpansionPlanningData(
         stages=1,
-        data=data_object,
         num_reps=1,
-        len_reps=1,
         num_commit=1,
         num_dispatch=1,
+    )
+    data_object.load_prescient(str(input_data_source))
+
+    mod_object = ExpansionPlanningModel(
+        data=data_object,
     )
     mod_object.create_model()
 
