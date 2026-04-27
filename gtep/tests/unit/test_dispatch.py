@@ -188,31 +188,31 @@ class PyomoCheckHelper:
     def _check_does_not_exist(self, properties):
         self.td.assertFalse(hasattr(self.parent, properties["name"]))
 
-    def _check_type(self, properties):
-        self.td.assertIsInstance(properties["obj"], properties["obj_type"])
+    def _check_type(self, obj, properties):
+        self.td.assertIsInstance(obj, properties["obj_type"])
 
-    def _check_index(self, properties):
+    def _check_index(self, obj, properties):
         if properties["index"] is None:
-            self.td.assertFalse(properties["obj"].is_indexed())
+            self.td.assertFalse(obj.is_indexed())
         else:
-            self.td.assertTrue(properties["obj"].is_indexed())
-            self.td.assertIs(properties["obj"].index_set(), properties["index"])
+            self.td.assertTrue(obj.is_indexed())
+            self.td.assertIs(obj.index_set(), properties["index"])
 
     def _iter_func_over_index(self, obj, func):
         for i in obj.index_set():
             func(obj[i])
 
-    def _check_domain(self, properties):
+    def _check_domain(self, obj, properties):
         if properties["domain"] is not None:
             iter_func = lambda x: self.td.assertIs(x.domain, properties["domain"])
-            self._iter_func_over_index(properties["obj"], iter_func)
+            self._iter_func_over_index(obj, iter_func)
         else:
             iter_func = lambda x: self.td.assertFalse(hasattr(x, "domain"))
-            self._iter_func_over_index(properties["obj"], iter_func)
+            self._iter_func_over_index(obj, iter_func)
 
-    def _check_units(self, properties):
+    def _check_units(self, obj, properties):
         iter_func = lambda x: self.td.assertEqual(u.get_units(x), properties["units"])
-        self._iter_func_over_index(properties["obj"], iter_func)
+        self._iter_func_over_index(obj, iter_func)
 
     # def _check_expr(self, properties):
     #     if properties["expr"] is None:
@@ -230,11 +230,12 @@ class PyomoCheckHelper:
         for properties in self.object_properties:
             if properties["cond"]:
                 self._check_exists(properties)
-                properties["obj"] = self.parent.component(properties["name"])
-                self._check_type(properties)
-                self._check_index(properties)
-                self._check_domain(properties)
-                self._check_units(properties)
+                obj = self.parent.component(properties["name"])
+                
+                self._check_type(obj, properties)
+                self._check_index(obj, properties)
+                self._check_domain(obj, properties)
+                self._check_units(obj, properties)
                 # self._check_expr(properties)
             else:
                 self._check_does_not_exist(properties)
