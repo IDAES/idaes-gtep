@@ -231,7 +231,7 @@ class PyomoCheckHelper:
             if properties["cond"]:
                 self._check_exists(properties)
                 obj = self.parent.component(properties["name"])
-                
+
                 self._check_type(obj, properties)
                 self._check_index(obj, properties)
                 self._check_domain(obj, properties)
