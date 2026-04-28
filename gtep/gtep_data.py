@@ -72,21 +72,21 @@ class ExpansionPlanningData:
         # create prescient config object with defaults
         prescient_options = PrescientConfig()
 
-        # work around for prescient throwing an error with Path objects
-        if isinstance(data_path, Path):
-            data_path = str(data_path)
-
         if options_dict is None:
             # set basic configurations that do not match prescient defaults
             options_dict = {
-                "data_path": data_path,
+                "data_path": str(
+                    data_path
+                ),  # work around for prescient (error with Path objects)
                 "num_days": 365,
                 "ruc_horizon": 36,
             }
 
         else:
             # ensure data path is included in options dictionary
-            options_dict["data_path"] = data_path
+            options_dict["data_path"] = str(
+                data_path
+            )  # work around for prescient (error with Path objects)
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
@@ -348,8 +348,12 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for storage data csv file
         """
+        # enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
         try:
-            storage_path = data_path + "/storage.csv"
+            storage_path = data_path / "storage.csv"
             storage_df = pd.read_csv(storage_path)
 
             storage_data = {}
@@ -370,10 +374,14 @@ class ExpansionPlanningData:
         :param data_path: filepath for generator data csv file
         """
         # check that datapath is coming from a texas case study directory
-        if ("Texas" not in data_path) and ("Coal" not in data_path):
+        if ("Texas" not in str(data_path)) and ("Coal" not in str(data_path)):
             raise ValueError("The data path provided is not a Texas case study")
 
-        generator_update_path = data_path + "/gen.csv"
+        # enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
+        generator_update_path = data_path / "gen.csv"
         generator_df = pd.read_csv(generator_update_path)
         bonus_feature_list = [
             "capex1",
