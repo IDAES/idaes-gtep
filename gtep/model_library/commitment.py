@@ -51,12 +51,14 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
-    scaling.add_load_scaling(
-        m,
-        b,
-        commitment_period,
-        investmentStage,
-    )
+    if m.config["scale_loads"]:
+        scaling.add_load_scaling(
+            m,
+            b,
+            commitment_period,
+            investmentStage,
+            scaling_value=10,
+        )
 
 
 def add_commitment_disjuncts(b, commitment_period):
@@ -69,10 +71,14 @@ def add_commitment_disjuncts(b, commitment_period):
     r_p = b.parent_block()
     i_p = r_p.parent_block()
 
-    # Add disjunction and disjuncts to define the operational state of
-    # generators (on/startup/shutdown/off) and storage
-    # (charging/discharging/off), when needed.
-    gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
+    if m.config["include_commitment"]:
+        # Add disjunction and disjuncts to define the operational
+        # state of generators (on/startup/shutdown/off) and storage
+        # (charging/discharging/off), when needed.
+        gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
+    else:
+
+        gens.generators_status_always_on(m, b)
 
     if m.config["storage"]:
         stor.add_storage_state_disjuncts(m, b, commitment_period)
@@ -95,63 +101,47 @@ def add_commitment_constraints(b, comm_per):
             for disp_per in b.dispatchPeriods
         )
 
-    # Define total operating costs for commitment block. [TODO:
-    # Replace this constraint with expressions using bounds transform
-    # and check if the costs considered need to be re-assessed and
-    # account for missing data.]
-
-    @b.Expression()
+    # [ESR TODO: Replace this constraint with expressions using bounds
+    # transform and check if the costs considered need to be
+    # re-assessed and account for missing data.]
+    @b.Expression(doc="Total operating costs for commitment block in $")
     def operatingCostCommitment(b):
+        # [ESR Note: This term includes the op cost for each
+        # 15-min dispatch period.]
+        op_cost_dispatch = sum(
+            b.dispatchPeriod[disp_per].operatingCostDispatch  # in $
+            for disp_per in b.dispatchPeriods
+        )
+        # [ESR: Assuming we are paying for the full capacity of our
+        # generator and should be included to have consistent units.]
         if m.config["include_commitment"]:
-            return (
-                # [ESR WIP: This term includes the op cost for each
-                # 15-min dispatch period.]
-                sum(
-                    b.dispatchPeriod[disp_per].operatingCostDispatch  # in $
-                    for disp_per in b.dispatchPeriods
+            op_cost_gen_state = sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.thermalCapacity[gen]
+                * (
+                    b.genOn[gen].indicator_var.get_associated_binary()
+                    + b.genShutdown[gen].indicator_var.get_associated_binary()
+                    + b.genStartup[gen].indicator_var.get_associated_binary()
                 )
-                + sum(
-                    m.fixedCost[gen] * b.commitmentPeriodLength
-                    # [ESR WIP: Assuming we are paying for the full
-                    # capacity of our generator. Note that a capacity
-                    # should be included since the associated binaries
-                    # are dimensionless. This makes the constraint
-                    # unit consistent.]
-                    * m.thermalCapacity[gen]
-                    * (
-                        b.genOn[gen].indicator_var.get_associated_binary()
-                        + b.genShutdown[gen].indicator_var.get_associated_binary()
-                        + b.genStartup[gen].indicator_var.get_associated_binary()
-                    )
-                    for gen in m.thermalGenerators
-                )
-                + sum(
-                    m.startupCost[gen]
-                    * b.genStartup[gen].indicator_var.get_associated_binary()
-                    for gen in m.thermalGenerators
-                )
+                for gen in m.thermalGenerators
             )
+            op_cost_gen_startup = sum(
+                m.startupCost[gen]
+                * b.genStartup[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators
+            )
+
+            return op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup
         else:
-            return sum(
-                b.dispatchPeriod[disp_per].operatingCostDispatch
-                for disp_per in b.dispatchPeriods
+            op_cost_gen_state = sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.thermalCapacity[gen]
+                * b.genOn[gen].indicator_var.get_associated_binary()
+                for gen in m.thermalGenerators
             )
-
-    # Define total storage costs for commitment block. [TODO: Replace
-    # this constraint with expressions using bounds transform and
-    # check if costs considered need to be re-assessed and account for
-    # missing data.]
-
-    # Compute Battery Storage cost per dispatch period if storage is
-    # needed
-    if m.config["storage"]:
-
-        @b.Expression()
-        def storageCostCommitment(b):
-            return sum(
-                b.dispatchPeriod[disp_per].storageCostDispatch
-                for disp_per in b.dispatchPeriods
-            )
+            return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):
@@ -159,6 +149,11 @@ def add_commitment_constraints(b, comm_per):
             b.dispatchPeriod[disp_per].renewableCurtailmentDispatch
             for disp_per in b.dispatchPeriods
         )
+
+    # Compute Battery Storage cost per dispatch period if storage is
+    # needed
+    if m.config["storage"]:
+        stor.add_commitment_storage_constraints(b)
 
 
 def add_investment_commitment_variables(b):
@@ -191,15 +186,21 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
-    @b.Expression(doc="Operating costs for investment period")
-    def commitmentOperatingCostInvestment(b):
-        return m.investmentFactor[investment_stage] * sum(
-            sum(
-                m.weights[rep_per]
-                * b.representativePeriod[rep_per]
-                .commitmentPeriod[com_per]
-                .operatingCostCommitment
-                for com_per in b.representativePeriod[rep_per].commitmentPeriods
+    # [BLN: Convert this to a constraint using operatingCostInvestment
+    # Var. May also need to move it.]
+
+    @b.Constraint(doc="Operating costs for investment period")
+    def operatingCostInvestment_constraint(b):
+        return b.operatingCostInvestment == (
+            m.investmentFactor[investment_stage]
+            * sum(
+                sum(
+                    m.weights[rep_per]
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .operatingCostCommitment
+                    for com_per in b.representativePeriod[rep_per].commitmentPeriods
+                )
+                for rep_per in b.representativePeriods
             )
-            for rep_per in b.representativePeriods
         )
