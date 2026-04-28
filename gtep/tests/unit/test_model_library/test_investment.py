@@ -16,7 +16,6 @@ for the investment stage in the Generation and Transmission Expansion Planning (
 model.
 
 """
-import gtep.model_library.investment
 from gtep.model_library.investment import (
     add_investment_params_and_variables,
     add_investment_disjuncts,
@@ -25,9 +24,7 @@ from gtep.model_library.investment import (
 from pyomo.environ import units as u
 import pyomo.environ as pyo
 import pytest
-import pyomo.common.unittest as unittest
 from unittest.mock import patch
-from pint import UnitRegistry
 
 
 # helper function
@@ -75,38 +72,39 @@ def create_test_inv(
     inv.operatingCostInvestment = pyo.Var(initialize=0)
     inv.quotaDeficit = 0
 
+    inv.ed = pyo.Param(initialize=0, mutable=True)
+
     return inv, m
 
 
-# TODO Unit object is throwing an error
-# @patch("gtep.model_library.commitment")
-# def test_investment_params_and_variables(mock_commit_variable):
-#     with patch.object(gtep.model_library.investment, "u", new=custom_units):
-#         b, m = create_test_inv()
-#         add_investment_params_and_variables(b, 1)
+# ------------------------------------ADD INVESTMENT PARAMS AND VARIABLES------------------------------------ #
+def test_investment_params_and_variables():
+    # Ensure USD unit is defined
+    u._pint_registry.define("USD = []")
 
-#         mock_commit_variable.assert_called_once()
+    b, m = create_test_inv()
+    add_investment_params_and_variables(b, 1)
 
-#         # Check parameters
-#         assert hasattr(b, "maxThermalInvestment")
-#         assert hasattr(b, "maxRenewableInvestment")
-#         # Check default values for parameters for each region
-#         for region in m.regions:
-#             assert pyo.value(b.maxThermalInvestment[region]) == 1000
-#             assert pyo.value(b.maxRenewableInvestment[region]) == 1000
+    # Check parameters
+    assert hasattr(b, "maxThermalInvestment")
+    assert hasattr(b, "maxRenewableInvestment")
+    # Check default values for parameters for each region
+    for region in m.regions:
+        assert pyo.value(b.maxThermalInvestment[region]) == 1000
+        assert pyo.value(b.maxRenewableInvestment[region]) == 1000
 
-#         # Check variables
-#         assert hasattr(b, "quotaDeficit")
-#         assert hasattr(b, "expansionCost")
-#         assert hasattr(b, "storageCostInvestment")
+    # Check variables
+    assert hasattr(b, "quotaDeficit")
+    assert hasattr(b, "expansionCost")
+    assert hasattr(b, "storageCostInvestment")
 
-#         # Check variable domains and initial values
-#         assert b.quotaDeficit.domain == pyo.NonNegativeReals
-#         assert pyo.value(b.quotaDeficit) == 0
-#         assert b.expansionCost.domain == pyo.NonNegativeReals
-#         assert pyo.value(b.expansionCost) == 0
-#         assert b.storageCostInvestment.domain == pyo.NonNegativeReals
-#         assert pyo.value(b.storageCostInvestment) == 0
+    # Check variable domains and initial values
+    assert b.quotaDeficit.domain == pyo.NonNegativeReals
+    assert pyo.value(b.quotaDeficit) == 0
+    assert b.expansionCost.domain == pyo.NonNegativeReals
+    assert pyo.value(b.expansionCost) == 0
+    assert b.storageCostInvestment.domain == pyo.NonNegativeReals
+    assert pyo.value(b.storageCostInvestment) == 0
 
 
 # ------------------------------------ADD INVESTMENT DISJUNTS------------------------------------ #
@@ -171,50 +169,119 @@ def test_add_investment_disjuncts_no_storage_no_transmission(
 
 
 # ------------------------------------ADD INVESTMENT CONSTRAINTS------------------------------------ #
-# @patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
-# @patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
-# @patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
-# @patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
-# def test_add_investment_constraints(mock_commitment, mock_transm, mock_stor, mock_gens):
-#     inv, m = create_test_inv()
+@patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+@patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+@patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+@patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+def test_add_investment_constraints(mock_commitment, mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv()
 
-#     add_investment_constraints(inv, 1)
+    add_investment_constraints(inv, 1)
 
-#     # Check external function calls based on config
-#     mock_gens.assert_called_once_with(m, inv, 1)
-#     mock_transm.assert_called_once_with(m, inv, 1)
-#     mock_stor.assert_called_once_with(m, inv, 1)
-#     mock_commitment.assert_called_once_with(m, inv, 1)
+    # Check external function calls based on config
+    mock_gens.assert_called_once_with(m, inv, 1)
+    mock_transm.assert_called_once_with(m, inv, 1)
+    mock_stor.assert_called_once_with(m, inv, 1)
+    mock_commitment.assert_called_once_with(m, inv, 1)
 
-#     assert hasattr(inv, "investment_cost")
-#     expected_baseline = (
-#         inv.generators_investment_cost
-#         + inv.storage_investment_cost
-#         + inv.transmission_investment_cost
-#     )
-#     expected_value = m.investmentFactor[1] * expected_baseline
-#     val = pyo.value(inv.investment_cost)
-#     assert val == expected_value
+    assert hasattr(inv, "investment_cost")
+    expected_baseline = (
+        inv.generators_investment_cost
+        + inv.storage_investment_cost
+        + inv.transmission_investment_cost
+    )
+    expected_value = m.investmentFactor[1] * expected_baseline
+    val = pyo.value(inv.investment_cost)
+    assert val == expected_value
 
-#     # Check operatingCostInvestment_constraint exists and works
-#     assert hasattr(inv, "operatingCostInvestment_constraint")
-#     con = inv.operatingCostInvestment_constraint
-#     rhs_val = inv.commitmentOperatingCostInvestment
-#     inv.operatingCostInvestment.set_value(rhs_val)
-#     assert pyo.value(con.body) == pytest.approx(0)
+    # Check renewable_generation_requirement constraint
+    assert hasattr(inv, "renewable_generation_requirement")
+    con = inv.renewable_generation_requirement
+    mock_surplus = 0
+    for rep_per in inv.representativePeriods:
+        for com_per in inv.representativePeriod[rep_per].commitmentPeriods:
+            mock_surplus += (
+                m.weights[rep_per]
+                * inv.representativePeriod[rep_per]
+                .commitmentPeriod[com_per]
+                .renewableSurplusCommitment
+            )
 
-#     # Check renewable_generation_requirement constraint
-#     assert hasattr(inv, "renewable_generation_requirement")
-#     con = inv.renewable_generation_requirement
+    assert mock_surplus + inv.quotaDeficit >= m.renewableQuota[1] * pyo.value(inv.ed)
 
-#     mock_surplus = 0
-#     for rep_per in m.representativePeriods:
-#         for com_per in m.representativePeriod[rep_per].commitmentPeriods:
-#             mock_surplus += (
-#                 m.weights[rep_per]
-#                 * m.representativePeriod[rep_per]
-#                 .commitmentPeriod[com_per]
-#                 .renewableSurplusCommitment
-#             )
 
-#     assert mock_surplus + inv.quotaDeficit >= m.renewableQuota[1] * 0
+@patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+@patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+@patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+@patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+def test_add_investment_constraints_no_storage(
+    mock_commitment, mock_transm, mock_stor, mock_gens
+):
+    inv, m = create_test_inv(storage=False)
+
+    add_investment_constraints(inv, 1)
+
+    mock_gens.assert_called_once_with(m, inv, 1)
+    mock_transm.assert_called_once_with(m, inv, 1)
+    mock_stor.assert_not_called()
+    mock_commitment.assert_called_once_with(m, inv, 1)
+
+    expected_baseline = (
+        inv.generators_investment_cost + 0 + inv.transmission_investment_cost
+    )
+    expected_value = m.investmentFactor[1] * expected_baseline
+    val = pyo.value(inv.investment_cost)
+    assert val == expected_value
+
+
+@patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+@patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+@patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+@patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+def test_no_transmission(mock_commitment, mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv(transmission=False)
+
+    add_investment_constraints(inv, 1)
+
+    mock_gens.assert_called_once_with(m, inv, 1)
+    mock_transm.assert_not_called()
+    mock_stor.assert_called_once_with(m, inv, 1)
+    mock_commitment.assert_called_once_with(m, inv, 1)
+
+    expected_baseline = inv.generators_investment_cost + inv.storage_investment_cost + 0
+    expected_value = m.investmentFactor[1] * expected_baseline
+    val = pyo.value(inv.investment_cost)
+    assert val == expected_value
+
+
+@patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+@patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+@patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+@patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+def test_no_include_investment_constraint(
+    mock_commitment, mock_transm, mock_stor, mock_gens
+):
+    inv, m = create_test_inv(include_investment=False)
+
+    add_investment_constraints(inv, 1)
+
+    # The renewable_generation_requirement constraint should NOT be added
+    assert not hasattr(inv, "renewable_generation_requirement")
+
+
+@patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
+@patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
+@patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
+@patch("gtep.model_library.investment.commit.add_investment_commitment_constraints")
+def test_zero_investment_costs(mock_commitment, mock_transm, mock_stor, mock_gens):
+    inv, m = create_test_inv()
+    inv.generators_investment_cost = 0
+    inv.storage_investment_cost = 0
+    inv.transmission_investment_cost = 0
+
+    add_investment_constraints(inv, 1)
+
+    expected_baseline = 0
+    expected_value = m.investmentFactor[1] * expected_baseline
+    val = pyo.value(inv.investment_cost)
+    assert val == expected_value
