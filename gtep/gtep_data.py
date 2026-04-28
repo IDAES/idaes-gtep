@@ -22,6 +22,7 @@ from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 import pandas as pd
 import os
+from pathlib import Path
 
 
 class ExpansionPlanningData:
@@ -55,19 +56,14 @@ class ExpansionPlanningData:
     def load_prescient(
         self,
         data_path,
-        representative_dates=[
-            "2020-01-28 00:00",
-            "2020-04-23 00:00",
-            "2020-07-05 00:00",
-            "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
-        ],
+        representative_dates=None,
         representative_weights={},
         options_dict=None,
     ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
         :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
 
@@ -75,6 +71,10 @@ class ExpansionPlanningData:
         self.data_type = "prescient"
         # create prescient config object with defaults
         prescient_options = PrescientConfig()
+
+        # work around for prescient throwing an error with Path objects
+        if isinstance(data_path, Path):
+            data_path = str(data_path)
 
         if options_dict is None:
             # set basic configurations that do not match prescient defaults
@@ -146,6 +146,13 @@ class ExpansionPlanningData:
         ## of modelData objects, not just a single modelData object
         # Arbitrary time points and lengths picked for representative periods
         # default here allows up to 24 hours for periods
+        if representative_dates is None:
+            representative_dates = [
+                "2020-01-28 00:00",
+                "2020-04-23 00:00",
+                "2020-07-05 00:00",
+                "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+            ]
         self.representative_dates = representative_dates
         self.representative_weights = representative_weights
 
@@ -167,7 +174,7 @@ class ExpansionPlanningData:
 
         self.representative_data = data_list
 
-    def import_load_scaling(self, load_file_name, forecast_years=[2025, 2030, 2035]):
+    def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.
 
         :param load_file_name: filepath for adjusted forecast excel file
@@ -176,6 +183,9 @@ class ExpansionPlanningData:
         """
         adjusted_forecast = pd.read_excel(load_file_name)
         print((adjusted_forecast["year"]).unique)
+
+        if forecast_years is None:
+            forecast_years = [2025, 2030, 2035]
 
         # check years are valid
         if len(forecast_years) < self.stages:
