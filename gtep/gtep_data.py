@@ -154,6 +154,7 @@ class ExpansionPlanningData:
                 "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
             ]
         self.representative_dates = representative_dates
+        self.representative_weights = representative_weights
 
         if not representative_weights:
             # set the weight for each day to the total weight divided by number of days
@@ -161,7 +162,7 @@ class ExpansionPlanningData:
             weight_per_date = int(total_weight / (len(representative_dates)))
             self.representative_weights = {
                 key: weight_per_date
-                for date, key in enumerate(self.representative_dates)
+                for key, date in enumerate(self.representative_dates)
             }
 
         time_keys = self.md.data["system"]["time_keys"]
@@ -181,6 +182,7 @@ class ExpansionPlanningData:
 
         """
         adjusted_forecast = pd.read_excel(load_file_name)
+        print((adjusted_forecast["year"]).unique)
 
         if forecast_years is None:
             forecast_years = [2025, 2030, 2035]
@@ -197,7 +199,7 @@ class ExpansionPlanningData:
 
         adjusted_forecast_by_period = adjusted_forecast[
             adjusted_forecast["year"].isin(forecast_years)
-        ]
+        ].copy()
 
         base_zones = [
             "base_economic_coast",
@@ -368,7 +370,7 @@ class ExpansionPlanningData:
         :param data_path: filepath for generator data csv file
         """
         # check that datapath is coming from a texas case study directory
-        if "Texas" or "Coal" not in data_path:
+        if ("Texas" not in data_path) and ("Coal" not in data_path):
             raise ValueError("The data path provided is not a Texas case study")
 
         generator_update_path = data_path + "/gen.csv"
@@ -392,5 +394,5 @@ class ExpansionPlanningData:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
                         data_point.data["elements"]["generator"][gen][col] = float(
-                            generator_df[generator_df["GEN UID"] == gen][col]
+                            generator_df[generator_df["GEN UID"] == gen][col].iloc[0]
                         )
