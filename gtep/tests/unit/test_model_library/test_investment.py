@@ -16,6 +16,7 @@ for the investment stage in the Generation and Transmission Expansion Planning (
 model.
 
 """
+
 from gtep.model_library.investment import (
     add_investment_params_and_variables,
     add_investment_disjuncts,
@@ -107,7 +108,7 @@ def test_investment_params_and_variables():
     assert pyo.value(b.storageCostInvestment) == 0
 
 
-# ------------------------------------ADD INVESTMENT DISJUNTS------------------------------------ #
+# ------------------------------------ADD INVESTMENT DISJUNCTS------------------------------------ #
 @patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
 @patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
 @patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
