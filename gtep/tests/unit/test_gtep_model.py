@@ -52,7 +52,6 @@ def patch_unit_handlers():
 def read_debug_model(
     stages=1,
     num_reps=3,
-    len_reps=24,
     num_commit=24,
     num_dispatch=4,
     duration_dispatch=15,
@@ -62,7 +61,6 @@ def read_debug_model(
     dataObject = ExpansionPlanningData(
         stages=stages,
         num_reps=num_reps,
-        len_reps=len_reps,
         num_commit=num_commit,
         num_dispatch=num_dispatch,
         duration_dispatch=duration_dispatch,
@@ -74,7 +72,6 @@ def read_debug_model(
 def prepare_model_and_cost_data(
     stages=1,
     num_reps=3,
-    len_reps=24,
     num_commit=24,
     num_dispatch=4,
     duration_dispatch=15,
@@ -83,7 +80,6 @@ def prepare_model_and_cost_data(
     dataObject = read_debug_model(
         stages,
         num_reps,
-        len_reps,
         num_commit,
         num_dispatch,
         duration_dispatch,
@@ -121,8 +117,7 @@ class TestGTEP(unittest.TestCase):
         data_object = read_debug_model(
             stages=1,
             num_reps=3,
-            len_reps=24,
-            num_commit=24,
+            num_commit=6,
             num_dispatch=4,
             duration_dispatch=60,
         )
@@ -303,9 +298,7 @@ class TestGTEP(unittest.TestCase):
 
     def test_solve_bigm(self):
         # Solve the debug model as is
-        data_object = read_debug_model(
-            num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
-        )
+        data_object = read_debug_model(num_reps=1, num_commit=1, num_dispatch=1)
         modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
 
@@ -332,7 +325,6 @@ class TestGTEP(unittest.TestCase):
         # Solve the debug model with no investment
         data_object = read_debug_model(
             num_reps=1,
-            len_reps=1,
             num_commit=1,
             num_dispatch=1,
         )
@@ -459,18 +451,18 @@ class TestGTEP(unittest.TestCase):
 
     def test_period_structure_from_scalars_and_json(self):
         # Test with scalar/list arguments (all periods same)
-        dataObject, dataProcessingObject = prepare_model_and_cost_data()
-
-        modObject = ExpansionPlanningModel(
-            stages=1,
-            data=dataObject,
-            cost_data=dataProcessingObject,
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
             num_reps=2,
             num_commit=3,
             num_dispatch=4,
+            duration_dispatch=15,
+        )
+
+        modObject = ExpansionPlanningModel(
+            data=dataObject,
+            cost_data=dataProcessingObject,
             duration_representative_period=24,
             duration_commitment=1,
-            duration_dispatch=15,
             save_period_structure_file=False,
             period_structure_json_file=None,
         )
@@ -504,7 +496,6 @@ class TestGTEP(unittest.TestCase):
         # period structure values. Here we instantiate the model using
         # the .json file.
         modObject = ExpansionPlanningModel(
-            stages=1,
             data=dataObject,
             cost_data=dataProcessingObject,
             period_structure_json_file=json_path,
