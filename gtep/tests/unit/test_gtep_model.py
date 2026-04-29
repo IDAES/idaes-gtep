@@ -11,6 +11,8 @@
 # for full copyright and license information.
 #################################################################################
 
+import os
+import json
 
 from os.path import abspath, join, dirname
 import pytest
@@ -91,7 +93,9 @@ class TestGTEP(unittest.TestCase):
         data_object = read_debug_model()
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
+
         modObject.create_model()
+
         self.assertIsInstance(modObject.model, ConcreteModel)
         self.assertEqual(modObject.stages, 1)
         self.assertEqual(modObject.formulation, None)
@@ -404,3 +408,70 @@ class TestGTEP(unittest.TestCase):
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_period_structure_from_scalars_and_json(self):
+        # Test with scalar/list arguments (all periods same)
+        dataObject, dataProcessingObject = prepare_model_and_cost_data()
+
+        modObject = ExpansionPlanningModel(
+            stages=1,
+            data=dataObject,
+            cost_data=dataProcessingObject,
+            num_reps=2,
+            num_commit=3,
+            num_dispatch=4,
+            duration_representative_period=24,
+            duration_commitment=1,
+            duration_dispatch=15,
+            save_period_structure_file=False,
+            period_structure_json_file=None,
+        )
+
+        # Check that all values are as expected (all periods same)
+        self.assertEqual(modObject.num_commit[1], 3)
+        self.assertEqual(modObject.num_dispatch[2][3], 4)
+        self.assertEqual(modObject.duration_commitment[1][2], 1)
+        self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
+
+        # Test custom period structure with irregular values. This
+        # dictionary is saved as a .json file and then used to
+        # initialize the ExpansionPlanningModel class.
+        period_dict = {
+            "number_representative": 2,
+            "number_commitment": {1: 2, 2: 3},
+            "number_dispatch": {1: {1: 3, 2: 2}, 2: {1: 2, 2: 3, 3: 2}},
+            "duration_representative_period": {1: 24, 2: 18},
+            "duration_commitment": {1: {1: 1, 2: 2}, 2: {1: 1, 2: 1.5, 3: 2}},
+            "duration_dispatch": {
+                1: {1: {1: 10, 2: 20, 3: 30}, 2: {1: 30, 2: 90}},
+                2: {1: {1: 30, 2: 30}, 2: {1: 20, 2: 20, 3: 50}, 3: {1: 60, 2: 60}},
+            },
+        }
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        json_path = os.path.join(curr_dir, "test_custom_period_structure.json")
+        with open(json_path, "w") as f:
+            json.dump(period_dict, f, indent=2)
+
+        # Test that the model correctly reads and assigns the custom
+        # period structure values. Here we instantiate the model using
+        # the .json file.
+        modObject = ExpansionPlanningModel(
+            stages=1,
+            data=dataObject,
+            cost_data=dataProcessingObject,
+            period_structure_json_file=json_path,
+            save_period_structure_file=False,
+        )
+
+        # Assert that we have the correct reading of the structure
+        self.assertEqual(modObject.num_reps, 2)
+        self.assertEqual(modObject.num_commit[2], 3)
+        self.assertEqual(modObject.num_dispatch[2][2], 3)
+        self.assertEqual(modObject.duration_commitment[2][2], 1.5)
+        self.assertEqual(modObject.duration_dispatch[2][2][3], 50)
+        self.assertEqual(modObject.duration_representative_period[2], 18)
+        self.assertEqual(modObject.duration_dispatch[1][1][2], 20)
+        self.assertEqual(modObject.duration_commitment[1][2], 2)
+
+        # Remove the .json file after the test
+        os.remove(json_path)
