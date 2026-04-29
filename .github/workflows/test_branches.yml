@@ -16,8 +16,7 @@ concurrency:
 
 defaults:
   run:
-    # -l: login shell, needed when using Conda run:
-    shell: bash -l {0}
+    shell: bash {0}
 
 jobs:
   code-formatting:
