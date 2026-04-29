@@ -94,26 +94,12 @@ class ExpansionPlanningModel:
         formulation=None,
         data=None,
         cost_data=None,
-        duration_representative_period=24,
-        duration_commitment=1,
-        duration_dispatch=15,
-        save_period_structure_file=False,
-        period_structure_json_file=None,
     ):
         """Initialize generation & expansion planning model object.
 
         :param formulation: Egret stuff, to be filled
         :param data: full set of model data
         :param cost_data: full set of cost data for all generators
-        :param: duration_representative_period: duration of each representative period
-                (in hours)
-        :param: duration_commitment: duration of each commitment period (in hours)
-        :param: duration_dispatch: duration of each dispatch period (in minutes)
-        :param: save_period_structure_file: (optional) If True, saves the generated
-                period structure as a JSON file in the data directory. Default is False.
-        :param: period_structure_json_file: (optional) Path to a JSON file in the data
-                directory specifying the period structure. Overrides scalar/list arguments
-                if provided. Default is None.
 
         :return: Pyomo model for full GTEP
         """
@@ -126,12 +112,13 @@ class ExpansionPlanningModel:
         self.num_commit = data.num_commit
         self.num_dispatch = data.num_dispatch
         self.duration_dispatch = data.duration_dispatch
+        self.duration_representative_period = data.duration_representative_period
+        self.duration_commitment = data.duration_commitment
+        self.save_period_structure_file = data.save_period_structure_file
+        self.period_structure_json_file = data.period_structure_json_file
+
         self.config = _get_model_config()
         self.timer = TicTocTimer()
-        self.duration_representative_period = duration_representative_period
-        self.duration_commitment = duration_commitment
-        self.save_period_structure_file = save_period_structure_file
-        self.period_structure_json_file = period_structure_json_file
 
         # Set and validate period structure attributes from .json file
         # or provided scalars. This function also implements a

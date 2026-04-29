@@ -54,7 +54,11 @@ def read_debug_model(
     num_reps=3,
     num_commit=24,
     num_dispatch=4,
+    duration_representative_period=24,
+    duration_commitment=1,
     duration_dispatch=15,
+    save_period_structure_file=False,
+    period_structure_json_file=None,
 ):
     curr_dir = dirname(abspath(__file__))
     debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
@@ -63,7 +67,11 @@ def read_debug_model(
         num_reps=num_reps,
         num_commit=num_commit,
         num_dispatch=num_dispatch,
+        duration_representative_period=duration_representative_period,
+        duration_commitment=duration_commitment,
         duration_dispatch=duration_dispatch,
+        save_period_structure_file=save_period_structure_file,
+        period_structure_json_file=period_structure_json_file,
     )
     dataObject.load_prescient(debug_data_path)
     return dataObject
@@ -74,7 +82,11 @@ def prepare_model_and_cost_data(
     num_reps=3,
     num_commit=24,
     num_dispatch=4,
+    duration_representative_period=24,
+    duration_commitment=1,
     duration_dispatch=15,
+    save_period_structure_file=False,
+    period_structure_json_file=None,
 ):
     # Prepare model and cost data
     dataObject = read_debug_model(
@@ -82,7 +94,11 @@ def prepare_model_and_cost_data(
         num_reps,
         num_commit,
         num_dispatch,
+        duration_representative_period,
+        duration_commitment,
         duration_dispatch,
+        save_period_structure_file,
+        period_structure_json_file,
     )
     curr_dir = dirname(abspath(__file__))
     data_path = abspath(join(curr_dir, "..", "..", "data", "costs"))
@@ -449,7 +465,7 @@ class TestGTEP(unittest.TestCase):
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
-    def test_period_structure_from_scalars_and_json(self):
+    def test_period_structure_from_scalars(self):
         # Test with scalar/list arguments (all periods same)
         dataObject, dataProcessingObject = prepare_model_and_cost_data(
             num_reps=2,
@@ -459,12 +475,7 @@ class TestGTEP(unittest.TestCase):
         )
 
         modObject = ExpansionPlanningModel(
-            data=dataObject,
-            cost_data=dataProcessingObject,
-            duration_representative_period=24,
-            duration_commitment=1,
-            save_period_structure_file=False,
-            period_structure_json_file=None,
+            data=dataObject, cost_data=dataProcessingObject
         )
 
         # Check that all values are as expected (all periods same)
@@ -473,6 +484,7 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.duration_commitment[1][2], 1)
         self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
 
+    def test_period_structure_from_json(self):
         # Test custom period structure with irregular values. This
         # dictionary is saved as a .json file and then used to
         # initialize the ExpansionPlanningModel class.
@@ -495,11 +507,12 @@ class TestGTEP(unittest.TestCase):
         # Test that the model correctly reads and assigns the custom
         # period structure values. Here we instantiate the model using
         # the .json file.
-        modObject = ExpansionPlanningModel(
-            data=dataObject,
-            cost_data=dataProcessingObject,
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
             period_structure_json_file=json_path,
-            save_period_structure_file=False,
+        )
+
+        modObject = ExpansionPlanningModel(
+            data=dataObject, cost_data=dataProcessingObject
         )
 
         # Assert that we have the correct reading of the structure
