@@ -135,7 +135,6 @@ class TestGTEP(unittest.TestCase):
             num_reps=3,
             num_commit=6,
             num_dispatch=4,
-            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
@@ -167,7 +166,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=4,
             num_commit=12,
             num_dispatch=12,
-            duration_dispatch=30,
+            duration_dispatch=5,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -278,6 +277,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=2,
             num_commit=2,
             num_dispatch=2,
+            duration_dispatch=30,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -314,7 +314,9 @@ class TestGTEP(unittest.TestCase):
 
     def test_solve_bigm(self):
         # Solve the debug model as is
-        data_object = read_debug_model(num_reps=1, num_commit=1, num_dispatch=1)
+        data_object = read_debug_model(
+            num_reps=1, num_commit=1, num_dispatch=1, duration_dispatch=60
+        )
         modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
 
@@ -331,18 +333,17 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43
+        # Previous successful objective values: 9207.95, 6078.86,
+        # 531860.15, 531883.43, 2127462.53
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 531883.43, places=1
+            value(modObject.model.total_cost_objective_rule), 2127462.53, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_no_investment(self):
         # Solve the debug model with no investment
         data_object = read_debug_model(
-            num_reps=1,
-            num_commit=1,
-            num_dispatch=1,
+            num_reps=1, num_commit=1, num_dispatch=1, duration_dispatch=60
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -365,9 +366,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43
+        # previous successful objective values: 531860.15, 531883.43, 2127462.53
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 531883.43, places=1
+            value(modObject.model.total_cost_objective_rule), 2127462.53, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)

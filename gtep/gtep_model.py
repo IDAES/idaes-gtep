@@ -202,28 +202,29 @@ class ExpansionPlanningModel:
         self.duration_commitment = period_dict["duration_commitment"]
         self.duration_dispatch = period_dict["duration_dispatch"]
 
-        # # Consistency check: the sum of dispatch durations should
-        # # equal the commitment duration
-        # for rep in range(1, self.num_reps + 1):
-        #     for com in range(1, self.num_commit[rep] + 1):
+        # Consistency check: the sum of dispatch durations should
+        # equal the commitment duration
+        for rep in range(1, self.num_reps + 1):
+            for com in range(1, self.num_commit[rep] + 1):
 
-        #         # Sum dispatch durations (in minutes) and convert it
-        #         # to hours to compare commitment and dispatch duration
-        #         dispatch_sum_hr = pyo.units.convert(
-        #             sum(
-        #                 self.duration_dispatch[rep][com][disp]
-        #                 for disp in range(1, self.num_dispatch[rep][com] + 1)
-        #             ) * u.minutes,
-        #             to_units=u.hours,
-        #         )
-        #         commitment_hr = self.duration_commitment[rep][com]
-        #         if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
-        #             raise ValueError(
-        #                 f"ERROR: The sum of dispatch period durations ({pyo.value(dispatch_sum_hr)} hr) "
-        #                 f"does not match the commitment period duration ({commitment_hr} hr) "
-        #                 f"for representative period {rep}, commitment period {com}. "
-        #                 "Please ensure these durations are consistent in your period structure file ({})."
-        #             )
+                # Sum dispatch durations (in minutes) and convert it
+                # to hours to compare commitment and dispatch duration
+                dispatch_sum_hr = pyo.units.convert(
+                    sum(
+                        self.duration_dispatch[rep][com][disp]
+                        for disp in range(1, self.num_dispatch[rep][com] + 1)
+                    )
+                    * u.minutes,
+                    to_units=u.hours,
+                )
+                commitment_hr = self.duration_commitment[rep][com]
+                if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
+                    raise ValueError(
+                        f"ERROR: The sum of dispatch period durations ({pyo.value(dispatch_sum_hr)} hr) "
+                        f"does not match the commitment period duration ({commitment_hr} hr) "
+                        f"for representative period {rep}, commitment period {com}. "
+                        "Please ensure these durations are consistent in your period structure file ({})."
+                    )
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
