@@ -528,3 +528,24 @@ class TestGTEP(unittest.TestCase):
 
         # Remove the .json file after the test
         os.remove(json_path)
+
+    def test_period_structure_consistency_error_with_scalars(self):
+        # Prepare model and cost data as usual
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+            stages=1,
+            num_reps=1,
+            num_commit=1,
+            num_dispatch=2,
+            duration_representative_period=24,
+            duration_commitment=1,
+            duration_dispatch=60,
+        )
+        # The sum of dispatch durations (2*60min = 120 min = 2hr) does
+        # not match the commitment duration (1hr)
+        with self.assertRaises(ValueError) as cm:
+            ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
+
+        self.assertIn(
+            "ERROR: The sum of dispatch period durations (2.0 hr) does not match the commitment period duration (1 hr)",
+            str(cm.exception),
+        )
