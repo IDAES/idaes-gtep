@@ -91,13 +91,9 @@ class ExpansionPlanningModel:
     def __init__(
         self,
         config=None,
-        stages=1,
         formulation=None,
         data=None,
         cost_data=None,
-        num_reps=3,
-        num_commit=6,
-        num_dispatch=4,
         duration_representative_period=24,
         duration_commitment=1,
         duration_dispatch=15,
@@ -106,13 +102,9 @@ class ExpansionPlanningModel:
     ):
         """Initialize generation & expansion planning model object.
 
-        :param: stages: integer number of investment periods
-        :param: formulation: Egret stuff, to be filled
-        :param: data: full set of model data
-        :param: cost_data: full set of cost data for all generators
-        :param: num_reps: integer number of representative periods per investment period
-        :param: num_commit: integer number of commitment periods per representative period
-        :param: num_dispatch: integer number of dispatch periods per commitment period
+        :param formulation: Egret stuff, to be filled
+        :param data: full set of model data
+        :param cost_data: full set of cost data for all generators
         :param: duration_representative_period: duration of each representative period
                 (in hours)
         :param: duration_commitment: duration of each commitment period (in hours)
@@ -126,18 +118,18 @@ class ExpansionPlanningModel:
         :return: Pyomo model for full GTEP
         """
 
-        self.stages = stages
+        self.stages = data.stages
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
+        self.num_reps = data.num_reps
+        self.num_commit = data.num_commit
+        self.num_dispatch = data.num_dispatch
+        self.duration_dispatch = data.duration_dispatch
         self.config = _get_model_config()
         self.timer = TicTocTimer()
-        self.num_reps = num_reps
-        self.num_commit = num_commit
-        self.num_dispatch = num_dispatch
         self.duration_representative_period = duration_representative_period
         self.duration_commitment = duration_commitment
-        self.duration_dispatch = duration_dispatch
         self.save_period_structure_file = save_period_structure_file
         self.period_structure_json_file = period_structure_json_file
 
