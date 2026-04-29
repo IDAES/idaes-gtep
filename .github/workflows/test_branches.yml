@@ -58,10 +58,10 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v6
       
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
 
       - name: Install idaes-gtep
         run: |
