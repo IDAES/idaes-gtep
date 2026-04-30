@@ -202,13 +202,29 @@ class ExpansionPlanningModel:
         self.duration_commitment = period_dict["duration_commitment"]
         self.duration_dispatch = period_dict["duration_dispatch"]
 
-        # Consistency check: the sum of dispatch durations should
-        # equal the commitment duration
+        # Consistency checks: (1) the sum of commitment durations
+        # should equal the representative period duration and (2) the
+        # sum of dispatch durations should equal the commitment
+        # duration
         for rep in range(1, self.num_reps + 1):
-            for com in range(1, self.num_commit[rep] + 1):
+            # Consistency check (1): Sum commitment durations (in
+            # hours)
+            commitment_sum_hr = sum(
+                self.duration_commitment[rep][com]
+                for com in range(1, self.num_commit[rep] + 1)
+            )
+            rep_period_hr = self.duration_representative_period[rep]
+            if abs(commitment_sum_hr - rep_period_hr) > 1e-6:
+                raise ValueError(
+                    f"ERROR: The sum of commitment period durations ({commitment_sum_hr} hr) "
+                    f"does not match the representative period duration ({rep_period_hr} hr) "
+                    f"for representative period {rep}. "
+                    "Please ensure these durations are consistent in your period structure data."
+                )
 
-                # Sum dispatch durations (in minutes) and convert it
-                # to hours to compare commitment and dispatch duration
+            for com in range(1, self.num_commit[rep] + 1):
+                # Consistency check (2): Sum dispatch durations (in
+                # minutes) and convert it to hours
                 dispatch_sum_hr = pyo.units.convert(
                     sum(
                         self.duration_dispatch[rep][com][disp]
@@ -223,7 +239,7 @@ class ExpansionPlanningModel:
                         f"ERROR: The sum of dispatch period durations ({pyo.value(dispatch_sum_hr)} hr) "
                         f"does not match the commitment period duration ({commitment_hr} hr) "
                         f"for representative period {rep}, commitment period {com}. "
-                        "Please ensure these durations are consistent in your period structure file ({})."
+                        "Please ensure these durations are consistent in your period structure data."
                     )
 
     def create_model(self):

@@ -128,14 +128,10 @@ def prepare_model_and_cost_data(
 @pytest.mark.usefixtures("patch_unit_handlers")
 class TestGTEP(unittest.TestCase):
     def test_model_init(self):
-        # Test that the ExpansionPlanningModel object can read a default dataset and init
-        # properly with default values, including building a Pyomo.ConcreteModel object
-        data_object = read_debug_model(
-            stages=1,
-            num_reps=3,
-            num_commit=6,
-            num_dispatch=4,
-        )
+        # Test that the ExpansionPlanningModel object can read a
+        # default dataset and init properly with default values,
+        # including building a Pyomo.ConcreteModel object
+        data_object = read_debug_model()
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
 
@@ -146,26 +142,43 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.formulation, None)
         self.assertIsInstance(modObject.model.md, ModelData)
         self.assertEqual(modObject.num_reps, 3)
-        self.assertEqual(modObject.num_commit, {1: 6, 2: 6, 3: 6})
+        self.assertEqual(modObject.num_commit, {1: 24, 2: 24, 3: 24})
         self.assertEqual(
             modObject.num_dispatch,
             {
-                1: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
-                2: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
-                3: {1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4},
+                1: {i: 4 for i in range(1, 25)},
+                2: {i: 4 for i in range(1, 25)},
+                3: {i: 4 for i in range(1, 25)},
             },
         )
         self.assertEqual(
             modObject.duration_representative_period, {1: 24, 2: 24, 3: 24}
         )
+        self.assertEqual(
+            modObject.duration_commitment,
+            {
+                1: {i: 1 for i in range(1, 25)},
+                2: {i: 1 for i in range(1, 25)},
+                3: {i: 1 for i in range(1, 25)},
+            },
+        )
+        self.assertEqual(
+            modObject.duration_dispatch,
+            {
+                1: {com: {disp: 15 for disp in range(1, 5)} for com in range(1, 25)},
+                2: {com: {disp: 15 for disp in range(1, 5)} for com in range(1, 25)},
+                3: {com: {disp: 15 for disp in range(1, 5)} for com in range(1, 25)},
+            },
+        )
 
-        # Test that the ExpansionPlanningModel object can read a default dataset and init
-        # properly with non-default values
+        # Test that the ExpansionPlanningModel object can read a
+        # default dataset and init properly with non-default values
         data_object = read_debug_model(
             stages=2,
             num_reps=4,
             num_commit=12,
-            num_dispatch=12,
+            num_dispatch=24,
+            duration_commitment=2,
             duration_dispatch=5,
         )
         modObject = ExpansionPlanningModel(
@@ -182,62 +195,31 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(
             modObject.num_dispatch,
             {
-                1: {
-                    1: 12,
-                    2: 12,
-                    3: 12,
-                    4: 12,
-                    5: 12,
-                    6: 12,
-                    7: 12,
-                    8: 12,
-                    9: 12,
-                    10: 12,
-                    11: 12,
-                    12: 12,
-                },
-                2: {
-                    1: 12,
-                    2: 12,
-                    3: 12,
-                    4: 12,
-                    5: 12,
-                    6: 12,
-                    7: 12,
-                    8: 12,
-                    9: 12,
-                    10: 12,
-                    11: 12,
-                    12: 12,
-                },
-                3: {
-                    1: 12,
-                    2: 12,
-                    3: 12,
-                    4: 12,
-                    5: 12,
-                    6: 12,
-                    7: 12,
-                    8: 12,
-                    9: 12,
-                    10: 12,
-                    11: 12,
-                    12: 12,
-                },
-                4: {
-                    1: 12,
-                    2: 12,
-                    3: 12,
-                    4: 12,
-                    5: 12,
-                    6: 12,
-                    7: 12,
-                    8: 12,
-                    9: 12,
-                    10: 12,
-                    11: 12,
-                    12: 12,
-                },
+                1: {i: 24 for i in range(1, 13)},
+                2: {i: 24 for i in range(1, 13)},
+                3: {i: 24 for i in range(1, 13)},
+                4: {i: 24 for i in range(1, 13)},
+            },
+        )
+        self.assertEqual(
+            modObject.duration_representative_period, {1: 24, 2: 24, 3: 24, 4: 24}
+        )
+        self.assertEqual(
+            modObject.duration_commitment,
+            {
+                1: {i: 2 for i in range(1, 13)},
+                2: {i: 2 for i in range(1, 13)},
+                3: {i: 2 for i in range(1, 13)},
+                4: {i: 2 for i in range(1, 13)},
+            },
+        )
+        self.assertEqual(
+            modObject.duration_dispatch,
+            {
+                1: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
+                2: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
+                3: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
+                4: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
             },
         )
 
@@ -277,6 +259,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=2,
             num_commit=2,
             num_dispatch=2,
+            duration_representative_period=2,
             duration_dispatch=30,
         )
         modObject = ExpansionPlanningModel(
@@ -315,7 +298,11 @@ class TestGTEP(unittest.TestCase):
     def test_solve_bigm(self):
         # Solve the debug model as is
         data_object = read_debug_model(
-            num_reps=1, num_commit=1, num_dispatch=1, duration_dispatch=60
+            num_reps=1,
+            num_commit=1,
+            num_dispatch=1,
+            duration_representative_period=1,
+            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
@@ -334,7 +321,7 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous successful objective values: 9207.95, 6078.86,
-        # 531860.15, 531883.43, 2127462.53
+        # 531860.15, 531883.43
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 2127462.53, places=1
         )
@@ -343,7 +330,11 @@ class TestGTEP(unittest.TestCase):
     def test_no_investment(self):
         # Solve the debug model with no investment
         data_object = read_debug_model(
-            num_reps=1, num_commit=1, num_dispatch=1, duration_dispatch=60
+            num_reps=1,
+            num_commit=1,
+            num_dispatch=1,
+            duration_representative_period=1,
+            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -366,7 +357,7 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 2127462.53
+        # previous successful objective values: 531860.15, 531883.43
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 2127462.53, places=1
         )
@@ -381,6 +372,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=2,
             num_commit=6,
             num_dispatch=4,
+            duration_representative_period=6,
             duration_dispatch=15,
         )
 
@@ -428,6 +420,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=2,
             num_commit=6,
             num_dispatch=4,
+            duration_representative_period=6,
             duration_dispatch=15,
         )
 
@@ -472,6 +465,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=2,
             num_commit=3,
             num_dispatch=4,
+            duration_representative_period=3,
             duration_dispatch=15,
         )
 
@@ -482,6 +476,7 @@ class TestGTEP(unittest.TestCase):
         # Check that all values are as expected (all periods same)
         self.assertEqual(modObject.num_commit[1], 3)
         self.assertEqual(modObject.num_dispatch[2][3], 4)
+        self.assertEqual(modObject.duration_representative_period[1], 3)
         self.assertEqual(modObject.duration_commitment[1][2], 1)
         self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
 
@@ -494,12 +489,17 @@ class TestGTEP(unittest.TestCase):
             "number_commitment": {1: 2, 2: 3},
             "number_dispatch": {1: {1: 3, 2: 2}, 2: {1: 2, 2: 3, 3: 2}},
             "duration_representative_period": {1: 24, 2: 18},
-            "duration_commitment": {1: {1: 1, 2: 2}, 2: {1: 1, 2: 1.5, 3: 2}},
+            "duration_commitment": {1: {1: 12, 2: 12}, 2: {1: 6, 2: 6, 3: 6}},
             "duration_dispatch": {
-                1: {1: {1: 10, 2: 20, 3: 30}, 2: {1: 30, 2: 90}},
-                2: {1: {1: 30, 2: 30}, 2: {1: 20, 2: 20, 3: 50}, 3: {1: 60, 2: 60}},
+                1: {1: {1: 360, 2: 180, 3: 180}, 2: {1: 360, 2: 360}},
+                2: {
+                    1: {1: 180, 2: 180},
+                    2: {1: 120, 2: 120, 3: 120},
+                    3: {1: 180, 2: 180},
+                },
             },
         }
+
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         json_path = os.path.join(curr_dir, "test_custom_period_structure.json")
         with open(json_path, "w") as f:
@@ -520,17 +520,19 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.num_reps, 2)
         self.assertEqual(modObject.num_commit[2], 3)
         self.assertEqual(modObject.num_dispatch[2][2], 3)
-        self.assertEqual(modObject.duration_commitment[2][2], 1.5)
-        self.assertEqual(modObject.duration_dispatch[2][2][3], 50)
+        self.assertEqual(modObject.duration_commitment[2][2], 6)
+        self.assertEqual(modObject.duration_dispatch[2][2][3], 120)
         self.assertEqual(modObject.duration_representative_period[2], 18)
-        self.assertEqual(modObject.duration_dispatch[1][1][2], 20)
-        self.assertEqual(modObject.duration_commitment[1][2], 2)
+        self.assertEqual(modObject.duration_dispatch[1][1][2], 180)
+        self.assertEqual(modObject.duration_commitment[1][2], 12)
 
         # Remove the .json file after the test
         os.remove(json_path)
 
-    def test_period_structure_consistency_error_with_scalars(self):
-        # Prepare model and cost data as usual
+    def test_period_structure_consistency_errors_with_scalars(self):
+
+        # Prepare model and cost data to touch commitment consistency
+        # error
         dataObject, dataProcessingObject = prepare_model_and_cost_data(
             stages=1,
             num_reps=1,
@@ -540,6 +542,28 @@ class TestGTEP(unittest.TestCase):
             duration_commitment=1,
             duration_dispatch=60,
         )
+        # The sum of commitment durations (1hr) does not match the
+        # representative period duration (24hr)
+        with self.assertRaises(ValueError) as cm:
+            ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
+
+        self.assertIn(
+            "ERROR: The sum of commitment period durations (1 hr) does not match the representative period duration (24 hr) for representative period 1",
+            str(cm.exception),
+        )
+
+        # Prepare model and cost data to touch dispatch consistency
+        # error
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+            stages=1,
+            num_reps=1,
+            num_commit=1,
+            num_dispatch=2,
+            duration_representative_period=1,
+            duration_commitment=1,
+            duration_dispatch=60,
+        )
+
         # The sum of dispatch durations (2*60min = 120 min = 2hr) does
         # not match the commitment duration (1hr)
         with self.assertRaises(ValueError) as cm:
