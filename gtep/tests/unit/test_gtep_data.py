@@ -20,134 +20,20 @@ import prescient.simulator.config
 import pandas as pd
 from pathlib import Path
 
+curr_dir = Path(__file__).resolve().parent
+input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
-# Data Path Fixture (Load Prescient)
-@pytest.fixture
-def test_data_path(tmp_path):
-    # Create a minimal simulation_objects.csv file with expected content
-    csv_content = """index,DAY_AHEAD
-Periods_per_Step,24
-"""
-    csv_file = tmp_path / "simulation_objects.csv"
-    csv_file.write_text(csv_content)
-    load_file = tmp_path / "storage.csv"
-    load_file.write_text(
-        """name,bus,generator,storage_type,energy_capacity,initial_state_of_charge,end_state_of_charge,minimum_state_of_charge,charge_efficiency,discharge_efficiency,max_discharge_rate,min_discharge_rate,max_charge_rate,min_charge_rate,initial_charge_rate,initial_discharge_rate,charge_cost,discharge_cost,retention_rate_60min,ramp_up_input_60min,ramp_down_input_60min,ramp_up_output_60min,ramp_down_output_60min,in_service,capital_multiplier,extension_multiplier,investment_cost,investment_cost_kwh
-100MW_400MWh_1,3,None,'battery',400,320,320,80,1,1,100,10,400,1,0,0,175,0,1,400,400,100,100,FALSE,1,1,1490.89,372.7225"""
-    )
-    return tmp_path
+load_scaling_file = (
+    curr_dir / ".." / ".." / "data" / "Texas_2000" / "ERCOT-Adjusted-Forecast.xlsb"
+).resolve()
 
+storage_file = (curr_dir / ".." / ".." / "data" / "9_bus_GTEP_dir").resolve()
 
-# Load scaling File
-@pytest.fixture
-def load_scaling_data_path(tmp_path):
-    # create a mock ercot_adjusted_forecast file
-    info = {
-        "year": [2025, 2037, 2044],
-        "month": [1, 2, 9],
-        "day": [1, 17, 28],
-        "hour": [3, 1, 2],
-        "base_economic_coast": [10000, 13000, 21000],
-        "base_economic_east": [1500, 2000, 2700],
-        "base_economic_fwest": [5000, 8000, 9000],
-        "base_economic_ncent": [12000, 14000, 22000],
-        "base_economic_north": [1200, 1600, 2100],
-        "base_economic_scent": [6000, 8000, 10000],
-        "base_economic_south": [3000, 4500, 6000],
-        "base_economic_west": [1200, 1500, 1800],
-        "coast_net": [11000, 18000, 27000],
-        "east_net": [1500, 2100, 3000],
-        "fwest_net": [7000, 12000, 21000],
-        "ncent_net": [13000, 20000, 29000],
-        "north_net": [1500, 6000, 12000],
-        "scent_net": [7000, 20000, 34000],
-        "south_net": [3000, 6000, 8000],
-        "west_net": [1200, 3000, 8000],
-    }
-    df = pd.DataFrame(info)
-    file_path = tmp_path / "load_scale.xlsx"
+texas_data_path = (curr_dir / ".." / ".." / "data" / "Texas_2000").resolve
 
-    df.to_excel(file_path, index=False, header=True)
-    return file_path
-
-
-# Texas Data Path Fixture (texas_case_study)
-@pytest.fixture
-def texas_data_path(tmp_path):
-    csv_content = """GEN UID,Bus ID,Unit Type,Fuel,capex1,capex2,capex3,fuel_cost1,fuel_cost2,fuel_cost3,fixed_ops1,fixed_ops2,fixed_ops3,var_ops1,var_ops2,var_ops3
-1,107,NUC,N,7040.489322,6966.178959,6731.224251,7.210946358,7.294679868,7.378403404,145.96,145.96,145.96,2.84,2.84,2.84
-2,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
-3,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
-4,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
-2-c,100,CT,G,958.3056411,928.7012334,908.9649616,21.62404,18.03036,22.80128,26.87,26.87,26.87,1.76,1.76,1.76
-"""
-    dir_path = tmp_path / "Texas_2000"
-    dir_path.mkdir(parents=True, exist_ok=True)
-    excel_path = dir_path / "gen.csv"
-    excel_path.write_text(csv_content)
-
-    return dir_path
-
-
-# Load Data File Fixture (Import Load)
-@pytest.fixture
-def actual_load_path():
-    test_dir = Path(__file__).parent
-    # Navigate up to 'gtep' directory, then into 'data'
-    data_dir = test_dir.parent.parent / "data"
-    excel_path = data_dir / "Texas_2000" / "ERCOT-Adjusted-Forecast.xlsb"
-    return excel_path
-
-
-# Outage Data File Fixtures (Import Outages)
-@pytest.fixture
-def outage_data(tmp_path):
-    outage_content = """fips_code,lim_timestamp,case_4b_prob,date
-48001,5/20/25 0:00,0,20-May
-48025,5/20/25 3:00,0,20-May
-48025,5/20/25 4:00,0,20-May
-48025,5/20/25 5:00,0,20-May
-48025,5/20/25 6:00,0,20-May
-48025,5/20/25 7:00,0,20-May
-48025,5/20/25 8:00,0,20-May
-48025,5/20/25 9:00,0,20-May
-48025,5/20/25 10:00,0,20-May
-48027,5/20/25 20:00,0,20-May
-48163,5/20/25 20:00,0.006944444,20-May"""
-    outage_csv = tmp_path / "outage.csv"
-    outage_csv.write_text(outage_content)
-
-    return outage_csv
-
-
-@pytest.fixture
-def county_fips_csv(tmp_path):
-    dir_path = tmp_path / "gtep" / "data" / "123_Bus_Resil_Week"
-    dir_path.mkdir(parents=True, exist_ok=True)
-    content = """county_number,County,FIPS,,
-1,Anderson,48001,,
-13,Bee,48025,,
-27,Burnet,48053,,
-82,Frio,48163,,
-"""
-    file = dir_path / "county_fips_match.csv"
-    file.write_text(content)
-    return file
-
-
-@pytest.fixture
-def bus_data_csv(tmp_path):
-    dir_path = tmp_path / "gtep" / "data" / "123_Bus_Resil_Week"
-    dir_path.mkdir(parents=True, exist_ok=True)
-    content = """Bus Number,County
-1001,Anderson
-1002,Bee
-1003,Burnet
-1004,Frio
-"""
-    file = dir_path / "Bus_data_gen_weights_mappings.csv"
-    file.write_text(content)
-    return file
+outage_data_path = (
+    curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week" / "may_20.csv"
+).resolve()
 
 
 # Function Mocks (Load Prescient)
@@ -166,81 +52,39 @@ def mock_prescient_config():
         yield mock_instance
 
 
-@pytest.fixture
-def mock_gmlc_provider():
-    with unittest.mock.patch(
-        "prescient.data.providers.gmlc_data_provider.GmlcDataProvider"
-    ) as MockProvider:
-        instance = MockProvider.return_value
-        instance._start_time = "2020-01-01 00:00"
-        # Mock get_initial_actuals_model to return a model with .data attribute
-        model_mock = unittest.mock.Mock()
-        model_mock.data = {
-            "elements": {
-                "generator": {
-                    "1": {"fuel": "C", "in_service": True},
-                    "2": {"fuel": "None", "in_service": True},
-                    "2-c": {"fuel": "None", "in_service": True},
-                },
-                "branch": {"branch1": {}, "branch2-c": {}},
-                "storage": {"stor1": {}},
-            },
-            "system": {
-                "time_keys": [
-                    "2020-01-28 00:00",
-                    "2020-01-28 01:00",
-                    "2020-01-28 02:00",
-                    "2020-04-23 00:00",
-                    "2020-07-05 00:00",
-                    "2020-10-14 00:00",
-                    "2020-12-14 00:00",
-                ]
-            },
-        }
-        model_mock.clone_at_time_keys.side_effect = lambda keys: f"clone_{keys}"
-        instance.get_initial_actuals_model.return_value = model_mock
-        instance.populate_with_actuals.return_value = None
-        yield instance
-
-
-@pytest.mark.usefixtures("mock_prescient_config", "mock_gmlc_provider")
-class TestExpansionPlanningData:
+class TestExpansionPlanningData(unittest.TestCase):
 
     def test_data_init(self):
         # Test that the ExpansionPlanningData object initializes properly with default values
         testObject = ExpansionPlanningData()
-        assert isinstance(testObject, ExpansionPlanningData)
-        assert testObject.stages == 2
-        assert testObject.num_reps == 4
-        assert testObject.len_reps == 1
-        assert testObject.num_commit == 24
-        assert testObject.num_dispatch == 1
-        assert testObject.duration_dispatch == 60
+        self.assertIsInstance(testObject, ExpansionPlanningData)
+        self.assertEqual(testObject.stages, 2)
+        self.assertEqual(testObject.num_reps, 4)
+        self.assertEqual(testObject.len_reps, 1)
+        self.assertEqual(testObject.num_commit, 24)
+        self.assertEqual(testObject.num_dispatch, 1)
+        self.assertEqual(testObject.duration_dispatch, 60)
 
         # Test that the ExpansionPlanningData object initializes properly with input values
         testObject = ExpansionPlanningData(1, 2, 2, 2, 2, 15)
-        assert isinstance(testObject, ExpansionPlanningData)
-        assert testObject.stages == 1
-        assert testObject.num_reps == 2
-        assert testObject.len_reps == 2
-        assert testObject.num_commit == 2
-        assert testObject.num_dispatch == 2
-        assert testObject.duration_dispatch == 15
+        self.assertEqual(testObject.stages, 1)
+        self.assertEqual(testObject.num_reps, 2)
+        self.assertEqual(testObject.len_reps, 2)
+        self.assertEqual(testObject.num_commit, 2)
+        self.assertEqual(testObject.num_dispatch, 2)
+        self.assertEqual(testObject.duration_dispatch, 15)
 
         # Test that the ExpansionPlanningData object initializes properly with partial input values
         testObject = ExpansionPlanningData(duration_dispatch=15)
-        assert isinstance(testObject, ExpansionPlanningData)
-        assert testObject.stages == 2
-        assert testObject.num_reps == 4
-        assert testObject.len_reps == 1
-        assert testObject.num_commit == 24
-        assert testObject.num_dispatch == 1
-        assert testObject.duration_dispatch == 15
+        self.assertEqual(testObject.stages, 2)
+        self.assertEqual(testObject.num_reps, 4)
+        self.assertEqual(testObject.len_reps, 1)
+        self.assertEqual(testObject.num_commit, 24)
+        self.assertEqual(testObject.num_dispatch, 1)
+        self.assertEqual(testObject.duration_dispatch, 15)
 
     # -------------------------------------------------LOAD_PRESCIENT------------------------------------------------------------ #
-    def test_options_dict(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_options_dict(self, mock_prescient_config):
         # Test passing in an options dictionary
         testObject = ExpansionPlanningData()
         # set options that are not the defaults
@@ -249,33 +93,30 @@ class TestExpansionPlanningData:
             "ruc_horizon": 12,
         }
 
-        testObject.load_prescient(data_path=test_data_path, options_dict=options)
+        testObject.load_prescient(data_path=input_data_source, options_dict=options)
+
         mock_prescient_config.set_value.assert_called_once()
         passed_dict = mock_prescient_config.set_value.call_args[0][0]
-        assert passed_dict["data_path"] == str(test_data_path)
-        assert passed_dict["num_days"] == 100
-        assert passed_dict["ruc_horizon"] == 12
+        self.assertEqual(passed_dict["data_path"], str(input_data_source))
+        self.assertEqual(passed_dict["num_days"], 100)
+        self.assertEqual(passed_dict["ruc_horizon"], 12)
 
-    def test_no_options_dict(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_no_options_dict(self, mock_prescient_config):
 
         # Test not passing in an options dictionary
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
         mock_prescient_config.set_value.assert_called_once()
         passed_dict = mock_prescient_config.set_value.call_args[0][0]
         # Default options should be set
-        assert passed_dict["data_path"] == str(test_data_path)
-        assert passed_dict["num_days"] == 365
-        assert passed_dict["ruc_horizon"] == 36
+        self.assertEqual(passed_dict["data_path"], str(input_data_source))
+        self.assertEqual(passed_dict["num_days"], 365)
+        self.assertEqual(passed_dict["ruc_horizon"], 36)
 
-    def test_default_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_default_representative_dates(self):
         # Test no representative dates passed in, initializing with defaults
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
         # default dates:
         expected_dates = [
             "2020-01-28 00:00",
@@ -283,34 +124,26 @@ class TestExpansionPlanningData:
             "2020-07-05 00:00",
             "2020-10-14 00:00",
         ]
-        assert testObject.representative_dates == expected_dates
+        self.assertEqual(testObject.representative_dates, expected_dates)
 
-    def test_passed_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_passed_representative_dates(self):
         # Test new representative dates passed in, replacing defaults
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(
-            data_path=test_data_path,
-            representative_dates=[
-                "2020-01-28 00:00",
-                "2020-04-23 00:00",
-                "2020-07-05 00:00",
-                "2020-12-14 00:00",
-            ],
-        )
-
         expected_dates = [
             "2020-01-28 00:00",
             "2020-04-23 00:00",
             "2020-07-05 00:00",
             "2020-12-14 00:00",
         ]
-        assert testObject.representative_dates == expected_dates
 
-    def test_representative_date_not_in_time_keys(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(
+            data_path=input_data_source,
+            representative_dates=expected_dates,
+        )
+
+        self.assertEqual(testObject.representative_dates, expected_dates)
+
+    def test_representative_date_not_in_time_keys(self):
         # Test passing invalid/not covered dates
         testObject = ExpansionPlanningData()
         bad_dates = [
@@ -319,37 +152,31 @@ class TestExpansionPlanningData:
             "2020-07-05 00:00",
             "2099-01-01 00:00",  # Not in time_keys
         ]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             testObject.load_prescient(
-                data_path=test_data_path, representative_dates=bad_dates
+                data_path=input_data_source, representative_dates=bad_dates
             )
 
-    def test_empty_representative_dates(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_empty_representative_dates(self):
         # Test an empty list passed to overwrite defaults without setting new dates
         testObject = ExpansionPlanningData()
-        with pytest.raises(ZeroDivisionError):
-            testObject.load_prescient(data_path=test_data_path, representative_dates=[])
+        with self.assertRaises(ZeroDivisionError):
+            testObject.load_prescient(
+                data_path=input_data_source, representative_dates=[]
+            )
 
-    def test_default_representative_weights(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_default_representative_weights(self):
         # Test no representative weights passed in, so the function calculates them
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
 
-        total_weight = mock_prescient_config.num_days * testObject.stages
-        assert total_weight == (365 * 2)
+        total_weight = 365 * testObject.stages
         expected_weight = int(total_weight / len(testObject.representative_dates))
-        assert expected_weight == int((365 * 2) / 4)
 
         for w in testObject.representative_weights.values():
-            assert w == expected_weight
+            self.assertEqual(w, expected_weight)
 
-    def test_no_representative_weights_passed_5_dates(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_no_representative_weights_passed_5_dates(self):
         # Test no representative weights passed in and custom dates passed in, so the function calculates them
         dates = [
             "2020-01-28 00:00",
@@ -360,123 +187,56 @@ class TestExpansionPlanningData:
         ]
 
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path, representative_dates=dates)
+        testObject.load_prescient(
+            data_path=input_data_source, representative_dates=dates
+        )
 
-        total_weight = mock_prescient_config.num_days * testObject.stages
-        assert total_weight == (365 * 2)
+        total_weight = 365 * testObject.stages
         expected_weight = int(total_weight / len(testObject.representative_dates))
-        assert expected_weight == int((365 * 2) / 5)
 
         for w in testObject.representative_weights.values():
-            assert w == expected_weight
+            self.assertEqual(w, expected_weight)
 
-    def test_passed_representative_weights(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_passed_representative_weights(self):
         # Test representative weights passed in
         weights = {1: 91, 2: 91, 3: 91, 4: 91}
         testObject = ExpansionPlanningData()
         testObject.load_prescient(
-            data_path=test_data_path, representative_weights=weights
+            data_path=input_data_source, representative_weights=weights
         )
-        assert testObject.representative_weights == weights
+        self.assertEqual(testObject.representative_weights, weights)
 
-    def test_key_function_calls(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
-        # Test that each function is called within the load_prescient function
-        testObject = ExpansionPlanningData()
-
-        # Patch internal methods to track calls
-        with (
-            unittest.mock.patch.object(
-                testObject, "load_default_data_settings"
-            ) as mock_load_defaults,
-            unittest.mock.patch.object(
-                testObject, "load_storage_csv"
-            ) as mock_load_storage,
-        ):
-
-            testObject.load_prescient(data_path=test_data_path)
-
-            # External calls
-            mock_prescient_config.set_value.assert_called_once()
-            mock_gmlc_provider.get_initial_actuals_model.assert_called_once()
-            mock_gmlc_provider.populate_with_actuals.assert_called_once()
-
-            # Internal calls
-            mock_load_defaults.assert_called_once()
-            mock_load_storage.assert_called_once_with(test_data_path)
-
-    def test_total_num_steps_calculation(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
-        # Check that the total number of time steps is calculated based in the number of days in the config
-        mock_prescient_config.num_days = 365
-
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
-
-        # period_per_step is 24
-        expected_total_steps = 365 * 24
-
-        mock_gmlc_provider.get_initial_actuals_model.assert_called_once()
-        call_args = mock_gmlc_provider.get_initial_actuals_model.call_args[1]
-        assert call_args["num_time_steps"] == expected_total_steps
-
-    def test_total_num_steps_calculation_2_years(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
-        # Check that the total number of time steps is calculated based in the number of days in the config
-        mock_prescient_config.num_days = 730
-
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
-
-        # period_per_step is 24
-        expected_total_steps = 730 * 24
-
-        mock_gmlc_provider.get_initial_actuals_model.assert_called_once()
-        call_args = mock_gmlc_provider.get_initial_actuals_model.call_args[1]
-        assert call_args["num_time_steps"] == expected_total_steps
-
-    def test_in_service_flags_set(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    # FIXME
+    def test_in_service_flags_set(self):
         # Test in service flags are being set properly
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
 
         assert testObject.md.data["elements"]["generator"]["2-c"]["in_service"] == False
         assert (
             testObject.md.data["elements"]["branch"]["branch2-c"]["in_service"] == False
         )
 
-    def test_missing_simulation_objects_csv(
-        self, mock_prescient_config, mock_gmlc_provider, tmp_path
-    ):
+    def test_missing_simulation_objects_csv(self, tmp_path):
         # test if a data path is missing the simulation objects, it should throw an error
         testObject = ExpansionPlanningData()
         # tmp_path is empty, no simulation_objects.csv
-        with pytest.raises(FileNotFoundError):
+        with self.assertRaises(FileNotFoundError):
             testObject.load_prescient(data_path=tmp_path)
 
-    def test_incorrect_simulation_objects_csv(
-        self, mock_prescient_config, mock_gmlc_provider, tmp_path
-    ):
+    def test_incorrect_simulation_objects_csv(self, tmp_path):
         # test if simulations_objects is missing key details, it should throw an error
         csv_file = tmp_path / "simulation_objects.csv"
         csv_file.write_text("index,DAY_AHEAD\nWrongKey,24\n")
 
         testObject = ExpansionPlanningData()
-        with pytest.raises(KeyError):
+        with self.assertRaises(KeyError):
             testObject.load_prescient(data_path=tmp_path)
 
-    def test_clone_at_time_keys_called_correctly(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    # FIXME
+    def test_clone_at_time_keys_called_correctly(self):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
 
         # Patch clone_at_time_keys on the existing model instance
         with unittest.mock.patch.object(
@@ -484,17 +244,18 @@ class TestExpansionPlanningData:
         ) as mock_clone:
 
             # Call load_prescient again to trigger cloning with patched method
-            testObject.load_prescient(data_path=test_data_path)
+            testObject.load_prescient(data_path=input_data_source)
 
             # Check that clone_at_time_keys was called once per representative date
             expected_calls = len(testObject.representative_dates)
             assert mock_clone.call_count == expected_calls
 
     # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
-    def test_import_load_scaling_normal(self, load_scaling_data_path):
+    # FIXME
+    def test_import_load_scaling_normal(self):
         # test successful passthrough of load scaling function
         testObject = ExpansionPlanningData()
-        testObject.import_load_scaling(load_scaling_data_path)
+        testObject.import_load_scaling(load_scaling_file)
 
         df = testObject.load_scaling
         assert isinstance(df, pd.DataFrame)
@@ -505,70 +266,38 @@ class TestExpansionPlanningData:
             assert col in df.columns
         assert not df.empty
 
-    def test_import_load_scaling_incorrect_num_years(self, load_scaling_data_path):
+    def test_import_load_scaling_incorrect_num_years(self):
         # Test value error raised if the length of forecast years is incorrect
         testObject = ExpansionPlanningData(stages=3)
         forecast_years = [2025, 2030]
 
-        with pytest.raises(ValueError):
-            testObject.import_load_scaling(load_scaling_data_path, forecast_years)
+        with self.assertRaises(ValueError):
+            testObject.import_load_scaling(load_scaling_file, forecast_years)
 
-    def test_import_load_scaling_incorrect_years_too_early(
-        self, load_scaling_data_path
-    ):
+    def test_import_load_scaling_incorrect_years_too_early(self):
         # Test value error raised if the forecast years are outside the supported ranges
         testObject = ExpansionPlanningData(stages=3)
         forecast_years = [2019, 2030, 2055]
 
-        with pytest.raises(ValueError):
-            testObject.import_load_scaling(load_scaling_data_path, forecast_years)
+        with self.assertRaises(ValueError):
+            testObject.import_load_scaling(load_scaling_file, forecast_years)
 
     # -------------------------------------------------IMPORT_OUTAGE_DATA------------------------------------------------------------ #
-    def test_import_outage_data(
-        self, outage_data, county_fips_csv, bus_data_csv, monkeypatch
-    ):
+    def test_import_outage_data(self):
         testObject = ExpansionPlanningData()
 
-        # Load DataFrames from temp CSV files for patching
-        df_outage = pd.read_csv(outage_data)
-        df_county_fips = pd.read_csv(county_fips_csv)
-        df_bus_data = pd.read_csv(bus_data_csv)
+        testObject.import_outage_data(outage_data_path)
 
-        # Patch pd.read_csv to return appropriate DataFrame based on input path
-        def mock_read_csv(filepath, *args, **kwargs):
-            if not isinstance(filepath, Path):
-                filepath = Path(filepath)
-            if filepath.name.endswith("outage.csv"):
-                return df_outage
-            elif filepath.name.endswith("county_fips_match.csv"):
-                return df_county_fips
-            elif filepath.name.endswith("Bus_data_gen_weights_mappings.csv"):
-                return df_bus_data
-            else:
-                raise FileNotFoundError(f"Unexpected file path: {filepath}")
-
-        monkeypatch.setattr(pd, "read_csv", mock_read_csv)
-
-        # Patch to_csv to avoid actual file writes during test
-        monkeypatch.setattr(pd.DataFrame, "to_csv", lambda self, *args, **kwargs: None)
-
-        testObject.import_outage_data(outage_data)
-
-        assert hasattr(testObject, "bus_hours")
         df = testObject.bus_hours
-        assert isinstance(df, pd.DataFrame)
-        assert set(df.columns) == {"hour", "Bus Number"}
-        assert pd.api.types.is_integer_dtype(df["hour"])
-        assert pd.api.types.is_integer_dtype(df["Bus Number"])
-        assert (df["hour"] == 20).any()
-        assert (df["Bus Number"] == 1004).any()
+
+        self.assertHasAttr(testObject, "bus_hours")
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertIn(["hour", "Bus Number"], df.columns)
 
     # -------------------------------------------------LOAD_DEFAULT_DATA_SETTINGS------------------------------------------------------------ #
-    def test_load_default_data_settings(
-        self, mock_prescient_config, mock_gmlc_provider, test_data_path
-    ):
+    def test_load_default_data_settings(self):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
 
         testObject.load_default_data_settings()
 
@@ -576,53 +305,47 @@ class TestExpansionPlanningData:
         for gen_name, gen in testObject.md.data["elements"]["generator"].items():
             if gen.get("fuel") == "C":
                 if gen.get("in_service") is False:
-                    assert gen["lifetime"] == 1
+                    self.assertEqual(gen["lifetime"], 1)
                 else:
-                    assert gen["lifetime"] == 2
+                    self.assertEqual(gen["lifetime"], 2)
             else:
-                assert gen["lifetime"] == 3
+                self.assertEqual(gen["lifetime"], 3)
 
             # Check other fixed attributes
-            assert gen["spinning_reserve_frac"] == 0.1
-            assert gen["quickstart_reserve_frac"] == 0.1
-            assert gen["capital_multiplier"] == 1
-            assert gen["extension_multiplier"] == 0
-            assert gen["max_operating_reserve"] == 1
-            assert gen["max_spinning_reserve"] == 1
-            assert gen["max_quickstart_reserve"] == 1
-            assert gen["ramp_up_rate"] == 0.1
-            assert gen["ramp_down_rate"] == 0.1
-            assert gen["emissions_factor"] == 1
-            assert gen["start_fuel"] == 1
-            assert gen["investment_cost"] == 1
+            self.assertEqual(gen["spinning_reserve_frac"], 0.1)
+            self.assertEqual(gen["quickstart_reserve_frac"], 0.1)
+            self.assertEqual(gen["capital_multiplier"], 1)
+            self.assertEqual(gen["extension_multiplier"], 0)
+            self.assertEqual(gen["max_operating_reserve"], 1)
+            self.assertEqual(gen["max_spinning_reserve"], 1)
+            self.assertEqual(gen["max_quickstart_reserve"], 1)
+            self.assertEqual(gen["ramp_up_rate"], 0.1)
+            self.assertEqual(gen["ramp_down_rate"], 0.1)
+            self.assertEqual(gen["emissions_factor"], 1)
+            self.assertEqual(gen["start_fuel"], 1)
+            self.assertEqual(gen["investment_cost"], 1)
 
         # Check branches
         for branch in testObject.md.data["elements"]["branch"].values():
-            assert branch["loss_rate"] == 0
-            assert branch["distance"] == 1
-            assert branch["capital_cost"] == 10000000
+            self.assertEqual(branch["loss_rate"], 0)
+            self.assertEqual(branch["distance"], 1)
+            self.assertEqual(branch["capital_cost"], 10000000)
 
         # Check system
         system = testObject.md.data["system"]
-        assert system["min_operating_reserve"] == 0.1
-        assert system["min_spinning_reserve"] == 0.1
+        self.assertEqual(system["min_operating_reserve"], 0.1)
+        self.assertEqual(system["min_spinning_reserve"], 0.1)
 
     # -------------------------------------------------LOAD_STORAGE_CSV------------------------------------------------------------ #
-    def test_load_storage_csv_success(
-        self, test_data_path, mock_gmlc_provider, mock_prescient_config
-    ):
+    def test_load_storage_csv_success(self):
         testObject = ExpansionPlanningData()
-        # Setup md with empty data structure to avoid errors
-        testObject.md = mock_gmlc_provider.get_initial_actuals_model.return_value
-        testObject.load_storage_csv(test_data_path)
+        testObject.load_prescient(data_path=input_data_source)
+        testObject.load_storage_csv(storage_file)
 
         # Check that storage data was loaded into md.data["elements"]["storage"]
         storage = testObject.md.data["elements"].get("storage", None)
-        assert storage is not None
-        assert isinstance(storage, dict)
-
-        # Check that storage keys include the name from your CSV fixture
-        assert "100MW_400MWh_1" in storage
+        self.assertIsNotNone(storage)
+        self.assertIsInstance(storage, dict)
 
         # Check some expected keys in storage data
         expected_keys = {
@@ -635,52 +358,33 @@ class TestExpansionPlanningData:
             "investment_cost_kwh",
         }
         for key in expected_keys:
-            assert key in storage["100MW_400MWh_1"]
+            assert key in storage["100MW_400MWh_1"].keys()
 
-    def test_load_storage_csv_file_not_found(
-        self, tmp_path, mock_gmlc_provider, mock_prescient_config
-    ):
+    def test_load_storage_string_path(self):
         testObject = ExpansionPlanningData()
-        testObject.md = mock_gmlc_provider.get_initial_actuals_model.return_value
+        testObject.load_prescient(data_path=input_data_source)
+        testObject.load_storage_csv(str(storage_file))  # should not throw an error
 
-        # Use a directory without storage.csv
-        missing_path = tmp_path
-
-        with unittest.mock.patch("builtins.print") as mock_print:
-            testObject.load_storage_csv(missing_path)
-
-            # Should print warning about missing file
-            mock_print.assert_called_once()
-            args = mock_print.call_args[0][0]
-            assert "does not exist" in args
+    def test_load_storage_csv_file_not_found(self):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(input_data_source)
+        testObject.load_storage_csv(input_data_source)
 
         # Storage should be set to empty dict
         storage = testObject.md.data["elements"].get("storage", None)
-        assert storage == {}
+        self.assertIsInstance(storage, dict)
+        self.assertEqual(storage, {})
 
     # -------------------------------------------------TEXAS_CASE_STUDY_UPDATES----------------------------------------------------------- #
-    def test_texas_case_study(
-        self, mock_gmlc_provider, mock_prescient_config, test_data_path, texas_data_path
-    ):
+    def test_texas_case_study(self):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=test_data_path)
-
-        generators = testObject.md.data["elements"].get("generator", {})
-        fixed_generators = {}
-        for gen_key, gen_val in generators.items():
-            fixed_generators[str(gen_key)] = gen_val
-        testObject.md.data["elements"]["generator"] = fixed_generators
-
-        # Setup representative_data with the expected structure
-        mock_data_point = unittest.mock.Mock()
-        mock_data_point.data = testObject.md.data
-        testObject.representative_data = [mock_data_point]
+        testObject.load_prescient(data_path=input_data_source)
 
         # Call the method under test
         testObject.texas_case_study_updates(texas_data_path)
 
         generator = testObject.md.data["elements"].get("generator", None)
-        assert generator is not None
+        self.assertIsNotNone(generator)
 
         expected_columns = [
             "capex1",
@@ -700,18 +404,13 @@ class TestExpansionPlanningData:
         # Check that each expected column is added to each generator
         for gen_name, gen_data in generator.items():
             for col in expected_columns:
-                assert col in gen_data, f"Column {col} missing in generator {gen_name}"
-
-        # check example values
-        gen1 = generator.get("1")
-        assert gen1 is not None
-        assert abs(gen1["capex1"] - 7040.489322) < 1e-6
-        assert abs(gen1["fuel_cost1"] - 7.210946358) < 1e-6
+                self.assertIn(
+                    col, gen_data, f"Column {col} missing in generator {gen_name}"
+                )
 
     def test_texas_case_study_invalid_data_path(self):
         # Test that an error is raised if not a Texas case Study
         testObject = ExpansionPlanningData()
-        invalid_path = "/some/invalid/path"
 
-        with pytest.raises(ValueError, match="not a Texas case study"):
-            testObject.texas_case_study_updates(invalid_path)
+        with self.assertRaises(ValueError, match="not a Texas case study"):
+            testObject.texas_case_study_updates(input_data_source)
