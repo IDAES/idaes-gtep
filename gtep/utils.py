@@ -11,7 +11,13 @@
 # for full copyright and license information.
 #################################################################################
 
+import os
 import json
+
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def generate_period_structure_skeleton(
@@ -97,3 +103,146 @@ def generate_period_structure_utils(
         save_period_structure_json(period_dict, filename)
 
     return period_dict
+
+
+def _set_period_structure_dict(
+    num_reps,
+    num_commit,
+    num_dispatch,
+    duration_representative_period,
+    duration_commitment,
+    duration_dispatch,
+    save_period_structure_file,
+    period_structure_json_file,
+):
+    """This method returns a period structure dictionary with keys for
+    the number and duration of representative, commitment, and
+    dispatch periods.
+
+    If a JSON file is specified, it loads the period structure from
+    that file.  Otherwise, generates the period structure from the
+    provided scalar arguments. Optionally saves the generated
+    structure to a JSON file.
+
+    Returns:
+
+    :dict: period structure dictionary
+
+    """
+
+    # If a .json file with period structure data is provided, use
+    # it, otherwise, expand to a dictionary using the provided
+    # scalars.
+
+    if period_structure_json_file is not None:
+        # Use provided .json file
+        json_path = os.path.abspath(
+            os.path.join(curr_dir, "data", period_structure_json_file)
+        )
+        with open(json_path, "r") as f:
+            period_dict = json.load(f)
+
+        # Helper function to recursively convert string keys to
+        # integers
+        def convert_keys_to_int(obj):
+            if isinstance(obj, dict):
+                return {
+                    (
+                        int(k) if isinstance(k, str) and k.isdigit() else k
+                    ): convert_keys_to_int(v)
+                    for k, v in obj.items()
+                }
+            else:
+                return obj
+
+        period_dict = convert_keys_to_int(period_dict)
+
+    else:
+        # .json file not provided; expand period structure
+        # dictionary from scalar arguments. Optionally save the
+        # expanded dictionary as a .json file with a default name
+        # under the data directory.
+        filename = (
+            os.path.abspath(
+                os.path.join(curr_dir, "data", "period_structure_from_gtep.json")
+            )
+            if save_period_structure_file
+            else None
+        )
+
+        period_dict = generate_period_structure_utils(
+            num_reps,
+            num_commit,
+            num_dispatch,
+            duration_representative_period,
+            duration_commitment,
+            duration_dispatch,
+            filename=filename,
+        )
+        if save_period_structure_file:
+            print(
+                f"\nINFO: Period structure dictionary generated from scalar period arguments has been written to '{filename}'.\n"
+            )
+
+    return period_dict
+
+
+def check_period_structure_consistency(
+    num_reps,
+    num_commit,
+    num_dispatch,
+    duration_representative_period,
+    duration_commitment,
+    duration_dispatch,
+):
+    """This method checks that the sum of commitment and dispatch
+    durations equals the representative and commitment period
+    duration. It raises ValueError with details if mismatches are
+    found.
+
+    """
+
+    commitment_errors = []
+    dispatch_errors = []
+    for rep in range(1, num_reps + 1):
+        # Consistency check (1): Sum commitment durations (in hours)
+        commitment_sum_hr = sum(
+            duration_commitment[rep][com] for com in range(1, num_commit[rep] + 1)
+        )
+        rep_period_hr = duration_representative_period[rep]
+        if abs(commitment_sum_hr - rep_period_hr) > 1e-6:
+            commitment_errors.append(
+                f"  - Representative period {rep}: sum of commitment durations ({commitment_sum_hr} hr) != representative period duration ({rep_period_hr} hr)"
+            )
+
+        for com in range(1, num_commit[rep] + 1):
+            # Consistency check (2): Sum dispatch durations (in
+            # minutes) and convert to hours
+            dispatch_sum_hr = pyo.units.convert(
+                sum(
+                    duration_dispatch[rep][com][disp]
+                    for disp in range(1, num_dispatch[rep][com] + 1)
+                )
+                * u.minutes,
+                to_units=u.hours,
+            )
+            commitment_hr = duration_commitment[rep][com]
+            if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
+                dispatch_errors.append(
+                    f"  - Representative period {rep}, commitment period {com}: sum of dispatch durations ({pyo.value(dispatch_sum_hr)} hr) != commitment period duration ({commitment_hr} hr)"
+                )
+
+    # Raise an error if any mismatches were found
+    if commitment_errors or dispatch_errors:
+        msg = ["Period structure consistency check failed:\n"]
+        if commitment_errors:
+            msg.append(
+                f"ERROR: Found ({len(commitment_errors)}) mismatches for commitment period duration:\n"
+                + "\n".join(commitment_errors)
+            )
+        if dispatch_errors:
+            msg.append(
+                f"ERROR: Found ({len(dispatch_errors)}) mismatches for dispatch period duration:\n"
+                + "\n".join(dispatch_errors)
+            )
+        raise ValueError("\n".join(msg))
