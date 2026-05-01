@@ -69,7 +69,6 @@ class ExpansionPlanningSolution:
         self.formulation = gtep_model.formulation  # None (???)
         self.data = gtep_model.data  # ModelData object
         self.num_reps = gtep_model.num_reps  # int
-        self.len_reps = gtep_model.len_reps  # int
         self.num_commit = gtep_model.num_commit  # int
         self.num_dispatch = gtep_model.num_dispatch  # int
 

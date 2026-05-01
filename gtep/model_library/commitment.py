@@ -28,9 +28,6 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     m = b.model()
 
-    b.commitmentPeriodLength = pyo.Param(
-        within=pyo.PositiveReals, default=1, units=u.hr
-    )
     b.carbonTax = pyo.Param(default=0)
 
     # [ESR: Corrected to be in the commitment block "b", not in main
@@ -174,7 +171,9 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 renewableCurtailmentRep += (
                     m.weights[rep_per]
-                    * m.commitmentPeriodLength
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .renewableCurtailmentCommitment  # in MW
