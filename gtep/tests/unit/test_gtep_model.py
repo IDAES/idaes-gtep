@@ -57,8 +57,6 @@ def read_debug_model(
     num_commit=24,
     num_dispatch=4,
     duration_representative_period=24,
-    duration_commitment=1,
-    duration_dispatch=15,
     save_period_structure_file=False,
     period_structure_json_file=None,
 ):
@@ -70,8 +68,6 @@ def read_debug_model(
         num_commit=num_commit,
         num_dispatch=num_dispatch,
         duration_representative_period=duration_representative_period,
-        duration_commitment=duration_commitment,
-        duration_dispatch=duration_dispatch,
         save_period_structure_file=save_period_structure_file,
         period_structure_json_file=period_structure_json_file,
     )
@@ -85,8 +81,6 @@ def prepare_model_and_cost_data(
     num_commit=24,
     num_dispatch=4,
     duration_representative_period=24,
-    duration_commitment=1,
-    duration_dispatch=15,
     save_period_structure_file=False,
     period_structure_json_file=None,
 ):
@@ -97,8 +91,6 @@ def prepare_model_and_cost_data(
         num_commit,
         num_dispatch,
         duration_representative_period,
-        duration_commitment,
-        duration_dispatch,
         save_period_structure_file,
         period_structure_json_file,
     )
@@ -180,8 +172,7 @@ class TestGTEP(unittest.TestCase):
             num_reps=4,
             num_commit=12,
             num_dispatch=24,
-            duration_commitment=2,
-            duration_dispatch=5,
+            duration_representative_period=24,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -262,7 +253,6 @@ class TestGTEP(unittest.TestCase):
             num_commit=2,
             num_dispatch=2,
             duration_representative_period=2,
-            duration_dispatch=30,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -304,7 +294,6 @@ class TestGTEP(unittest.TestCase):
             num_commit=1,
             num_dispatch=1,
             duration_representative_period=1,
-            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(data=data_object)
         modObject.create_model()
@@ -336,7 +325,6 @@ class TestGTEP(unittest.TestCase):
             num_commit=1,
             num_dispatch=1,
             duration_representative_period=1,
-            duration_dispatch=60,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -375,7 +363,6 @@ class TestGTEP(unittest.TestCase):
             num_commit=6,
             num_dispatch=4,
             duration_representative_period=6,
-            duration_dispatch=15,
         )
 
         # Populate and create GTEP model
@@ -423,7 +410,6 @@ class TestGTEP(unittest.TestCase):
             num_commit=6,
             num_dispatch=4,
             duration_representative_period=6,
-            duration_dispatch=15,
         )
 
         # Populate and create GTEP model
@@ -462,28 +448,28 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_period_structure_from_scalars(self):
-        # Test with scalar/list arguments (all periods same)
+        # Test period structure dictionary created using the provided
+        # scalars
         dataObject, dataProcessingObject = prepare_model_and_cost_data(
             num_reps=2,
             num_commit=3,
             num_dispatch=4,
             duration_representative_period=3,
-            duration_dispatch=15,
         )
 
         modObject = ExpansionPlanningModel(
             data=dataObject, cost_data=dataProcessingObject
         )
 
-        # Check that all values are as expected (all periods same)
+        # Assert that all values are as expected
         self.assertEqual(modObject.num_commit[1], 3)
         self.assertEqual(modObject.num_dispatch[2][3], 4)
         self.assertEqual(modObject.duration_representative_period[1], 3)
         self.assertEqual(modObject.duration_commitment[1][2], 1)
         self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
 
-    def test_period_structure_from_json(self):
-        # Test custom period structure with irregular values.
+        # Test custom period structure dictionary with irregular
+        # values.
         period_dict = {
             "number_representative": 2,
             "number_commitment": {1: 2, 2: 3},
@@ -527,47 +513,62 @@ class TestGTEP(unittest.TestCase):
             self.assertEqual(modObject.duration_dispatch[1][1][2], 180)
             self.assertEqual(modObject.duration_commitment[1][2], 12)
 
-    def test_period_structure_consistency_errors_with_scalars(self):
+    def test_period_structure_consistency_errors(self):
 
-        # Prepare model and cost data to touch commitment consistency
-        # error
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
-            stages=1,
-            num_reps=1,
-            num_commit=1,
-            num_dispatch=2,
-            duration_representative_period=24,
-            duration_commitment=1,
-            duration_dispatch=60,
-        )
-        # The sum of commitment durations (1hr) does not match the
-        # representative period duration (24hr)
-        with self.assertRaises(ValueError) as cm:
-            ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
+        # Check that a consistency error is raised if
+        # commitment/dispatch period durations do not sum to the
+        # representative/commitment period duration when loading from
+        # a .json file.  The test first creates and writes the .json
+        # file, then checks for the error.
+        period_dict = {
+            "number_representative": 2,
+            "number_commitment": {"1": 6, "2": 6},
+            "number_dispatch": {
+                "1": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
+                "2": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
+            },
+            "duration_representative_period": {"1": 6, "2": 6},
+            "duration_commitment": {
+                "1": {"1": 1.0, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0, "6": 3.0},
+                "2": {"1": 1.0, "2": 1.0, "3": 2.0, "4": 1.0, "5": 1.0, "6": 1.0},
+            },
+            "duration_dispatch": {
+                "1": {
+                    "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "2": {"1": 25.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "5": {"1": 15.0, "2": 15.0, "3": 5.0, "4": 15.0},
+                    "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                },
+                "2": {
+                    "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "2": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "5": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                },
+            },
+        }
 
-        self.assertIn(
-            "ERROR: The sum of commitment period durations (1 hr) does not match the representative period duration (24 hr) for representative period 1",
-            str(cm.exception),
-        )
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = Path(tempfile.mkdtemp())
+            json_path = temp_dir / "test_consistency_errors_period_structure.json"
+            with open(json_path, "w") as f:
+                json.dump(period_dict, f, indent=2)
 
-        # Prepare model and cost data to touch dispatch consistency
-        # error
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
-            stages=1,
-            num_reps=1,
-            num_commit=1,
-            num_dispatch=2,
-            duration_representative_period=1,
-            duration_commitment=1,
-            duration_dispatch=60,
-        )
+            # Instantiate the model using the temp .json file.
+            dataObject, dataProcessingObject = prepare_model_and_cost_data(
+                period_structure_json_file=str(json_path),
+            )
 
-        # The sum of dispatch durations (2*60min = 120 min = 2hr) does
-        # not match the commitment duration (1hr)
-        with self.assertRaises(ValueError) as cm:
-            ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
+            # Assert that the sum of commitment durations (20hr) does
+            # not match the representative period duration (18hr)
+            with self.assertRaises(ValueError) as cm:
+                ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
 
-        self.assertIn(
-            "ERROR: The sum of dispatch period durations (2.0 hr) does not match the commitment period duration (1 hr)",
-            str(cm.exception),
-        )
+            self.assertIn(
+                "Period structure consistency check failed:\n\nERROR: Found (2) mismatches for commitment period duration:",
+                str(cm.exception),
+            )

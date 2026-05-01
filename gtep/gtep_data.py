@@ -36,8 +36,6 @@ class ExpansionPlanningData:
         num_commit=24,
         num_dispatch=1,
         duration_representative_period=24,
-        duration_commitment=1,
-        duration_dispatch=15,
         save_period_structure_file=False,
         period_structure_json_file=None,
     ):
@@ -49,8 +47,6 @@ class ExpansionPlanningData:
         :param: num_dispatch: integer number of dispatch periods per commitment period
         :param: duration_representative_period: duration of each representative period
                 (in hours)
-        :param: duration_commitment: duration of each commitment period (in hours)
-        :param: duration_dispatch: duration of each dispatch period (in minutes)
         :param: save_period_structure_file: (optional) If True, saves the generated
                 period structure as a JSON file in the data directory. Default is False.
         :param: period_structure_json_file: (optional) Path to a JSON file in the data
@@ -64,8 +60,6 @@ class ExpansionPlanningData:
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
         self.duration_representative_period = duration_representative_period
-        self.duration_commitment = duration_commitment
-        self.duration_dispatch = duration_dispatch
         self.save_period_structure_file = save_period_structure_file
         self.period_structure_json_file = period_structure_json_file
 

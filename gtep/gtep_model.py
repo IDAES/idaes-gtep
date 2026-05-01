@@ -53,7 +53,10 @@ import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
-from gtep.utils import generate_period_structure_utils
+from gtep.utils import (
+    _set_period_structure_dict,
+    check_period_structure_consistency,
+)
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -104,96 +107,46 @@ class ExpansionPlanningModel:
         :return: Pyomo model for full GTEP
         """
 
+        self.config = _get_model_config()
+        self.timer = TicTocTimer()
+
         self.stages = data.stages
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
-        self.num_reps = data.num_reps
-        self.num_commit = data.num_commit
-        self.num_dispatch = data.num_dispatch
-        self.duration_dispatch = data.duration_dispatch
-        self.duration_representative_period = data.duration_representative_period
-        self.duration_commitment = data.duration_commitment
         self.save_period_structure_file = data.save_period_structure_file
         self.period_structure_json_file = data.period_structure_json_file
 
-        self.config = _get_model_config()
-        self.timer = TicTocTimer()
-
-        # Set and validate period structure attributes from .json file
-        # or provided scalars. This function also implements a
-        # consistency check on dispatch and commitment durations.
-        self._set_period_structure_dict()
-
-        _add_common_configs(self.config)
-        _add_investment_configs(self.config)
-
-    def _set_period_structure_dict(self):
-        """This method initializes and validates the period structure
-        attributes (number and duration of representative, commitment,
-        and dispatch periods) from either a user-provided .json file
-        or from provided scalar arguments.
-
-        This method performs a consistency check to ensure that the
-        sum of dispatch durations matches each commitment period
-        duration.
-
-        """
-
-        # If a .json file with period structure data is provided, use
-        # it, otherwise, expand from scalars.
-
-        if self.period_structure_json_file is not None:
-            # Use provided .json file
-            json_path = os.path.abspath(
-                os.path.join(curr_dir, "data", self.period_structure_json_file)
+        # Calculate commitment and dispatch period durations using
+        # provided scalars for the duration of representative period
+        # and number of commitment and dispatch periods. Note: We are
+        # assuming that all periods within their parent are of equal
+        # length.
+        duration_commitment = data.duration_representative_period / data.num_commit
+        duration_dispatch = pyo.value(
+            pyo.units.convert(
+                (duration_commitment / data.num_dispatch) * u.hours,
+                to_units=u.minutes,
             )
-            with open(json_path, "r") as f:
-                period_dict = json.load(f)
+        )
 
-            # Helper function to recursively convert string keys to
-            # integers
-            def convert_keys_to_int(obj):
-                if isinstance(obj, dict):
-                    return {
-                        (
-                            int(k) if isinstance(k, str) and k.isdigit() else k
-                        ): convert_keys_to_int(v)
-                        for k, v in obj.items()
-                    }
-                else:
-                    return obj
-
-            period_dict = convert_keys_to_int(period_dict)
-
-        else:
-            # .json file not provided; expand period structure
-            # dictionary from scalar arguments. Optionally save the
-            # expanded dictionary as a .json file with a default name
-            # under the data directory.
-            filename = (
-                os.path.abspath(
-                    os.path.join(curr_dir, "data", "period_structure_from_gtep.json")
-                )
-                if self.save_period_structure_file
-                else None
-            )
-            period_dict = generate_period_structure_utils(
-                self.num_reps,
-                self.num_commit,
-                self.num_dispatch,
-                self.duration_representative_period,
-                self.duration_commitment,
-                self.duration_dispatch,
-                filename=filename,
-            )
-            if self.save_period_structure_file:
-                print(
-                    f"\nINFO: Period structure dictionary generated from scalar period arguments has been written to '{filename}'.\n"
-                )
+        #  Generate the period structure dictionary from provided
+        # scalars, or load it from a .json file if specified. In
+        # either case, the period structure is returned as a
+        # dictionary.
+        period_dict = _set_period_structure_dict(
+            data.num_reps,
+            data.num_commit,
+            data.num_dispatch,
+            data.duration_representative_period,
+            duration_commitment,
+            duration_dispatch,
+            self.save_period_structure_file,
+            self.period_structure_json_file,
+        )
 
         # Assign period structure attributes from the dictionary
-        self.num_reps = period_dict.get("number_representative", self.num_reps)
+        self.num_reps = period_dict.get("number_representative", data.num_reps)
         self.num_commit = period_dict["number_commitment"]
         self.num_dispatch = period_dict["number_dispatch"]
         self.duration_representative_period = period_dict[
@@ -202,45 +155,19 @@ class ExpansionPlanningModel:
         self.duration_commitment = period_dict["duration_commitment"]
         self.duration_dispatch = period_dict["duration_dispatch"]
 
-        # Consistency checks: (1) the sum of commitment durations
-        # should equal the representative period duration and (2) the
-        # sum of dispatch durations should equal the commitment
-        # duration
-        for rep in range(1, self.num_reps + 1):
-            # Consistency check (1): Sum commitment durations (in
-            # hours)
-            commitment_sum_hr = sum(
-                self.duration_commitment[rep][com]
-                for com in range(1, self.num_commit[rep] + 1)
-            )
-            rep_period_hr = self.duration_representative_period[rep]
-            if abs(commitment_sum_hr - rep_period_hr) > 1e-6:
-                raise ValueError(
-                    f"ERROR: The sum of commitment period durations ({commitment_sum_hr} hr) "
-                    f"does not match the representative period duration ({rep_period_hr} hr) "
-                    f"for representative period {rep}. "
-                    "Please ensure these durations are consistent in your period structure data."
-                )
+        # Run a consistency check on commitment and dispatch
+        # durations.
+        check_period_structure_consistency(
+            self.num_reps,
+            self.num_commit,
+            self.num_dispatch,
+            self.duration_representative_period,
+            self.duration_commitment,
+            self.duration_dispatch,
+        )
 
-            for com in range(1, self.num_commit[rep] + 1):
-                # Consistency check (2): Sum dispatch durations (in
-                # minutes) and convert it to hours
-                dispatch_sum_hr = pyo.units.convert(
-                    sum(
-                        self.duration_dispatch[rep][com][disp]
-                        for disp in range(1, self.num_dispatch[rep][com] + 1)
-                    )
-                    * u.minutes,
-                    to_units=u.hours,
-                )
-                commitment_hr = self.duration_commitment[rep][com]
-                if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
-                    raise ValueError(
-                        f"ERROR: The sum of dispatch period durations ({pyo.value(dispatch_sum_hr)} hr) "
-                        f"does not match the commitment period duration ({commitment_hr} hr) "
-                        f"for representative period {rep}, commitment period {com}. "
-                        "Please ensure these durations are consistent in your period structure data."
-                    )
+        _add_common_configs(self.config)
+        _add_investment_configs(self.config)
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
