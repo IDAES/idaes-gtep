@@ -24,8 +24,7 @@ concurrency:
 
 defaults:
   run:
-    # -l: login shell, needed when using Conda run:
-    shell: bash -l {0}
+    shell: bash {0}
 
 jobs:
   code-formatting:
@@ -33,8 +32,8 @@ jobs:
     # OS and/or Python version don't make a difference, so we choose ubuntu and 3.10 for performance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.10'
       - name: Install Black
@@ -48,7 +47,7 @@ jobs:
     name: Check Spelling
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run Spell Checker
         uses: crate-ci/typos@master
         with: 
@@ -65,31 +64,17 @@ jobs:
         python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Set up Miniconda Python
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-          conda-remove-defaults: true
-          auto-update-conda: false
-          channels: conda-forge
-
-      - name: Install Python packages (conda)
-        run: |
-          # Set up environment
-          conda config --set always_yes yes
-          
-          echo "Install Python packages"
-          # Install dependencies needed for testing
-          conda install --yes --quiet pytest highspy
-          
-          echo "Final conda environment:"
-          conda list | sed 's/^/    /'
 
       - name: Install idaes-gtep
         run: |
           pip install -e .
+          pip install pytest highspy
           
       - name: Run Tests
         run: |
