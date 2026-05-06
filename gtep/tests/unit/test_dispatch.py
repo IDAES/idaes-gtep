@@ -26,69 +26,68 @@ curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
-def get_dispatch_block():
-    # create model
-    data_object = ExpansionPlanningData(
-        stages=1,
-        num_reps=1,
-        num_commit=1,
-        num_dispatch=1,
-    )
-    data_object.load_prescient(str(input_data_source))
-
-    mod_object = ExpansionPlanningModel(
-        data=data_object,
-    )
-    mod_object.create_model()
-
-    current_block = mod_object.model
-    for component_name in [
-        "investmentStage",
-        "representativePeriod",
-        "commitmentPeriod",
-        "dispatchPeriod",
-    ]:
-        block = current_block.component(component_name)
-        first_idx = block.index_set().at(1)
-        current_block = block[first_idx]
-
-    return current_block
-
-
 class TestDispatch(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.b = get_dispatch_block()
-        cls.m = cls.b.model()
+    def _create_model(self, config={}):
+        # create model
+        data_object = ExpansionPlanningData(
+            stages=1,
+            num_reps=1,
+            num_commit=1,
+            num_dispatch=1,
+        )
+        data_object.load_prescient(str(input_data_source))
 
-    def test_add_dispatch_variables(self):
-        check_helper = PyomoCheckHelper(self, self.b)
-        check_helper.add_object(
+        mod_object = ExpansionPlanningModel(
+            data=data_object,
+        )
+        mod_object.create_model()
+
+        for config_option, config_val in config.items():
+            mod_object.config[config_option] = config_val
+
+        return mod_object
+
+    def _get_first_dispatch_block(self):
+        current_block = self.m
+        for component_name in [
+            "investmentStage",
+            "representativePeriod",
+            "commitmentPeriod",
+            "dispatchPeriod",
+        ]:
+            block = current_block.component(component_name)
+            first_idx = block.index_set().at(1)
+            current_block = block[first_idx]
+
+        return current_block
+
+    def _add_dispatch_variables(self):
+        self.check_helper.add_object(
             name="renewableGenerationSurplus",
             units=u.MW,
             obj_type=pyo.Expression,
             index=self.m.renewableGenerators,
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="renewableCurtailmentCost",
             units=u.USD,
             obj_type=pyo.Expression,
             index=self.m.renewableGenerators,
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="thermalGeneratorCost",
             units=u.USD,
             obj_type=pyo.Expression,
             index=self.m.thermalGenerators,
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="renewableGeneratorCost",
             units=u.USD,
             obj_type=pyo.Expression,
             index=self.m.renewableGenerators,
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="reactiveGeneratorCost",
             units=u.USD,
             obj_type=pyo.Expression,
@@ -98,7 +97,7 @@ class TestDispatch(unittest.TestCase):
                 or self.m.config["flow_model"] == "ACP"
             ),
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="loadShed",
             units=u.MW,
             obj_type=pyo.Var,
@@ -106,14 +105,22 @@ class TestDispatch(unittest.TestCase):
             domain=pyo.NonNegativeReals,
             # initialize=0,
         )
-        check_helper.add_object(
+        self.check_helper.add_object(
             name="loadShedCost",
             units=u.USD,
             obj_type=pyo.Expression,
             index=self.m.buses,
         )
 
-        check_helper.check_all()
+    def _coordinate_tests(self, config):
+        self.m = self._create_model(config=config).model
+        self.b = self._get_first_dispatch_block()
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._add_dispatch_variables()
+        self.check_helper.check_all()
+
+    def test_default_config_options(self):
+        self._coordinate_tests(config={})
 
 
 class PyomoCheckHelper:
