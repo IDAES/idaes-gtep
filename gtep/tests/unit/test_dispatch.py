@@ -13,6 +13,8 @@
 
 
 from pathlib import Path
+from io import StringIO
+import re
 
 import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
@@ -62,7 +64,7 @@ class TestDispatch(unittest.TestCase):
 
         return current_block
 
-    def _add_dispatch_variables(self):
+    def _add_properties_for_dispatch_variables(self):
         self.check_helper.add_object(
             name="renewableGenerationSurplus",
             units=u.MW,
@@ -111,16 +113,154 @@ class TestDispatch(unittest.TestCase):
             obj_type=pyo.Expression,
             index=self.m.buses,
         )
+        self.check_helper.add_object(
+            name="renewableSurplusDispatch",
+            units=u.MW,
+            obj_type=pyo.Expression,
+        )
+        self.check_helper.add_object(
+            name="thermalGenerationCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
+        )
+        self.check_helper.add_object(
+            name="renewableGenerationCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
+        )
+        self.check_helper.add_object(
+            name="renewableGenerationCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
+        )
+        # self.check_helper.add_object(
+        #     name="reactiveGenerationCostDispatch",
+        #     units=u.USD,
+        #     obj_type=pyo.Expression,
+        # )
+        self.check_helper.add_object(
+            name="loadShedCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
+        )
+        self.check_helper.add_object(
+            name="curtailmentCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
+        )
+        # self.check_helper.add_object(
+        #     name="operatingCostDispatch",
+        #     units=u.USD,
+        #     obj_type=pyo.Expression,
+        # )
+        self.check_helper.add_object(
+            name="renewableCurtailmentDispatch",
+            units=u.MW,
+            obj_type=pyo.Expression,
+        )
+        self.check_helper.add_object(
+            name="powerFlow",
+            units=u.MW,
+            obj_type=pyo.Var,
+            index=self.m.transmission,
+            domain=pyo.Reals,
+            # bounds=,
+        )
+        self.check_helper.add_object(
+            name="spinningReserve",
+            units=u.MW,
+            obj_type=pyo.Var,
+            index=self.m.thermalGenerators,
+            domain=pyo.NonNegativeReals,
+            # bounds=,
+        )
+        self.check_helper.add_object(
+            name="quickstartReserve",
+            units=u.MW,
+            obj_type=pyo.Var,
+            index=self.m.thermalGenerators,
+            domain=pyo.NonNegativeReals,
+            # bounds=,
+        )
+
+    def _extract_terms_from_string_expression(self, expr):
+        expr = expr.replace(" ", "")
+        stack = [1]  # sign context
+        sign = 1
+        term = ""
+        out = []
+
+        i = 0
+        while i < len(expr):
+            c = expr[i]
+            if c in "+-":
+                if term:
+                    out.append((sign * stack[-1], term))
+                    term = ""
+                sign = 1 if c == "+" else -1
+            elif c == "(":
+                stack.append(stack[-1] * sign)
+                sign = 1
+            elif c == ")":
+                if term:
+                    out.append((sign * stack[-1], term))
+                    term = ""
+                stack.pop()
+            else:
+                term += c
+            i += 1
+        if term:
+            out.append((sign * stack[-1], term))
+
+        return out
+
+    def _parse_constraint_pprint(self, constraint):
+        buf = StringIO()
+        constraint.pprint(ostream=buf)
+        pprinted = buf.getvalue().replace(self.b.name, "b")
+
+        out = {}
+        for index_expr_pprinted in pprinted.split("\n")[3:-1]:
+            index_expr_split = index_expr_pprinted.split(":")
+            i = index_expr_split[0].strip()
+            expr = index_expr_split[2].strip()
+            val = index_expr_split[3].strip()
+            # print(i, ":", expr)
+
+            out[i] = {
+                "expr": self._extract_terms_from_string_expression(expr),
+                "val": val,
+            }
+        return out
+
+    def _check_dispatch_constraints(self):
+        c = self.b.flow_balance
+        constraints_by_index = self._parse_constraint_pprint(c)
+
+        for i in c.index_set():
+            load_terms = []
+            for sign, term in constraints_by_index[i]["expr"]:
+                match = re.fullmatch(r"loads\[([^\]]+)\]", term)
+                if match:
+                    load_terms.append((sign, term, match.group(1)))
+
+            self.assertTrue(len(load_terms) == 1)  # assert only one load term
+            self.assertTrue(load_terms[0][0] == -1)  # assert term is negative
+            self.assertTrue(load_terms[0][2] == i)  # assert term is for this index
 
     def _coordinate_tests(self, config):
         self.m = self._create_model(config=config).model
         self.b = self._get_first_dispatch_block()
+
         self.check_helper = PyomoCheckHelper(self, self.b)
-        self._add_dispatch_variables()
+        self._add_properties_for_dispatch_variables()
         self.check_helper.check_all()
+
+        self._check_dispatch_constraints()
 
     def test_default_config_options(self):
         self._coordinate_tests(config={})
+        # self._coordinate_tests(config={config_options})
 
 
 class PyomoCheckHelper:
@@ -158,7 +298,8 @@ class PyomoCheckHelper:
         :param obj_type:    Expected type of the pyomo object.
         :param units:       Expected units of the pyomo object. Defaults to `None`, in which
                                 case the units are not checked.
-        :param index:       Expected indexing object of the pyomo object.
+        :param index:       Expected indexing object of the pyomo object. Defaults to `None`,
+                                in which case we check that there is no index.
         :param domain:      Expected domain of the pyomo object. Defaults to `None`, in which
                                 case the object is expected to have no `domain` attribute.
         :param expr:        Expected expression of the pyomo object. Defaults to `None`,
@@ -203,11 +344,19 @@ class PyomoCheckHelper:
             self.td.assertFalse(obj.is_indexed())
         else:
             self.td.assertTrue(obj.is_indexed())
-            self.td.assertIs(obj.index_set(), properties["index"])
+            if isinstance(properties["index"], dict):
+                self.td.assertEqual(len(properties["index"]), len(obj.index_set()))
+                for key in properties["index"]:
+                    self.td.assertIn(key, obj.index_set())
+            else:
+                self.td.assertIs(obj.index_set(), properties["index"])
 
     def _iter_func_over_index(self, obj, func):
-        for i in obj.index_set():
-            func(obj[i])
+        if obj.is_indexed():
+            for i in obj.index_set():
+                func(obj[i])
+        else:
+            func(obj)
 
     def _check_domain(self, obj, properties):
         if properties["domain"] is not None:
@@ -243,6 +392,12 @@ class PyomoCheckHelper:
                 self._check_index(obj, properties)
                 self._check_domain(obj, properties)
                 self._check_units(obj, properties)
-                # self._check_expr(properties)
+                # self._check_expr(properties).
+
+                # if obj.is_indexed():
+                #     for i in obj.index_set():
+                #         if hasattr(obj[i], "bounds"):
+                #             print(properties["name"], obj[i].bounds)
+                #         break
             else:
                 self._check_does_not_exist(properties)
