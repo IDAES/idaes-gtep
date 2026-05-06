@@ -401,6 +401,8 @@ class ExpansionPlanningData:
             for col in bonus_feature_list:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
-                        data_point.data["elements"]["generator"][gen][col] = float(
-                            generator_df[generator_df["GEN UID"] == gen][col].iloc[0]
-                        )
+                        matching_rows = generator_df[generator_df["GEN UID"] == gen]
+                        if not matching_rows.empty:
+                            data_point.data["elements"]["generator"][gen][col] = float(
+                                matching_rows[col].iloc[0]
+                            )
