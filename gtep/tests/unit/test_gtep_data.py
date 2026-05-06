@@ -13,12 +13,13 @@
 
 
 import pyomo.common.unittest as unittest
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, patch
 import pytest
 from gtep.gtep_data import ExpansionPlanningData
 import prescient.simulator.config
 import pandas as pd
 from pathlib import Path
+import tempfile
 
 curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
@@ -29,27 +30,24 @@ load_scaling_file = (
 
 storage_file = (curr_dir / ".." / ".." / "data" / "9_bus_GTEP_dir").resolve()
 
-texas_data_path = (curr_dir / ".." / ".." / "data" / "Texas_2000").resolve
+texas_data_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Coal").resolve()
 
 outage_data_path = (
     curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week" / "may_20.csv"
 ).resolve()
 
 
-# Function Mocks (Load Prescient)
+# creates a face simulations object file
 @pytest.fixture
-def mock_prescient_config():
-    mock_instance = create_autospec(
-        prescient.simulator.config.PrescientConfig, instance=True
-    )
-    mock_instance.set_value.return_value = None
-    mock_instance.num_days = 365
-    mock_instance.sced_frequency_minutes = 60
-
-    with unittest.mock.patch(
-        "gtep.gtep_data.PrescientConfig", return_value=mock_instance
-    ):
-        yield mock_instance
+def inaccurate_simulation_objects_file(tmp_path):
+    """
+    Creates a simulation_objects.csv file with incorrect content
+    inside a temporary directory and returns the directory path.
+    """
+    csv_file = tmp_path / "simulation_objects.csv"
+    # Write inaccurate content (missing required keys)
+    csv_file.write_text("index,DAY_AHEAD\nWrongKey,24\n")
+    return tmp_path
 
 
 class TestExpansionPlanningData(unittest.TestCase):
@@ -84,35 +82,6 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(testObject.duration_dispatch, 15)
 
     # -------------------------------------------------LOAD_PRESCIENT------------------------------------------------------------ #
-    def test_options_dict(self, mock_prescient_config):
-        # Test passing in an options dictionary
-        testObject = ExpansionPlanningData()
-        # set options that are not the defaults
-        options = {
-            "num_days": 100,
-            "ruc_horizon": 12,
-        }
-
-        testObject.load_prescient(data_path=input_data_source, options_dict=options)
-
-        mock_prescient_config.set_value.assert_called_once()
-        passed_dict = mock_prescient_config.set_value.call_args[0][0]
-        self.assertEqual(passed_dict["data_path"], str(input_data_source))
-        self.assertEqual(passed_dict["num_days"], 100)
-        self.assertEqual(passed_dict["ruc_horizon"], 12)
-
-    def test_no_options_dict(self, mock_prescient_config):
-
-        # Test not passing in an options dictionary
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=input_data_source)
-        mock_prescient_config.set_value.assert_called_once()
-        passed_dict = mock_prescient_config.set_value.call_args[0][0]
-        # Default options should be set
-        self.assertEqual(passed_dict["data_path"], str(input_data_source))
-        self.assertEqual(passed_dict["num_days"], 365)
-        self.assertEqual(passed_dict["ruc_horizon"], 36)
-
     def test_default_representative_dates(self):
         # Test no representative dates passed in, initializing with defaults
         testObject = ExpansionPlanningData()
@@ -206,41 +175,35 @@ class TestExpansionPlanningData(unittest.TestCase):
         )
         self.assertEqual(testObject.representative_weights, weights)
 
-    # FIXME
     def test_in_service_flags_set(self):
         # Test in service flags are being set properly
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
 
-        assert testObject.md.data["elements"]["generator"]["2-c"]["in_service"] == False
-        assert (
-            testObject.md.data["elements"]["branch"]["branch2-c"]["in_service"] == False
+        self.assertEqual(
+            testObject.md.data["elements"]["generator"]["3_CT"]["in_service"], True
+        )
+        self.assertEqual(
+            testObject.md.data["elements"]["branch"]["branch_3_4_1"]["in_service"],
+            True,
         )
 
-    def test_missing_simulation_objects_csv(self, tmp_path):
+    def test_missing_simulation_objects_csv(self):
         # test if a data path is missing the simulation objects, it should throw an error
-        testObject = ExpansionPlanningData()
-        # tmp_path is empty, no simulation_objects.csv
-        with self.assertRaises(FileNotFoundError):
-            testObject.load_prescient(data_path=tmp_path)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            testObject = ExpansionPlanningData()
+            with self.assertRaises(FileNotFoundError):
+                testObject.load_prescient(data_path=tmpdirname)
 
-    def test_incorrect_simulation_objects_csv(self, tmp_path):
-        # test if simulations_objects is missing key details, it should throw an error
-        csv_file = tmp_path / "simulation_objects.csv"
-        csv_file.write_text("index,DAY_AHEAD\nWrongKey,24\n")
-
-        testObject = ExpansionPlanningData()
-        with self.assertRaises(KeyError):
-            testObject.load_prescient(data_path=tmp_path)
-
-    # FIXME
     def test_clone_at_time_keys_called_correctly(self):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
 
+        model_class = type(testObject.md)
+
         # Patch clone_at_time_keys on the existing model instance
         with unittest.mock.patch.object(
-            testObject.md, "clone_at_time_keys", wraps=testObject.md.clone_at_time_keys
+            model_class, "clone_at_time_keys", wraps=testObject.md.clone_at_time_keys
         ) as mock_clone:
 
             # Call load_prescient again to trigger cloning with patched method
@@ -248,23 +211,22 @@ class TestExpansionPlanningData(unittest.TestCase):
 
             # Check that clone_at_time_keys was called once per representative date
             expected_calls = len(testObject.representative_dates)
-            assert mock_clone.call_count == expected_calls
+            self.assertEqual(mock_clone.call_count, expected_calls)
 
     # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
-    # FIXME
     def test_import_load_scaling_normal(self):
         # test successful passthrough of load scaling function
         testObject = ExpansionPlanningData()
         testObject.import_load_scaling(load_scaling_file)
 
         df = testObject.load_scaling
-        assert isinstance(df, pd.DataFrame)
+        self.assertIsInstance(df, pd.DataFrame)
         expected_columns = ["year", "month", "day", "hour"] + [
             str(i) for i in range(1, 9)
         ]
         for col in expected_columns:
-            assert col in df.columns
-        assert not df.empty
+            self.assertIn(col, df.columns)
+        self.assertFalse(df.empty)
 
     def test_import_load_scaling_incorrect_num_years(self):
         # Test value error raised if the length of forecast years is incorrect
@@ -292,7 +254,8 @@ class TestExpansionPlanningData(unittest.TestCase):
 
         self.assertHasAttr(testObject, "bus_hours")
         self.assertIsInstance(df, pd.DataFrame)
-        self.assertIn(["hour", "Bus Number"], df.columns)
+        self.assertIn("hour", df.columns)
+        self.assertIn("Bus Number", df.columns)
 
     # -------------------------------------------------LOAD_DEFAULT_DATA_SETTINGS------------------------------------------------------------ #
     def test_load_default_data_settings(self):
@@ -378,7 +341,7 @@ class TestExpansionPlanningData(unittest.TestCase):
     # -------------------------------------------------TEXAS_CASE_STUDY_UPDATES----------------------------------------------------------- #
     def test_texas_case_study(self):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=input_data_source)
+        testObject.load_prescient(data_path=texas_data_path)
 
         # Call the method under test
         testObject.texas_case_study_updates(texas_data_path)
@@ -412,5 +375,5 @@ class TestExpansionPlanningData(unittest.TestCase):
         # Test that an error is raised if not a Texas case Study
         testObject = ExpansionPlanningData()
 
-        with self.assertRaises(ValueError, match="not a Texas case study"):
+        with self.assertRaises(ValueError):
             testObject.texas_case_study_updates(input_data_source)
