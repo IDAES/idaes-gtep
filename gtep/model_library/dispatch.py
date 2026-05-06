@@ -16,8 +16,6 @@ and Transmission Expansion Planning (GTEP) Model
 
 """
 
-import math
-
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -26,10 +24,9 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
+def add_dispatch_variables(b):
     """This method adds dispatch-associated variables to
     representative period block.
-
     """
 
     m = b.model()
@@ -53,7 +50,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def renewableCurtailmentCost(b, renewableGen):
         return (
             b.renewableCurtailment[renewableGen]
-            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.curtailmentCost
         )
 
@@ -61,7 +58,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
@@ -69,15 +66,9 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def renewableGeneratorCost(b, gen):
         return (
             b.renewableGeneration[gen]
-            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
-
-    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
-
-        @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
-        def reactiveGeneratorCost(b, gen):
-            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -91,7 +82,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def loadShedCost(b, bus):
         return (
             b.loadShed[bus]
-            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
@@ -100,52 +91,51 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def renewableSurplusDispatch(b):
         return sum(b.renewableGenerationSurplus[gen] for gen in m.renewableGenerators)
 
-    @b.Expression()
+    @b.Expression(doc="Total cost for thermal generators in $")
     def thermalGenerationCostDispatch(b):
         return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
 
-    @b.Expression()
+    @b.Expression(doc="Total cost for renewable generators in $")
     def renewableGenerationCostDispatch(b):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
-    # Reactive generation cost
+    # Reactive generation costs
+    total_reactive_cost_doc = "Total cost for reactive power generation in $"
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
-        b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
-    else:
-        b.reactiveGenerationCostDispatch = 0
 
-    @b.Expression()
+        @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
+        def reactiveGeneratorCost(b, gen):
+            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+
+        @b.Expression(doc=total_reactive_cost_doc)
+        def reactiveGenerationCostDispatch(b):
+            return sum(b.reactiveGeneratorCost.values())
+    else:
+        @b.Expression(doc=total_reactive_cost_doc)
+        def reactiveGenerationCostDispatch(b):
+            return 0 * u.USD
+
+    @b.Expression(doc="Total load shed cost summed in $")
     def loadShedCostDispatch(b):
         return sum(b.loadShedCost[bus] for bus in m.buses)
 
-    @b.Expression()
+    @b.Expression(doc="Total renewable curtailment cost in $")
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
-    if m.config["storage"]:
-        # Add storage variables and constraints. It also includes its
-        # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
+    # Add storage variables and constraints. It also includes its
+    # operational costs variables.
+    stor.add_dispatch_storage_variables_and_constraints(m, b)
 
-    # [BLN TODO: Check the config check in the Expression rule.]
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
-
-        # [ESR WIP: If I don't add the 0 value for storage cost
-        # dispatch, the optimal solution has a value of 0. Check why
-        # this is happening.]
-        if m.config["storage"]:
-            storage_term = b.storageCostDispatch
-        else:
-            storage_term = 0
-
         return (
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
-            + storage_term
+            + b.storageCostDispatch
         )
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
@@ -189,6 +179,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         bounds=spinning_reserve_limits,
         initialize=0,
         units=u.MW,
+        doc="Thermal generator spinning reserve supply in MW"
     )
 
     def quickstart_reserve_limits(
@@ -205,10 +196,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         bounds=quickstart_reserve_limits,
         initialize=0,
         units=u.MW,
+        doc="Themral generator quickstart reserve supply in MW"
     )
 
 
-def add_dispatch_constraints(b, disp_per):
+def add_dispatch_constraints(b):
     """This method adds dispatch-associated inequalities to the
     representative period block.
 

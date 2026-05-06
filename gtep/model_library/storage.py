@@ -693,65 +693,73 @@ def add_storage_logical_constraints(m):
 
 def add_dispatch_storage_variables_and_constraints(m, b):
 
-    # NOTE: The lower bound should be > 0 (from data input)
-    def storage_capacity_limits(b, bat):
-        return (
-            m.minStorageChargeLevel[bat],
-            m.storageCapacity[bat],
+    storage_cost_doc = "Total charing and discharging costs per battery in USD"
+    if m.config["storage"]:
+
+        # NOTE: The lower bound should be > 0 (from data input)
+        def storage_capacity_limits(b, bat):
+            return (
+                m.minStorageChargeLevel[bat],
+                m.storageCapacity[bat],
+            )
+
+        # [TODO: We need to adjust this constraint since this does not fix
+        # initial battery capacity at the first dispatch period.]
+        def init_storage_capacity(b, bat):
+            return m.initStorageChargeLevel[bat]
+
+        b.storageChargeLevel = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_capacity_limits,
+            initialize=init_storage_capacity,
+            units=u.MW,
         )
 
-    # [TODO: We need to adjust this constraint since this does not fix
-    # initial battery capacity at the first dispatch period.]
-    def init_storage_capacity(b, bat):
-        return m.initStorageChargeLevel[bat]
+        # Define bounds on charging/discharging capability. Note that
+        # constraints enforce that there are min & max charge/discharge
+        # levels if the bat is in the charging or discharging state
+        def storage_charge_limits(b, bat):
+            return (0, m.chargeMax[bat])
 
-    b.storageChargeLevel = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_capacity_limits,
-        initialize=init_storage_capacity,
-        units=u.MW,
-    )
+        def storage_discharge_limits(b, bat):
+            return (0, m.dischargeMax[bat])
 
-    # Define bounds on charging/discharging capability. Note that
-    # constraints enforce that there are min & max charge/discharge
-    # levels if the bat is in the charging or discharging state
-    def storage_charge_limits(b, bat):
-        return (0, m.chargeMax[bat])
-
-    def storage_discharge_limits(b, bat):
-        return (0, m.dischargeMax[bat])
-
-    b.storageCharged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_charge_limits,
-        initialize=0,
-        units=u.MW,
-    )
-
-    b.storageDischarged = pyo.Var(
-        m.storage,
-        domain=pyo.NonNegativeReals,
-        bounds=storage_discharge_limits,
-        initialize=0,
-        units=u.MW,
-    )
-
-    # Operational cost variables and expressions per storage unit
-    @b.Expression(m.storage, doc="Charging cost per battery")
-    def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
-
-    @b.Expression(m.storage, doc="Discharging cost per battery")
-    def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
-
-    @b.Expression()
-    def storageCostDispatch(b):
-        return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
-            b.storageDischargingCost[bat] for bat in m.storage
+        b.storageCharged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_charge_limits,
+            initialize=0,
+            units=u.MW,
         )
+
+        b.storageDischarged = pyo.Var(
+            m.storage,
+            domain=pyo.NonNegativeReals,
+            bounds=storage_discharge_limits,
+            initialize=0,
+            units=u.MW,
+        )
+
+        # Operational cost variables and expressions per storage unit
+        @b.Expression(m.storage, doc="Charging cost per battery")
+        def storageChargingCost(b, bat):
+            return b.storageCharged[bat] * m.chargingCost[bat]
+
+        @b.Expression(m.storage, doc="Discharging cost per battery")
+        def storageDischargingCost(b, bat):
+            return b.storageDischarged[bat] * m.dischargingCost[bat]
+
+        @b.Expression()
+        def storageCostDispatch(b, doc=storage_cost_doc):
+            return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
+                b.storageDischargingCost[bat] for bat in m.storage
+            )
+    
+    else:
+        @b.Expression()
+        def storageCostDispatch(b, doc=storage_cost_doc):
+            return 0 * u.USD
 
 
 def add_commitment_storage_constraints(b):
