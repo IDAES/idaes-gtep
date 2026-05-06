@@ -285,7 +285,8 @@ class ExpansionPlanningData:
             how="left",
         )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
-        bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
+        csv_path = base_dir / "not_right.csv"
+        bus_hours.to_csv(csv_path)
         self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
@@ -377,7 +378,11 @@ class ExpansionPlanningData:
         :param data_path: filepath for generator data csv file
         """
         # check that datapath is coming from a texas case study directory
-        if ("Texas" not in str(data_path)) and ("Coal" not in str(data_path)):
+        if (
+            ("Texas" not in str(data_path))
+            and ("Coal" not in str(data_path))
+            and ("Resil_Week" not in str(data_path))
+        ):
             raise ValueError("The data path provided is not a Texas case study")
 
         # enforce pathlib object
