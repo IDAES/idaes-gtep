@@ -265,12 +265,15 @@ class ExpansionPlanningData:
             r" (\d+):"
         )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
-        county_to_fips = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
-        )
-        bus_to_county = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
-        )
+
+        base_dir = Path(load_file_name).parent
+
+        county_fips_path = base_dir / "county_fips_match.csv"
+        bus_to_county_path = base_dir / "Bus_data_gen_weights_mappings.csv"
+
+        county_to_fips = pd.read_csv(county_fips_path)
+        bus_to_county = pd.read_csv(bus_to_county_path)
+
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
         bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
