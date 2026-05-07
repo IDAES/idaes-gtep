@@ -110,7 +110,9 @@ def add_dispatch_variables(b):
         @b.Expression(doc=total_reactive_cost_doc)
         def reactiveGenerationCostDispatch(b):
             return sum(b.reactiveGeneratorCost.values())
+
     else:
+
         @b.Expression(doc=total_reactive_cost_doc)
         def reactiveGenerationCostDispatch(b):
             return 0 * u.USD
@@ -179,7 +181,7 @@ def add_dispatch_variables(b):
         bounds=spinning_reserve_limits,
         initialize=0,
         units=u.MW,
-        doc="Thermal generator spinning reserve supply in MW"
+        doc="Thermal generator spinning reserve supply in MW",
     )
 
     def quickstart_reserve_limits(
@@ -196,7 +198,7 @@ def add_dispatch_variables(b):
         bounds=quickstart_reserve_limits,
         initialize=0,
         units=u.MW,
-        doc="Themral generator quickstart reserve supply in MW"
+        doc="Themral generator quickstart reserve supply in MW",
     )
 
 

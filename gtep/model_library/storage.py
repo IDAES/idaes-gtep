@@ -755,8 +755,9 @@ def add_dispatch_storage_variables_and_constraints(m, b):
             return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
                 b.storageDischargingCost[bat] for bat in m.storage
             )
-    
+
     else:
+
         @b.Expression()
         def storageCostDispatch(b, doc=storage_cost_doc):
             return 0 * u.USD
