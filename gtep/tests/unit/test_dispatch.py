@@ -37,7 +37,7 @@ class TestDispatch(unittest.TestCase):
             num_commit=1,
             num_dispatch=1,
         )
-        data_object.load_prescient(str(input_data_source))
+        data_object.load_prescient(input_data_source)
 
         mod_object = ExpansionPlanningModel(
             data=data_object,
