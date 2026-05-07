@@ -192,7 +192,7 @@ def parse_constraint_pprint(block_name: str, constraint: pyo.Constraint) -> dict
         - `i` is an element of the constraint's index (per its `.pprint()` function)
         - `val` is the value of the expression associated with `i`
         - `term` is an individual term of the expression associated with `i`
-        - `sign` is the sign of an individual term of teh expression associated with `i`
+        - `sign` is the sign of an individual term of the expression associated with `i`
 
     :param block_name:  `.name` attribute of the block that `constraint` is on.
     :param constraint:  Constraint to be parsed.
