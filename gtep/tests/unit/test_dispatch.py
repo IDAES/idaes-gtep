@@ -292,7 +292,7 @@ class PyomoCheckHelper:
         Expression and Var instances. Call `add_object` to append
         a new set of properties of an object to be checked. Calling
         the `.check_all()` method runs asserts to check for
-        those properties on each object. 
+        those properties on each object.
 
         :param td:          TestDispatch instance.
         :param parent:      Expected parent object that holds the pyomo objects.
@@ -330,7 +330,7 @@ class PyomoCheckHelper:
         :type index:            pyomo.environ.Set | None, optional
         :type bounds:           tuple | None, optional
         :type condition:        bool, optional
-        """ 
+        """
         self.object_properties.append(
             {
                 "name": name,
@@ -384,11 +384,13 @@ class PyomoCheckHelper:
 
     def _check_bounds(self, obj: pyo.Component):
         """Checks that the object's bounds are consistent with its domain (if it has them)."""
+
         def iter_func(x):
             if hasattr(x, "bounds"):
                 for bound in x.bounds:
                     if bound is not None:
                         self.td.assertIn(bound, x.domain)
+
         self._iter_func_over_index(obj, iter_func)
 
     def check_all(self):
