@@ -13,13 +13,13 @@
 
 
 import pyomo.common.unittest as unittest
-from unittest.mock import create_autospec, patch
+from unittest.mock import patch
 import pytest
 from gtep.gtep_data import ExpansionPlanningData
-import prescient.simulator.config
 import pandas as pd
 from pathlib import Path
 import tempfile
+import os
 
 curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
@@ -35,19 +35,6 @@ texas_data_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Coal").resolve()
 outage_data_path = (
     curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week" / "may_20.csv"
 ).resolve()
-
-
-# creates a face simulations object file
-@pytest.fixture
-def inaccurate_simulation_objects_file(tmp_path):
-    """
-    Creates a simulation_objects.csv file with incorrect content
-    inside a temporary directory and returns the directory path.
-    """
-    csv_file = tmp_path / "simulation_objects.csv"
-    # Write inaccurate content (missing required keys)
-    csv_file.write_text("index,DAY_AHEAD\nWrongKey,24\n")
-    return tmp_path
 
 
 class TestExpansionPlanningData(unittest.TestCase):
@@ -214,6 +201,10 @@ class TestExpansionPlanningData(unittest.TestCase):
             self.assertEqual(mock_clone.call_count, expected_calls)
 
     # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
+    @pytest.mark.skipif(
+        not os.path.exists(load_scaling_file),
+        reason=f"Data file {load_scaling_file} not found",
+    )
     def test_import_load_scaling_normal(self):
         # test successful passthrough of load scaling function
         testObject = ExpansionPlanningData()
@@ -228,6 +219,10 @@ class TestExpansionPlanningData(unittest.TestCase):
             self.assertIn(col, df.columns)
         self.assertFalse(df.empty)
 
+    @pytest.mark.skipif(
+        not os.path.exists(load_scaling_file),
+        reason=f"Data file {load_scaling_file} not found",
+    )
     def test_import_load_scaling_incorrect_num_years(self):
         # Test value error raised if the length of forecast years is incorrect
         testObject = ExpansionPlanningData(stages=3)
@@ -236,6 +231,10 @@ class TestExpansionPlanningData(unittest.TestCase):
         with self.assertRaises(ValueError):
             testObject.import_load_scaling(load_scaling_file, forecast_years)
 
+    @pytest.mark.skipif(
+        not os.path.exists(load_scaling_file),
+        reason=f"Data file {load_scaling_file} not found",
+    )
     def test_import_load_scaling_incorrect_years_too_early(self):
         # Test value error raised if the forecast years are outside the supported ranges
         testObject = ExpansionPlanningData(stages=3)
@@ -245,6 +244,10 @@ class TestExpansionPlanningData(unittest.TestCase):
             testObject.import_load_scaling(load_scaling_file, forecast_years)
 
     # -------------------------------------------------IMPORT_OUTAGE_DATA------------------------------------------------------------ #
+    @pytest.mark.skipif(
+        not os.path.exists(outage_data_path),
+        reason=f"Data file {outage_data_path} not found",
+    )
     def test_import_outage_data(self):
         testObject = ExpansionPlanningData()
 
@@ -300,6 +303,10 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(system["min_spinning_reserve"], 0.1)
 
     # -------------------------------------------------LOAD_STORAGE_CSV------------------------------------------------------------ #
+    @pytest.mark.skipif(
+        not os.path.exists(storage_file),
+        reason=f"Data file {storage_file} not found",
+    )
     def test_load_storage_csv_success(self):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
@@ -323,6 +330,10 @@ class TestExpansionPlanningData(unittest.TestCase):
         for key in expected_keys:
             assert key in storage["100MW_400MWh_1"].keys()
 
+    @pytest.mark.skipif(
+        not os.path.exists(storage_file),
+        reason=f"Data file {storage_file} not found",
+    )
     def test_load_storage_string_path(self):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
@@ -339,6 +350,10 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(storage, {})
 
     # -------------------------------------------------TEXAS_CASE_STUDY_UPDATES----------------------------------------------------------- #
+    @pytest.mark.skipif(
+        not os.path.exists(texas_data_path),
+        reason=f"Data file {texas_data_path} not found",
+    )
     def test_texas_case_study(self):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=texas_data_path)
