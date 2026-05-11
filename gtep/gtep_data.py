@@ -182,7 +182,6 @@ class ExpansionPlanningData:
 
         """
         adjusted_forecast = pd.read_excel(load_file_name)
-        print((adjusted_forecast["year"]).unique)
 
         if forecast_years is None:
             forecast_years = [2025, 2030, 2035]
