@@ -255,7 +255,7 @@ class TestExpansionPlanningData(unittest.TestCase):
 
         df = testObject.bus_hours
 
-        self.assertHasAttr(testObject, "bus_hours")
+        self.assertTrue(hasattr(testObject, "bus_hours"))
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn("hour", df.columns)
         self.assertIn("Bus Number", df.columns)
