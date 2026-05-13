@@ -225,7 +225,7 @@ class TestDispatch(unittest.TestCase):
 
     def test_default_config_options(self):
         self._coordinate_tests(config={})
-        
+
     def _test_other_config(self):
         pass
         # self._coordinate_tests(config={config_options})

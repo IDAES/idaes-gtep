@@ -172,8 +172,7 @@ class PyomoCheckHelper:
         :returns:       List of tuples. Each tuple corresponds to a term in the
                             expression and is of the form `(sign, term)` where `sign`
                             is either `1` or `-1` and `term` is the term itself
-                            (including index, e.g. `"m.lines[branch_2_1]"`)
-                            
+                            (including index, e.g. `"m.lines[branch_2_1]"`)                    
         """
         expr = expr.replace(" ", "")
         stack = [1]  # sign context
