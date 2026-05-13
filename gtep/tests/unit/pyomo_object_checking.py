@@ -238,7 +238,8 @@ class PyomoCheckHelper:
         expected_indices: list[str],
     ):
         """
-        Checks the given constraint expression for expected term(s).
+        Checks the given constraint expression for expected term(s). Intended as a helper
+        function for constraint check functions.
 
         :param constraint_expr:     Constraint expression (`"expr"` value from an element of `parse_constraint_pprint`).
         :param term_to_find:        Name of term to find (e.g., `"loads"`).
