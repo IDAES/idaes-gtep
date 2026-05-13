@@ -1,3 +1,17 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
+
 from io import StringIO
 import re
 
@@ -147,13 +161,19 @@ class PyomoCheckHelper:
                 self._check_does_not_exist(properties)
 
     @classmethod
-    def _extract_terms_from_string_expression(cls, expr: str) -> list:
+    def _extract_terms_from_string_expression(cls, expr: str) -> list[tuple]:
         """
         Helper function for `parse_constraint_pprint` that extracts
-        individual terms from a string representation of an expression.
+        individual terms from a string representation of an expression,
+        including flattening nested parentheses.
 
         :param expr:    Expression to be parsed.
         :type expr:     str
+        :returns:       List of tuples. Each tuple corresponds to a term in the
+                            expression and is of the form `(sign, term)` where `sign`
+                            is either `1` or `-1` and `term` is the term itself
+                            (including index, e.g. `"m.lines[branch_2_1]"`)
+                            
         """
         expr = expr.replace(" ", "")
         stack = [1]  # sign context
@@ -238,7 +258,7 @@ class PyomoCheckHelper:
         expected_indices: list[str],
     ):
         """
-        Checks the given constraint expression for expected term(s). Intended as a helper
+        Checks that the given constraint expression contains expected term(s). Intended as a helper
         function for constraint check functions.
 
         :param constraint_expr:     Constraint expression (`"expr"` value from an element of `parse_constraint_pprint`).
