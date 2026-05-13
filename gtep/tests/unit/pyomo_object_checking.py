@@ -28,9 +28,9 @@ class PyomoCheckHelper:
     ):
         """
         Class that stores expected properties for pyomo objects, including
-        Expression and Var instances. Call `add_object` to append
-        a new set of properties of an object to be checked. Calling
-        the `.check_all()` method runs asserts to check for
+        Expression and Var instances. Call `add_object()` to append
+        a set of properties of an object to be checked. Calling
+        the `.check_all_objects()` method runs asserts to check for
         those properties on each object.
 
         :param test_class:  Testing class instance.
@@ -172,7 +172,7 @@ class PyomoCheckHelper:
         :returns:       List of tuples. Each tuple corresponds to a term in the
                             expression and is of the form `(sign, term)` where `sign`
                             is either `1` or `-1` and `term` is the term itself
-                            (including index, e.g. `"m.lines[branch_2_1]"`)                    
+                            (including index, e.g. `"m.lines[branch_2_1]"`)
         """
         expr = expr.replace(" ", "")
         stack = [1]  # sign context
