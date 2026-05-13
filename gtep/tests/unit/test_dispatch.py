@@ -13,7 +13,6 @@
 
 
 from pathlib import Path
-import re
 
 import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
@@ -21,10 +20,35 @@ from pyomo.environ import units as u
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
-from gtep.tests.unit._test_helpers import PyomoCheckHelper, parse_constraint_pprint
+from gtep.tests.unit.pyomo_object_checking import PyomoCheckHelper
 
 curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
+
+
+def check_CP_flow_balance(td, c):
+    pass
+
+
+def check_flow_balance(td, c):
+    """Checks the flow balance constraint."""
+    constraints_by_index = td.check_helper.parse_constraint_pprint(td.b.name, c)
+    for i in c.index_set():
+        expr = constraints_by_index[i]["expr"]
+        td.check_helper.check_constraint_for_terms(expr, "loads", [-1], [i])
+        td.check_helper.check_constraint_for_terms(expr, "b.loadShed", [1], [i])
+
+        ends = [
+            line
+            for line in td.m.transmission
+            if td.m.transmission[line]["from_bus"] == i
+        ]
+        starts = [
+            line for line in td.m.transmission if td.m.transmission[line]["to_bus"] == i
+        ]
+        td.check_helper.check_constraint_for_terms(
+            expr, "b.powerFlow", [-1] * len(ends) + [1] * len(starts), ends + starts
+        )
 
 
 class TestDispatch(unittest.TestCase):
@@ -63,7 +87,7 @@ class TestDispatch(unittest.TestCase):
 
         return current_block
 
-    def _add_properties_for_dispatch_variables(self):
+    def _add_expected_properties_for_objects(self):
         self.check_helper.add_object(
             name="renewableGenerationSurplus",
             units=u.MW,
@@ -173,22 +197,22 @@ class TestDispatch(unittest.TestCase):
             obj_type=pyo.Var,
             index=self.m.thermalGenerators,
         )
-
-    def _check_dispatch_constraints(self):
-        """Checks dispatch constraints."""
-        c = self.b.flow_balance
-        constraints_by_index = parse_constraint_pprint(self.b.name, c)
-
-        for i in c.index_set():
-            load_terms = []
-            for sign, term in constraints_by_index[i]["expr"]:
-                match = re.fullmatch(r"loads\[([^\]]+)\]", term)
-                if match:
-                    load_terms.append((sign, term, match.group(1)))
-
-            self.assertTrue(len(load_terms) == 1)  # assert only one load term
-            self.assertTrue(load_terms[0][0] == -1)  # assert term is negative
-            self.assertTrue(load_terms[0][2] == i)  # assert term is for this index
+        self.check_helper.add_object(
+            name="CP_flow_balance",
+            units=u.dimensionless,
+            obj_type=pyo.Constraint,
+            index=self.m.buses,
+            check_func=check_CP_flow_balance,
+            cond=self.m.config["flow_model"] == "CP",
+        )
+        self.check_helper.add_object(
+            name="flow_balance",
+            units=u.dimensionless,
+            obj_type=pyo.Constraint,
+            index=self.m.buses,
+            check_func=check_flow_balance,
+            cond=self.m.config["flow_model"] != "CP",
+        )
 
     def _coordinate_tests(self, config):
         """Creates a model and runs tests for a given set of config options."""
@@ -196,10 +220,8 @@ class TestDispatch(unittest.TestCase):
         self.b = self._get_first_dispatch_block()
 
         self.check_helper = PyomoCheckHelper(self, self.b)
-        self._add_properties_for_dispatch_variables()
-        self.check_helper.check_all_added_objects()
-
-        self._check_dispatch_constraints()
+        self._add_expected_properties_for_objects()
+        self.check_helper.check_all_objects()
 
     def test_default_config_options(self):
         self._coordinate_tests(config={})

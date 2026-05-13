@@ -218,7 +218,7 @@ def add_dispatch_constraints(b):
 
         @b.Constraint(doc="Energy balance for copper-plate formulation")
         def CP_flow_balance(b):
-            balance = 0
+            balance = 0 * u.MW
             buses = [bus for bus in m.buses]
             loads = [l for l in b.loads]
             gens = [gen for gen in m.generators]
@@ -236,13 +236,13 @@ def add_dispatch_constraints(b):
             balance -= sum(m.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
-            return balance == 0
+            return balance == 0 * u.MW
 
     else:
 
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
-            balance = 0
+            balance = 0 * u.MW
             end_points = [
                 line
                 for line in m.transmission
