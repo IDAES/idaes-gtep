@@ -276,5 +276,5 @@ class PyomoCheckHelper:
             self.test_class.assertEqual(
                 len(matching_term),
                 1,
-                f"There should be only one term matching {"-" if s == -1 else ""}{term_to_find}[{i}]",
+                f"There should be only one term matching {'-' if s == -1 else ''}{term_to_find}[{i}]",
             )
