@@ -261,7 +261,7 @@ class PyomoCheckHelper:
         function for constraint check functions.
 
         :param constraint_expr:     Constraint expression (`"expr"` value from an element of `parse_constraint_pprint`).
-        :param term_to_find:        Name of term to find (e.g., `"loads"`).
+        :param term_to_find:        Name of term to find, not including the index (e.g., `"loads"`).
         :param expected_signs:      Expected signs of matching terms.
         :param expected_indices:    Expected indices of matching terms.
         :type constraint_expr:      dict
