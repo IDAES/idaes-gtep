@@ -70,6 +70,19 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="All generators",
     )
 
+    m.generatorsByBus = pyo.Set(
+        m.buses,
+        initialize={
+            bus:
+            [
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["bus"] == bus
+            ]
+            for bus in m.buses
+        }
+    )
+
     m.thermalGenerators = pyo.Set(
         within=m.generators,
         initialize=(
@@ -104,6 +117,21 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
+
+    m.storageByBus = pyo.Set(
+        m.buses,
+        initialize={
+            bus:
+            [
+                batt
+                for batt in m.storage
+                if m.md.data["elements"]["storage"][batt]["bus"] == bus
+            ]
+            if m.md.data["elements"].get("storage")
+            else []
+            for bus in m.buses
+        }
+    )
 
 
 def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
