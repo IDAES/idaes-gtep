@@ -260,10 +260,12 @@ def add_dispatch_constraints(b, disp_per):
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             balance += sum(
-                b.thermalGeneration[g] for g in m.thermalGenerators & m.generatorsByBus[bus]
+                b.thermalGeneration[g]
+                for g in m.thermalGenerators & m.generatorsByBus[bus]
             )
             balance += sum(
-                b.renewableGeneration[g] for g in m.renewableGenerators & m.generatorsByBus[bus]
+                b.renewableGeneration[g]
+                for g in m.renewableGenerators & m.generatorsByBus[bus]
             )
             """ Battery Storage added to flow balance constraint """
             balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])

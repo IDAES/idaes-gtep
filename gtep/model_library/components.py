@@ -73,14 +73,13 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     m.generatorsByBus = pyo.Set(
         m.buses,
         initialize={
-            bus:
-            [
+            bus: [
                 gen
                 for gen in m.generators
                 if m.md.data["elements"]["generator"][gen]["bus"] == bus
             ]
             for bus in m.buses
-        }
+        },
     )
 
     m.thermalGenerators = pyo.Set(
@@ -121,16 +120,17 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     m.storageByBus = pyo.Set(
         m.buses,
         initialize={
-            bus:
-            [
-                batt
-                for batt in m.storage
-                if m.md.data["elements"]["storage"][batt]["bus"] == bus
-            ]
-            if m.md.data["elements"].get("storage")
-            else []
+            bus: (
+                [
+                    batt
+                    for batt in m.storage
+                    if m.md.data["elements"]["storage"][batt]["bus"] == bus
+                ]
+                if m.md.data["elements"].get("storage")
+                else []
+            )
             for bus in m.buses
-        }
+        },
     )
 
 
