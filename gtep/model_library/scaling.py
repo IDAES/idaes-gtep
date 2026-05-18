@@ -58,7 +58,7 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
         else:
             m.loads[load_n] = p_load
 
-        print(f"{m.loads[load_n] = }")
+        # print(f"{m.loads[load_n] = }")
 
         # for key, val in b.loads.items():
         #     # print(f"{key=}")

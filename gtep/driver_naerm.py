@@ -93,7 +93,7 @@ mod_object.create_model()
 print("model is created!")
 #mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
 
-mod_object.model.loads.pprint()
+# mod_object.model.loads.pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")

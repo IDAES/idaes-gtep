@@ -76,7 +76,7 @@ def add_commitment_disjuncts(b, commitment_period):
         gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
     else:
 
-        gens.generators_status_always_on(m, b)
+        gens.generators_status_always_on(m, b, r_p, i_p, commitment_period)
 
     if m.config["storage"]:
         stor.add_storage_state_disjuncts(m, b, commitment_period)
