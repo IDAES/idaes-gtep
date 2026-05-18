@@ -61,36 +61,6 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Individual transmission lines",
     )
 
-    m.from_bus = pyo.Param(
-        m.lines,
-        initialize={
-            branch: m.md.data["elements"]["branch"][branch]["from_bus"]
-            for branch in m.lines
-        },
-        within=m.buses,
-        doc="Start bus for each transmission line",
-    )
-
-    m.to_bus = pyo.Param(
-        m.lines,
-        initialize={
-            branch: m.md.data["elements"]["branch"][branch]["to_bus"]
-            for branch in m.lines
-        },
-        within=m.buses,
-        doc="End bus for each transmission line",
-    )
-
-    m.reactance = pyo.Param(
-        m.lines,
-        initialize={
-            branch: m.md.data["elements"]["branch"][branch]["reactance"]
-            for branch in m.lines
-        },
-        domain=pyo.Reals,
-        doc="Reactance for each transmission line (ohms)",
-    )
-
     m.generators = pyo.Set(
         initialize=m.md.data["elements"]["generator"].keys(),
         doc="All generators",
@@ -238,6 +208,36 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         },
         units=u.MW,
         doc="Long term thermal rating of each transmission line",
+    )
+
+    m.from_bus = pyo.Param(
+        m.lines,
+        initialize={
+            branch: m.md.data["elements"]["branch"][branch]["from_bus"]
+            for branch in m.lines
+        },
+        within=m.buses,
+        doc="Start bus for each transmission line",
+    )
+
+    m.to_bus = pyo.Param(
+        m.lines,
+        initialize={
+            branch: m.md.data["elements"]["branch"][branch]["to_bus"]
+            for branch in m.lines
+        },
+        within=m.buses,
+        doc="End bus for each transmission line",
+    )
+
+    m.reactance = pyo.Param(
+        m.lines,
+        initialize={
+            branch: m.md.data["elements"]["branch"][branch]["reactance"]
+            for branch in m.lines
+        },
+        domain=pyo.Reals,
+        doc="Reactance for each transmission line (ohms)",
     )
 
     m.spinningReserveFraction = pyo.Param(
