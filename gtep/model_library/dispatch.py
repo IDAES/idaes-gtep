@@ -241,8 +241,8 @@ def add_dispatch_constraints(b, disp_per):
                 balance += sum(b.storageDischarged[bt] for bt in batts)
                 balance -= sum(b.storageCharged[bt] for bt in batts)
 
-                balance -= sum(m.loads[l] for l in loads)
-                balance += sum(b.loadShed[bus] for bus in buses)
+            balance -= sum(m.loads[l] for l in loads)
+            balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
 

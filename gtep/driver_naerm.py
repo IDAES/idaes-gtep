@@ -82,7 +82,7 @@ mod_object = ExpansionPlanningModel(
 )
 
 mod_object.config["include_investment"] = True
-mod_object.config["include_commitment"] = True
+mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
@@ -92,6 +92,8 @@ mod_object.config["flow_model"] = "transport"
 mod_object.create_model()
 print("model is created!")
 #mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
+
+mod_object.model.loads.pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
@@ -128,6 +130,7 @@ renewable_investments = {}
 dispatchable_investments = {}
 load_shed = {}
 power_flow = {}
+generation = {}
 for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Shed" in var.name:
@@ -136,6 +139,9 @@ for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
         elif "Flow" in var.name:
             if pyo.value(var[index]) >= 0.001:
                 power_flow[var.name + "." + str(index)] = pyo.value(var[index])
+        elif "Generation" in var.name:
+            if pyo.value(var[index]) >= 0.001:
+                generation[var.name + "." + str(index)] = pyo.value(var[index])
         for name in valid_names:
             if name in var.name:
                 if pyo.value(var[index]) >= 0.001:
@@ -165,6 +171,7 @@ dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
 load_shed_name = folder_name + "/load_shed.json"
 costs_name = folder_name + "/costs.json"
 flow_name = folder_name + "/flows.json"
+generation_name = folder_name + "/generation.json"
 
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -179,3 +186,5 @@ with open(costs_name, "w") as fil:
     json.dump(costs, fil)
 with open(flow_name, "w") as fil:
     json.dump(power_flow, fil)
+with open(generation_name, "w") as fil:
+    json.dump(generation, fil)
