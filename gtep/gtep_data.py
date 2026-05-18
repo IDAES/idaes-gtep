@@ -184,6 +184,8 @@ class ExpansionPlanningData:
 
         self.representative_data = data_list
 
+        # print(f"{data_list[0].data["elements"]["load"] = }")
+
     def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.
 

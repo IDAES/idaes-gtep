@@ -33,13 +33,13 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
     # Loop over the demand at each bus and scale based on the case.
     for load_n in m.load_buses:
-        print(f"{load_n = }")
-        print(f"{m.md.data["elements"]["load"] = }")
-        print(f"{m.md.data["elements"]["load"][load_n] = }")
+        # print(f"{load_n = }")
+        #print(f"{m.md.data["elements"]["load"] = }")
+        # print(f"{m.md.data["elements"]["load"][load_n] = }")
         p_load = m.md.data["elements"]["load"][load_n]["p_load"]["values"][
             commitment_period - 1
         ]
-        print(f"{p_load = }")
+        # print(f"{p_load = }")
 
         if m.config["scale_loads"]:
             temp_scale = 10
