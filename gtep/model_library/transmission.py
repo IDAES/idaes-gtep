@@ -401,6 +401,8 @@ def add_transmission_state_disjuncts(m, b, i_p):
                 return b.powerFlow[branch] / u.MW == (-1 / reactance) * (
                     disj.busAngle[tb] - disj.busAngle[fb] + shift
                 )
+            
+
 
     @b.Disjunct(m.transmission)
     def branchNotInUse(disj, branch):

@@ -171,6 +171,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         doc="Power flow in MW",
     )
 
+
     # Add transmission lines state disjuncts (in use and not in
     # use). The power flow is calculated here using OPF formulations.
     transm.add_transmission_state_disjuncts(m, b, i_p)
@@ -226,7 +227,7 @@ def add_dispatch_constraints(b, disp_per):
         def CP_flow_balance(b):
             balance = 0
             buses = [bus for bus in m.buses]
-            loads = [l for l in b.loads]
+            loads = [l for l in m.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage]
             balance += sum(
@@ -236,11 +237,12 @@ def add_dispatch_constraints(b, disp_per):
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
             """ Battery Storage added to flow balance constraint """
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
+            if m.config["storage"]:
+                balance += sum(b.storageDischarged[bt] for bt in batts)
+                balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(m.loads[l] for l in loads)
-            balance += sum(b.loadShed[bus] for bus in buses)
+                balance -= sum(m.loads[l] for l in loads)
+                balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
 

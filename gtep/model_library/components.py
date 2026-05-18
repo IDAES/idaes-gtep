@@ -478,7 +478,7 @@ def add_model_parameters(m):
         doc="Curtailment cost",
     )
     m.loadShedCostperCurtailment = pyo.Param(
-        initialize=1000,
+        initialize=30000,
         units=u.USD / (u.MW * u.hr),
         mutable=True,
     )
@@ -619,11 +619,3 @@ def add_model_cost_parameters(m, year):
     # var cost = $/MWh
     # inv cost = $/Mw
     # fuel cost = $/MWh
-
-    # Cost per MW of curtailed renewable energy. This equation
-    # re-calculates curtailment and load shed costa since they depend
-    # on the re-defined parameter "fuelCost".
-    m.curtailmentCost = 2 * max(
-        pyo.value(m.fuelCost[gen]) for gen in m.thermalGenerators
-    )
-    m.loadShedCostperCurtailment = 1000 * m.curtailmentCost

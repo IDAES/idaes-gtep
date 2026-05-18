@@ -293,5 +293,5 @@ class DataProcessing:
 
         if save_csv:
             self.gen_data_target.to_csv(
-                "data/costs/candidate_generators_initial_list.csv", index=False
+                "./gtep/data/costs/candidate_generators_initial_list.csv", index=False
             )

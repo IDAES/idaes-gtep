@@ -92,6 +92,7 @@ class ExpansionPlanningData:
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
+                "start_date": "01-01-2034",
             }
 
         else:
@@ -158,10 +159,10 @@ class ExpansionPlanningData:
         # default here allows up to 24 hours for periods
         if representative_dates is None:
             representative_dates = [
-                "2020-01-28 00:00",
-                "2020-04-23 00:00",
-                "2020-07-05 00:00",
-                "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+                "2034-01-28 00:00",
+                "2034-04-23 00:00",
+                "2034-07-05 00:00",
+                "2034-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
             ]
         self.representative_dates = representative_dates
 

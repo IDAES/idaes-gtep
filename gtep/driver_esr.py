@@ -21,13 +21,12 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
 # Add data
-data_path = "./data/5bus"
+data_path = "./gtep/data/5bus"
 data_object = ExpansionPlanningData(
     stages=2,
     num_reps=2,
     num_commit=6,
     num_dispatch=4,
-    duration_representative_period=6,
     save_period_structure_file=False,
     period_structure_json_file=None,
     # period_structure_json_file="period_structure_from_gtep.json",
@@ -42,8 +41,8 @@ data_object.load_prescient(data_path)
 # types: (a) Natural Gas: Combustion Turbine (CT) and Fuel Efficiency
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
 
-bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+bus_data_path = "./gtep/data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "./gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 candidate_gens = [
     "Natural Gas_CT",
     "Natural Gas_FE",
