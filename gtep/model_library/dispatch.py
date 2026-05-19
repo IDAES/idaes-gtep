@@ -171,7 +171,6 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         doc="Power flow in MW",
     )
 
-
     # Add transmission lines state disjuncts (in use and not in
     # use). The power flow is calculated here using OPF formulations.
     transm.add_transmission_state_disjuncts(m, b, i_p)

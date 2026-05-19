@@ -293,19 +293,36 @@ def add_model_parameters(m):
     # Initialize fuel cost. This is re-calculated during the
     # investment stage with values from preprocessing data.
     m.fuelCost = pyo.Param(
+
         m.thermalGenerators,
+
         initialize={
+
             gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"]
+
+                m.md.data["elements"]["generator"][gen]["fuel_cost"] * 3.412142
+
                 if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+
+                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1] * 3.412142
+
             )
+
             for gen in m.thermalGenerators
+
         },
+
         mutable=True,
+
+        domain=pyo.NonNegativeReals,
+
         units=u.USD / (u.MW * u.hr),
+
         doc="Cost per unit of fuel at each generator",
+
     )
+
+ 
 
     m.emissionsFactor = pyo.Param(
         m.generators,
@@ -585,34 +602,34 @@ def add_model_cost_parameters(m, year):
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
     units_fuel_cost = u.USD / (u.MW * u.hr)
-    for gen in m.generators:
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genThermalFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
+    # for gen in m.generators:
+    #     if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
+    #         m.fixedCost[gen] = pyo.units.convert(
+    #             m.genThermalFixOpCost[0] * units_fixed_cost,
+    #             to_units=u.USD / (u.MW * u.hr),
+    #         )
+    #         m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
 
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
+    #         m.generatorInvestmentCost[gen] = pyo.units.convert(
+    #             m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
+    #         )
 
-            # Add fuel costs from preprocessed data. Consider this
-            # cost is for Natural Gas generators, not coal.
-            m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
+    #         # Add fuel costs from preprocessed data. Consider this
+    #         # cost is for Natural Gas generators, not coal.
+    #         m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
 
-        else:
+    #     else:
 
-            # For renewable
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genRenewableFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
+    #         # For renewable
+    #         m.fixedCost[gen] = pyo.units.convert(
+    #             m.genRenewableFixOpCost[0] * units_fixed_cost,
+    #             to_units=u.USD / (u.MW * u.hr),
+    #         )
+    #         m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
 
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
+    #         m.generatorInvestmentCost[gen] = pyo.units.convert(
+    #             m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
+    #         )
 
     # Final (converted) units are:
     # fixed cost = $/MWh

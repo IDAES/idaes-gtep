@@ -166,6 +166,8 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
+        #print(f"{self.representative_dates = }")
+
         if not representative_weights:
             # set the weight for each day to the total weight divided by number of days
             total_weight = prescient_options.num_days * self.stages

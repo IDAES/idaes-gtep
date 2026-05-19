@@ -115,6 +115,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.renewableOperational[gen].fix(0)
+            b.renewableExtended[gen].fix(0)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -523,22 +524,22 @@ def generators_status_always_on(m, b, r_p, i_p, commitment_period):
                 + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
                 <= m.thermalCapacity[generator]
             )
-    
+
     @b.Disjunct(m.thermalGenerators)
     def genOff(disj, generator):
-        b=disj.parent_block()
+        b = disj.parent_block()
 
         @disj.Constraint(b.dispatchPeriods)
         def operating_limit(d, dispatchPeriod):
-            return b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator] == 0 * u.MW
+            return (
+                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                == 0 * u.MW
+            )
 
     @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
     def genStatus(disj, generator):
-        return [
-            disj.genOn[generator],
-            disj.genOff[generator]
-        ]
-    
+        return [disj.genOn[generator], disj.genOff[generator]]
+
     @b.LogicalConstraint(
         m.thermalGenerators,
         doc="Enforces that generators cannot be committed unless they are operational or just installed",

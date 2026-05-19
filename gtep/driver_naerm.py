@@ -22,13 +22,12 @@ from gtep.gtep_data_processing import DataProcessing
 
 import xpress
 
-
 # Add data
 data_path = "./gtep/data/WECC_ADS_PNNL"
 # data_path = "./data/5bus"
 data_object = ExpansionPlanningData(
-    stages=2,
-    num_reps=2,
+    stages=1,
+    num_reps=15,
     num_commit=24,
     num_dispatch=1,
     duration_representative_period=24,
@@ -36,7 +35,27 @@ data_object = ExpansionPlanningData(
     period_structure_json_file=None,
     # period_structure_json_file="period_structure_from_gtep.json",
 )
-data_object.load_prescient(data_path)
+
+rep_days = [
+    "2034-01-22 00:00",
+    "2034-01-24 00:00",
+    "2034-03-04 00:00",
+    "2034-03-11 00:00",
+    "2034-03-18 00:00",
+    "2034-05-11 00:00",
+    "2034-06-09 00:00",
+    "2034-06-16 00:00",
+    "2034-06-30 00:00",
+    "2034-07-12 00:00",
+    "2034-10-01 00:00",
+    "2034-10-08 00:00",
+    "2034-10-29 00:00",
+    "2034-11-10 00:00",
+    "2034-12-06 00:00",
+]
+rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
+
+data_object.load_prescient(data_path, representative_dates=rep_days, representative_weights=rep_weights)
 
 # print(data_object.md.data["elements"]["generator"]["AESO_solar"]["p_max"])
 # quit()
@@ -91,14 +110,14 @@ mod_object.config["flow_model"] = "transport"
 
 mod_object.create_model()
 print("model is created!")
-#mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
+# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
 
 # mod_object.model.loads.pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
 
-#mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
+# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
 
 solver = "xpress"
 opt = pyo.SolverFactory(solver)
@@ -112,7 +131,7 @@ if solver == "xpress":
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
-        #logfile=log_folder + "/" + solver + ".log",
+        # logfile=log_folder + "/" + solver + ".log",
     )
 
 import pyomo.environ as pyo
@@ -131,6 +150,7 @@ dispatchable_investments = {}
 load_shed = {}
 power_flow = {}
 generation = {}
+curtailment = {}
 for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
     for index in var:
         if "Shed" in var.name:
@@ -142,6 +162,9 @@ for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
         elif "Generation" in var.name:
             if pyo.value(var[index]) >= 0.001:
                 generation[var.name + "." + str(index)] = pyo.value(var[index])
+        elif "Curtailment" in var.name:
+            if pyo.value(var[index]) >= 0.001:
+                curtailment[var.name + "." + str(index)] = pyo.value(var[index])
         for name in valid_names:
             if name in var.name:
                 if pyo.value(var[index]) >= 0.001:
@@ -172,6 +195,7 @@ load_shed_name = folder_name + "/load_shed.json"
 costs_name = folder_name + "/costs.json"
 flow_name = folder_name + "/flows.json"
 generation_name = folder_name + "/generation.json"
+curtailment_name = folder_name + "/curtailment.json"
 
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -188,3 +212,5 @@ with open(flow_name, "w") as fil:
     json.dump(power_flow, fil)
 with open(generation_name, "w") as fil:
     json.dump(generation, fil)
+with open(curtailment_name, "w") as fil:
+    json.dump(curtailment, fil)
