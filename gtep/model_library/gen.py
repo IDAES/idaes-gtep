@@ -102,6 +102,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.genOperational[gen].indicator_var.fix(False)
+            b.genExtended[gen].indicator_var.fix(False)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -554,6 +555,12 @@ def generators_status_always_on(m, b):
         return [
             disj.genOn[generator],
         ]
+    
+    @b.LogicalConstraint(m.thermalGenerators,
+        doc="Enforces that generators cannot be committed unless they are operational or just installed",
+    )
+    def commit_active_gens_only(b, generator):
+        pass
 
 
 def add_generators_logical_constraints(m):
