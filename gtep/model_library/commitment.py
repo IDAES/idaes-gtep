@@ -51,14 +51,13 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
-    if m.config["scale_loads"]:
-        scaling.add_load_scaling(
-            m,
-            b,
-            commitment_period,
-            investmentStage,
-            scaling_value=10,
-        )
+    scaling.add_load_scaling(
+        m,
+        b,
+        commitment_period,
+        investmentStage,
+        scaling_value=10,
+    )
 
 
 def add_commitment_disjuncts(b, commitment_period):
