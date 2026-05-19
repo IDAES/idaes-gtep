@@ -299,7 +299,7 @@ def create_stages(
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
         b_inv.year = m.years[investment_stage - 1]
-        #print(f"{b_inv}.year = {b_inv.year}")
+        # print(f"{b_inv}.year = {b_inv.year}")
 
         # Declare costs parameters for each stage, since they depend
         # on the investment year.
@@ -321,7 +321,7 @@ def create_stages(
         # representative_period.
         for representative_period in b_inv.representativePeriods:
             b_rep = b_inv.representativePeriod[representative_period]
-            #print(f"{representative_period = }")
+            # print(f"{representative_period = }")
             b_rep.representativePeriodLength = pyo.Param(
                 initialize=duration_representative_period[representative_period],
                 within=pyo.PositiveReals,

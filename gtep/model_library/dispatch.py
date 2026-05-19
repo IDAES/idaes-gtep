@@ -287,13 +287,16 @@ def add_dispatch_constraints(b, disp_per):
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
+    # print(f"{pyo.value(sum(m.loads[n] for n in m.loads)) = }")
+
     # NOTE: In comparison to reference [1], this is "per renewable
     # generator". [TODO: Should we include charging costs from
     # non-colocated plants?]
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
         return (
-            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
+            b.renewableGeneration[renewableGen]
+            + b.renewableCurtailment[renewableGen]
             == c_p.renewableCapacityExpected[renewableGen]
         )
 

@@ -8,9 +8,9 @@ with open("generation.json", "r") as f:
 rep_commit_dispatch = defaultdict(set)
 
 for key in data:
-    rp = re.search(r'representativePeriod\[(\d+)\]', key)
-    cp = re.search(r'commitmentPeriod\[(\d+)\]', key)
-    dp = re.search(r'dispatchPeriod\[(\d+)\]', key)
+    rp = re.search(r"representativePeriod\[(\d+)\]", key)
+    cp = re.search(r"commitmentPeriod\[(\d+)\]", key)
+    dp = re.search(r"dispatchPeriod\[(\d+)\]", key)
 
     if rp and cp and dp:
         rep = int(rp.group(1))

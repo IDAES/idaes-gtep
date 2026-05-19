@@ -9,14 +9,17 @@ with open("generation.json", "r") as f:
 totals = defaultdict(float)
 
 for key, value in data.items():
-    rp = re.search(r'representativePeriod\[(\d+)\]', key)
-    cp = re.search(r'commitmentPeriod\[(\d+)\]', key)
+    rp = re.search(r"representativePeriod\[(\d+)\]", key)
+    cp = re.search(r"commitmentPeriod\[(\d+)\]", key)
     if not (rp and cp):
         continue
 
     rep = int(rp.group(1))
     hour = int(cp.group(1))
+    print(f"{rep = }")
+    print(f"{hour = }")
     x = (rep - 1) * 24 + hour
+    print(f"{x = } ")
     totals[x] += float(value)
 
 print(totals)
@@ -24,7 +27,7 @@ print(totals)
 xs = sorted(totals)
 ys = [totals[x] for x in xs]
 
-plt.figure(figsize=(16,5))
+plt.figure(figsize=(16, 5))
 plt.plot(xs, ys, marker="o")
 plt.title("Total Generation by Time Index")
 plt.xlabel("Representative-day hour index")

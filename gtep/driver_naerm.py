@@ -55,7 +55,9 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_object.load_prescient(data_path, representative_dates=rep_days, representative_weights=rep_weights)
+data_object.load_prescient(
+    data_path, representative_dates=rep_days, representative_weights=rep_weights
+)
 
 # print(data_object.md.data["elements"]["generator"]["AESO_solar"]["p_max"])
 # quit()

@@ -293,36 +293,21 @@ def add_model_parameters(m):
     # Initialize fuel cost. This is re-calculated during the
     # investment stage with values from preprocessing data.
     m.fuelCost = pyo.Param(
-
         m.thermalGenerators,
-
         initialize={
-
             gen: (
-
                 m.md.data["elements"]["generator"][gen]["fuel_cost"] * 3.412142
-
                 if "RTS-GMLC" in m.md.data["system"]["name"]
-
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1] * 3.412142
-
+                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+                * 3.412142
             )
-
             for gen in m.thermalGenerators
-
         },
-
         mutable=True,
-
         domain=pyo.NonNegativeReals,
-
         units=u.USD / (u.MW * u.hr),
-
         doc="Cost per unit of fuel at each generator",
-
     )
-
- 
 
     m.emissionsFactor = pyo.Param(
         m.generators,
@@ -489,7 +474,7 @@ def add_model_parameters(m):
     # Initialize curtailment and load shed costs as parameters and
     # re-calculate them during the investment stage.
     m.curtailmentCost = pyo.Param(
-        initialize=1,
+        initialize=0,
         units=u.USD / (u.MW * u.hr),
         mutable=True,
         doc="Curtailment cost",

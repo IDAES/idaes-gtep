@@ -57,11 +57,11 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
         else:
             m.loads[load_n] = p_load
+    # import pyomo.environ as pyo
+    # print(f"{pyo.value(sum(m.loads[n] for n in m.loads)) = }")
 
-        # print(f"{m.loads[load_n] = }")
-
-        # for key, val in b.loads.items():
-        #     # print(f"{key=}")
-        #     # print(f"{val=}")
-        #     b.loads[key] *= 1/3
-        # print(f"total load at time period = {sum(b.loads.values())}")
+    # for key, val in b.loads.items():
+    #     # print(f"{key=}")
+    #     # print(f"{val=}")
+    #     b.loads[key] *= 1/3
+    # print(f"total load at time period = {sum(b.loads.values())}")

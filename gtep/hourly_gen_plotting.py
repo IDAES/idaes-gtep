@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 INPUT_JSON = "generation.json"
 OUTPUT_FIG = "hourly_generation_stackgraph_15_representative_days_broad.png"
 
+
 # ----------------------------
 # Helper: map detailed classes to broad categories
 # ----------------------------
@@ -60,6 +61,7 @@ def map_to_broad_category(category, gen_name):
 
     return "unknown"
 
+
 # ----------------------------
 # Load JSON
 # ----------------------------
@@ -76,9 +78,9 @@ hourly_by_type = defaultdict(lambda: defaultdict(float))
 global_hours_found = set()
 
 for key, value in data.items():
-    rp_match = re.search(r'representativePeriod\[(\d+)\]', key)
-    cp_match = re.search(r'commitmentPeriod\[(\d+)\]', key)
-    gen_match = re.search(r'(thermalGeneration|renewableGeneration)\.([^.]+)$', key)
+    rp_match = re.search(r"representativePeriod\[(\d+)\]", key)
+    cp_match = re.search(r"commitmentPeriod\[(\d+)\]", key)
+    gen_match = re.search(r"(thermalGeneration|renewableGeneration)\.([^.]+)$", key)
 
     if not (rp_match and cp_match and gen_match):
         continue
@@ -113,7 +115,9 @@ preferred_order = [
 ]
 
 all_types_found = {t for h in global_hours for t in hourly_by_type[h].keys()}
-all_types = [t for t in preferred_order if t in all_types_found] + sorted(all_types_found - set(preferred_order))
+all_types = [t for t in preferred_order if t in all_types_found] + sorted(
+    all_types_found - set(preferred_order)
+)
 
 series = []
 for t in all_types:

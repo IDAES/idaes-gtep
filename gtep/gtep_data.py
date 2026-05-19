@@ -166,7 +166,7 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
-        #print(f"{self.representative_dates = }")
+        # print(f"{self.representative_dates = }")
 
         if not representative_weights:
             # set the weight for each day to the total weight divided by number of days
@@ -330,7 +330,7 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["generator"][gen]["capital_multiplier"] = 1
                     self.md.data["elements"]["generator"][gen][
                         "extension_multiplier"
-                    ] = 0
+                    ] = 0.1
                     self.md.data["elements"]["generator"][gen][
                         "max_operating_reserve"
                     ] = 1
