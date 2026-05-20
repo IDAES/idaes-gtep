@@ -39,16 +39,16 @@ def create_objective_function(m):
     @m.Expression()
     def storageCostTotal(m):
         if m.config["storage"]:
-            return sum(m.investmentStage[stage].storageCostInvestment for stage in m.stages)
+            return sum(
+                m.investmentStage[stage].storageCostInvestment for stage in m.stages
+            )
         else:
             return 0
 
     @m.Expression()
     def expansionCostTotal(m):
-        return sum(
-            m.investmentStage[stage].investment_cost for stage in m.stages
-        )
-    
+        return sum(m.investmentStage[stage].investment_cost for stage in m.stages)
+
     @m.Expression()
     def penaltyCostTotal(m):
         return sum(
@@ -58,7 +58,6 @@ def create_objective_function(m):
             + m.investmentStage[stage].renewableCurtailmentInvestment
             for stage in m.stages
         )
-
 
     @m.Objective()
     def total_cost_objective_rule(m):

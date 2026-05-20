@@ -297,7 +297,8 @@ def add_model_parameters(m):
         m.thermalGenerators,
         initialize={
             gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"] * conversion_MMBTU_MWh
+                m.md.data["elements"]["generator"][gen]["fuel_cost"]
+                * conversion_MMBTU_MWh
                 if "RTS-GMLC" in m.md.data["system"]["name"]
                 else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
                 * conversion_MMBTU_MWh
@@ -638,7 +639,7 @@ def add_model_cost_parameters_from_csv(m, year):
         crf = (r * (1 + r) ** n) / ((1 + r) ** n - 1)
         total_cost = annualized_cost / crf
         return total_cost
-   
+
     if m.mc is not None:
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
@@ -650,39 +651,37 @@ def add_model_cost_parameters_from_csv(m, year):
             capex_yr = float(row[f"capex_{year}"])
             fixed_ops_yr = float(row[f"fixed_ops_{year}"])
             var_ops_yr = float(row[f"var_ops_{year}"])
-            
+
             original_units = u.USD / (u.MW * u.year)
             final_units = u.USD / (u.MW * u.hr)
             final_inv_units = u.USD / u.MW
             # Convert investment cost from $/MW-year (annualized) to $/MW (de-annualized)
             inv_cost_annualized = capex_yr * original_units
-            inv_cost = annualized_to_total_capex(
-                capex_yr, years=30, discount_rate=0.07
-            )
+            inv_cost = annualized_to_total_capex(capex_yr, years=30, discount_rate=0.07)
             inv_cost = pyo.units.convert(
                 inv_cost * final_inv_units, to_units=u.USD / u.MW
             )
-            
+
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units
-            fixed_cost = pyo.units.convert(
-                fixed_cost, to_units=final_units
-            )
-            
+            fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
+
             # Variable cost: We assume is in $/MWh already (since it has a
             # value of 0)
             var_cost = var_ops_yr * final_units
-            
+
             # Assign to Pyomo parameters (strip units for Pyomo Param)
             m.fixedCost[gen_uid] = pyo.value(fixed_cost)
             m.varCost[gen_uid] = pyo.value(var_cost)
             m.generatorInvestmentCost[gen_uid] = pyo.value(inv_cost)
 
     else:
-        print("Cost data was not provided in m.mc instance (check DataProcessing for more details). Setting costs parameters to random values for now.")
+        print(
+            "Cost data was not provided in m.mc instance (check DataProcessing for more details). Setting costs parameters to random values for now."
+        )
         for gen in m.generators:
             m.fixedCost[gen] = 0  # $/MWh
-            m.varCost[gen] = 0    # $/MWh
+            m.varCost[gen] = 0  # $/MWh
             m.generatorInvestmentCost[gen] = 0  # $/MW
 
     # m.fixedCost.pprint()

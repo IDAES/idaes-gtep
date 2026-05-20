@@ -94,7 +94,7 @@ data_processing_object.load_gen_data(
     cost_data_path=cost_data_path,
     candidate_gens=candidate_gens,
     save_csv=False,
-    candidate_csv_path="data/costs/candidate_generators_initial_list.csv",    
+    candidate_csv_path="data/costs/candidate_generators_initial_list.csv",
 )
 
 # Populate and create GTEP model
