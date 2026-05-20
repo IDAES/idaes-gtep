@@ -44,9 +44,9 @@ def get_solution_object():
     data_object = ExpansionPlanningData(
         stages=2,
         num_reps=2,
-        len_reps=1,
         num_commit=6,
         num_dispatch=4,
+        duration_representative_period=6,
     )
     data_object.load_prescient(str(input_data_source))
 
