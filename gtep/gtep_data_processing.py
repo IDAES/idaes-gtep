@@ -15,6 +15,7 @@
 # IDAES project
 
 # author: Soraya Rawlings and Kyle Skolfield
+import os
 
 import pandas as pd
 from pathlib import Path
@@ -47,12 +48,34 @@ class DataProcessing:
         cost_data_path=None,
         candidate_gens=None,
         save_csv=None,
+        candidate_csv_path=None,
     ):
 
         assert isinstance(
             candidate_gens, list
         ), f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
 
+
+        # Use candidate CSV if file is available
+        if os.path.exists(candidate_csv_path):
+            print(f"Loading existing candidate generator file: {candidate_csv_path}")
+            self.gen_data_target = pd.read_csv(candidate_csv_path)
+            # Check for required columns and cost prefixes
+            required_cols = [
+                "GEN UID", "Bus ID", "Unit Type", "Fuel", "PMax MW", "PMin MW"
+            ]
+            prefixes = ["capex_", "fixed_ops_", "var_ops_"]  # these are the main ones to check
+            missing_cols = [col for col in required_cols if col not in self.gen_data_target.columns]
+            for prefix in prefixes:
+                if not any(col.startswith(prefix) for col in self.gen_data_target.columns):
+                    missing_cols.append(f"{prefix}*")
+            if missing_cols:
+                raise ValueError(f"Missing required columns in candidate CSV: {missing_cols}")
+            print("Candidate generator data loaded successfully.")
+            return  # Skip the rest of the function
+
+        # Add cost and heat rate data to the candidate generators, if
+        # a CSV file is not provided
         all_gens = [
             "Natural Gas_CT",
             "Natural Gas_FE",
@@ -293,5 +316,5 @@ class DataProcessing:
 
         if save_csv:
             self.gen_data_target.to_csv(
-                "./gtep/data/costs/candidate_generators_initial_list.csv", index=False
+                "./data/costs/candidate_generators_initial_list.csv", index=False
             )

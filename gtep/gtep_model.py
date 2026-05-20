@@ -302,8 +302,11 @@ def create_stages(
         # print(f"{b_inv}.year = {b_inv.year}")
 
         # Declare costs parameters for each stage, since they depend
-        # on the investment year.
-        comps.add_model_cost_parameters(m, b_inv.year)
+        # on the investment year. [ESR: Commented for now since this
+        # data is not relevant for this case and calling a new one
+        # that applies the correct unit conversion.]
+        # comps.add_model_cost_parameters(m, b_inv.year)
+        comps.add_model_cost_parameters_from_csv(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,

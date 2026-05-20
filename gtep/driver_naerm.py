@@ -23,7 +23,7 @@ from gtep.gtep_data_processing import DataProcessing
 import xpress
 
 # Add data
-data_path = "./gtep/data/WECC_ADS_PNNL"
+data_path = "./data/WECC_ADS_PNNL"
 # data_path = "./data/5bus"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -79,8 +79,8 @@ data_object.load_prescient(
 # types: (a) Natural Gas: Combustion Turbine (CT) and Fuel Efficiency
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
 
-bus_data_path = "./gtep/data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "./gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+bus_data_path = "./data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "./data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 candidate_gens = [
     "Natural Gas_CT",
     "Natural Gas_FE",
@@ -93,7 +93,8 @@ data_processing_object.load_gen_data(
     bus_data_path=bus_data_path,
     cost_data_path=cost_data_path,
     candidate_gens=candidate_gens,
-    save_csv=True,
+    save_csv=False,
+    candidate_csv_path="data/costs/candidate_generators_initial_list.csv",    
 )
 
 # Populate and create GTEP model
@@ -133,7 +134,7 @@ if solver == "xpress":
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
-        # logfile=log_folder + "/" + solver + ".log",
+        logfile=log_folder + "/" + solver + ".log",
     )
 
 import pyomo.environ as pyo
