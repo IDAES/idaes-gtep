@@ -57,13 +57,13 @@ class ExpansionPlanningData:
         self,
         data_path,
         representative_dates=None,
-        representative_weights={},
+        representative_weights=None,
         options_dict=None,
     ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_dates: List of time points to include.
         :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
 
@@ -153,10 +153,16 @@ class ExpansionPlanningData:
                 "2020-07-05 00:00",
                 "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
             ]
+        #enforce representative dates as a list
+        if not isinstance(representative_dates, list):
+            representative_dates = [representative_dates]
+        #check that the representative dates has at least one value
+        if not len(representative_dates) >= 1:
+            raise ValueError('Invalid input for representative_dates. representative_dates should be a list of date strings')
         self.representative_dates = representative_dates
         self.representative_weights = representative_weights
 
-        if not representative_weights:
+        if representative_weights is None:
             # set the weight for each day to the total weight divided by number of days
             total_weight = prescient_options.num_days * self.stages
             weight_per_date = int(total_weight / (len(representative_dates)))

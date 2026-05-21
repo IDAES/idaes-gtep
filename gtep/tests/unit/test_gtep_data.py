@@ -68,7 +68,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(testObject.num_dispatch, 1)
         self.assertEqual(testObject.duration_dispatch, 15)
 
-    # -------------------------------------------------LOAD_PRESCIENT------------------------------------------------------------ #
+    ### LOAD_PRESCIENT ###
     def test_default_representative_dates(self):
         # Test no representative dates passed in, initializing with defaults
         testObject = ExpansionPlanningData()
@@ -200,7 +200,7 @@ class TestExpansionPlanningData(unittest.TestCase):
             expected_calls = len(testObject.representative_dates)
             self.assertEqual(mock_clone.call_count, expected_calls)
 
-    # -------------------------------------------------IMPORT_LOAD_SCALING------------------------------------------------------------ #
+    ### IMPORT_LOAD_SCALING ###
     @pytest.mark.skipif(
         not os.path.exists(load_scaling_file),
         reason=f"Data file {load_scaling_file} not found",
@@ -243,7 +243,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         with self.assertRaises(ValueError):
             testObject.import_load_scaling(load_scaling_file, forecast_years)
 
-    # -------------------------------------------------IMPORT_OUTAGE_DATA------------------------------------------------------------ #
+    ### IMPORT_OUTAGE_DATA ###
     @pytest.mark.skipif(
         not os.path.exists(outage_data_path),
         reason=f"Data file {outage_data_path} not found",
@@ -260,7 +260,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertIn("hour", df.columns)
         self.assertIn("Bus Number", df.columns)
 
-    # -------------------------------------------------LOAD_DEFAULT_DATA_SETTINGS------------------------------------------------------------ #
+    ### LOAD_DEFAULT_DATA_SETTINGS ###
     def test_load_default_data_settings(self):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
@@ -302,7 +302,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(system["min_operating_reserve"], 0.1)
         self.assertEqual(system["min_spinning_reserve"], 0.1)
 
-    # -------------------------------------------------LOAD_STORAGE_CSV------------------------------------------------------------ #
+    ### LOAD_STORAGE_CSV ###
     @pytest.mark.skipif(
         not os.path.exists(storage_file),
         reason=f"Data file {storage_file} not found",
@@ -328,7 +328,7 @@ class TestExpansionPlanningData(unittest.TestCase):
             "investment_cost_kwh",
         }
         for key in expected_keys:
-            assert key in storage["100MW_400MWh_1"].keys()
+            self.assertin(key ,storage["100MW_400MWh_1"].keys())
 
     @pytest.mark.skipif(
         not os.path.exists(storage_file),
@@ -338,6 +338,9 @@ class TestExpansionPlanningData(unittest.TestCase):
         testObject = ExpansionPlanningData()
         testObject.load_prescient(data_path=input_data_source)
         testObject.load_storage_csv(str(storage_file))  # should not throw an error
+        self.assertin('storage' ,testObject.md.data["elements"].keys())
+        #check that the storage data is not an empty dict
+        self.assertTrue(testObject.md.data["elements"]['storage'])
 
     def test_load_storage_csv_file_not_found(self):
         testObject = ExpansionPlanningData()
@@ -349,7 +352,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertIsInstance(storage, dict)
         self.assertEqual(storage, {})
 
-    # -------------------------------------------------TEXAS_CASE_STUDY_UPDATES----------------------------------------------------------- #
+    ### TEXAS_CASE_STUDY_UPDATES ###
     @pytest.mark.skipif(
         not os.path.exists(texas_data_path),
         reason=f"Data file {texas_data_path} not found",
