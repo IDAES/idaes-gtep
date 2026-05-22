@@ -15,6 +15,7 @@
 Transmission Expansion Planning (GTEP) Model
 
 """
+from pyomo.environ import units as u
 
 
 def create_objective_function(m):
@@ -44,7 +45,7 @@ def create_objective_function(m):
                 m.investmentStage[stage].storageCostInvestment for stage in m.stages
             )
         else:
-            return 0
+            return 0 * u.USD
 
     @m.Expression()
     def expansionCostTotal(m):
