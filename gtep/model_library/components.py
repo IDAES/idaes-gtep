@@ -239,20 +239,6 @@ def add_model_parameters(m):
         doc="Distance between terminal buses for each transmission line",
     )
 
-    # Initialize investment costs in each new transmission
-    # line. Currently selected the value of 0 to ensure investments
-    # will be selected, if needed.
-    m.branchInvestmentCost = pyo.Param(
-        m.transmission,
-        initialize={
-            branch: (m.md.data["elements"]["branch"][branch].get("capital_cost") or 0)
-            for branch in m.transmission
-        },
-        mutable=True,
-        units=u.USD,
-        doc="Investment cost for each new branch",
-    )
-
     # [JSC TODO: Add branch capital multiplier to input data.]
     m.branchCapitalMultiplier = pyo.Param(
         m.transmission,
@@ -537,6 +523,20 @@ def add_model_cost_parameters(m, year):
 
     """
 
+    # Initialize investment costs in each new transmission
+    # line. Currently selected the value of 0 to ensure investments
+    # will be selected, if needed.
+    m.branchInvestmentCost = pyo.Param(
+        m.transmission,
+        initialize={
+            branch: (m.md.data["elements"]["branch"][branch].get(f"capex_{year}") or 0)
+            for branch in m.transmission
+        },
+        mutable=True,
+        units=u.USD,
+        doc="Investment cost for each new branch",
+    )
+
     # [WIP: Assume we have two types of generators: thermal "CT" (with
     # gas fuel) and renewable "PV" (with "sun" as fuel).]
     gen_thermal_type = "CT"
@@ -640,6 +640,42 @@ def add_model_cost_parameters_from_csv(m, year):
         total_cost = annualized_cost / crf
         return total_cost
 
+    # Initialize investment costs in each new transmission line. Units
+    # in original data are in $/MW-yr. Lifetime of 40 years to
+    # de-annualize data
+    branch_investment_cost_dict = {}
+
+    if m.mc is not None:
+        for index, row in m.mc.branch_data_target.iterrows():
+            branch_uid = row["UID"].replace("-c", "")
+            # Adjust this if your capex column is named differently
+            capex_col = f"capex_{year}"
+            annualized_cost = float(row.get(capex_col, 0))
+            if annualized_cost == 0 or annualized_cost is None:
+                print(
+                    f"[WARNING] No {capex_col} found for branch '{branch_uid}'. Assuming investment cost of 0."
+                )
+            inv_cost = annualized_to_total_capex(
+                annualized_cost, years=40, discount_rate=0.07
+            )
+            branch_investment_cost_dict[branch_uid] = inv_cost
+    else:
+        print(
+            "No branch cost data found in m.mc. Setting all branch investment costs to 0."
+        )
+        for branch in m.transmission:
+            branch_investment_cost_dict[branch] = 0
+
+    # print(branch_investment_cost_dict)
+
+    m.branchInvestmentCost = pyo.Param(
+        m.transmission,
+        initialize=branch_investment_cost_dict,
+        mutable=True,
+        units=u.USD / u.MW,
+        doc="Investment cost for each new branch (de-annualized, $/MW)",
+    )
+
     if m.mc is not None:
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
@@ -655,7 +691,9 @@ def add_model_cost_parameters_from_csv(m, year):
             original_units = u.USD / (u.MW * u.year)
             final_units = u.USD / (u.MW * u.hr)
             final_inv_units = u.USD / u.MW
-            # Convert investment cost from $/MW-year (annualized) to $/MW (de-annualized)
+            # Convert investment cost from $/MW-year (annualized) to
+            # $/MW (de-annualized). Lifetime of 30 years to
+            # deannualize.
             inv_cost_annualized = capex_yr * original_units
             inv_cost = annualized_to_total_capex(capex_yr, years=30, discount_rate=0.07)
             inv_cost = pyo.units.convert(
