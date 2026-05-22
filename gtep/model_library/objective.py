@@ -30,19 +30,29 @@ def create_objective_function(m):
 
     # NOTE: We add battery storage cost only when "storage" is set to
     # True in the configuration input, otherwise its cost value is 0.
-    if len(m.stages) > 1:
-        m.operatingCost = sum(
+
+    @m.Expression()
+    def operatingCostTotal(m):
+        return sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
-        m.storageCost = (
-            sum(m.investmentStage[stage].storageCostInvestment for stage in m.stages)
-            if m.config["storage"] == True
-            else 0
-        )
-        m.expansionCost = sum(
-            m.investmentStage[stage].investment_cost for stage in m.stages
-        )
-        m.penaltyCost = sum(
+
+    @m.Expression()
+    def storageCostTotal(m):
+        if m.config["storage"]:
+            return sum(
+                m.investmentStage[stage].storageCostInvestment for stage in m.stages
+            )
+        else:
+            return 0
+
+    @m.Expression()
+    def expansionCostTotal(m):
+        return sum(m.investmentStage[stage].investment_cost for stage in m.stages)
+
+    @m.Expression()
+    def penaltyCostTotal(m):
+        return sum(
             m.deficitPenalty[stage]
             * m.investmentFactor[stage]
             * m.investmentStage[stage].quotaDeficit
@@ -52,16 +62,10 @@ def create_objective_function(m):
 
     @m.Objective()
     def total_cost_objective_rule(m):
-        if len(m.stages) > 1:
-            return m.operatingCost + m.expansionCost + m.penaltyCost + m.storageCost
-        else:
-            return (
-                m.investmentStage[1].operatingCostInvestment
-                + m.investmentStage[1].storageCostInvestment
-                + m.investmentStage[1].expansionCost
-                + m.deficitPenalty[1]
-                * m.investmentFactor[1]
-                * m.investmentStage[1].quotaDeficit
-                + m.investmentStage[1].renewableCurtailmentInvestment
-                # + m.investmentStage[1].storageCostInvestment  # this term is already included above
-            )
+        return (
+            m.operatingCostTotal
+            + m.expansionCostTotal
+            + m.penaltyCostTotal
+            + m.storageCostTotal
+        )
+       
