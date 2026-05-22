@@ -68,4 +68,3 @@ def create_objective_function(m):
             + m.penaltyCostTotal
             + m.storageCostTotal
         )
-       
