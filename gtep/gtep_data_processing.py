@@ -296,5 +296,4 @@ class DataProcessing:
 
         if save_csv:
             filename = join(datadir, "costs", "candidate_generators_initial_list.csv")
-            self.gen_data_target.to_csv(filename, index=False
-            )
+            self.gen_data_target.to_csv(filename, index=False)
