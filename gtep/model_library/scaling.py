@@ -19,6 +19,7 @@ Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+
 def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
     b.loads = pyo.Param(
