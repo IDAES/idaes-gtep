@@ -16,20 +16,18 @@ Model
 
 """
 
+import pyomo.environ as pyo
+from pyomo.environ import units as u
 
 def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
-    # Create a false load directory. [TODO: Commented for now since it
-    # is not used. Check with team if we want to preserve this for
-    # Texas case.]
-    # false_loads = []
-    # for load in m.md.data["elements"]["load"]:
-    #     if type(m.md.data["elements"]["load"][load]) == float:
-    #         false_loads.append(load)
-    # for load in false_loads:
-    #     del m.md.data["elements"]["load"][load]
-    #     # del m.loads[load]
-    # # print(m.loads)
+    b.loads = pyo.Param(
+        m.buses,
+        initialize={load_n: 0 for load_n in m.buses},
+        mutable=True,
+        units=u.MW,
+        doc="Demand at each bus",
+    )
 
     # Loop over the demand at each bus and scale based on the case.
     for load_n in m.load_buses:
@@ -39,20 +37,20 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
         if m.config["scale_loads"]:
             temp_scale = 10
-            m.loads[load_n] = (
+            b.loads[load_n] = (
                 p_load
                 * temp_scale
                 * (1 + (temp_scale + investment_stage) / (temp_scale + len(m.stages)))
             )
 
         elif m.config["scale_texas_loads"]:
-            m.loads[load_n] = (
+            b.loads[load_n] = (
                 p_load
                 * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             )
 
         else:
-            m.loads[load_n] = p_load
+            b.loads[load_n] = p_load
 
         # for key, val in b.loads.items():
         #     # print(f"{key=}")

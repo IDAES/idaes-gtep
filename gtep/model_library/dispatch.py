@@ -239,7 +239,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(m.loads[l] for l in loads)
+            balance -= sum(c_p.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -282,7 +282,7 @@ def add_dispatch_constraints(b, disp_per):
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
             # Add the loads as a parameter (already includes units).
-            balance -= m.loads[bus]
+            balance -= c_p.loads[bus]
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
