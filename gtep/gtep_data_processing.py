@@ -398,4 +398,3 @@ class DataProcessing:
 
         if save_csv:
             self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
-
