@@ -26,7 +26,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, dispatch_period):
+def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     """This method adds dispatch-associated variables to
     representative period block.
 
@@ -53,7 +53,7 @@ def add_dispatch_variables(b, dispatch_period):
     def renewableCurtailmentCost(b, renewableGen):
         return (
             b.renewableCurtailment[renewableGen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.curtailmentCost
         )
 
@@ -61,7 +61,7 @@ def add_dispatch_variables(b, dispatch_period):
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * (m.fixedCost[gen] + m.varCost[gen])
         )
 
@@ -69,7 +69,7 @@ def add_dispatch_variables(b, dispatch_period):
     def renewableGeneratorCost(b, gen):
         return (
             b.renewableGeneration[gen]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
 
@@ -91,7 +91,7 @@ def add_dispatch_variables(b, dispatch_period):
     def loadShedCost(b, bus):
         return (
             b.loadShed[bus]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
@@ -163,7 +163,7 @@ def add_dispatch_variables(b, dispatch_period):
     # [TODO: Check units since they might need to be fixed for
     # variable temporal resolution.]
     b.powerFlow = pyo.Var(
-        m.transmission,
+        m.lines,
         domain=pyo.Reals,
         bounds=power_flow_limits,
         initialize=0,
@@ -239,7 +239,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(m.loads[l] for l in loads)
+            balance -= sum(c_p.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -249,14 +249,8 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
             balance = 0
-            end_points = [
-                line
-                for line in m.transmission
-                if m.transmission[line]["from_bus"] == bus
-            ]
-            start_points = [
-                line for line in m.transmission if m.transmission[line]["to_bus"] == bus
-            ]
+            end_points = [line for line in m.lines if m.from_bus[line] == bus]
+            start_points = [line for line in m.lines if m.to_bus[line] == bus]
             gens = [
                 gen
                 for gen in m.generators
@@ -282,7 +276,7 @@ def add_dispatch_constraints(b, disp_per):
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
             # Add the loads as a parameter (already includes units).
-            balance -= m.loads[bus]
+            balance -= c_p.loads[bus]
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 

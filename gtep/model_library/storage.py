@@ -752,3 +752,16 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
             b.storageDischargingCost[bat] for bat in m.storage
         )
+
+
+def add_commitment_storage_constraints(b):
+
+    # [TODO: Replace this constraint with expressions using bounds
+    # transform and check if costs considered need to be
+    # re-assessed and account for missing data.]
+    @b.Expression(doc="Total storage costs for commitment block in $")
+    def storageCostCommitment(b):
+        return sum(
+            b.dispatchPeriod[disp_per].storageCostDispatch
+            for disp_per in b.dispatchPeriods
+        )

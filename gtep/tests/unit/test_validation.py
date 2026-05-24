@@ -41,16 +41,17 @@ input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
 def get_solution_object():
-    data_object = ExpansionPlanningData()
-    data_object.load_prescient(str(input_data_source))
-
-    mod_object = ExpansionPlanningModel(
+    data_object = ExpansionPlanningData(
         stages=2,
-        data=data_object,
         num_reps=2,
         len_reps=1,
         num_commit=6,
         num_dispatch=4,
+    )
+    data_object.load_prescient(str(input_data_source))
+
+    mod_object = ExpansionPlanningModel(
+        data=data_object,
     )
     mod_object.create_model()
     TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
