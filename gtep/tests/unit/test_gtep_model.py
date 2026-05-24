@@ -95,6 +95,12 @@ def prepare_model_and_cost_data(
             "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
         )
     )
+    ng_cost_path = abspath(
+        join(
+            data_path,
+            "Total_Energy_Supply_Disposition_and_Price_Summary.csv",
+        )
+    )
     candidate_gens = [
         "Natural Gas_CT",
         "Natural Gas_FE",
@@ -106,6 +112,7 @@ def prepare_model_and_cost_data(
     dataProcessingObject.load_gen_data(
         bus_data_path=bus_data_path,
         cost_data_path=cost_data_path,
+        ng_cost_path=ng_cost_path,
         candidate_gens=candidate_gens,
     )
     return dataObject, dataProcessingObject
@@ -360,7 +367,7 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 1524581869.89, 779334165.7
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779334165.7, places=1
+            value(modObject.model.total_cost_objective_rule), 779344643.1, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -406,8 +413,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
+        # previous successful objective values: 1524533561.02
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 926190541.3, places=1
+            value(modObject.model.total_cost_objective_rule), 926187704.4, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
