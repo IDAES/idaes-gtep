@@ -21,6 +21,9 @@ from warnings import warn
 import pandas as pd
 from gtep.config_data import ConfigData
 from pathlib import Path
+from os.path import join, dirname, abspath
+
+datadir = join(dirname(abspath(str(__file__))), "data")
 
 """
 References
@@ -395,3 +398,4 @@ class DataProcessing:
 
         if save_csv:
             self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
+
