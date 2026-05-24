@@ -75,7 +75,7 @@ def add_investment_disjuncts(b):
         stor.add_storage_status_disjuncts(b, m.storage)
 
     if m.config["transmission"]:
-        transm.add_transmission_status_disjuncts(b, m.transmission)
+        transm.add_transmission_status_disjuncts(b, m.lines)
 
 
 def add_investment_constraints(

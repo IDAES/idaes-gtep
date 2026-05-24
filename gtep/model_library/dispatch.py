@@ -163,7 +163,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     # [TODO: Check units since they might need to be fixed for
     # variable temporal resolution.]
     b.powerFlow = pyo.Var(
-        m.transmission,
+        m.lines,
         domain=pyo.Reals,
         bounds=power_flow_limits,
         initialize=0,
@@ -249,14 +249,8 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
             balance = 0
-            end_points = [
-                line
-                for line in m.transmission
-                if m.transmission[line]["from_bus"] == bus
-            ]
-            start_points = [
-                line for line in m.transmission if m.transmission[line]["to_bus"] == bus
-            ]
+            end_points = [line for line in m.lines if m.from_bus[line] == bus]
+            start_points = [line for line in m.lines if m.to_bus[line] == bus]
             gens = [
                 gen
                 for gen in m.generators
