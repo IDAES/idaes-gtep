@@ -26,11 +26,11 @@ curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
-def check_CP_flow_balance(td: TestDispatch, c: pyo.Constraint):
+def check_CP_flow_balance(td, c: pyo.Constraint):
     pass
 
 
-def check_flow_balance(td: TestDispatch, c: pyo.Constraint):
+def check_flow_balance(td, c: pyo.Constraint):
     """Checks the flow balance constraint."""
     constraints_by_index = td.check_helper.parse_constraint_pprint(
         c,
