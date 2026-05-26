@@ -102,6 +102,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.genOperational[gen].indicator_var.fix(False)
+            b.genExtended[gen].indicator_var.fix(False)
         elif (
             m.md.data["elements"]["generator"][gen]["in_service"] == True
             and investment_stage == 1
@@ -519,7 +520,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         )
 
 
-def generators_status_always_on(m, b):
+def generators_status_always_on(m, b, r_p, i_p, commitment_period):
     """This method defines only one disjunct to enforce that
     generators are always 'On'. This method is used when unit
     commitment is not modeled, ensuring generators are always
@@ -547,6 +548,18 @@ def generators_status_always_on(m, b):
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                 + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
                 <= m.thermalCapacity[generator]
+            )
+
+        @disj.Constraint(
+            b.dispatchPeriods,
+            doc="Enforces that generators cannot be committed unless they are operational or just installed",
+        )
+        def commit_active_gens_only(d, dispatchPeriod):
+            return (
+                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+                <= i_p.genOperational[generator].binary_indicator_var * u.MW
+                + i_p.genInstalled[generator].binary_indicator_var * u.MW
+                + i_p.genExtended[generator].binary_indicator_var * u.MW
             )
 
     @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
