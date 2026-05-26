@@ -51,14 +51,13 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
-    if m.config["scale_loads"]:
-        scaling.add_load_scaling(
-            m,
-            b,
-            commitment_period,
-            investmentStage,
-            scaling_value=10,
-        )
+    scaling.add_load_scaling(
+        m,
+        b,
+        commitment_period,
+        investmentStage,
+        scaling_value=10,
+    )
 
 
 def add_commitment_disjuncts(b, commitment_period):
@@ -78,7 +77,7 @@ def add_commitment_disjuncts(b, commitment_period):
         gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
     else:
 
-        gens.generators_status_always_on(m, b)
+        gens.generators_status_always_on(m, b, r_p, i_p, commitment_period)
 
     if m.config["storage"]:
         stor.add_storage_state_disjuncts(m, b, commitment_period)
