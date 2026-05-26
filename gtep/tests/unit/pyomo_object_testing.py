@@ -286,7 +286,7 @@ class PyomoCheckHelper:
         matching_terms = []
         for sign, term in constraint_expr:
             match = re.fullmatch(
-                f"MATCHING_TERM{r'\[([^\]]+)\]'}",
+                "MATCHING_TERM" + r"\[([^\]]+)\]",
                 term.replace(term_to_find, "MATCHING_TERM"),
             )
             if match:
