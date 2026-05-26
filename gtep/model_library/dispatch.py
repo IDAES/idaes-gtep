@@ -163,7 +163,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     # [TODO: Check units since they might need to be fixed for
     # variable temporal resolution.]
     b.powerFlow = pyo.Var(
-        m.transmission,
+        m.lines,
         domain=pyo.Reals,
         bounds=power_flow_limits,
         initialize=0,
@@ -239,7 +239,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(m.loads[l] for l in loads)
+            balance -= sum(c_p.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -249,14 +249,20 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
             balance = 0
-            end_points = [
-                line
-                for line in m.transmission
-                if m.transmission[line]["from_bus"] == bus
+            end_points = [line for line in m.lines if m.from_bus[line] == bus]
+            start_points = [line for line in m.lines if m.to_bus[line] == bus]
+            gens = [
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["bus"] == bus
             ]
-            start_points = [
-                line for line in m.transmission if m.transmission[line]["to_bus"] == bus
-            ]
+            batts = []
+            if m.config["storage"]:
+                batts = [
+                    bat
+                    for bat in m.storage
+                    if m.md.data["elements"]["storage"][bat]["bus"] == bus
+                ]
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             balance += sum(
@@ -272,7 +278,7 @@ def add_dispatch_constraints(b, disp_per):
             balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
 
             # Add the loads as a parameter (already includes units).
-            balance -= m.loads[bus]
+            balance -= c_p.loads[bus]
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
