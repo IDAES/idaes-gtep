@@ -20,32 +20,34 @@ from pyomo.environ import units as u
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
-from gtep.tests.unit.pyomo_object_checking import PyomoCheckHelper
+from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
 
 curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
-def check_CP_flow_balance(td, c):
+def check_CP_flow_balance(td: TestDispatch, c: pyo.Constraint):
     pass
 
 
-def check_flow_balance(td, c):
+def check_flow_balance(td: TestDispatch, c: pyo.Constraint):
     """Checks the flow balance constraint."""
-    constraints_by_index = td.check_helper.parse_constraint_pprint(td.b.name, c)
+    constraints_by_index = td.check_helper.parse_constraint_pprint(
+        c,
+        replace_dict={td.b.name: "b", td.b.parent_block().name: "cb"},
+    )
+
+    # loop through each index element of the constraint
     for i in c.index_set():
         expr = constraints_by_index[i]["expr"]
-        td.check_helper.check_constraint_for_terms(expr, "loads", [-1], [i])
+
+        # check for loads and loadshed terms (negative and positive, respectively)
+        td.check_helper.check_constraint_for_terms(expr, "cb.loads", [-1], [i])
         td.check_helper.check_constraint_for_terms(expr, "b.loadShed", [1], [i])
 
-        ends = [
-            line
-            for line in td.m.transmission
-            if td.m.transmission[line]["from_bus"] == i
-        ]
-        starts = [
-            line for line in td.m.transmission if td.m.transmission[line]["to_bus"] == i
-        ]
+        # check for powerflow terms; "ends" should be negative while "starts" should be positive
+        ends = [line for line in td.m.lines if td.m.from_bus[line] == i]
+        starts = [line for line in td.m.lines if td.m.to_bus[line] == i]
         td.check_helper.check_constraint_for_terms(
             expr, "b.powerFlow", [-1] * len(ends) + [1] * len(starts), ends + starts
         )
@@ -183,7 +185,7 @@ class TestDispatch(unittest.TestCase):
             name="powerFlow",
             units=u.MW,
             obj_type=pyo.Var,
-            index=self.m.transmission,
+            index=self.m.lines,
         )
         self.check_helper.add_object(
             name="spinningReserve",

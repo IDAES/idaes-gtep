@@ -206,7 +206,9 @@ class PyomoCheckHelper:
 
     @classmethod
     def parse_constraint_pprint(
-        cls, block_name: str, constraint: pyo.Constraint
+        cls,
+        constraint: pyo.Constraint,
+        replace_dict: dict[str, str] = {},
     ) -> dict:
         """
         Parses the output of a constraint's `.pprint()` function, returning
@@ -226,14 +228,21 @@ class PyomoCheckHelper:
             - `term` is an individual term of the expression associated with `i`
             - `sign` is the sign of an individual term of the expression associated with `i`
 
-        :param block_name:  `.name` attribute of the block that `constraint` is on.
-        :param constraint:  Constraint to be parsed.
-        :type block_name:   str
-        :type constraint:   pyomo.environ.Constraint
+        :param constraint:      Constraint to be parsed.
+        :param replace_dict:    Set of terms to replace (not necessary, just makes equations more human-readable)
+        :type constraint:       pyomo.environ.Constraint
+        :type replace_dict:     dict[str,str]
         """
+        # get the constraint's pprint
         buf = StringIO()
         constraint.pprint(ostream=buf)
-        pprinted = buf.getvalue().replace(block_name, "b")
+        pprinted = buf.getvalue()
+
+        # replace lengthy terms in the pprint; do so by descending length of term to make sure full term name is replaced
+        replace_list = [(key, val) for key, val in replace_dict.items()]
+        replace_list = sorted(replace_list, key=lambda x: len(x[0]), reverse=True)
+        for term, replaced in replace_list:
+            pprinted = pprinted.replace(term, replaced)
 
         out = {}
         for index_expr_pprinted in pprinted.split("\n")[3:-1]:
@@ -241,7 +250,6 @@ class PyomoCheckHelper:
             i = index_expr_split[0].strip()
             expr = index_expr_split[2].strip()
             val = index_expr_split[3].strip()
-            # print(i, ":", expr)
 
             out[i] = {
                 "expr": cls._extract_terms_from_string_expression(expr),
@@ -251,7 +259,7 @@ class PyomoCheckHelper:
 
     def check_constraint_for_terms(
         self,
-        constraint_expr: list,
+        constraint_expr: list[tuple],
         term_to_find: str,
         expected_signs: list[int],
         expected_indices: list[str],
@@ -261,10 +269,11 @@ class PyomoCheckHelper:
         function for constraint check functions.
 
         :param constraint_expr:     Constraint expression (`"expr"` value from an element of `parse_constraint_pprint`).
+                                        Should consist of a list of tuples, of the form [(sign, term), (sign, term), ...]
         :param term_to_find:        Name of term to find, not including the index (e.g., `"loads"`).
         :param expected_signs:      Expected signs of matching terms.
         :param expected_indices:    Expected indices of matching terms.
-        :type constraint_expr:      dict
+        :type constraint_expr:      list[tuple]
         :type term_to_find:         str
         :type expected_signs:       list[int]
         :type expected_indices:     list
@@ -276,7 +285,10 @@ class PyomoCheckHelper:
 
         matching_terms = []
         for sign, term in constraint_expr:
-            match = re.fullmatch(rf"{term_to_find}\[([^\]]+)\]", term)
+            match = re.fullmatch(
+                f"MATCHING_TERM{r'\[([^\]]+)\]'}",
+                term.replace(term_to_find, "MATCHING_TERM"),
+            )
             if match:
                 matching_terms.append(
                     {
@@ -285,7 +297,11 @@ class PyomoCheckHelper:
                     }
                 )
 
-        self.test_class.assertEqual(len(matching_terms), len(expected_signs))
+        self.test_class.assertEqual(
+            len(matching_terms),
+            len(expected_signs),
+            f"Expected to find {len(expected_signs)} matching term(s), but found {len(matching_terms)}",
+        )
         for s, i in zip(expected_signs, expected_indices):
             matching_term = [
                 term
