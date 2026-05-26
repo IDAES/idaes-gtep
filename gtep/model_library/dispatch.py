@@ -270,7 +270,7 @@ def add_dispatch_constraints(b, disp_per):
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]
             balance += b.loadShed[bus]
-            return balance == 0
+            return balance == 0 * u.MW
 
     # NOTE: In comparison to reference [1], this is "per renewable
     # generator". [TODO: Should we include charging costs from
