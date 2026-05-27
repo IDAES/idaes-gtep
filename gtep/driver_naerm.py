@@ -22,7 +22,6 @@ from gtep.gtep_data_processing import DataProcessing
 
 import xpress
 
-
 # Add data
 data_path = "./data/WECC_ADS_PNNL"
 data_object = ExpansionPlanningData(
@@ -130,11 +129,9 @@ sol_object.save_results_in_json_files(mod_object, dir_name)
 # Create stack plots, treemaps, and pie charts for gen mix for
 # dispatchable and renewable generators
 case_json = "dispatchables"
-sol_object.create_plots(case_json, dir_name, data_path
-)
+sol_object.create_plots(case_json, dir_name, data_path)
 case_json = "renewables"
-sol_object.create_plots(case_json, dir_name, data_path
-)
+sol_object.create_plots(case_json, dir_name, data_path)
 
 # Create stackgraph
 sol_object.create_stackgraph(dir_name)

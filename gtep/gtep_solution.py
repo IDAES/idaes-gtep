@@ -49,7 +49,8 @@ class ExpansionPlanningSolution:
         self.gen_df = pd.read_csv(f"{data_path}/gen.csv")
         self.gen_types = {
             gen_type: self.gen_df[self.gen_df["Unit Type"] == gen_type]["PMax MW"].sum()
-            for gen_type in set(self.gen_df["Unit Type"])}
+            for gen_type in set(self.gen_df["Unit Type"])
+        }
 
     def load_from_file(self):
         pass
@@ -59,7 +60,9 @@ class ExpansionPlanningSolution:
         folder_name = dir_name
 
         os.makedirs(folder_name, exist_ok=True)
-        print(f"\n You created the directory '{folder_name}' to save the results. We are working on it...")
+        print(
+            f"\n You created the directory '{folder_name}' to save the results. We are working on it..."
+        )
 
         m = gtep_model.model
 
@@ -87,18 +90,18 @@ class ExpansionPlanningSolution:
                 for name in valid_names:
                     if name in var.name:
                         if pyo.value(var[index]) >= 0.001:
-                            renewable_investments[var.name + "." + str(index)] = pyo.value(
-                                var[index]
+                            renewable_investments[var.name + "." + str(index)] = (
+                                pyo.value(var[index])
                             )
         for var in m.component_objects(gdp.Disjunct, descend_into=True):
             for index in var:
                 for name in valid_names:
                     if name in var.name:
                         if pyo.value(var[index].indicator_var) == True:
-                            dispatchable_investments[var.name + "." + str(index)] = pyo.value(
-                                var[index].indicator_var
+                            dispatchable_investments[var.name + "." + str(index)] = (
+                                pyo.value(var[index].indicator_var)
                             )
-                            
+
         costs = {}
         for exp in m.component_objects(pyo.Expression, descend_into=True):
             if "Cost" in exp.name or "cost" in exp.name:
@@ -115,7 +118,7 @@ class ExpansionPlanningSolution:
         flow_name = folder_name + "/flows.json"
         generation_name = folder_name + "/generation.json"
         curtailment_name = folder_name + "/curtailment.json"
-        
+
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
@@ -143,7 +146,7 @@ class ExpansionPlanningSolution:
          - {generation_name}
          - {curtailment_name}
         """)
-        
+
     def read_json(self, filepath):
         # Read a json file
         json_filepath = Path(filepath)
@@ -152,7 +155,6 @@ class ExpansionPlanningSolution:
 
         return json_read
 
-    
     def to_dict(self, dict_in):
         """Converts a flat dictionary with dot-separated keys into a
         nested dictionary: {time_key: {state: {gen_key: value}}}
@@ -163,7 +165,7 @@ class ExpansionPlanningSolution:
 
         ignore_this = "branch"
         out_dict = {}
-        
+
         for key, val in dict_in.items():
             # split the name to figure out depth
             split_name = key.split(".")
@@ -181,7 +183,6 @@ class ExpansionPlanningSolution:
 
         return out_dict
 
-    
     def create_plots(self, case_json, results_path, data_path):
         """This function reads a solution .json file, uses gen.csv and
         candidate_generators_initial_list.csv to map generator UIDs to
@@ -190,37 +191,38 @@ class ExpansionPlanningSolution:
 
         """
 
-        GenerationType = namedtuple('GenerationType', ['label', 'color'])
+        GenerationType = namedtuple("GenerationType", ["label", "color"])
         GENERATION_TYPES = {
-            'CC': GenerationType('Gas CC', '#20b2aa'),
-            'CT': GenerationType('Gas CT', '#6e8b3d'),
-            'PV': GenerationType('Solar', '#ffb90f'),
-            'NUC': GenerationType('Nuclear', '#39FF14'),
-            'STEAM': GenerationType('Steam', '#b0b0b0'),
-            'THERMAL': GenerationType('Thermal', '#e25822'),
-            'COAL': GenerationType('Coal', '#333333'),
-            'WIND': GenerationType('Wind', '#4f94cd'),
-            'DR': GenerationType('Demand Response', '#a020f0'),
-            'HYDRO': GenerationType('Hydro', '#00bfff'),
-            'BATTERY': GenerationType('Battery', '#7b9095'),
+            "CC": GenerationType("Gas CC", "#20b2aa"),
+            "CT": GenerationType("Gas CT", "#6e8b3d"),
+            "PV": GenerationType("Solar", "#ffb90f"),
+            "NUC": GenerationType("Nuclear", "#39FF14"),
+            "STEAM": GenerationType("Steam", "#b0b0b0"),
+            "THERMAL": GenerationType("Thermal", "#e25822"),
+            "COAL": GenerationType("Coal", "#333333"),
+            "WIND": GenerationType("Wind", "#4f94cd"),
+            "DR": GenerationType("Demand Response", "#a020f0"),
+            "HYDRO": GenerationType("Hydro", "#00bfff"),
+            "BATTERY": GenerationType("Battery", "#7b9095"),
         }
 
         # Read gen and candidate_gen .csv files for GEN UID to map for
         # Unit Type and PMax MW
         gen_df = pd.read_csv(f"{data_path}/gen.csv")
         gen_uid_to_type = {
-            row['GEN UID']: row['Unit Type'].upper() for _, row in gen_df.iterrows()
+            row["GEN UID"]: row["Unit Type"].upper() for _, row in gen_df.iterrows()
         }
         gen_uid_to_pmax = {
-            row['GEN UID']: float(row['PMax MW']) for _, row in gen_df.iterrows()
+            row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_df.iterrows()
         }
 
         gen_cand_df = pd.read_csv(f"{data_path}/candidate_generators_initial_list.csv")
         gen_cand_uid_to_type = {
-            row['GEN UID']: row['Unit Type'].upper() for _, row in gen_cand_df.iterrows()
+            row["GEN UID"]: row["Unit Type"].upper()
+            for _, row in gen_cand_df.iterrows()
         }
         gen_cand_uid_to_pmax = {
-            row['GEN UID']: float(row['PMax MW']) for _, row in gen_cand_df.iterrows()
+            row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_cand_df.iterrows()
         }
 
         # Read and process .json. These names are based on the saved
@@ -260,16 +262,16 @@ class ExpansionPlanningSolution:
                 unit_type_upper = unit_type.upper()
             else:
                 unit_type_upper = None
-        
+
             # Only use if in GENERATION_TYPES
             if unit_type and unit_type in GENERATION_TYPES:
                 gens_keys_to_type[this_key] = unit_type_upper
-                gens_keys_to_pmax[this_key] = pmax               
+                gens_keys_to_pmax[this_key] = pmax
             else:
                 raise ValueError(
                     f"[ERROR] Generator '{this_key}' has unknown or unsupported unit type '{unit_type}'."
                 )
-            
+
         # After building gens_keys_to_type
         unique_types = set(gens_keys_to_type.values())
 
@@ -278,7 +280,7 @@ class ExpansionPlanningSolution:
         # Read the DAY_AHEAD .csv file with the year column and get
         # unique years in order of appearance
         time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-        time_periods = time_periods_df['Year'].drop_duplicates().astype(str).tolist()
+        time_periods = time_periods_df["Year"].drop_duplicates().astype(str).tolist()
 
         # Build gen_mix using PMax MW and solution values
         gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
@@ -311,26 +313,35 @@ class ExpansionPlanningSolution:
                 component_label = GENERATION_TYPES[gen_class].label
                 component_color = GENERATION_TYPES[gen_class].color
                 p = ax.bar(
-                    time_periods, mix_array, width,
-                    label=component_label, color=component_color,
-                    bottom=bottom, edgecolor="#FFFFFF", linewidth=0.5
+                    time_periods,
+                    mix_array,
+                    width,
+                    label=component_label,
+                    color=component_color,
+                    bottom=bottom,
+                    edgecolor="#FFFFFF",
+                    linewidth=0.5,
                 )
                 bottom += mix_array
 
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         ax.set_title("Generation Mix")
-        ax.set_ylabel('Nameplate Capacity [MW]')
-        ax.set_xlabel('Investment Year')
+        ax.set_ylabel("Nameplate Capacity [MW]")
+        ax.set_xlabel("Investment Year")
         plt.savefig(f"{results_path}/{case_json}_gen_mix_summary.png")
         plt.close()
-        print(f" -> Saved stack plot for generation mix to {results_path}/{case_json}_gen_mix_summary.png")
+        print(
+            f" -> Saved stack plot for generation mix to {results_path}/{case_json}_gen_mix_summary.png"
+        )
 
         # Plot 2: Create treemaps
-        small_pct_threshold=5
+        small_pct_threshold = 5
         for tp, mix in gen_mix.items():
-            filtered_mix = {k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES}
+            filtered_mix = {
+                k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
+            }
             if not filtered_mix:
                 continue
 
@@ -345,60 +356,75 @@ class ExpansionPlanningSolution:
 
             for (k, v), pct in zip(sorted_items, pcts):
                 if pct >= small_pct_threshold:
-                    labels.append(f"{GENERATION_TYPES[k].label}\n{int(v)} MW\n{pct:.1f}%")
+                    labels.append(
+                        f"{GENERATION_TYPES[k].label}\n{int(v)} MW\n{pct:.1f}%"
+                    )
                 else:
                     # No label for small rectangles, but adding them
                     # in a legend box
                     labels.append("")
-                    legend_labels.append(f"{GENERATION_TYPES[k].label} ({int(v)} MW, {pct:.1f}%)")
+                    legend_labels.append(
+                        f"{GENERATION_TYPES[k].label} ({int(v)} MW, {pct:.1f}%)"
+                    )
                     legend_colors.append(GENERATION_TYPES[k].color)
-                    
+
             colors = [GENERATION_TYPES[k].color for k, v in sorted_items]
-            
+
             plt.figure(figsize=(10, 7))
             squarify.plot(
                 sizes=sizes,
                 label=labels,
                 color=colors,
                 alpha=0.85,
-                text_kwargs={'fontsize': 12, 'weight': 'bold'}
+                text_kwargs={"fontsize": 12, "weight": "bold"},
             )
             plt.title(f"{tp}", fontsize=16)
-            plt.axis('off')
+            plt.axis("off")
 
             # Add legend for small rectangles
             if legend_labels:
-                handles = [plt.Rectangle((0,0),1,1, color=c) for c in legend_colors]
+                handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in legend_colors]
                 plt.legend(
-                    handles, legend_labels,
+                    handles,
+                    legend_labels,
                     title=f"Small Rectangles (<{small_pct_threshold}%)",
                     loc="center left",
                     bbox_to_anchor=(1.05, 0.5),
                     fontsize=12,
                     title_fontsize=13,
-                    frameon=True
+                    frameon=True,
                 )
 
             plt.tight_layout()
-            plt.savefig(f"{results_path}/{case_json}_treemap_{tp}.png", dpi=150, bbox_inches='tight')
+            plt.savefig(
+                f"{results_path}/{case_json}_treemap_{tp}.png",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.close()
-            print(f" -> Saved treemap for {tp} to {results_path}/{case_json}_treemap_{tp}.png")
+            print(
+                f" -> Saved treemap for {tp} to {results_path}/{case_json}_treemap_{tp}.png"
+            )
 
         # Plot 3: Create pie chart
         for tp, mix in gen_mix.items():
-            filtered_mix = {k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES}
+            filtered_mix = {
+                k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
+            }
             if not filtered_mix:
                 continue
 
             sizes = [filtered_mix[k] for k in filtered_mix]
-            labels = [f"{GENERATION_TYPES[k].label} ({int(filtered_mix[k])} MW, {filtered_mix[k]/sum(sizes)*100:.1f}%)"
-                      for k in filtered_mix]
+            labels = [
+                f"{GENERATION_TYPES[k].label} ({int(filtered_mix[k])} MW, {filtered_mix[k]/sum(sizes)*100:.1f}%)"
+                for k in filtered_mix
+            ]
             colors = [GENERATION_TYPES[k].color for k in filtered_mix]
-            
+
             # Add a small explode for each slice to create space
             # between slices
             explode = [0.03] * len(sizes)
-            
+
             fig, ax = plt.subplots(figsize=(10, 10))
             wedges, _ = ax.pie(
                 sizes,
@@ -406,8 +432,8 @@ class ExpansionPlanningSolution:
                 colors=colors,
                 startangle=90,
                 explode=explode,
-                wedgeprops={'edgecolor': 'none'},  # No lines between slices
-                shadow=False
+                wedgeprops={"edgecolor": "none"},  # No lines between slices
+                shadow=False,
             )
 
             total = sum(sizes)
@@ -432,24 +458,39 @@ class ExpansionPlanningSolution:
                     label_dist = 1.6
                 else:
                     label_dist = 1.75
-                    
+
                 label_x = label_dist * x
                 label_y = label_dist * y
-                
+
                 ax.annotate(
                     label,
-                    xy=(x, y), xytext=(label_x, label_y),
-                    ha='center', va='center',
-                    fontsize=12, weight='bold',
-                    arrowprops=dict(arrowstyle='-', color='gray', lw=1.5),
-                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.8, alpha=0.7)
+                    xy=(x, y),
+                    xytext=(label_x, label_y),
+                    ha="center",
+                    va="center",
+                    fontsize=12,
+                    weight="bold",
+                    arrowprops=dict(arrowstyle="-", color="gray", lw=1.5),
+                    bbox=dict(
+                        boxstyle="round,pad=0.3",
+                        fc="white",
+                        ec="gray",
+                        lw=0.8,
+                        alpha=0.7,
+                    ),
                 )
-                
-            ax.axis('equal')
+
+            ax.axis("equal")
             plt.tight_layout()
-            plt.savefig(f"{results_path}/{case_json}_pie_leader_{tp}.png", dpi=150, bbox_inches='tight')
+            plt.savefig(
+                f"{results_path}/{case_json}_pie_leader_{tp}.png",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.close()
-            print(f" -> Saved pie chart with leader lines for {tp} to {results_path}/{case_json}_pie_leader_{tp}.png")
+            print(
+                f" -> Saved pie chart with leader lines for {tp} to {results_path}/{case_json}_pie_leader_{tp}.png"
+            )
 
     def create_stackgraph(self, results_path):
 
@@ -460,7 +501,6 @@ class ExpansionPlanningSolution:
 
         with open(f"{results_path}/generation.json", "r") as F:
             gen_data = json.load(F)
-
 
         # CC	CC	CC	tab20	1
         # CT	CT	CT	tab20	3
@@ -474,7 +514,6 @@ class ExpansionPlanningSolution:
         # ES4	ES4	ES	tab20	17
         # PS	PS	PS	tab20	19
         # Load Shed	Load Shed	SL	tab20	7
-
 
         tab20 = plt.get_cmap("tab20")
         GEN_TYPES = {
@@ -519,7 +558,6 @@ class ExpansionPlanningSolution:
                 raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
             dispatch[_type] += val
 
-
         time_periods = [
             (s, p, c, d)
             for s in generation
@@ -533,7 +571,9 @@ class ExpansionPlanningSolution:
         bottom = np.zeros(len(time_periods))
         width = 1
         for name, color in GEN_TYPES.items():
-            values = np.array([generation[s][p][c][d][name] for s, p, c, d in time_periods])
+            values = np.array(
+                [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+            )
             p = ax.bar(
                 times,
                 values,
@@ -545,7 +585,9 @@ class ExpansionPlanningSolution:
                 linewidth=0.5,
             )
             bottom += values
-        plt.savefig(f"{results_path}/stackgraph_generators.png", dpi=150, bbox_inches='tight')
+        plt.savefig(
+            f"{results_path}/stackgraph_generators.png", dpi=150, bbox_inches="tight"
+        )
         plt.close()
         print(f" -> Saved stackgraph to {results_path}/stackgraph_generators.png")
 
