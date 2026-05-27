@@ -22,9 +22,9 @@ from gtep.gtep_data_processing import DataProcessing
 
 import xpress
 
+
 # Add data
 data_path = "./data/WECC_ADS_PNNL"
-# data_path = "./data/5bus"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -58,18 +58,6 @@ rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 data_object.load_prescient(
     data_path, representative_dates=rep_days, representative_weights=rep_weights
 )
-
-# print(data_object.md.data["elements"]["generator"]["AESO_solar"]["p_max"])
-# quit()
-# c = 0
-# # print(data_object.md.data["elements"]["generator"].keys())
-# for gen in data_object.md.data["elements"]["generator"].keys():
-#     if data_object.md.data["elements"]["generator"][gen]["generator_type"] == "renewable":
-#         c += 1
-#         print(gen)
-#         print(data_object.md.data["elements"]["generator"][gen]["p_max"])
-#         if c == 2:
-#             quit()
 
 # [ESR WIP: Add bus and cost data files to be used on the
 # DataProcessing class. This class processes data for the following
@@ -114,14 +102,9 @@ mod_object.config["flow_model"] = "transport"
 
 mod_object.create_model()
 print("model is created!")
-# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
-
-# mod_object.model.loads.pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
-
-# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[1].dispatchPeriod[1].branchInUse["AESO_BCHA"].dc_power_flow.pprint()
 
 solver = "xpress"
 opt = pyo.SolverFactory(solver)
@@ -138,83 +121,20 @@ if solver == "xpress":
         logfile=log_folder + "/" + solver + ".log",
     )
 
-import pyomo.environ as pyo
-import pyomo.gdp as gdp
+# Save the results in .json files using the solution class
+dir_name = "NAERM_results"
 
-import json
-import os
-from pyomo.core.base.expression import ScalarExpression, IndexedExpression
+sol_object = ExpansionPlanningSolution(data_path)
+sol_object.save_results_in_json_files(mod_object, dir_name)
 
-folder_name = "NAERM_initial_testing"
+# Create stack plots, treemaps, and pie charts for gen mix for
+# dispatchable and renewable generators
+case_json = "dispatchables"
+sol_object.create_plots(case_json, dir_name, data_path
+)
+case_json = "renewables"
+sol_object.create_plots(case_json, dir_name, data_path
+)
 
-valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
-# thermal_names = ["genInst", "genOper", "genDisa", "genExt", "genRet"]
-renewable_investments = {}
-dispatchable_investments = {}
-load_shed = {}
-power_flow = {}
-generation = {}
-curtailment = {}
-for var in mod_object.model.component_objects(pyo.Var, descend_into=True):
-    for index in var:
-        if "Shed" in var.name:
-            if pyo.value(var[index]) >= 0.001:
-                load_shed[var.name + "." + str(index)] = pyo.value(var[index])
-        elif "Flow" in var.name:
-            if pyo.value(var[index]) >= 0.001:
-                power_flow[var.name + "." + str(index)] = pyo.value(var[index])
-        elif "Generation" in var.name:
-            if pyo.value(var[index]) >= 0.001:
-                generation[var.name + "." + str(index)] = pyo.value(var[index])
-        elif "Curtailment" in var.name:
-            if pyo.value(var[index]) >= 0.001:
-                curtailment[var.name + "." + str(index)] = pyo.value(var[index])
-        for name in valid_names:
-            if name in var.name:
-                if pyo.value(var[index]) >= 0.001:
-                    renewable_investments[var.name + "." + str(index)] = pyo.value(
-                        var[index]
-                    )
-for var in mod_object.model.component_objects(gdp.Disjunct, descend_into=True):
-    for index in var:
-        for name in valid_names:
-            if name in var.name:
-                if pyo.value(var[index].indicator_var) == True:
-                    dispatchable_investments[var.name + "." + str(index)] = pyo.value(
-                        var[index].indicator_var
-                    )
-
-costs = {}
-for exp in mod_object.model.component_objects(pyo.Expression, descend_into=True):
-    if "Cost" in exp.name or "cost" in exp.name:
-        if type(exp) is ScalarExpression:
-            costs[exp.name] = pyo.value(exp)
-        if type(exp) is IndexedExpression:
-            for e in exp:
-                costs[exp[e].name] = pyo.value(exp[e])
-
-renewable_investment_name = folder_name + "/renewable_investments.json"
-dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
-load_shed_name = folder_name + "/load_shed.json"
-costs_name = folder_name + "/costs.json"
-flow_name = folder_name + "/flows.json"
-generation_name = folder_name + "/generation.json"
-curtailment_name = folder_name + "/curtailment.json"
-
-if not os.path.exists(folder_name):
-    os.makedirs(folder_name)
-
-with open(renewable_investment_name, "w") as fil:
-    json.dump(renewable_investments, fil)
-with open(dispatchable_investment_name, "w") as fil:
-    json.dump(dispatchable_investments, fil)
-with open(load_shed_name, "w") as fil:
-    json.dump(load_shed, fil)
-with open(costs_name, "w") as fil:
-    json.dump(costs, fil)
-with open(flow_name, "w") as fil:
-    json.dump(power_flow, fil)
-with open(generation_name, "w") as fil:
-    json.dump(generation, fil)
-with open(curtailment_name, "w") as fil:
-    json.dump(curtailment, fil)
+# Create stackgraph
+sol_object.create_stackgraph(dir_name)
