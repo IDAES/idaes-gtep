@@ -123,18 +123,23 @@ if solver == "xpress":
 # Save the results in .json files using the solution class
 dir_name = "NAERM_results"
 
+# Define the plot type for the generationmix. The options are:
+# stackplot, treemap or pie chart. If nothing is select, all the files
+# will be produced, as the default
+plot_type = "all"
+
 sol_object = ExpansionPlanningSolution(data_path)
 sol_object.save_results_in_json_files(mod_object, dir_name)
 
 # Create stack plots, treemaps, and pie charts for gen mix for
 # dispatchable and renewable generators
 case_json = "dispatchables"
-sol_object.create_plots(case_json, dir_name, data_path)
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 case_json = "renewables"
-sol_object.create_plots(case_json, dir_name, data_path)
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-sol_object.create_stackgraph(dir_name, data_path)
+sol_object.create_stackgraph(dir_name)
 
 # Create report
-sol_object.create_html_report(dir_name)
+sol_object.create_html_report(dir_name, plot_type)

@@ -24,6 +24,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from collections import namedtuple, defaultdict
+import plotly.graph_objects as go
 
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
@@ -183,7 +184,7 @@ class ExpansionPlanningSolution:
 
         return out_dict
 
-    def create_plots(self, case_json, results_path, data_path):
+    def create_plots(self, case_json, results_path, data_path, plot_type="all"):
         """This function reads a solution .json file, uses gen.csv and
         candidate_generators_initial_list.csv to map generator UIDs to
         unit types and PMax MW, and generates a stacked bar plot of
@@ -193,9 +194,7 @@ class ExpansionPlanningSolution:
 
         plots_dir = os.path.join(results_path, "plots")
         os.makedirs(plots_dir, exist_ok=True)
-        print(
-            f" Created the subdirectory '{plots_dir}' to save the plots."
-        )
+        print(f" Created the subdirectory '{plots_dir}' to save the plots.")
 
         GenerationType = namedtuple("GenerationType", ["label", "color"])
         GENERATION_TYPES = {
@@ -310,200 +309,189 @@ class ExpansionPlanningSolution:
 
         # print('gen_mix_arrays:', gen_mix_arrays)
 
-        # Plot 1: Create stack plot with gen mix
-        width = 1
-        fig, ax = plt.subplots(figsize=(16, 8))
-        bottom = np.zeros(len(time_periods))
-        for gen_class, mix_array in gen_mix_arrays.items():
-            if gen_class in GENERATION_TYPES:
-                component_label = GENERATION_TYPES[gen_class].label
-                component_color = GENERATION_TYPES[gen_class].color
-                p = ax.bar(
-                    time_periods,
-                    mix_array,
-                    width,
-                    label=component_label,
-                    color=component_color,
-                    bottom=bottom,
-                    edgecolor="#FFFFFF",
-                    linewidth=0.5,
-                )
-                bottom += mix_array
+        # Define functions to create interactive Plotly plots for the
+        # generation mix: a stack plot, a pie chart, and a
+        # treemap. The user can select which one to use by setting up
+        # the plot_type option. By default, this function will plot
+        # all if no value is given.
+        def plotly_stackplot_gen_mix(
+            time_periods, gen_mix_arrays, GENERATION_TYPES, results_path, case_json
+        ):
+            """This function creates an interactive Plotly stacked bar
+            chart of generation mix by investment year and saves it as
+            an HTML file.
 
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_title("Generation Mix")
-        ax.set_ylabel("Nameplate Capacity [MW]")
-        ax.set_xlabel("Investment Year")
-        plt.savefig(f"{results_path}/plots/{case_json}_gen_mix_summary.png")
-        plt.close()
-        print(
-            f" -> Saved stack plot for generation mix to {results_path}/{case_json}_gen_mix_summary.png"
-        )
+            """
 
-        # Plot 2: Create treemaps
-        small_pct_threshold = 5
-        for tp, mix in gen_mix.items():
-            filtered_mix = {
-                k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
-            }
-            if not filtered_mix:
-                continue
+            # Prepare the bottom (cumulative sum) for stacking
+            fig = go.Figure()
+            bottom = np.zeros(len(time_periods))
 
-            total = sum(filtered_mix.values())
-            # Prepare lists for squarify
-            sorted_items = sorted(filtered_mix.items(), key=lambda x: -x[1])
-            sizes = [v for k, v in sorted_items]
-            pcts = [v / total * 100 for k, v in sorted_items]
-            labels = []
-            legend_labels = []
-            legend_colors = []
-
-            for (k, v), pct in zip(sorted_items, pcts):
-                if pct >= small_pct_threshold:
-                    labels.append(
-                        f"{GENERATION_TYPES[k].label}\n{int(v)} MW\n{pct:.1f}%"
+            for gen_class, mix_array in gen_mix_arrays.items():
+                if gen_class in GENERATION_TYPES:
+                    component_label = GENERATION_TYPES[gen_class].label
+                    component_color = GENERATION_TYPES[gen_class].color
+                    fig.add_bar(
+                        x=time_periods,
+                        y=mix_array,
+                        name=component_label,
+                        marker_color=component_color,
                     )
-                else:
-                    # No label for small rectangles, but adding them
-                    # in a legend box
-                    labels.append("")
-                    legend_labels.append(
+
+            fig.update_layout(
+                barmode="stack",
+                title="Generation Mix",
+                xaxis_title="Investment Year",
+                yaxis_title="Nameplate Capacity [MW]",
+                legend=dict(
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
+                    font=dict(size=14),
+                ),
+                width=1200,
+                height=600,
+                plot_bgcolor="white",
+            )
+            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="lightgray")
+            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="lightgray")
+
+            # Save as an interactive HTML
+            plot_path = (
+                f"{results_path}/plots/{case_json}_gen_mix_summary_interactive.html"
+            )
+            fig.write_html(f"{plot_path}")
+            print(f" -> Saved interactive stack plot for generation mix to {plot_path}")
+
+        def plotly_treemap_gen_mix(
+            gen_mix, GENERATION_TYPES, results_path, case_json, small_pct_threshold=5
+        ):
+            """This function creates and saves an interactive Plotly
+            treemap of generation mix for each time period as an HTML
+            file.
+
+            """
+            for tp, mix in gen_mix.items():
+                filtered_mix = {
+                    k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
+                }
+                if not filtered_mix:
+                    continue
+
+                total = sum(filtered_mix.values())
+                sorted_items = sorted(filtered_mix.items(), key=lambda x: -x[1])
+                sizes = [v for k, v in sorted_items]
+                pcts = [v / total * 100 for k, v in sorted_items]
+                labels = []
+                colors = []
+                customdata = []
+
+                for (k, v), pct in zip(sorted_items, pcts):
+                    label = f"{GENERATION_TYPES[k].label}<br>{int(v)} MW<br>{pct:.1f}%"
+                    labels.append(label if pct >= small_pct_threshold else "")
+                    colors.append(GENERATION_TYPES[k].color)
+                    customdata.append(
                         f"{GENERATION_TYPES[k].label} ({int(v)} MW, {pct:.1f}%)"
                     )
-                    legend_colors.append(GENERATION_TYPES[k].color)
 
-            colors = [GENERATION_TYPES[k].color for k, v in sorted_items]
-
-            plt.figure(figsize=(10, 7))
-            squarify.plot(
-                sizes=sizes,
-                label=labels,
-                color=colors,
-                alpha=0.85,
-                text_kwargs={"fontsize": 12, "weight": "bold"},
-            )
-            plt.title(f"{tp}", fontsize=16)
-            plt.axis("off")
-
-            # Add legend for small rectangles
-            if legend_labels:
-                handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in legend_colors]
-                plt.legend(
-                    handles,
-                    legend_labels,
-                    title=f"Small Rectangles (<{small_pct_threshold}%)",
-                    loc="center left",
-                    bbox_to_anchor=(1.05, 0.5),
-                    fontsize=12,
-                    title_fontsize=13,
-                    frameon=True,
+                # Plotly treemap
+                fig = go.Figure(
+                    go.Treemap(
+                        labels=[GENERATION_TYPES[k].label for k, v in sorted_items],
+                        parents=[""] * len(sorted_items),
+                        values=sizes,
+                        marker=dict(colors=colors),
+                        textinfo="label+value+percent entry",
+                        hovertext=customdata,
+                        hoverinfo="text",
+                    )
                 )
 
-            plt.tight_layout()
-            plt.savefig(
-                f"{results_path}/plots/{case_json}_treemap_{tp}.png",
-                dpi=150,
-                bbox_inches="tight",
-            )
-            plt.close()
-            print(
-                f" -> Saved treemap for {tp} to {results_path}/{case_json}_treemap_{tp}.png"
-            )
-
-        # Plot 3: Create pie chart
-        for tp, mix in gen_mix.items():
-            filtered_mix = {
-                k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
-            }
-            if not filtered_mix:
-                continue
-
-            sizes = [filtered_mix[k] for k in filtered_mix]
-            labels = [
-                f"{GENERATION_TYPES[k].label} ({int(filtered_mix[k])} MW, {filtered_mix[k]/sum(sizes)*100:.1f}%)"
-                for k in filtered_mix
-            ]
-            colors = [GENERATION_TYPES[k].color for k in filtered_mix]
-
-            # Add a small explode for each slice to create space
-            # between slices
-            explode = [0.03] * len(sizes)
-
-            fig, ax = plt.subplots(figsize=(10, 10))
-            wedges, _ = ax.pie(
-                sizes,
-                labels=None,
-                colors=colors,
-                startangle=90,
-                explode=explode,
-                wedgeprops={"edgecolor": "none"},  # No lines between slices
-                shadow=False,
-            )
-
-            total = sum(sizes)
-            for i, (wedge, label) in enumerate(zip(wedges, labels)):
-                size = sizes[i]
-                angle = (wedge.theta2 + wedge.theta1) / 2
-                x = np.cos(np.deg2rad(angle))
-                y = np.sin(np.deg2rad(angle))
-                # Position label outside the pie
-                # print(size/total)
-                if size / total < 0.0001:
-                    label_dist = 1.8
-                elif size / total < 0.0005:
-                    label_dist = 1.6
-                elif size / total < 0.001:
-                    label_dist = 1.5
-                elif size / total < 0.005:
-                    label_dist = 1.4
-                elif size / total < 0.01:
-                    label_dist = 1.2
-                elif i % 2 == 0:
-                    label_dist = 1.6
-                else:
-                    label_dist = 1.75
-
-                label_x = label_dist * x
-                label_y = label_dist * y
-
-                ax.annotate(
-                    label,
-                    xy=(x, y),
-                    xytext=(label_x, label_y),
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                    weight="bold",
-                    arrowprops=dict(arrowstyle="-", color="gray", lw=1.5),
-                    bbox=dict(
-                        boxstyle="round,pad=0.3",
-                        fc="white",
-                        ec="gray",
-                        lw=0.8,
-                        alpha=0.7,
-                    ),
+                fig.update_layout(
+                    title=f"Generation Mix Treemap - {tp}",
+                    width=900,
+                    height=600,
+                    margin=dict(t=50, l=25, r=25, b=25),
                 )
 
-            ax.axis("equal")
-            plt.tight_layout()
-            plt.savefig(
-                f"{results_path}/plots/{case_json}_pie_leader_{tp}.png",
-                dpi=150,
-                bbox_inches="tight",
+                # Save as an interactive HTML
+                plot_path = (
+                    f"{results_path}/plots/{case_json}_treemap_{tp}_interactive.html"
+                )
+                fig.write_html(f"{plot_path}")
+                print(f" -> Saved interactive treemap for {tp} to {plot_path}")
+
+        def plotly_pie_gen_mix(gen_mix, GENERATION_TYPES, results_path, case_json):
+            """This method creates and saves an interactive Plotly pie
+            chart of generation mix for each time period as an HTML
+            file.
+
+            """
+            for tp, mix in gen_mix.items():
+                filtered_mix = {
+                    k: v for k, v in mix.items() if v > 0 and k in GENERATION_TYPES
+                }
+                if not filtered_mix:
+                    continue
+
+                sizes = [filtered_mix[k] for k in filtered_mix]
+                total = sum(sizes)
+                labels = [
+                    f"{GENERATION_TYPES[k].label} ({int(filtered_mix[k])} MW, {filtered_mix[k]/total*100:.1f}%)"
+                    for k in filtered_mix
+                ]
+                colors = [GENERATION_TYPES[k].color for k in filtered_mix]
+
+                # Plotly pie chart
+                fig = go.Figure(
+                    go.Pie(
+                        labels=[GENERATION_TYPES[k].label for k in filtered_mix],
+                        values=sizes,
+                        marker=dict(colors=colors, line=dict(color="white", width=1)),
+                        textinfo="label+percent",
+                        hoverinfo="label+value+percent",
+                        pull=[0.05]
+                        * len(sizes),  # Slightly "explode" all slices for separation
+                        hole=0,  # 0 for pie, >0 for donut
+                    )
+                )
+
+                fig.update_layout(
+                    title=f"Generation Mix Pie Chart - {tp}",
+                    width=700,
+                    height=700,
+                    margin=dict(t=50, l=25, r=25, b=25),
+                    showlegend=True,
+                )
+
+                # Save as an interactive HTML
+                plot_path = (
+                    f"{results_path}/plots/{case_json}_pie_leader_{tp}_interactive.html"
+                )
+                fig.write_html(f"{plot_path}")
+                print(f" -> Saved interactive pie chart for {tp} to {plot_path}")
+
+        if plot_type == "stackplot":
+            plotly_stackplot_gen_mix(
+                time_periods, gen_mix_arrays, GENERATION_TYPES, results_path, case_json
             )
-            plt.close()
-            print(
-                f" -> Saved pie chart with leader lines for {tp} to {results_path}/{case_json}_pie_leader_{tp}.png"
+        elif plot_type == "treemap":
+            plotly_treemap_gen_mix(gen_mix, GENERATION_TYPES, results_path, case_json)
+        elif plot_type == "piechart":
+            plotly_pie_gen_mix(gen_mix, GENERATION_TYPES, results_path, case_json)
+        elif plot_type == "all":
+            plotly_stackplot_gen_mix(
+                time_periods, gen_mix_arrays, GENERATION_TYPES, results_path, case_json
+            )
+            plotly_treemap_gen_mix(gen_mix, GENERATION_TYPES, results_path, case_json)
+            plotly_pie_gen_mix(gen_mix, GENERATION_TYPES, results_path, case_json)
+        else:
+            raise ValueError(
+                f"Plot type '{plot_type}' is not supported. Please choose between 'stackplot', 'treemap', or 'piechart'."
             )
 
-    def create_stackgraph(self, results_path, data_path):
-
-        # Read the DAY_AHEAD .csv file with the year column and get
-        # unique years in order of appearance
-        years_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-        years_val = years_df["Year"].drop_duplicates().astype(str).tolist()
+    def create_stackgraph(self, results_path):
 
         try:
             import ujson as json
@@ -512,35 +500,6 @@ class ExpansionPlanningSolution:
 
         with open(f"{results_path}/generation.json", "r") as F:
             gen_data = json.load(F)
-
-        # CC	CC	CC	tab20	1
-        # CT	CT	CT	tab20	3
-        # COAL	COAL	CO	tab20	5
-        # NUCLEAR	NUCLEAR	NU	tab20	2
-        # PV	PV	PV	tab20	9
-        # WIND	WIND	WI	tab20	11
-        # THERMAL	THERMAL	TH	tab20	13
-        # HYDRO	HYDRO	HY	tab20	20
-        # BATT	BATT	BA	tab20	15
-        # ES4	ES4	ES	tab20	17
-        # PS	PS	PS	tab20	19
-        # Load Shed	Load Shed	SL	tab20	7
-
-        # [ESR: Comment out original colors for now]
-        # tab20 = plt.get_cmap("tab20")
-        # GEN_TYPES = {
-        #     "coal": tab20(5),
-        #     "cc_gas": tab20(1),
-        #     "ct_gas": tab20(3),
-        #     "dr": tab20(19),
-        #     "solar": tab20(9),
-        #     "thermal_other": tab20(13),
-        #     "wind": tab20(11),
-        #     "gas_cc-c": tab20(0),
-        #     "gas_ct-c": tab20(2),
-        #     "pv-c": tab20(8),
-        #     "wind-c": tab20(10),
-        # }
 
         # Note that these are the same colors used in the stack plots
         # and pie charts above
@@ -609,14 +568,14 @@ class ExpansionPlanningSolution:
             if period not in stage:
                 stage[period] = {}
             period = stage[period]
-            _, (committment,) = c.pop(0)
-            if committment not in period:
-                period[committment] = {}
-            committment = period[committment]
+            _, (commitment,) = c.pop(0)
+            if commitment not in period:
+                period[commitment] = {}
+            commitment = period[commitment]
             _, (dispatch,) = c.pop(0)
-            if dispatch not in committment:
-                committment[dispatch] = dict.fromkeys(GEN_TYPES, 0)
-            dispatch = committment[dispatch]
+            if dispatch not in commitment:
+                commitment[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch = commitment[dispatch]
             gen_name = c[-1][0]
             _type = None
             for gt in GEN_TYPES:
@@ -635,74 +594,114 @@ class ExpansionPlanningSolution:
         ]
         times = list(range(len(time_periods)))
 
-        fig, ax = plt.subplots(figsize=(18, 8))
-        fig.patch.set_facecolor('white')
-        ax.set_facecolor('white')
-        bottom = np.zeros(len(time_periods))
-        width = 1
+        HATCH_TO_PATTERN = {
+            "": "",  # solid fill
+            "....": ".",  # dots
+            "////": "/",  # slashes
+            "xxxx": "x",  # crosshatch
+        }
 
-        for name, color in GEN_TYPES.items():
-            hatch = GEN_TYPE_HATCHES.get(name, "")
-            label = GEN_TYPE_ALIASES.get(name, name)
-            values = np.array(
-                [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+        def plotly_stackgraph(
+            times,
+            time_periods,
+            generation,
+            GEN_TYPES,
+            GEN_TYPE_ALIASES,
+            GEN_TYPE_HATCHES,
+            HATCH_TO_PATTERN,
+            results_path,
+        ):
+
+            # Prepare traces for each generator type
+            traces = []
+            for name, color in GEN_TYPES.items():
+                label = GEN_TYPE_ALIASES.get(name, name)
+                values = np.array(
+                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                )
+                hatch = GEN_TYPE_HATCHES.get(name, "")
+                pattern_shape = HATCH_TO_PATTERN.get(hatch, "")
+                # Use lower opacity for candidate types (those with a
+                # hatch)
+                opacity = 0.7 if hatch else 1.0
+
+                traces.append(
+                    go.Bar(
+                        x=times,
+                        y=values,
+                        name=label,
+                        marker_color=color,
+                        marker_pattern_shape=pattern_shape,
+                        opacity=opacity,
+                        marker_line_width=0,  # remove white line
+                    )
+                )
+
+            fig = go.Figure(data=traces)
+            fig.update_layout(
+                barmode="stack",
+                bargap=0,  # remove white spacing between bars
+                title="Generation Mix",
+                xaxis=dict(
+                    title="Hours",
+                    showgrid=True,
+                    gridcolor="gray",
+                    gridwidth=0.7,
+                    linecolor="black",
+                    mirror=True,
+                ),
+                yaxis=dict(
+                    title="Nameplate Capacity [MW]",
+                    showgrid=True,
+                    gridcolor="gray",
+                    gridwidth=0.7,
+                    linecolor="black",
+                    mirror=True,
+                ),
+                legend=dict(
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
+                    font=dict(size=14),
+                    title="Generation Type",
+                ),
+                width=1200,
+                height=600,
+                plot_bgcolor="white",
+                paper_bgcolor="white",
             )
-            p = ax.bar(
-                times,
-                values,
-                width,
-                # label=name,
-                label=label,
-                color=color,
-                bottom=bottom,
-                # edgecolor="#FFFFFF",
-                edgecolor=None,  # no white lines between bars
-                # linewidth=0.5,
-                linewidth=0.05,
-                hatch=hatch,
+
+            # Add a little space above the tallest bar
+            yvals = np.sum(
+                [
+                    np.array(
+                        [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                    )
+                    for name in GEN_TYPES
+                ],
+                axis=0,
             )
-            bottom += values
+            ymax = yvals.max()
+            fig.update_yaxes(range=[0, ymax * 1.10])
 
-        # [TODO: We are only plotting for one year, but we should
-        # extend this for the case when we have multiple years.]
-        year = int(years_val[0])
-        month_starts = []
-        day = 0
-        for month in range(1, 13):
-            month_starts.append(day)
-            days_in_month = calendar.monthrange(year, month)[1]
-            day += days_in_month
-        month_labels = [calendar.month_abbr[m] for m in range(1, 13)]
+            # Save as interactive HTML
+            plot_path = f"{results_path}/plots/stackgraph_generators_interactive.html"
+            fig.write_html(f"{plot_path}")
+            print(f" -> Saved interactive stackgraph to {plot_path}")
 
-        # Add vertical lines at month boundaries
-        for ms in month_starts:
-            ax.axvline(ms, color='gray', linestyle=':', linewidth=1, alpha=0.5)
-
-        # Set x-ticks and labels
-        ax.set_xticks(month_starts)
-        ax.set_xticklabels(month_labels, fontsize=12)
-
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=14, title="Generation Type")
-        ax.set_title(f"Generation Mix for Investment Year {year}", fontsize=20)
-        ax.set_ylabel('Nameplate Capacity [MW]', fontsize=16)
-        ax.set_xlabel('Months', fontsize=16)
-        ax.tick_params(axis='both', which='major', labelsize=14)
-        ax.grid(axis='both', color='gray', linestyle=':', linewidth=0.7, alpha=0.5)
-
-        ymin, ymax = ax.get_ylim()
-        ax.set_ylim(ymin, ymax * 1.10)
-        
-        plt.tight_layout()
-        plt.savefig(
-            f"{results_path}/plots/stackgraph_generators.png", dpi=150, bbox_inches="tight"
+        plotly_stackgraph(
+            times,
+            time_periods,
+            generation,
+            GEN_TYPES,
+            GEN_TYPE_ALIASES,
+            GEN_TYPE_HATCHES,
+            HATCH_TO_PATTERN,
+            results_path,
         )
-        plt.close()
-        print(f" -> Saved stackgraph to {results_path}/stackgraph_generators.png")
 
-
-    def create_html_report(self, results_path):
+    def create_html_report(self, results_path, plot_type):
 
         def html_results_tab(total_cost):
             return f"""
@@ -715,42 +714,36 @@ class ExpansionPlanningSolution:
             </div>
             """
 
-        def html_plots_tab(plot_files):
+        def html_plots_tab(plot_files, plot_type):
             html = """
             <div id="Plots" class="tabcontent">
             <h2>Plots</h2>
             """
 
-            # Group plots by category
-            renewables = []
-            dispatchables = []
-            stackgraph = []
-            for label, fname in plot_files:
-                label_lower = label.lower()
-                if "renewable" in label_lower:
-                    renewables.append((label, fname))
-                elif "dispatchable" in label_lower:
-                    dispatchables.append((label, fname))
-                elif "stackgraph" in label_lower:
-                    stackgraph.append((label, fname))
+            plot_map = {
+                "stackplot": ("gen_mix_summary_interactive.html", "Stack Plot"),
+                "treemap": ("treemap_2034_interactive.html", "Treemap"),
+                "piechart": ("pie_leader_2034_interactive.html", "Pie Chart"),
+            }
+            categories = ["Dispatchables", "Renewables"]
 
-            if dispatchables:
-                html += "<h3>Dispatchables</h3><ul>\n"
-                for label, fname in dispatchables:
-                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
+            for cat in categories:
+                cat_lower = cat.lower()
+                html += f"<h3>{cat}</h3><ul>\n"
+                if plot_type == "all":
+                    for _, (fname, label) in plot_map.items():
+                        html += f'<li><a href="plots/{cat_lower}_{fname}" target="_blank">{label} ({cat})</a></li>\n'
+                elif plot_type in plot_map:
+                    fname, label = plot_map[plot_type]
+                    html += f'<li><a href="plots/{cat_lower}_{fname}" target="_blank">{label} ({cat})</a></li>\n'
+                else:
+                    html += "<li>Plot type not supported</li>\n"
                 html += "</ul>\n"
 
-            if renewables:
-                html += "<h3>Renewables</h3><ul>\n"
-                for label, fname in renewables:
-                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
-                html += "</ul>\n"
-
-            if stackgraph:
-                html += "<h3>Stackgraph</h3><ul>\n"
-                for label, fname in stackgraph:
-                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
-                html += "</ul>\n"
+            # Add Stackgraph section and plot
+            html += "<h3>Stackgraph</h3><ul>\n"
+            html += '<li><a href="plots/stackgraph_generators_interactive.html" target="_blank">Stackgraph</a></li>\n'
+            html += "</ul>\n"
 
             html += "</div>"
             return html
@@ -840,7 +833,7 @@ class ExpansionPlanningSolution:
         <button class="tablinks" onclick="openTab(event, 'Plots')">Plots</button>
         </div>
         {html_results_tab(total_cost)}
-        {html_plots_tab(plot_files)}
+        {html_plots_tab(plot_files, plot_type)}
         <script>
         document.getElementById("defaultOpen").click();
         </script>
@@ -852,5 +845,3 @@ class ExpansionPlanningSolution:
         with open(html_file, "w") as f:
             f.write(html)
         print(f" HTML report written to {html_file}")
-
-
