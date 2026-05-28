@@ -491,7 +491,7 @@ class ExpansionPlanningSolution:
                 f"Plot type '{plot_type}' is not supported. Please choose between 'stackplot', 'treemap', or 'piechart'."
             )
 
-    def create_stackgraph(self, results_path):
+    def create_stackgraph(self, results_path, rep_days):
 
         try:
             import ujson as json
@@ -611,11 +611,52 @@ class ExpansionPlanningSolution:
             HATCH_TO_PATTERN,
             results_path,
         ):
+            """This function creates an interactive Plotly stackgraph
+            for given representative days.  Each bar represents one
+            hour in one representative day. The x-axis is labeled with
+            the representative day and hour (shown at hour 0 and 12).
+
+            """
+
+            n_hours_per_day = 24
+            n_rep_days = len(rep_days)
+            n_points = n_hours_per_day * n_rep_days
+
+            # Convert the rep_days strings to pandas Timestamps for
+            # formatting
+            rep_days_dt = [pd.to_datetime(d) for d in rep_days]
+
+            # Build x-axis labels and tick positions: For each hour
+            # in each representative day, create a label.  Only show
+            # the label for hour 0 and hour 12 of each day, leave
+            # others blank for clarity.
+            x_labels = []
+            tickvals = []
+            ticktext = []
+            for i, day in enumerate(rep_days_dt):
+                for h in range(n_hours_per_day):
+                    idx = i * n_hours_per_day + h  # Position in the x-axis
+                    if h == 0:
+                        label = day.strftime("%b-%d 00:00")
+                        x_labels.append(label)
+                        tickvals.append(idx)
+                        ticktext.append(label)
+                    elif h == 12:
+                        label = day.strftime("%b-%d 12:00")
+                        x_labels.append(label)
+                        tickvals.append(idx)
+                        ticktext.append(label)
+                    else:
+                        x_labels.append("")
+
+            # The x-axis for the bars is just integer positions (0 to n_points-1)
+            times = list(range(n_points))
 
             # Prepare traces for each generator type
             traces = []
             for name, color in GEN_TYPES.items():
                 label = GEN_TYPE_ALIASES.get(name, name)
+                # One value per hour, for all representative days
                 values = np.array(
                     [generation[s][p][c][d][name] for s, p, c, d in time_periods]
                 )
@@ -627,7 +668,7 @@ class ExpansionPlanningSolution:
 
                 traces.append(
                     go.Bar(
-                        x=times,
+                        x=times,  # integer positions for each hour
                         y=values,
                         name=label,
                         marker_color=color,
@@ -641,9 +682,12 @@ class ExpansionPlanningSolution:
             fig.update_layout(
                 barmode="stack",
                 bargap=0,  # remove white spacing between bars
-                title="Generation Mix",
+                title="Generation Mix (Representative Days)",
                 xaxis=dict(
-                    title="Hours",
+                    # title="Hours",
+                    title="Representative Days (labeled every 12 hours)",
+                    tickvals=tickvals,  # show ticks at hour 0 and 12 of each rep day
+                    ticktext=ticktext,  # show corresponding label
                     showgrid=True,
                     gridcolor="gray",
                     gridwidth=0.7,
@@ -671,6 +715,15 @@ class ExpansionPlanningSolution:
                 plot_bgcolor="white",
                 paper_bgcolor="white",
             )
+
+            # Add vertical lines to visually separate each
+            # representative day
+            for i in range(1, n_rep_days):
+                fig.add_vline(
+                    x=i * n_hours_per_day,
+                    line=dict(color="gray", width=1, dash="dot"),
+                    opacity=0.5,
+                )
 
             # Add a little space above the tallest bar
             yvals = np.sum(

@@ -121,7 +121,7 @@ if solver == "xpress":
     )
 
 # Save the results in .json files using the solution class
-dir_name = "NAERM_results"
+dir_name = "NAERM_initial_testing"
 
 # Define the plot type for the generationmix. The options are:
 # stackplot, treemap or pie chart. If nothing is select, all the files
@@ -139,7 +139,7 @@ case_json = "renewables"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-sol_object.create_stackgraph(dir_name)
+sol_object.create_stackgraph(dir_name, rep_days)
 
 # Create report
 sol_object.create_html_report(dir_name, plot_type)
