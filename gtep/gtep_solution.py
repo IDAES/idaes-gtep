@@ -36,6 +36,7 @@ import squarify
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.tutorial_helper_fns import to_dict, plot_binaries
+import calendar
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +62,8 @@ class ExpansionPlanningSolution:
 
         os.makedirs(folder_name, exist_ok=True)
         print(
-            f"\n You created the directory '{folder_name}' to save the results. We are working on it..."
+            f"\n Creating the directory '{folder_name}' to save the results. Working on it ..."
         )
-
         m = gtep_model.model
 
         valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]
@@ -190,6 +190,12 @@ class ExpansionPlanningSolution:
         generation mix by investment year.
 
         """
+
+        plots_dir = os.path.join(results_path, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        print(
+            f" Created the subdirectory '{plots_dir}' to save the plots."
+        )
 
         GenerationType = namedtuple("GenerationType", ["label", "color"])
         GENERATION_TYPES = {
@@ -330,7 +336,7 @@ class ExpansionPlanningSolution:
         ax.set_title("Generation Mix")
         ax.set_ylabel("Nameplate Capacity [MW]")
         ax.set_xlabel("Investment Year")
-        plt.savefig(f"{results_path}/{case_json}_gen_mix_summary.png")
+        plt.savefig(f"{results_path}/plots/{case_json}_gen_mix_summary.png")
         plt.close()
         print(
             f" -> Saved stack plot for generation mix to {results_path}/{case_json}_gen_mix_summary.png"
@@ -397,7 +403,7 @@ class ExpansionPlanningSolution:
 
             plt.tight_layout()
             plt.savefig(
-                f"{results_path}/{case_json}_treemap_{tp}.png",
+                f"{results_path}/plots/{case_json}_treemap_{tp}.png",
                 dpi=150,
                 bbox_inches="tight",
             )
@@ -483,7 +489,7 @@ class ExpansionPlanningSolution:
             ax.axis("equal")
             plt.tight_layout()
             plt.savefig(
-                f"{results_path}/{case_json}_pie_leader_{tp}.png",
+                f"{results_path}/plots/{case_json}_pie_leader_{tp}.png",
                 dpi=150,
                 bbox_inches="tight",
             )
@@ -492,7 +498,12 @@ class ExpansionPlanningSolution:
                 f" -> Saved pie chart with leader lines for {tp} to {results_path}/{case_json}_pie_leader_{tp}.png"
             )
 
-    def create_stackgraph(self, results_path):
+    def create_stackgraph(self, results_path, data_path):
+
+        # Read the DAY_AHEAD .csv file with the year column and get
+        # unique years in order of appearance
+        years_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
+        years_val = years_df["Year"].drop_duplicates().astype(str).tolist()
 
         try:
             import ujson as json
@@ -515,19 +526,76 @@ class ExpansionPlanningSolution:
         # PS	PS	PS	tab20	19
         # Load Shed	Load Shed	SL	tab20	7
 
-        tab20 = plt.get_cmap("tab20")
+        # [ESR: Comment out original colors for now]
+        # tab20 = plt.get_cmap("tab20")
+        # GEN_TYPES = {
+        #     "coal": tab20(5),
+        #     "cc_gas": tab20(1),
+        #     "ct_gas": tab20(3),
+        #     "dr": tab20(19),
+        #     "solar": tab20(9),
+        #     "thermal_other": tab20(13),
+        #     "wind": tab20(11),
+        #     "gas_cc-c": tab20(0),
+        #     "gas_ct-c": tab20(2),
+        #     "pv-c": tab20(8),
+        #     "wind-c": tab20(10),
+        # }
+
+        # Note that these are the same colors used in the stack plots
+        # and pie charts above
         GEN_TYPES = {
-            "coal": tab20(5),
-            "cc_gas": tab20(1),
-            "ct_gas": tab20(3),
-            "dr": tab20(19),
-            "solar": tab20(9),
-            "thermal_other": tab20(13),
-            "wind": tab20(11),
-            "gas_cc-c": tab20(0),
-            "gas_ct-c": tab20(2),
-            "pv-c": tab20(8),
-            "wind-c": tab20(10),
+            "coal": "#333333",
+            "cc_gas": "#20b2aa",
+            "ct_gas": "#6e8b3d",
+            "dr": "#a020f0",
+            "solar": "#ffb90f",
+            "thermal_other": "#e25822",
+            "wind": "#4f94cd",
+            # "hydro": "#00bfff",
+            # "battery": "#7b9095",
+            # "nuclear": "#39FF14",
+            # "steam": "#b0b0b0",
+            # Candidates use the same color as their base type
+            "gas_cc-c": "#20b2aa",
+            "gas_ct-c": "#6e8b3d",
+            "pv-c": "#ffb90f",
+            "wind-c": "#4f94cd",
+            # "hydro-c": "#00bfff",
+            # "battery-c": "#7b9095",
+            # "steam-c": "#b0b0b0",
+        }
+        GEN_TYPE_HATCHES = {
+            # No hatch pattern for "original" types
+            "coal": "",
+            "cc_gas": "",
+            "ct_gas": "",
+            "solar": "",
+            "wind": "",
+            "thermal_other": "",
+            "dr": "",
+            "hydro": "",
+            # Candidates get a hatch pattern
+            "gas_cc-c": "....",
+            "gas_ct-c": "....",
+            "pv-c": "////",
+            "wind-c": "xxxx",
+            # "hydro-c": "....",
+        }
+        GEN_TYPE_ALIASES = {
+            "coal": "Coal",
+            "cc_gas": "CC",
+            "ct_gas": "CT",
+            "dr": "DR",
+            "solar": "Solar",
+            "thermal_other": "Thermal",
+            "wind": "Wind",
+            # "hydro": "Hydro",
+            "gas_cc-c": "CC (Candidate)",
+            "gas_ct-c": "CT (Candidate)",
+            "pv-c": "Solar (Candidate)",
+            "wind-c": "Wind (Candidate)",
+            # "hydro-c": "Hydro (Candidate)",
         }
 
         generation = {}
@@ -567,10 +635,15 @@ class ExpansionPlanningSolution:
         ]
         times = list(range(len(time_periods)))
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(18, 8))
+        fig.patch.set_facecolor('white')
+        ax.set_facecolor('white')
         bottom = np.zeros(len(time_periods))
         width = 1
+
         for name, color in GEN_TYPES.items():
+            hatch = GEN_TYPE_HATCHES.get(name, "")
+            label = GEN_TYPE_ALIASES.get(name, name)
             values = np.array(
                 [generation[s][p][c][d][name] for s, p, c, d in time_periods]
             )
@@ -578,22 +651,206 @@ class ExpansionPlanningSolution:
                 times,
                 values,
                 width,
-                label=name,
+                # label=name,
+                label=label,
                 color=color,
                 bottom=bottom,
-                edgecolor="#FFFFFF",
-                linewidth=0.5,
+                # edgecolor="#FFFFFF",
+                edgecolor=None,  # no white lines between bars
+                # linewidth=0.5,
+                linewidth=0.05,
+                hatch=hatch,
             )
             bottom += values
+
+        # [TODO: We are only plotting for one year, but we should
+        # extend this for the case when we have multiple years.]
+        year = int(years_val[0])
+        month_starts = []
+        day = 0
+        for month in range(1, 13):
+            month_starts.append(day)
+            days_in_month = calendar.monthrange(year, month)[1]
+            day += days_in_month
+        month_labels = [calendar.month_abbr[m] for m in range(1, 13)]
+
+        # Add vertical lines at month boundaries
+        for ms in month_starts:
+            ax.axvline(ms, color='gray', linestyle=':', linewidth=1, alpha=0.5)
+
+        # Set x-ticks and labels
+        ax.set_xticks(month_starts)
+        ax.set_xticklabels(month_labels, fontsize=12)
+
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=14, title="Generation Type")
+        ax.set_title(f"Generation Mix for Investment Year {year}", fontsize=20)
+        ax.set_ylabel('Nameplate Capacity [MW]', fontsize=16)
+        ax.set_xlabel('Months', fontsize=16)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.grid(axis='both', color='gray', linestyle=':', linewidth=0.7, alpha=0.5)
+
+        ymin, ymax = ax.get_ylim()
+        ax.set_ylim(ymin, ymax * 1.10)
+        
+        plt.tight_layout()
         plt.savefig(
-            f"{results_path}/stackgraph_generators.png", dpi=150, bbox_inches="tight"
+            f"{results_path}/plots/stackgraph_generators.png", dpi=150, bbox_inches="tight"
         )
         plt.close()
         print(f" -> Saved stackgraph to {results_path}/stackgraph_generators.png")
 
-        # box = ax.get_position()
-        # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        # ax.set_title("Generation Mix")
-        # ax.set_ylabel('Nameplate Capacity [MW]')
-        # ax.set_xlabel('Investment Year')
+
+    def create_html_report(self, results_path):
+
+        def html_results_tab(total_cost):
+            return f"""
+            <div id="Results" class="tabcontent">
+            <h2>Results</h2>
+            <table>
+            <tr><th>Total Cost</th></tr>
+            <tr><td>{total_cost}</td></tr>
+            </table>
+            </div>
+            """
+
+        def html_plots_tab(plot_files):
+            html = """
+            <div id="Plots" class="tabcontent">
+            <h2>Plots</h2>
+            """
+
+            # Group plots by category
+            renewables = []
+            dispatchables = []
+            stackgraph = []
+            for label, fname in plot_files:
+                label_lower = label.lower()
+                if "renewable" in label_lower:
+                    renewables.append((label, fname))
+                elif "dispatchable" in label_lower:
+                    dispatchables.append((label, fname))
+                elif "stackgraph" in label_lower:
+                    stackgraph.append((label, fname))
+
+            if dispatchables:
+                html += "<h3>Dispatchables</h3><ul>\n"
+                for label, fname in dispatchables:
+                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
+                html += "</ul>\n"
+
+            if renewables:
+                html += "<h3>Renewables</h3><ul>\n"
+                for label, fname in renewables:
+                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
+                html += "</ul>\n"
+
+            if stackgraph:
+                html += "<h3>Stackgraph</h3><ul>\n"
+                for label, fname in stackgraph:
+                    html += f'<li><a href="{fname}" target="_blank">{label}</a></li>\n'
+                html += "</ul>\n"
+
+            html += "</div>"
+            return html
+
+        # Read total cost from costs.json
+        costs_file = f"{results_path}/costs.json"
+        try:
+            with open(costs_file, "r") as f:
+                costs = json.load(f)
+            total_cost = None
+            for k in costs:
+                if "total" in k.lower():
+                    total_cost = costs[k]
+                    break
+            if total_cost is None and costs:
+                total_cost = list(costs.values())[0]
+        except Exception as e:
+            print(f"[WARNING] Could not read total cost from {costs_file}: {e}")
+            total_cost = "N/A"
+
+        # Manually specify plot files
+        plot_files = [
+            ("Stack Plot (Dispatchables)", "plots/dispatchables_gen_mix_summary.png"),
+            ("Stack Plot (Renewables)", "plots/renewables_gen_mix_summary.png"),
+            ("Treemap (Dispatchables)", "plots/dispatchables_treemap_2034.png"),
+            ("Treemap (Renewables)", "plots/renewables_treemap_2034.png"),
+            ("Pie Chart (Dispatchables)", "plots/dispatchables_pie_leader_2034.png"),
+            ("Pie Chart (Renewables)", "plots/renewables_pie_leader_2034.png"),
+            ("Stackgraph", "plots/stackgraph_generators.png"),
+        ]
+
+        html = f"""
+        <html>
+        <head>
+        <title>Expansion Planning Report</title>
+        <style>
+        body {{ font-family: Arial, sans-serif; }}
+        .tab {{
+        overflow: hidden;
+        border-bottom: 1px solid #ccc;
+        background-color: #f1f1f1;
+        }}
+        .tab button {{
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        transition: 0.3s;
+        font-size: 17px;
+        }}
+        .tab button:hover {{ background-color: #ddd; }}
+        .tab button.active {{ background-color: #ccc; }}
+        .tabcontent {{
+        display: none;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-top: none;
+        }}
+        table, th, td {{
+        border: 1px solid #ccc;
+        border-collapse: collapse;
+        padding: 8px;
+        }}
+        </style>
+        <script>
+        function openTab(evt, tabName) {{
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {{
+        tabcontent[i].style.display = "none";
+        }}
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {{
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }}
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+        }}
+        </script>
+        </head>
+        <body>
+        <h1>Expansion Planning Report</h1>
+        <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Results')" id="defaultOpen">Results</button>
+        <button class="tablinks" onclick="openTab(event, 'Plots')">Plots</button>
+        </div>
+        {html_results_tab(total_cost)}
+        {html_plots_tab(plot_files)}
+        <script>
+        document.getElementById("defaultOpen").click();
+        </script>
+        </body>
+        </html>
+        """
+
+        html_file = os.path.join(results_path, "gtep_report.html")
+        with open(html_file, "w") as f:
+            f.write(html)
+        print(f" HTML report written to {html_file}")
+
+

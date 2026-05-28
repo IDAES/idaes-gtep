@@ -134,4 +134,7 @@ case_json = "renewables"
 sol_object.create_plots(case_json, dir_name, data_path)
 
 # Create stackgraph
-sol_object.create_stackgraph(dir_name)
+sol_object.create_stackgraph(dir_name, data_path)
+
+# Create report
+sol_object.create_html_report(dir_name)
