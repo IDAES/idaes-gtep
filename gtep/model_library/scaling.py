@@ -16,6 +16,9 @@ Model
 
 """
 
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+
 
 def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
@@ -31,6 +34,14 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
     #     # del m.loads[load]
     # # print(m.loads)
 
+    b.loads = pyo.Param(
+        m.buses,
+        initialize={load_n: 0 for load_n in m.buses},
+        mutable=True,
+        units=u.MW,
+        doc="Demand at each bus",
+    )
+
     # Loop over the demand at each bus and scale based on the case.
     for load_n in m.load_buses:
         # print(f"{load_n = }")
@@ -43,20 +54,20 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
         if m.config["scale_loads"]:
             temp_scale = 10
-            m.loads[load_n] = (
+            b.loads[load_n] = (
                 p_load
                 * temp_scale
                 * (1 + (temp_scale + investment_stage) / (temp_scale + len(m.stages)))
             )
 
         elif m.config["scale_texas_loads"]:
-            m.loads[load_n] = (
+            b.loads[load_n] = (
                 p_load
                 * b.load_scaling[m.md.data["elements"]["load"][load_n]["zone"]].iloc[0]
             )
 
         else:
-            m.loads[load_n] = p_load
+            b.loads[load_n] = p_load
     # import pyomo.environ as pyo
     # print(f"{pyo.value(sum(m.loads[n] for n in m.loads)) = }")
 
