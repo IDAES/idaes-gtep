@@ -24,7 +24,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from collections import namedtuple, defaultdict
-import plotly.graph_objects as go
 
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
@@ -32,16 +31,11 @@ from pyomo.environ import units as u
 from pyomo.core.base.param import IndexedParam
 from pyomo.core.base.expression import ScalarExpression, IndexedExpression
 
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 import squarify
 
-from gtep.gtep_model import ExpansionPlanningModel
-from gtep.tutorial_helper_fns import to_dict, plot_binaries
-import calendar
+import plotly.graph_objects as go
 
 logger = logging.getLogger(__name__)
-
 
 # [TODO] inject units into plots
 class ExpansionPlanningSolution:
@@ -75,11 +69,15 @@ class ExpansionPlanningSolution:
         power_flow = {}
         generation = {}
         curtailment = {}
+        reserves = {}
         for var in m.component_objects(pyo.Var, descend_into=True):
             for index in var:
                 if "Shed" in var.name:
                     if pyo.value(var[index]) >= 0.001:
                         load_shed[var.name + "." + str(index)] = pyo.value(var[index])
+                elif "Reserve" in var.name:
+                    if pyo.value(var[index]) >= 0.001:
+                        reserves[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Flow" in var.name:
                     if pyo.value(var[index]) >= 0.001:
                         power_flow[var.name + "." + str(index)] = pyo.value(var[index])
@@ -130,6 +128,7 @@ class ExpansionPlanningSolution:
             "generation": generation,
             "curtailment": curtailment,
             "loads": loads,
+            "reserves": reserves,
         }
 
         if not os.path.exists(folder_name):
@@ -208,107 +207,107 @@ class ExpansionPlanningSolution:
             "BATTERY": GenerationType("Battery", "#7b9095"),
         }
 
+        def get_gen_arrays(gen_case_json, results_path, data_path, GENERATION_TYPES):
+            
+            # Read gen and candidate_gen .csv files for GEN UID to map for
+            # Unit Type and PMax MW
+            gen_df = pd.read_csv(f"{data_path}/gen.csv")
+            gen_uid_to_type = {
+                row["GEN UID"]: row["Unit Type"].upper() for _, row in gen_df.iterrows()
+            }
+            gen_uid_to_pmax = {
+                row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_df.iterrows()
+            }
+            gen_cand_df = pd.read_csv(f"{data_path}/candidate_generators_initial_list.csv")
+            gen_cand_uid_to_type = {
+                row["GEN UID"]: row["Unit Type"].upper()
+                for _, row in gen_cand_df.iterrows()
+            }
+            gen_cand_uid_to_pmax = {
+                row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_cand_df.iterrows()
+            }
 
-        # Read gen and candidate_gen .csv files for GEN UID to map for
-        # Unit Type and PMax MW
-        gen_df = pd.read_csv(f"{data_path}/gen.csv")
-        gen_uid_to_type = {
-            row["GEN UID"]: row["Unit Type"].upper() for _, row in gen_df.iterrows()
-        }
-        gen_uid_to_pmax = {
-            row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_df.iterrows()
-        }
-
-        gen_cand_df = pd.read_csv(f"{data_path}/candidate_generators_initial_list.csv")
-        gen_cand_uid_to_type = {
-            row["GEN UID"]: row["Unit Type"].upper()
-            for _, row in gen_cand_df.iterrows()
-        }
-        gen_cand_uid_to_pmax = {
-            row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_cand_df.iterrows()
-        }
-
-        # Read and process .json. These names are based on the saved
-        # .json files from function save_results_in_json_files
-        if case_json == "renewables":
-            json_file = f"{results_path}/renewable_investments.json"
-        elif case_json == "dispatchables":
-            json_file = f"{results_path}/dispatchable_investments.json"
-        else:
-            print("WARNING: Case not debugged")
-
-        dict_in = self.to_dict(self.read_json(json_file))
-        time_keys = list(dict_in.keys())
-
-        # Collect all generator keys
-        states_set = set()
-        keys_set = set()
-        for this_time_key in time_keys:
-            states_set.update(dict_in[this_time_key].keys())
-            for this_state in dict_in[this_time_key].keys():
-                keys_set.update(dict_in[this_time_key][this_state].keys())
-
-        # Map generator keys to canonical unit types and PMax MW
-        gens_keys_to_type = {}
-        gens_keys_to_pmax = {}
-        for this_key in list(keys_set):
-            if this_key in gen_cand_uid_to_type:
-                unit_type = gen_cand_uid_to_type[this_key]
-                pmax = gen_cand_uid_to_pmax[this_key]
+            # Read and process .json. These names are based on the saved
+            # .json files from function save_results_in_json_files
+            if gen_case_json == "renewables":
+                json_file = f"{results_path}/renewable_investments.json"
+            elif gen_case_json == "dispatchables":
+                json_file = f"{results_path}/dispatchable_investments.json"
             else:
-                unit_type = gen_uid_to_type.get(this_key)
-                pmax = gen_uid_to_pmax.get(this_key)
+                print("WARNING: Case not debugged")
 
-            # Make unit_type uppercase to ensure case-insensitive
-            # matching
-            if unit_type:
-                unit_type_upper = unit_type.upper()
-            else:
-                unit_type_upper = None
+            dict_in = self.to_dict(self.read_json(json_file))
+            time_keys = list(dict_in.keys())
 
-            # Only use if in GENERATION_TYPES
-            if unit_type and unit_type in GENERATION_TYPES:
-                gens_keys_to_type[this_key] = unit_type_upper
-                gens_keys_to_pmax[this_key] = pmax
-            else:
-                raise ValueError(
-                    f"[ERROR] Generator '{this_key}' has unknown or unsupported unit type '{unit_type}'."
-                )
+            # Collect all generator keys
+            states_set = set()
+            keys_set = set()
+            for this_time_key in time_keys:
+                states_set.update(dict_in[this_time_key].keys())
+                for this_state in dict_in[this_time_key].keys():
+                    keys_set.update(dict_in[this_time_key][this_state].keys())
 
-        # After building gens_keys_to_type
-        unique_types = set(gens_keys_to_type.values())
+            # Map generator keys to canonical unit types and PMax MW
+            gens_keys_to_type = {}
+            gens_keys_to_pmax = {}
+            for this_key in list(keys_set):
+                if this_key in gen_cand_uid_to_type:
+                    unit_type = gen_cand_uid_to_type[this_key]
+                    pmax = gen_cand_uid_to_pmax[this_key]
+                else:
+                    unit_type = gen_uid_to_type.get(this_key)
+                    pmax = gen_uid_to_pmax.get(this_key)
+                    
+                # Make unit_type uppercase to ensure case-insensitive
+                # matching
+                if unit_type:
+                    unit_type_upper = unit_type.upper()
+                else:
+                    unit_type_upper = None
 
-        gen_types_sorted = sorted(unique_types)  # Alphabetical order
+                # Only use if in GENERATION_TYPES
+                if unit_type and unit_type in GENERATION_TYPES:
+                    gens_keys_to_type[this_key] = unit_type_upper
+                    gens_keys_to_pmax[this_key] = pmax
+                else:
+                    raise ValueError(
+                        f"[ERROR] Generator '{this_key}' has unknown or unsupported unit type '{unit_type}'."
+                    )
 
-        # Read the DAY_AHEAD .csv file with the year column and get
-        # unique years in order of appearance
-        time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-        time_periods = time_periods_df["Year"].drop_duplicates().astype(str).tolist()
+            # After building gens_keys_to_type
+            unique_types = set(gens_keys_to_type.values())
+            gen_types_sorted = sorted(unique_types)  # Alphabetical order
 
-        # Build gen_mix using PMax MW and solution values
-        gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
-        for tp in time_periods:
-            for k, val in dict_in.items():
-                for state, gen_dict in val.items():
-                    for gen, value in gen_dict.items():
-                        unit_type = gens_keys_to_type.get(gen)
-                        if case_json == "dispatchables":
-                            pmax = gens_keys_to_pmax.get(gen, 0.0)
-                            if unit_type in gen_mix[tp]:
-                                gen_mix[tp][unit_type] += pmax * value
-                        elif case_json == "renewables":
-                            if unit_type in gen_mix[tp]:
-                                gen_mix[tp][unit_type] += value
+            # Read the DAY_AHEAD .csv file with the year column and get
+            # unique years in order of appearance
+            time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
+            time_periods = time_periods_df["Year"].drop_duplicates().astype(str).tolist()
+            
+            # Build gen_mix using PMax MW and solution values
+            gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
+            for tp in time_periods:
+                for k, val in dict_in.items():
+                    for state, gen_dict in val.items():
+                        for gen, value in gen_dict.items():
+                            unit_type = gens_keys_to_type.get(gen)
+                            if gen_case_json == "dispatchables":
+                                pmax = gens_keys_to_pmax.get(gen, 0.0)
+                                if unit_type in gen_mix[tp]:
+                                    gen_mix[tp][unit_type] += pmax * value
+                            elif gen_case_json == "renewables":
+                                if unit_type in gen_mix[tp]:
+                                    gen_mix[tp][unit_type] += value
+                                    
+            gen_mix_arrays = {
+                k: np.array([gen_mix[stage].get(k, 0.0) for stage in gen_mix.keys()])
+                for k in gen_types_sorted
+            }
+            # print('gen_mix_arrays:', gen_mix_arrays)
 
-        gen_mix_arrays = {
-            k: np.array([gen_mix[stage].get(k, 0.0) for stage in gen_mix.keys()])
-            for k in gen_types_sorted
-        }
-
-        # print('gen_mix_arrays:', gen_mix_arrays)
-
-        # Define functions to create interactive Plotly plots for the
-        # generation mix: a stack plot, a pie chart, and a
+            return gen_mix, gen_mix_arrays, time_periods
+        
+        # Define multiple functions to create interactive Plotly plots
+        # for the generation mix: a stack plot, a pie chart, and a
         # treemap. The user can select which one to use by setting up
         # the plot_type option. By default, this function will plot
         # all if no value is given.
@@ -470,6 +469,46 @@ class ExpansionPlanningSolution:
                 fig.write_html(f"{plot_path}")
                 print(f" -> Saved interactive pie chart for {tp} to {plot_path}")
 
+        # Create gen_mix dictionary and arrays needed for the plots
+        if case_json == "combined":
+            gen_mix_ren, gen_mix_arrays_ren, time_periods_ren = get_gen_arrays(
+                "renewables", results_path, data_path, GENERATION_TYPES
+            )
+            gen_mix_disp, gen_mix_arrays_disp, time_periods_disp = get_gen_arrays(
+                "dispatchables", results_path, data_path, GENERATION_TYPES
+            )
+
+            # Check that time_periods are the same
+            if time_periods_ren != time_periods_disp:
+                raise ValueError("Time periods for renewables and dispatchables do not match!")
+            time_periods = time_periods_ren  # or use time_periods_disp too
+    
+            # Get the union of all time periods and all types
+            all_time_periods = sorted(set(gen_mix_ren.keys()) | set(gen_mix_disp.keys()))
+            all_types = sorted(set(
+                t for mix in [gen_mix_ren, gen_mix_disp] for v in mix.values() for t in v
+            ))
+
+            # Merge gen_mix
+            gen_mix = {}
+            for tp in all_time_periods:
+                gen_mix[tp] = {}
+                for gt in all_types:
+                    val_ren = gen_mix_ren.get(tp, {}).get(gt, 0.0)
+                    val_disp = gen_mix_disp.get(tp, {}).get(gt, 0.0)
+                    gen_mix[tp][gt] = val_ren + val_disp
+
+            # Merge gen_mix_arrays
+            gen_mix_arrays = {
+                gt: np.array([gen_mix[tp].get(gt, 0.0) for tp in all_time_periods])
+                for gt in all_types
+            }
+
+        else:
+            gen_mix, gen_mix_arrays, time_periods = get_gen_arrays(
+                case_json, results_path, data_path, GENERATION_TYPES
+            )
+            
         if plot_type == "stackplot":
             plotly_stackplot_gen_mix(
                 time_periods, gen_mix_arrays, GENERATION_TYPES, results_path, case_json
@@ -501,7 +540,13 @@ class ExpansionPlanningSolution:
 
         with open(f"{results_path}/loads.json", "r") as f:
             loads_data = json.load(f)
-            
+
+        with open(f"{results_path}/load_shed.json", "r") as f:
+            load_shed_data = json.load(f)
+
+        with open(f"{results_path}/reserves.json", "r") as f:
+            reserves_data = json.load(f)
+
         # Note that these are the same colors used in the stack plots
         # and pie charts above
         GEN_TYPES = {
@@ -597,7 +642,6 @@ class ExpansionPlanningSolution:
         ]
         times = list(range(len(time_periods)))
 
-
         loads = {}
         for g, val in loads_data.items():
             c = list(pyo.ComponentUID(g)._cids)
@@ -621,6 +665,34 @@ class ExpansionPlanningSolution:
             except KeyError:
                 total_load = 0
             loads_trace.append(total_load)
+
+
+        # Build load_shed dict: sum all buses for each (stage, period, commitment)
+        load_shed = {}
+        for g, val in load_shed_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in load_shed:
+                load_shed[stage] = {}
+            stage_dict = load_shed[stage]
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = 0
+            period_dict[commitment] += val  # Sum all buses for this time period
+
+        # Build load_shed_trace to match time_periods (repeat for each dispatch)
+        load_shed_trace = []
+        for s, p, c, d in time_periods:
+            try:
+                total_shed = load_shed[s][p][c]
+            except KeyError:
+                total_shed = 0
+            load_shed_trace.append(total_shed)
+        # print(load_shed_trace)
 
         HATCH_TO_PATTERN = {
             "": "",  # solid fill
@@ -705,7 +777,17 @@ class ExpansionPlanningSolution:
                         marker_line_width=0,  # remove white line
                     )
                 )
-
+            # Add load shed as a stacked bar
+            traces.append(
+                go.Bar(
+                    x=times,
+                    y=load_shed_trace,
+                    name="Load Shed",
+                    marker_color="magenta",
+                    opacity=0.7,
+                    marker_line_width=0,
+                )
+            )
             fig = go.Figure(data=traces)
             fig.add_trace(
                 go.Scatter(
@@ -718,6 +800,17 @@ class ExpansionPlanningSolution:
                     showlegend=True,
                 )
             )
+            # fig.add_trace(
+            #     go.Scatter(
+            #         x=times,
+            #         y=load_shed_trace,
+            #         mode="lines+markers",
+            #         name="Load Shed",
+            #         line=dict(color="red", width=3, dash="dot"),
+            #         marker=dict(size=4, color="magenta"),
+            #         showlegend=True,
+            #     )
+            # )
             fig.update_layout(
                 barmode="stack",
                 bargap=0,  # remove white spacing between bars
@@ -775,7 +868,7 @@ class ExpansionPlanningSolution:
                 axis=0,
             )
             ymax = yvals.max()
-            fig.update_yaxes(range=[0, ymax * 1.10])
+            fig.update_yaxes(range=[0, ymax * 1.25])
 
             # Save as interactive HTML
             plot_path = f"{results_path}/plots/stackgraph_generators_interactive.html"
