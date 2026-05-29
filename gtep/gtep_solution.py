@@ -29,6 +29,7 @@ import plotly.graph_objects as go
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
 from pyomo.environ import units as u
+from pyomo.core.base.param import IndexedParam
 from pyomo.core.base.expression import ScalarExpression, IndexedExpression
 
 import matplotlib.pyplot as plt
@@ -112,41 +113,37 @@ class ExpansionPlanningSolution:
                 for e in exp:
                     costs[exp[e].name] = pyo.value(exp[e])
 
-        renewable_investment_name = folder_name + "/renewable_investments.json"
-        dispatchable_investment_name = folder_name + "/dispatchable_investments.json"
-        load_shed_name = folder_name + "/load_shed.json"
-        costs_name = folder_name + "/costs.json"
-        flow_name = folder_name + "/flows.json"
-        generation_name = folder_name + "/generation.json"
-        curtailment_name = folder_name + "/curtailment.json"
+        loads = {}
+        for param in m.component_objects(pyo.Param, descend_into=True):
+            if "commitment" in param.name and "loads" in param.name:
+                if type(param) is IndexedParam:
+                    for p in param:
+                        loads[param[p].name] = pyo.value(param[p])
+
+        # Output file names
+        output_files = {
+            "renewable_investments": renewable_investments,
+            "dispatchable_investments": dispatchable_investments,
+            "load_shed": load_shed,
+            "costs": costs,
+            "flows": power_flow,
+            "generation": generation,
+            "curtailment": curtailment,
+            "loads": loads,
+        }
 
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
-        with open(renewable_investment_name, "w") as fil:
-            json.dump(renewable_investments, fil)
-        with open(dispatchable_investment_name, "w") as fil:
-            json.dump(dispatchable_investments, fil)
-        with open(load_shed_name, "w") as fil:
-            json.dump(load_shed, fil)
-        with open(costs_name, "w") as fil:
-            json.dump(costs, fil)
-        with open(flow_name, "w") as fil:
-            json.dump(power_flow, fil)
-        with open(generation_name, "w") as fil:
-            json.dump(generation, fil)
-        with open(curtailment_name, "w") as fil:
-            json.dump(curtailment, fil)
+        for name, data in output_files.items():
+            filename = f"{folder_name}/{name}.json"
+            with open(filename, "w") as fil:
+                json.dump(data, fil)
 
-        print(f""" -> The following files have been created in '{folder_name}':
-         - {renewable_investment_name}
-         - {dispatchable_investment_name}
-         - {load_shed_name}
-         - {costs_name}
-         - {flow_name}
-         - {generation_name}
-         - {curtailment_name}
-        """)
+        print(" -> The following files have been created in '{}':".format(folder_name))
+        for name in output_files:
+            print(f" - {folder_name}/{name}.json")
+
 
     def read_json(self, filepath):
         # Read a json file
@@ -210,6 +207,7 @@ class ExpansionPlanningSolution:
             "HYDRO": GenerationType("Hydro", "#00bfff"),
             "BATTERY": GenerationType("Battery", "#7b9095"),
         }
+
 
         # Read gen and candidate_gen .csv files for GEN UID to map for
         # Unit Type and PMax MW
@@ -501,28 +499,31 @@ class ExpansionPlanningSolution:
         with open(f"{results_path}/generation.json", "r") as F:
             gen_data = json.load(F)
 
+        with open(f"{results_path}/loads.json", "r") as f:
+            loads_data = json.load(f)
+            
         # Note that these are the same colors used in the stack plots
         # and pie charts above
         GEN_TYPES = {
+            "nuclear": "#39FF14",
             "coal": "#333333",
+            "hydro": "#00bfff",
             "cc_gas": "#20b2aa",
             "ct_gas": "#6e8b3d",
-            "dr": "#a020f0",
+            "battery": "#7b9095",
+            "wind": "#4f94cd",
             "solar": "#ffb90f",
             "thermal_other": "#e25822",
-            "wind": "#4f94cd",
-            # "hydro": "#00bfff",
-            # "battery": "#7b9095",
-            "nuclear": "#39FF14",
-            # "steam": "#b0b0b0",
+            "steam": "#b0b0b0",
+            "dr": "#a020f0",
             # Candidates use the same color as their base type
+            "hydro-c": "#00bfff",
             "gas_cc-c": "#20b2aa",
             "gas_ct-c": "#6e8b3d",
-            "pv-c": "#ffb90f",
+            "battery-c": "#7b9095",
             "wind-c": "#4f94cd",
-            # "hydro-c": "#00bfff",
-            # "battery-c": "#7b9095",
-            # "steam-c": "#b0b0b0",
+            "pv-c": "#ffb90f",
+            "steam-c": "#b0b0b0",
         }
         GEN_TYPE_HATCHES = {
             # No hatch pattern for "original" types
@@ -540,7 +541,7 @@ class ExpansionPlanningSolution:
             "gas_ct-c": "....",
             "pv-c": "////",
             "wind-c": "xxxx",
-            # "hydro-c": "....",
+            "hydro-c": "....",
         }
         GEN_TYPE_ALIASES = {
             "coal": "Coal",
@@ -551,12 +552,12 @@ class ExpansionPlanningSolution:
             "thermal_other": "Thermal",
             "wind": "Wind",
             "nuclear": "Nuclear",
-            # "hydro": "Hydro",
+            "hydro": "Hydro",
             "gas_cc-c": "CC (Candidate)",
             "gas_ct-c": "CT (Candidate)",
             "pv-c": "Solar (Candidate)",
             "wind-c": "Wind (Candidate)",
-            # "hydro-c": "Hydro (Candidate)",
+            "hydro-c": "Hydro (Candidate)",
         }
 
         generation = {}
@@ -595,6 +596,31 @@ class ExpansionPlanningSolution:
             for d in generation[s][p][c]
         ]
         times = list(range(len(time_periods)))
+
+
+        loads = {}
+        for g, val in loads_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in loads:
+                loads[stage] = {}
+            stage_dict = loads[stage]
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = 0
+            period_dict[commitment] += val  # Sum all buses for this time period
+
+        loads_trace = []
+        for s, p, c, d in time_periods:
+            try:
+                total_load = loads[s][p][c]
+            except KeyError:
+                total_load = 0
+            loads_trace.append(total_load)
 
         HATCH_TO_PATTERN = {
             "": "",  # solid fill
@@ -681,6 +707,17 @@ class ExpansionPlanningSolution:
                 )
 
             fig = go.Figure(data=traces)
+            fig.add_trace(
+                go.Scatter(
+                    x=times,
+                    y=loads_trace,
+                    mode="lines+markers",
+                    name="Total Load",
+                    line=dict(color="black", width=3, dash="dash"),
+                    marker=dict(size=4, color="black"),
+                    showlegend=True,
+                )
+            )
             fig.update_layout(
                 barmode="stack",
                 bargap=0,  # remove white spacing between bars
