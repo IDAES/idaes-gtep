@@ -513,7 +513,7 @@ class ExpansionPlanningSolution:
             "wind": "#4f94cd",
             # "hydro": "#00bfff",
             # "battery": "#7b9095",
-            # "nuclear": "#39FF14",
+            "nuclear": "#39FF14",
             # "steam": "#b0b0b0",
             # Candidates use the same color as their base type
             "gas_cc-c": "#20b2aa",
@@ -534,8 +534,9 @@ class ExpansionPlanningSolution:
             "thermal_other": "",
             "dr": "",
             "hydro": "",
+            "nuclear": "",
             # Candidates get a hatch pattern
-            "gas_cc-c": "....",
+            "gas_cc-c": "////",
             "gas_ct-c": "....",
             "pv-c": "////",
             "wind-c": "xxxx",
@@ -549,6 +550,7 @@ class ExpansionPlanningSolution:
             "solar": "Solar",
             "thermal_other": "Thermal",
             "wind": "Wind",
+            "nuclear": "Nuclear",
             # "hydro": "Hydro",
             "gas_cc-c": "CC (Candidate)",
             "gas_ct-c": "CT (Candidate)",
