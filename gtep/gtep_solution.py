@@ -37,6 +37,7 @@ import plotly.graph_objects as go
 
 logger = logging.getLogger(__name__)
 
+
 # [TODO] inject units into plots
 class ExpansionPlanningSolution:
     """A class that stores the solution to the ExpansionPlanningModel
@@ -143,7 +144,6 @@ class ExpansionPlanningSolution:
         for name in output_files:
             print(f" - {folder_name}/{name}.json")
 
-
     def read_json(self, filepath):
         # Read a json file
         json_filepath = Path(filepath)
@@ -208,7 +208,7 @@ class ExpansionPlanningSolution:
         }
 
         def get_gen_arrays(gen_case_json, results_path, data_path, GENERATION_TYPES):
-            
+
             # Read gen and candidate_gen .csv files for GEN UID to map for
             # Unit Type and PMax MW
             gen_df = pd.read_csv(f"{data_path}/gen.csv")
@@ -218,13 +218,16 @@ class ExpansionPlanningSolution:
             gen_uid_to_pmax = {
                 row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_df.iterrows()
             }
-            gen_cand_df = pd.read_csv(f"{data_path}/candidate_generators_initial_list.csv")
+            gen_cand_df = pd.read_csv(
+                f"{data_path}/candidate_generators_initial_list.csv"
+            )
             gen_cand_uid_to_type = {
                 row["GEN UID"]: row["Unit Type"].upper()
                 for _, row in gen_cand_df.iterrows()
             }
             gen_cand_uid_to_pmax = {
-                row["GEN UID"]: float(row["PMax MW"]) for _, row in gen_cand_df.iterrows()
+                row["GEN UID"]: float(row["PMax MW"])
+                for _, row in gen_cand_df.iterrows()
             }
 
             # Read and process .json. These names are based on the saved
@@ -257,7 +260,7 @@ class ExpansionPlanningSolution:
                 else:
                     unit_type = gen_uid_to_type.get(this_key)
                     pmax = gen_uid_to_pmax.get(this_key)
-                    
+
                 # Make unit_type uppercase to ensure case-insensitive
                 # matching
                 if unit_type:
@@ -281,8 +284,10 @@ class ExpansionPlanningSolution:
             # Read the DAY_AHEAD .csv file with the year column and get
             # unique years in order of appearance
             time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-            time_periods = time_periods_df["Year"].drop_duplicates().astype(str).tolist()
-            
+            time_periods = (
+                time_periods_df["Year"].drop_duplicates().astype(str).tolist()
+            )
+
             # Build gen_mix using PMax MW and solution values
             gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
             for tp in time_periods:
@@ -297,7 +302,7 @@ class ExpansionPlanningSolution:
                             elif gen_case_json == "renewables":
                                 if unit_type in gen_mix[tp]:
                                     gen_mix[tp][unit_type] += value
-                                    
+
             gen_mix_arrays = {
                 k: np.array([gen_mix[stage].get(k, 0.0) for stage in gen_mix.keys()])
                 for k in gen_types_sorted
@@ -305,7 +310,7 @@ class ExpansionPlanningSolution:
             # print('gen_mix_arrays:', gen_mix_arrays)
 
             return gen_mix, gen_mix_arrays, time_periods
-        
+
         # Define multiple functions to create interactive Plotly plots
         # for the generation mix: a stack plot, a pie chart, and a
         # treemap. The user can select which one to use by setting up
@@ -480,14 +485,23 @@ class ExpansionPlanningSolution:
 
             # Check that time_periods are the same
             if time_periods_ren != time_periods_disp:
-                raise ValueError("Time periods for renewables and dispatchables do not match!")
+                raise ValueError(
+                    "Time periods for renewables and dispatchables do not match!"
+                )
             time_periods = time_periods_ren  # or use time_periods_disp too
-    
+
             # Get the union of all time periods and all types
-            all_time_periods = sorted(set(gen_mix_ren.keys()) | set(gen_mix_disp.keys()))
-            all_types = sorted(set(
-                t for mix in [gen_mix_ren, gen_mix_disp] for v in mix.values() for t in v
-            ))
+            all_time_periods = sorted(
+                set(gen_mix_ren.keys()) | set(gen_mix_disp.keys())
+            )
+            all_types = sorted(
+                set(
+                    t
+                    for mix in [gen_mix_ren, gen_mix_disp]
+                    for v in mix.values()
+                    for t in v
+                )
+            )
 
             # Merge gen_mix
             gen_mix = {}
@@ -508,7 +522,7 @@ class ExpansionPlanningSolution:
             gen_mix, gen_mix_arrays, time_periods = get_gen_arrays(
                 case_json, results_path, data_path, GENERATION_TYPES
             )
-            
+
         if plot_type == "stackplot":
             plotly_stackplot_gen_mix(
                 time_periods, gen_mix_arrays, GENERATION_TYPES, results_path, case_json
@@ -665,7 +679,6 @@ class ExpansionPlanningSolution:
             except KeyError:
                 total_load = 0
             loads_trace.append(total_load)
-
 
         # Build load_shed dict: sum all buses for each (stage, period, commitment)
         load_shed = {}

@@ -137,6 +137,8 @@ case_json = "dispatchables"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 case_json = "renewables"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "combined"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
 sol_object.create_stackgraph(dir_name, rep_days)
