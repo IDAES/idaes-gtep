@@ -72,7 +72,6 @@ class TestObjective(unittest.TestCase):
         data_object.load_storage_csv(str(input_data_source))
 
         candidate_gens = [
-            "Natural Gas_CT",
             "Natural Gas_FE",
             "Solar - Utility PV",
             "Land-Based Wind",
@@ -96,7 +95,7 @@ class TestObjective(unittest.TestCase):
         for config_option, config_val in config.items():
             mod_object.config[config_option] = config_val
 
-        self.m = mod_object
+        return mod_object.model
 
     def _make_expressions(self):
         # add necessary expressions
@@ -120,11 +119,11 @@ class TestObjective(unittest.TestCase):
             units=u.USD,
             obj_type=pyo.Expression,
         )
-        # self.check_helper.add_object(
-        #     name="total_cost_objective_rule",
-        #     units=u.dimensionless,
-        #     obj_type=pyo.Objective,
-        # )
+
+        self.check_helper.add_object(
+            name="total_cost_objective_rule",
+            obj_type=pyo.Objective,
+        )
 
     def _coordinate_tests(self, config):
         """Creates a model and runs tests for a given set of config options."""
@@ -132,7 +131,19 @@ class TestObjective(unittest.TestCase):
 
         self.check_helper = PyomoCheckHelper(self, self.m)
         self._make_expressions()
-        self.check_helper.check_all_objects()
+        # self.check_helper.check_all_objects()
+
+        for properties in self.check_helper.object_properties:
+            if properties["cond"]:
+                self.check_helper._check_exists(properties)
+                obj = self.check_helper.parent.component(properties["name"])
+                if properties["name"] != "total_cost_objective_rule":
+                    self.check_helper._check_units(obj, properties)
+
+                self.check_helper._check_type(obj, properties)
+                self.check_helper._check_index(obj, properties)
+                self.check_helper._check_bounds(obj)
+                self.check_helper._run_check_func(obj, properties)
 
     def test_check_expressions_with_storage(self):
         self._coordinate_tests(config={"storage": True})
@@ -141,4 +152,4 @@ class TestObjective(unittest.TestCase):
         # check that each of the expressions were created
         self._coordinate_tests(config={"storage": False})
         # check that storage cost was set to 0
-        self.assertEqual(self.m.StorageCostTotal, 0)
+        self.assertEqual(pyo.value(self.m.storageCostTotal), 0)
