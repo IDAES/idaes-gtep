@@ -32,6 +32,7 @@ GEN_TYPES = {
     "cc_gas": tab20(1),
     "ct_gas": tab20(3),
     "dr": tab20(19),
+    "nuclear": tab20(2),
     "solar": tab20(9),
     "thermal_other": tab20(13),
     "wind": tab20(11),
@@ -96,7 +97,7 @@ for name, color in GEN_TYPES.items():
     )
     bottom += values
 
-plt.show()
+
 
 # box = ax.get_position()
 # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -104,3 +105,5 @@ plt.show()
 # ax.set_title("Generation Mix")
 # ax.set_ylabel('Nameplate Capacity [MW]')
 # ax.set_xlabel('Investment Year')
+
+plt.show()
