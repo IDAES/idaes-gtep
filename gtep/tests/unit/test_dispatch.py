@@ -32,25 +32,37 @@ def check_CP_flow_balance(td, c: pyo.Constraint):
 
 def check_flow_balance(td, c: pyo.Constraint):
     """Checks the flow balance constraint."""
-    constraints_by_index = td.check_helper.parse_constraint_pprint(
-        c,
-        replace_dict={td.b.name: "b", td.b.parent_block().name: "cb"},
-    )
-
-    # loop through each index element of the constraint
+    expected = {}
     for i in c.index_set():
-        expr = constraints_by_index[i]["expr"]
+        expected[i] = [td.b.parent_block().loads[i], td.b.loadShed[i]]
+        expected[i] += [
+            td.b.powerFlow[line]
+            for line in td.m.lines
+            if (td.m.to_bus[line] == i) or (td.m.from_bus[line] == i)
+        ]
+        expected[i] += [
+            td.b.renewableGeneration[g]
+            for g in td.m.renewableGenerators
+            if td.m.md.data["elements"]["generator"][g]["bus"] == i
+        ]
+        expected[i] += [
+            td.b.thermalGeneration[g]
+            for g in td.m.thermalGenerators
+            if td.m.md.data["elements"]["generator"][g]["bus"] == i
+        ]
+        if td.m.config["storage"]:
+            expected[i] += [
+                td.b.storageDischarged[bat]
+                for bat in td.m.storage
+                if td.m.md.data["elements"]["storage"][bat]["bus"] == i
+            ]
+            expected[i] += [
+                td.b.storageCharged[bat]
+                for bat in td.m.storage
+                if td.m.md.data["elements"]["storage"][bat]["bus"] == i
+            ]
 
-        # check for loads and loadshed terms (negative and positive, respectively)
-        td.check_helper.check_constraint_for_terms(expr, "cb.loads", [-1], [i])
-        td.check_helper.check_constraint_for_terms(expr, "b.loadShed", [1], [i])
-
-        # check for powerflow terms; "ends" should be negative while "starts" should be positive
-        ends = [line for line in td.m.lines if td.m.from_bus[line] == i]
-        starts = [line for line in td.m.lines if td.m.to_bus[line] == i]
-        td.check_helper.check_constraint_for_terms(
-            expr, "b.powerFlow", [-1] * len(ends) + [1] * len(starts), ends + starts
-        )
+    td.check_helper.check_expr_contains(c, expected)
 
 
 class TestDispatch(unittest.TestCase):

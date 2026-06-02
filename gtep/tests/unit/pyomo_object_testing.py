@@ -12,11 +12,9 @@
 #################################################################################
 
 
-from io import StringIO
-import re
-
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
+from pyomo.core.base.component import ComponentData
 import pyomo.environ as pyo
 
 
@@ -96,23 +94,30 @@ class PyomoCheckHelper:
         """Checks the type of the provided object."""
         self.test_class.assertIsInstance(obj, properties["obj_type"])
 
-    def _iter_func_over_index(self, obj: pyo.Component, func):
+    def _iter_func_over_index(self, func, obj: pyo.Component, **additional_args):
         """
         Iterates the provided `func` over each element of `obj`. If `obj`
         is not indexed, then simply calls `func(obj)`.
+
+        If additional keyword arguments are passed, they are also passed into
+        the `func` call. If `obj` is indexed, then each `arg[i]` must exist
+        for every `i` in `obj.index_set()`.
         """
         if obj.is_indexed():
             for i in obj.index_set():
-                func(obj[i])
+                func(
+                    obj[i],
+                    **{k: v[i] for k, v in additional_args.items()},
+                )
         else:
-            func(obj)
+            func(obj, **additional_args)
 
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
         iter_func = lambda x: self.test_class.assertEqual(
             u.get_units(x), properties["units"]
         )
-        self._iter_func_over_index(obj, iter_func)
+        self._iter_func_over_index(iter_func, obj)
 
     def _check_index(self, obj: pyo.Component, properties: dict):
         """Checks the object's index (including whether it has an index)."""
@@ -138,7 +143,7 @@ class PyomoCheckHelper:
                     if bound is not None:
                         self.test_class.assertIn(bound, x.domain)
 
-        self._iter_func_over_index(obj, iter_func)
+        self._iter_func_over_index(iter_func, obj)
 
     def _run_check_func(self, obj: pyo.Component, properties: dict):
         """Runs the additional check function, if a check function is provided."""
@@ -160,156 +165,35 @@ class PyomoCheckHelper:
             else:
                 self._check_does_not_exist(properties)
 
-    @classmethod
-    def _extract_terms_from_string_expression(cls, expr: str) -> list[tuple]:
+    def check_expr_contains(self, c: ComponentData, expected: list | dict):
         """
-        Helper function for `parse_constraint_pprint` that extracts
-        individual terms from a string representation of an expression,
-        including flattening nested parentheses.
+        Checks that the given component expr has exactly the given params and vars.
 
-        :param expr:    Expression to be parsed.
-        :type expr:     str
-        :returns:       List of tuples. Each tuple corresponds to a term in the
-                            expression and is of the form `(sign, term)` where `sign`
-                            is either `1` or `-1` and `term` is the term itself
-                            (including index, e.g. `"m.lines[branch_2_1]"`)
+        :param c:           Component
+        :param expected:    A list containing every param and var expected to be
+                                in the expr of this component, or a dict mapping
+                                index elements to such lists for indexed components.
+        :type c:            ComponentData
+        :type expected:     list | dict
         """
-        expr = expr.replace(" ", "")
-        stack = [1]  # sign context
-        sign = 1
-        term = ""
-        out = []
+        self._iter_func_over_index(self._nonindexed_expr_contains, c, expected=expected)
 
-        i = 0
-        while i < len(expr):
-            c = expr[i]
-            if c in "+-":
-                if term:
-                    out.append((sign * stack[-1], term))
-                    term = ""
-                sign = 1 if c == "+" else -1
-            elif c == "(":
-                stack.append(stack[-1] * sign)
-                sign = 1
-            elif c == ")":
-                if term:
-                    out.append((sign * stack[-1], term))
-                    term = ""
-                stack.pop()
-            else:
-                term += c
-            i += 1
-        if term:
-            out.append((sign * stack[-1], term))
-
-        return out
-
-    @classmethod
-    def parse_constraint_pprint(
-        cls,
-        constraint: pyo.Constraint,
-        replace_dict: dict[str, str] = {},
-    ) -> dict:
-        """
-        Parses the output of a constraint's `.pprint()` function, returning
-        a dictionary representing the contents of the constraints' expressions,
-        of the form:
-        ```
-        {
-            i: {
-                "expr": [(sign, term), (sign, term), ...],
-                "val": val
-            }
-        }
-        ```
-        where
-            - `i` is an element of the constraint's index (per its `.pprint()` function)
-            - `val` is the value of the expression associated with `i`
-            - `term` is an individual term of the expression associated with `i`
-            - `sign` is the sign of an individual term of the expression associated with `i`
-
-        :param constraint:      Constraint to be parsed.
-        :param replace_dict:    Set of terms to replace (not necessary, just makes equations more human-readable)
-        :type constraint:       pyomo.environ.Constraint
-        :type replace_dict:     dict[str,str]
-        """
-        # get the constraint's pprint
-        buf = StringIO()
-        constraint.pprint(ostream=buf)
-        pprinted = buf.getvalue()
-
-        # replace lengthy terms in the pprint; do so by descending length of term to make sure full term name is replaced
-        replace_list = [(key, val) for key, val in replace_dict.items()]
-        replace_list = sorted(replace_list, key=lambda x: len(x[0]), reverse=True)
-        for term, replaced in replace_list:
-            pprinted = pprinted.replace(term, replaced)
-
-        out = {}
-        for index_expr_pprinted in pprinted.split("\n")[3:-1]:
-            index_expr_split = index_expr_pprinted.split(":")
-            i = index_expr_split[0].strip()
-            expr = index_expr_split[2].strip()
-            val = index_expr_split[3].strip()
-
-            out[i] = {
-                "expr": cls._extract_terms_from_string_expression(expr),
-                "val": val,
-            }
-        return out
-
-    def check_constraint_for_terms(
-        self,
-        constraint_expr: list[tuple],
-        term_to_find: str,
-        expected_signs: list[int],
-        expected_indices: list[str],
-    ):
-        """
-        Checks that the given constraint expression contains expected term(s). Intended as a helper
-        function for constraint check functions.
-
-        :param constraint_expr:     Constraint expression (`"expr"` value from an element of `parse_constraint_pprint`).
-                                        Should consist of a list of tuples, of the form [(sign, term), (sign, term), ...]
-        :param term_to_find:        Name of term to find, not including the index (e.g., `"loads"`).
-        :param expected_signs:      Expected signs of matching terms.
-        :param expected_indices:    Expected indices of matching terms.
-        :type constraint_expr:      list[tuple]
-        :type term_to_find:         str
-        :type expected_signs:       list[int]
-        :type expected_indices:     list
-        """
-        if len(expected_signs) != len(expected_indices):
-            raise ValueError(
-                "Expected signs and indices must be lists of matching length."
+    def _nonindexed_expr_contains(self, c: ComponentData, expected: list):
+        actual = [
+            a
+            for a in (
+                list(pyo.visitor.identify_variables(c.expr))
+                + list(pyo.visitor.identify_mutable_parameters(c.expr))
             )
+            if isinstance(a, ComponentData)
+        ]
 
-        matching_terms = []
-        for sign, term in constraint_expr:
-            match = re.fullmatch(
-                "MATCHING_TERM" + r"\[([^\]]+)\]",
-                term.replace(term_to_find, "MATCHING_TERM"),
-            )
-            if match:
-                matching_terms.append(
-                    {
-                        "sign": sign,
-                        "index": match.group(1),
-                    }
-                )
+        ids = [id(a) for a in actual]
+        names = [a.name for a in actual]
+        expected_names = [e.name for e in expected]
 
         self.test_class.assertEqual(
-            len(matching_terms),
-            len(expected_signs),
-            f"Expected to find {len(expected_signs)} matching term(s), but found {len(matching_terms)}",
+            len(actual), len(expected), f"{expected_names} vs {names}"
         )
-        for s, i in zip(expected_signs, expected_indices):
-            matching_term = [
-                term
-                for term in matching_terms
-                if term["sign"] == s and term["index"] == i
-            ]
-            self.test_class.assertEqual(
-                len(matching_term),
-                1,
-                f"There should be only one term matching {'-' if s == -1 else ''}{term_to_find}[{i}]",
-            )
+        for exp, exp_name in zip(expected, expected_names):
+            self.test_class.assertIn(id(exp), ids, f"{exp_name} not in {names}")
