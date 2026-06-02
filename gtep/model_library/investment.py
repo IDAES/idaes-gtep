@@ -45,13 +45,15 @@ def add_investment_params_and_variables(b, investment_stage):
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
 
-    # [TODO: Add this only when storage is included. Commented
-    # condition for now since it causes an error during testing.]
-    # if m.config["storage"]:
-    #     stor.add_investment_storage_variables(b)
-    b.storageCostInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
+    # # [TODO: Add this only when storage is included. Commented
+    # # condition for now since it causes an error during testing.]
+    # # if m.config["storage"]:
+    # #     stor.add_investment_storage_variables(b)
+
+    # [ESR: Comment variable since it is not calculated in the model.]
+    # b.storageCostInvestment = pyo.Var(
+    #     within=pyo.NonNegativeReals, initialize=0, units=u.USD
+    # )
 
     # if m.config["include_commitment"]:
     commit.add_investment_commitment_variables(b)
