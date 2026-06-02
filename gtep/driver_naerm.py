@@ -81,8 +81,9 @@ data_processing_object.load_gen_data(
     cost_data_path=cost_data_path,
     candidate_gens=candidate_gens,
     save_csv=False,
-    candidate_gen_csv_path="data/costs/candidate_generators_initial_list.csv",
-    candidate_branch_csv_path="data/costs/candidate_branch.csv",
+    candidate_gen_csv_path=f"{data_path}/gen.csv",
+    candidate_storage_csv_path=f"{data_path}/storage.csv",
+    candidate_branch_csv_path=f"{data_path}/branch.csv",
 )
 
 # Populate and create GTEP model
@@ -145,5 +146,5 @@ sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 # Create stackgraph
 sol_object.create_stackgraph(dir_name, rep_days)
 
-# Create report
-sol_object.create_html_report(dir_name, plot_type)
+# # Create report
+# sol_object.create_html_report(dir_name, plot_type)

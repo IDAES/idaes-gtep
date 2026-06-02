@@ -49,6 +49,7 @@ class DataProcessing:
         candidate_gens=None,
         save_csv=None,
         candidate_gen_csv_path=None,
+        candidate_storage_csv_path=None,
         candidate_branch_csv_path=None,
     ):
 
@@ -56,71 +57,51 @@ class DataProcessing:
             candidate_gens, list
         ), f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
 
-        # Use candidate branch CSV if file is available
-        if os.path.exists(candidate_branch_csv_path):
-            print(
-                f"Loading existing candidate branch file: {candidate_branch_csv_path}"
-            )
-            self.branch_data_target = pd.read_csv(candidate_branch_csv_path)
-            required_branch_cols = [
-                "UID",
-                "From Bus",
-                "To Bus",
-                "Cont Rating",
-                "LTE Rating",
-                "STE Rating",
-            ]
-            branch_prefixes = ["capex_"]
-            missing_branch_cols = [
-                col
-                for col in required_branch_cols
-                if col not in self.branch_data_target.columns
-            ]
-            for prefix in branch_prefixes:
-                if not any(
-                    col.startswith(prefix) for col in self.branch_data_target.columns
-                ):
-                    missing_branch_cols.append(f"{prefix}*")
-            if missing_branch_cols:
-                raise ValueError(
-                    f"Missing required columns in candidate branch CSV: {missing_branch_cols}"
-                )
-            print("Candidate branch data loaded successfully.")
 
-        # Use candidate CSV if file is available
-        if os.path.exists(candidate_gen_csv_path):
-            print(
-                f"Loading existing candidate generator file: {candidate_gen_csv_path}"
-            )
-            self.gen_data_target = pd.read_csv(candidate_gen_csv_path)
-            # Check for required columns and cost prefixes
-            required_cols = [
-                "GEN UID",
-                "Bus ID",
-                "Unit Type",
-                "Fuel",
-                "PMax MW",
-                "PMin MW",
-            ]
-            prefixes = [
-                "capex_",
-                "fixed_ops_",
-                "var_ops_",
-            ]  # these are the main ones to check
-            missing_cols = [
-                col for col in required_cols if col not in self.gen_data_target.columns
-            ]
-            for prefix in prefixes:
-                if not any(
-                    col.startswith(prefix) for col in self.gen_data_target.columns
-                ):
-                    missing_cols.append(f"{prefix}*")
-            if missing_cols:
-                raise ValueError(
-                    f"Missing required columns in candidate CSV: {missing_cols}"
-                )
-            print("Candidate generator data loaded successfully.")
+        def load_and_check_csv(path, prefixes, target_attr, filter_col=None):
+            if os.path.exists(path):
+                print(f"Loading costs from existing file: {path}")
+                df = pd.read_csv(path)
 
+                # Filter the .csv data to only take the candidates
+                # "-c" from the file
+                filter_str = "-c"
+                if filter_col and filter_str:
+                    if filter_col in df.columns:
+                        df = df[df[filter_col].astype(str).str.contains(filter_str, na=False)]
+                    else:
+                        print(f"[WARNING] Column '{filter_col}' not found in {path}. No filtering applied.")
+
+                missing_cols = []
+                for prefix in prefixes:
+                    if not any(col.startswith(prefix) for col in df.columns):
+                        missing_cols.append(f"{prefix}*")
+                if missing_cols:
+                    raise ValueError(
+                        f"Missing required columns in {os.path.basename(path)}: {missing_cols}"
+                    )
+                setattr(self, target_attr, df)
+
+        # Load and check that the.csv files have the needed cost data.
+        load_and_check_csv(
+            candidate_gen_csv_path,
+            prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
+            target_attr="gen_data_target",
+            filter_col="GEN UID"
+        )
+        load_and_check_csv(
+            candidate_storage_csv_path,
+            prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
+            target_attr="storage_data_target",
+            filter_col="name"
+        )
+        load_and_check_csv(
+            candidate_branch_csv_path,
+            prefixes=["lifetime_", "capex_"],
+            target_attr="branch_data_target",
+            filter_col="UID"
+        )
+       
         if os.path.exists(candidate_gen_csv_path):
             return  # Skip the rest of the function
 
