@@ -28,14 +28,6 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
         doc="Demand at each bus",
     )
 
-    b.loads = pyo.Param(
-        m.buses,
-        initialize={load_n: 0 for load_n in m.buses},
-        mutable=True,
-        units=u.MW,
-        doc="Demand at each bus",
-    )
-
     # Loop over the demand at each bus and scale based on the case.
     for load_n in m.load_buses:
         # print(f"{load_n = }")
