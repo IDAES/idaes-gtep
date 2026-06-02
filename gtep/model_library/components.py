@@ -80,15 +80,47 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Thermal generators; subset of all generators",
     )
 
-    m.renewableGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
+    if m.config["advanced_hydro"]:
+        m.hydroGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["generator"]["unit_type"]
+                == "HYDRO"
+            ),
+            doc="Hydropower generators; subset of all generators",
+        )
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if (
+                    m.md.data["elements"]["generator"][gen]["generator_type"]
+                    == "renewable"
+                    and m.md.data["elements"]["generator"][gen]["generator"][
+                        "unit_type"
+                    ]
+                    != "HYDRO"
+                )
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
+
+    else:
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["generator_type"]
+                == "renewable"
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
 
     m.lines = pyo.Set(
         initialize=m.transmission.keys(), doc="Individual transmission lines"
@@ -129,6 +161,18 @@ def add_model_parameters(m):
         units=u.MW,
         doc="Maximum output of each thermal generator",
     )
+
+    if m.config["advanced_hydro"]:
+        m.hydroCapacity = pyo.Param(
+            m.hydroGenerators,
+            initailze={
+                gen: m.md.data["elements"]["generator"][gen]["p_max"]
+                for gen in m.hydroGenerators
+            },
+            mutable=True,
+            units=u.MW,
+            doc="Maximum output of each hydropower generator",
+        )
 
     m.lifetimes = pyo.Param(
         m.generators,

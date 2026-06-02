@@ -295,8 +295,7 @@ def add_dispatch_constraints(b, disp_per):
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
         return (
-            b.renewableGeneration[renewableGen]
-            + b.renewableCurtailment[renewableGen]
+            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == c_p.renewableCapacityExpected[renewableGen]
         )
 

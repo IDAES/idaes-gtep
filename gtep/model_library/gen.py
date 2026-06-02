@@ -766,6 +766,20 @@ def add_dispatch_generators_variables(m, b):
             doc="Thermal generation",
         )
 
+    if m.config["advanced_hydro"]:
+        # TODO update with actual values and params
+        def hydro_generation_limits(b, hydroGenerators):
+            return (0, 0)
+
+        b.hydroGeneration = pyo.Var(
+            m.hydroGenerators,
+            domain=pyo.NonNegativeReals,
+            bounds=hydro_generation_limits,
+            initialize=0,
+            units=u.MW,
+            doc="Hydropower generation",
+        )
+
     # [ESR: Still deciding if this should be Nameplate]
     def renewable_generation_limits(
         b, renewableGen, doc="Bounds on active generation of renewable generator in MW"

@@ -15,8 +15,10 @@
 Model
 
 """
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+
 
 def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
@@ -54,9 +56,9 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
         else:
             b.loads[load_n] = p_load
-    
-    #print(f"{b = }")
-    #print(f"{pyo.value(sum(b.loads[n] for n in b.loads)) = }")
+
+    # print(f"{b = }")
+    # print(f"{pyo.value(sum(b.loads[n] for n in b.loads)) = }")
 
     # for key, val in b.loads.items():
     #     # print(f"{key=}")

@@ -153,6 +153,14 @@ def _add_investment_configs(CONFIG):
             description="Allow transmission switching during dispatch",
         ),
     )
+    CONFIG.declare(
+        "averaged_hydro",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include daily average hydro requirements",
+        ),
+    )
 
 
 def _add_solver_configs(CONFIG):
