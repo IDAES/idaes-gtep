@@ -34,7 +34,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        # units=u.MW,
+        units=u.MW,
         doc="Maximum storage capacity in MW"
     )
 
@@ -210,15 +210,84 @@ def add_storage_params(m):
         doc="Cost of life extension for each battery, expressed as a fraction of initial investment cost"
     )
 
+    m.storageLifetimes = pyo.Param(
+        m.storage,
+        initialize={stor: 3 for stor in m.storage},
+        mutable=True,
+        units=u.year,
+        doc="Lifetime of each storage unit",
+    )
+    
     m.storageInvestmentCost = pyo.Param(
         m.storage,
         initialize={
             bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
             for bat in m.storage
         },
+        mutable=True,
         domain=pyo.NonNegativeReals,
-        doc="Future not real cost: idealized DoE 10-yr targets or something"
+        units=u.USD / u.MW,
+        doc="Investment cost for storage units"
     )
+
+def add_storage_cost_parameters_from_csv(m, year):
+    """This method updates investment cost parameters for storage
+    units using data from CSV files loaded into the model object
+    (m.mc).
+    
+    For the specified year, this function updates:
+    - Storage lifetime parameters.
+    - Investment cost parameters using annualized capex data, converting from $/MW-yr
+      to $/MW using the lifetime and a discount rate.
+    - Variable and fixed operating costs.
+
+    The final units (to avoid unit consistency issues) should be:
+    - fixed cost = $/MWh
+    - var cost = $/MWh
+    - inv cost = $/Mw
+
+    """
+    
+    
+    # Re-populating lifetimes parameters for branches and generators
+    # since we have data in the m.mc model object.
+    lifetime_col = f"lifetime_{year}"
+    new_storage_lifetimes = {
+        row["name"]: int(row.get(lifetime_col, 0)) for _, row in m.mc.storage_data_target.iterrows()
+    }
+
+    for storage in m.storage:
+        if storage in new_storage_lifetimes:
+            m.storageLifetimes[storage] = new_storage_lifetimes[storage]
+
+    # Re-populate the investment cost parameters for storage units
+    # since we have available capex data in m.mc modeling
+    # object. NOTE: Since the data is annualized ($/MW-yr), we
+    # de-annualize it using the lifetime parameter and an assumed
+    # discounte rate. The final units are in $/MW.
+    def annualized_to_total_capex(annualized_cost, years, discount_rate):
+        r = discount_rate
+        n = years
+        crf = (r * (1 + r) ** n) / ((1 + r) ** n - 1)
+        total_cost = annualized_cost / crf
+        return total_cost
+
+    # [TODO: Check if we need to include var and fix operating costs.]
+    if m.mc is not None:
+        for index, row in m.mc.storage_data_target.iterrows():
+            storage_uid = row["name"]
+            if storage_uid not in m.storage:
+                continue
+
+            # Read costs for the selected year. All units in $/MW-yr
+            capex_yr = float(row[f"capex_{year}"])
+            # Convert investment cost from $/MW-year (annualized) to
+            # $/MW (de-annualized)
+            inv_cost_annualized = capex_yr
+            inv_cost = annualized_to_total_capex(
+                capex_yr, years=m.storageLifetimes[storage_uid], discount_rate=0.07
+            )
+            m.storageInvestmentCost[storage_uid] = pyo.value(inv_cost)
 
 
 def add_storage_state_disjuncts(m, b, commitment_period):
@@ -518,12 +587,6 @@ def add_storage_state_disjuncts(m, b, commitment_period):
         )
 
 
-# def add_investment_storage_variables(b):
-#     b.storageCostInvestment = pyo.Var(
-#         within=pyo.NonNegativeReals, initialize=0, units=u.USD
-#     )
-
-
 def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on
@@ -543,12 +606,14 @@ def add_investment_storage_constraints(m, b, investment_stage):
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
         return sum(
-            m.storageInvestmentCost[bat]
+            m.storageInvestmentCost[bat]  # in USD/MW
+            * m.storageCapacity[bat]  # in MW
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
-            m.storageInvestmentCost[bat]
+            m.storageInvestmentCost[bat]  # in USD/MW
+            * m.storageCapacity[bat]  # in MW
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
             for bat in m.storage

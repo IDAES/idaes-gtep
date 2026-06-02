@@ -307,7 +307,9 @@ def create_stages(
         # that applies the correct unit conversion.]
         # comps.add_model_cost_parameters(m, b_inv.year)
         comps.add_model_cost_parameters_from_csv(m, b_inv.year)
-
+        if m.config["storage"]:
+            stor.add_storage_cost_parameters_from_csv(m, b_inv.year)
+            
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
         # when needed. Disjuncts alternatives are: operational,
