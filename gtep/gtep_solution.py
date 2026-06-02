@@ -230,6 +230,15 @@ class ExpansionPlanningSolution:
                 for _, row in gen_cand_df.iterrows()
             }
 
+            # Read storage.csv for storage units
+            storage_df = pd.read_csv(f"{data_path}/storage.csv")
+            storage_uid_to_type = {
+                row["name"]: row["storage_type"].upper() for _, row in storage_df.iterrows()
+            }
+            storage_uid_to_pmax = {
+                row["name"]: float(row.get("energy_capacity", 0)) for _, row in storage_df.iterrows()
+            }
+
             # Read and process .json. These names are based on the saved
             # .json files from function save_results_in_json_files
             if gen_case_json == "renewables":
@@ -257,24 +266,27 @@ class ExpansionPlanningSolution:
                 if this_key in gen_cand_uid_to_type:
                     unit_type = gen_cand_uid_to_type[this_key]
                     pmax = gen_cand_uid_to_pmax[this_key]
-                else:
+                elif this_key in gen_uid_to_type:
                     unit_type = gen_uid_to_type.get(this_key)
                     pmax = gen_uid_to_pmax.get(this_key)
+                elif this_key in storage_uid_to_type:
+                    unit_type = storage_uid_to_type[this_key]
+                    pmax = storage_uid_to_pmax[this_key]
+                else:
+                    unit_type = None
+                    pmax = 0
 
                 # Make unit_type uppercase to ensure case-insensitive
                 # matching
-                if unit_type:
-                    unit_type_upper = unit_type.upper()
-                else:
-                    unit_type_upper = None
-
+                unit_type_upper = unit_type.upper() if unit_type else None
+                
                 # Only use if in GENERATION_TYPES
-                if unit_type and unit_type in GENERATION_TYPES:
+                if unit_type_upper and unit_type_upper in GENERATION_TYPES:
                     gens_keys_to_type[this_key] = unit_type_upper
                     gens_keys_to_pmax[this_key] = pmax
                 else:
                     raise ValueError(
-                        f"[ERROR] Generator '{this_key}' has unknown or unsupported unit type '{unit_type}'."
+                        f"[ERROR] Generator or storage '{this_key}' has unknown or unsupported unit type '{unit_type}'."
                     )
 
             # After building gens_keys_to_type
