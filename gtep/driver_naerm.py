@@ -23,18 +23,6 @@ from gtep.gtep_data_processing import DataProcessing
 import xpress
 
 # Add data
-data_path = "./data/WECC_ADS_PNNL"
-data_object = ExpansionPlanningData(
-    stages=1,
-    num_reps=15,
-    num_commit=24,
-    num_dispatch=1,
-    duration_representative_period=24,
-    save_period_structure_file=False,
-    period_structure_json_file=None,
-    # period_structure_json_file="period_structure_from_gtep.json",
-)
-
 rep_days = [
     "2034-01-22 00:00",
     "2034-01-24 00:00",
@@ -53,6 +41,18 @@ rep_days = [
     "2034-12-06 00:00",
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
+
+data_path = "./data/WECC_ADS_PNNL"
+data_object = ExpansionPlanningData(
+    stages=1,
+    num_reps=15,
+    num_commit=24,
+    num_dispatch=1,
+    duration_representative_period=24,
+    save_period_structure_file=False,
+    period_structure_json_file=None,
+    # period_structure_json_file="period_structure_from_gtep.json",
+)
 
 data_object.load_prescient(
     data_path, representative_dates=rep_days, representative_weights=rep_weights
@@ -119,6 +119,8 @@ if solver == "xpress":
         tee=True,
         logfile=log_folder + "/" + solver + ".log",
     )
+
+print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
 dir_name = "NAERM_initial_testing"

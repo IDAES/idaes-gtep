@@ -563,6 +563,13 @@ class ExpansionPlanningSolution:
 
         # Note that these are the same colors used in the stack plots
         # and pie charts above
+        def darken_color(hex_color, percent=0.2):
+            """Darken a hex color by a given percent (0.2 = 20%)"""
+            hex_color = hex_color.lstrip("#")
+            rgb = [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
+            darker_rgb = [max(0, int(c * (1 - percent))) for c in rgb]
+            return "#" + "".join(f"{c:02x}" for c in darker_rgb)
+
         GEN_TYPES = {
             "nuclear": "#39FF14",
             "coal": "#333333",
@@ -575,14 +582,16 @@ class ExpansionPlanningSolution:
             "thermal_other": "#e25822",
             "steam": "#b0b0b0",
             "dr": "#a020f0",
-            # Candidates use the same color as their base type
-            "hydro-c": "#00bfff",
-            "gas_cc-c": "#20b2aa",
-            "gas_ct-c": "#6e8b3d",
-            "battery-c": "#7b9095",
-            "wind-c": "#4f94cd",
-            "pv-c": "#ffb90f",
-            "steam-c": "#b0b0b0",
+            "ES4": "#a0522d",
+            # Candidates: 20% darker than original, same pattern for all
+            "hydro-c": darken_color("#00bfff"),
+            "gas_cc-c": darken_color("#20b2aa"),
+            "gas_ct-c": darken_color("#6e8b3d"),
+            "battery-c": darken_color("#7b9095"),
+            "wind-c": darken_color("#4f94cd"),
+            "pv-c": darken_color("#ffb90f"),
+            "steam-c": darken_color("#b0b0b0"),
+            "ES4-c": darken_color("#a0522d"),
         }
         GEN_TYPE_HATCHES = {
             # No hatch pattern for "original" types
@@ -595,12 +604,16 @@ class ExpansionPlanningSolution:
             "dr": "",
             "hydro": "",
             "nuclear": "",
+            "ES4": "",
             # Candidates get a hatch pattern
+            "hydro-c": "////",
             "gas_cc-c": "////",
-            "gas_ct-c": "....",
+            "gas_ct-c": "////",
+            "battery-c": "////",
+            "wind-c": "////",
             "pv-c": "////",
-            "wind-c": "xxxx",
-            "hydro-c": "....",
+            "steam-c": "////",
+            "ES4-c": "////",
         }
         GEN_TYPE_ALIASES = {
             "coal": "Coal",
@@ -612,11 +625,15 @@ class ExpansionPlanningSolution:
             "wind": "Wind",
             "nuclear": "Nuclear",
             "hydro": "Hydro",
+            "ES4": "ES4",
+            "steam": "Steam",
             "gas_cc-c": "CC (Candidate)",
             "gas_ct-c": "CT (Candidate)",
             "pv-c": "Solar (Candidate)",
             "wind-c": "Wind (Candidate)",
             "hydro-c": "Hydro (Candidate)",
+            "ES4-c": "ES4 (Candidate)",
+            "steam-c": "Steam (Candidate)",
         }
 
         generation = {}

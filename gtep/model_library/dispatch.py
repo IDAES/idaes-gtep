@@ -226,7 +226,7 @@ def add_dispatch_constraints(b, disp_per):
         def CP_flow_balance(b):
             balance = 0
             buses = [bus for bus in m.buses]
-            loads = [l for l in b.loads]
+            loads = [l for l in c_p.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage]
             balance += sum(
@@ -240,7 +240,7 @@ def add_dispatch_constraints(b, disp_per):
                 balance += sum(b.storageDischarged[bt] for bt in batts)
                 balance -= sum(b.storageCharged[bt] for bt in batts)
 
-            balance -= sum(c_p.loads[l] for l in loads)
+            balance -= sum(b.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0

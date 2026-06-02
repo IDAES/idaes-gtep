@@ -15,24 +15,10 @@
 Model
 
 """
-
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
-
 def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
-
-    # Create a false load directory. [TODO: Commented for now since it
-    # is not used. Check with team if we want to preserve this for
-    # Texas case.]
-    # false_loads = []
-    # for load in m.md.data["elements"]["load"]:
-    #     if type(m.md.data["elements"]["load"][load]) == float:
-    #         false_loads.append(load)
-    # for load in false_loads:
-    #     del m.md.data["elements"]["load"][load]
-    #     # del m.loads[load]
-    # # print(m.loads)
 
     b.loads = pyo.Param(
         m.buses,
@@ -68,8 +54,9 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
 
         else:
             b.loads[load_n] = p_load
-    # import pyomo.environ as pyo
-    # print(f"{pyo.value(sum(m.loads[n] for n in m.loads)) = }")
+    
+    #print(f"{b = }")
+    #print(f"{pyo.value(sum(b.loads[n] for n in b.loads)) = }")
 
     # for key, val in b.loads.items():
     #     # print(f"{key=}")
