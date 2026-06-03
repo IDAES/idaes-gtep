@@ -233,10 +233,12 @@ class ExpansionPlanningSolution:
             # Read storage.csv for storage units
             storage_df = pd.read_csv(f"{data_path}/storage.csv")
             storage_uid_to_type = {
-                row["name"]: row["storage_type"].upper() for _, row in storage_df.iterrows()
+                row["name"]: row["storage_type"].upper()
+                for _, row in storage_df.iterrows()
             }
             storage_uid_to_pmax = {
-                row["name"]: float(row.get("energy_capacity", 0)) for _, row in storage_df.iterrows()
+                row["name"]: float(row.get("energy_capacity", 0))
+                for _, row in storage_df.iterrows()
             }
 
             # Read and process .json. These names are based on the saved
@@ -279,7 +281,7 @@ class ExpansionPlanningSolution:
                 # Make unit_type uppercase to ensure case-insensitive
                 # matching
                 unit_type_upper = unit_type.upper() if unit_type else None
-                
+
                 # Only use if in GENERATION_TYPES
                 if unit_type_upper and unit_type_upper in GENERATION_TYPES:
                     gens_keys_to_type[this_key] = unit_type_upper
@@ -578,7 +580,7 @@ class ExpansionPlanningSolution:
         def darken_color(hex_color, percent=0.2):
             """Darken a hex color by a given percent (0.2 = 20%)"""
             hex_color = hex_color.lstrip("#")
-            rgb = [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
+            rgb = [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
             darker_rgb = [max(0, int(c * (1 - percent))) for c in rgb]
             return "#" + "".join(f"{c:02x}" for c in darker_rgb)
 

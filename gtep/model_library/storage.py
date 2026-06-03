@@ -35,7 +35,7 @@ def add_storage_params(m):
         },
         domain=pyo.NonNegativeReals,
         units=u.MW,
-        doc="Maximum storage capacity in MW"
+        doc="Maximum storage capacity in MW",
     )
 
     m.initStorageChargeLevel = pyo.Param(
@@ -45,7 +45,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Initial storage capacity"
+        doc="Initial storage capacity",
     )
 
     m.minStorageChargeLevel = pyo.Param(
@@ -55,13 +55,14 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Minimum storage capacity"
+        doc="Minimum storage capacity",
     )
-    
+
     m.chargingCost = pyo.Param(
         m.storage,
         initialize={
-            bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+            for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
         doc="Cost to charge per unit electricity",
@@ -74,7 +75,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Cost to discharge per unit electricity"
+        doc="Cost to discharge per unit electricity",
     )
 
     m.dischargeMin = pyo.Param(
@@ -84,9 +85,9 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Minimum amount to discharge per dispatch period when discharging"
+        doc="Minimum amount to discharge per dispatch period when discharging",
     )
-    
+
     m.dischargeMax = pyo.Param(
         m.storage,
         initialize={
@@ -94,9 +95,9 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Maximum amount to discharge per dispatch period when discharging"
+        doc="Maximum amount to discharge per dispatch period when discharging",
     )
-    
+
     m.chargeMin = pyo.Param(
         m.storage,
         initialize={
@@ -104,7 +105,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Minimum amount to charge per dispatch period when charging"
+        doc="Minimum amount to charge per dispatch period when charging",
     )
 
     m.chargeMax = pyo.Param(
@@ -156,7 +157,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Maximum amount of ramp down between dispatch periods when charging"
+        doc="Maximum amount of ramp down between dispatch periods when charging",
     )
 
     m.storageDischargingEfficiency = pyo.Param(
@@ -166,7 +167,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Proportion of energy discharged that is not lost to technological inefficiencies with in dispatch periods and which is usable in the flow balance"
+        doc="Proportion of energy discharged that is not lost to technological inefficiencies with in dispatch periods and which is usable in the flow balance",
     )
 
     m.storageChargingEfficiency = pyo.Param(
@@ -176,7 +177,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Proportion of energy charged that is not lost to technological inefficiencies within dispatch periods and which is usable in the flow balance"
+        doc="Proportion of energy charged that is not lost to technological inefficiencies within dispatch periods and which is usable in the flow balance",
     )
 
     m.storageRetentionRate = pyo.Param(
@@ -186,7 +187,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Proportion of energy discharged that is not lost to technological inefficiencies between dispatch periods and which is usable in the flow balance"
+        doc="Proportion of energy discharged that is not lost to technological inefficiencies between dispatch periods and which is usable in the flow balance",
     )
 
     # TODO: Calculate this instead
@@ -197,7 +198,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="(Arbitrary) multiplier for new battery investments corresponds to depreciation schedules for individual technologies; higher values are indicative of slow depreciation"
+        doc="(Arbitrary) multiplier for new battery investments corresponds to depreciation schedules for individual technologies; higher values are indicative of slow depreciation",
     )
 
     m.storageExtensionMultiplier = pyo.Param(
@@ -207,7 +208,7 @@ def add_storage_params(m):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        doc="Cost of life extension for each battery, expressed as a fraction of initial investment cost"
+        doc="Cost of life extension for each battery, expressed as a fraction of initial investment cost",
     )
 
     m.storageLifetimes = pyo.Param(
@@ -217,7 +218,7 @@ def add_storage_params(m):
         units=u.year,
         doc="Lifetime of each storage unit",
     )
-    
+
     m.storageInvestmentCost = pyo.Param(
         m.storage,
         initialize={
@@ -227,14 +228,15 @@ def add_storage_params(m):
         mutable=True,
         domain=pyo.NonNegativeReals,
         units=u.USD / u.MW,
-        doc="Investment cost for storage units"
+        doc="Investment cost for storage units",
     )
+
 
 def add_storage_cost_parameters_from_csv(m, year):
     """This method updates investment cost parameters for storage
     units using data from CSV files loaded into the model object
     (m.mc).
-    
+
     For the specified year, this function updates:
     - Storage lifetime parameters.
     - Investment cost parameters using annualized capex data, converting from $/MW-yr
@@ -247,13 +249,13 @@ def add_storage_cost_parameters_from_csv(m, year):
     - inv cost = $/Mw
 
     """
-    
-    
+
     # Re-populating lifetimes parameters for branches and generators
     # since we have data in the m.mc model object.
     lifetime_col = f"lifetime_{year}"
     new_storage_lifetimes = {
-        row["name"]: int(row.get(lifetime_col, 0)) for _, row in m.mc.storage_data_target.iterrows()
+        row["name"]: int(row.get(lifetime_col, 0))
+        for _, row in m.mc.storage_data_target.iterrows()
     }
 
     for storage in m.storage:
@@ -490,7 +492,7 @@ def add_storage_state_disjuncts(m, b, commitment_period):
             doc="Enforces that batteries that are charging both gain and lose energy",
         )
         def charging_battery_storage_balance(disj, disp_per):
-            
+
             if disp_per != 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[disp_per].storageChargeLevel[bat]

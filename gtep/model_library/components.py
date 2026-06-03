@@ -383,7 +383,6 @@ def add_model_parameters(m):
         doc="Investment cost for each new branch",
     )
 
-
     m.minOperatingReserve = pyo.Param(
         m.regions,
         initialize={
@@ -632,7 +631,7 @@ def add_model_cost_parameters_from_csv(m, year):
     """This method updates investment cost parameters for generators
     and branches using data from CSV files loaded into the model
     object (m.mc).
-    
+
     For the specified year, this function:
     - Updates generator and branch lifetime parameters
     - Updates investment cost parameters for generators and branches using annualized capex data,
@@ -645,16 +644,17 @@ def add_model_cost_parameters_from_csv(m, year):
     - inv cost = $/Mw
 
     """
-    
-    
+
     # Re-populating lifetimes parameters for branches and generators
     # since we have data in the m.mc model object.
     lifetime_col = f"lifetime_{year}"
     new_branch_lifetimes = {
-        row["UID"]: int(row.get(lifetime_col, 0)) for _, row in m.mc.branch_data_target.iterrows()
+        row["UID"]: int(row.get(lifetime_col, 0))
+        for _, row in m.mc.branch_data_target.iterrows()
     }
     new_gen_lifetimes = {
-        row["GEN UID"]: int(row.get(lifetime_col, 0)) for _, row in m.mc.gen_data_target.iterrows()
+        row["GEN UID"]: int(row.get(lifetime_col, 0))
+        for _, row in m.mc.gen_data_target.iterrows()
     }
 
     for branch in m.transmission:
@@ -691,7 +691,7 @@ def add_model_cost_parameters_from_csv(m, year):
             )
             m.branchInvestmentCost[branch_uid] = inv_cost
     # print(branch_investment_cost_dict)
-    
+
     if m.mc is not None:
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
@@ -711,7 +711,9 @@ def add_model_cost_parameters_from_csv(m, year):
             # $/MW (de-annualized). Lifetime of 30 years to
             # deannualize.
             inv_cost_annualized = capex_yr
-            inv_cost = annualized_to_total_capex(capex_yr, years=m.genLifetimes[gen_uid], discount_rate=0.07)
+            inv_cost = annualized_to_total_capex(
+                capex_yr, years=m.genLifetimes[gen_uid], discount_rate=0.07
+            )
 
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units

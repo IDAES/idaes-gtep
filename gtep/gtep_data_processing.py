@@ -57,7 +57,6 @@ class DataProcessing:
             candidate_gens, list
         ), f"The candidate generators should be in the form of a list. The provided data is of type {type(candidate_gens).__name__}"
 
-
         def load_and_check_csv(path, prefixes, target_attr, filter_col=None):
             if os.path.exists(path):
                 print(f"Loading costs from existing file: {path}")
@@ -68,9 +67,15 @@ class DataProcessing:
                 filter_str = "-c"
                 if filter_col and filter_str:
                     if filter_col in df.columns:
-                        df = df[df[filter_col].astype(str).str.contains(filter_str, na=False)]
+                        df = df[
+                            df[filter_col]
+                            .astype(str)
+                            .str.contains(filter_str, na=False)
+                        ]
                     else:
-                        print(f"[WARNING] Column '{filter_col}' not found in {path}. No filtering applied.")
+                        print(
+                            f"[WARNING] Column '{filter_col}' not found in {path}. No filtering applied."
+                        )
 
                 missing_cols = []
                 for prefix in prefixes:
@@ -87,21 +92,21 @@ class DataProcessing:
             candidate_gen_csv_path,
             prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
             target_attr="gen_data_target",
-            filter_col="GEN UID"
+            filter_col="GEN UID",
         )
         load_and_check_csv(
             candidate_storage_csv_path,
             prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
             target_attr="storage_data_target",
-            filter_col="name"
+            filter_col="name",
         )
         load_and_check_csv(
             candidate_branch_csv_path,
             prefixes=["lifetime_", "capex_"],
             target_attr="branch_data_target",
-            filter_col="UID"
+            filter_col="UID",
         )
-       
+
         if os.path.exists(candidate_gen_csv_path):
             return  # Skip the rest of the function
 
