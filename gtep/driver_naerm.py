@@ -102,12 +102,12 @@ mod_object = ExpansionPlanningModel(
     cost_data=data_processing_object,
 )
 
-mod_object.config["include_investment"] = True
+mod_object.config["include_investment"] = False
 mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
-mod_object.config["storage"] = False
+mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
 
 mod_object.create_model()
