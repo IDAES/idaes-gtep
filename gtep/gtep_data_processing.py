@@ -297,7 +297,6 @@ class DataProcessing:
         df.fillna("", inplace=True)
         return df
 
-    
     def load_gen_data(
         self,
         bus_data_path: Path,
