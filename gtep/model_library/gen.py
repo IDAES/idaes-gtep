@@ -525,15 +525,16 @@ def generators_status_always_on(m, b, r_p, i_p, commitment_period):
                 <= m.thermalCapacity[generator]
             )
 
-    @b.Disjunct(m.thermalGenerators)
-    def genOff(disj, generator):
-        b = disj.parent_block()
-
-        @disj.Constraint(b.dispatchPeriods)
-        def operating_limit(d, dispatchPeriod):
+        @disj.Constraint(
+            b.dispatchPeriods,
+            doc="Enforces that generators cannot be committed unless they are operational or just installed",
+        )
+        def commit_active_gens_only(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                == 0 * u.MW
+                <= i_p.genOperational[generator].binary_indicator_var * u.MW
+                + i_p.genInstalled[generator].binary_indicator_var * u.MW
+                + i_p.genExtended[generator].binary_indicator_var * u.MW
             )
 
     @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
