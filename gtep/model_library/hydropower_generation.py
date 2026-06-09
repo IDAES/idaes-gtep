@@ -17,8 +17,10 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 
-def add_daily_hydropower_limits(m, b, commitmentPeriod):
+def add_daily_hydropower_limits(b, commitmentPeriod):
+    m = b.model()
 
+    # TODO move capacity and minimum constraints to here and let hydro gen variables have overall bounds
     @b.Constraint(
         m.hydroGenerators,
         doc="Enforce commitment period maximum hydropower generation in addition nameplate hydropower capacity",
@@ -34,11 +36,12 @@ def add_daily_hydropower_limits(m, b, commitmentPeriod):
         return b.hydroGeneration >= 0
 
 
-def add_representative_hydropower_average(m, b, commitmentPeriod):
+def add_representative_hydropower_average(b, commitmentPeriod):
+    m = b.model()
 
     @b.Constraint(
         m.hydroGenerators,
         doc="Enforce total hydropower generation requirements for given representative period",
     )
-    def average_hydro_generation():
-        return
+    def average_hydro_generation(b, hydroGen):
+        return sum(b.c_p.d_p.hydroGeneration[hydroGen] for c_p in b.commitmentPeriods for d_p in c_p.dispatchPeriods) == sum(b.c_p.hydroAverageExpected[hydroGen] for c_p in b.commitmentPeriods)

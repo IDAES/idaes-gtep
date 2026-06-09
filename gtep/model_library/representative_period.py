@@ -19,6 +19,7 @@ Generation and Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from math import ceil
+import gtep.model_library.hydropower_generation as hydro
 
 
 def add_representative_period_variables(b, rep_per):
@@ -265,3 +266,7 @@ def add_representative_period_logical_constraints(b, rep_per):
             else LogicalConstraint.Skip
         )
     """
+
+
+if m.config["advanced_hydro"]:
+    hydro.add_representative_hydropower_average(b, rep_per)

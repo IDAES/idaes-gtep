@@ -771,7 +771,10 @@ def add_dispatch_generators_variables(m, b):
     if m.config["advanced_hydro"]:
         # TODO make consistent with how this is handled for other renewable gens
         def hydro_generation_limits(b, hydroGen):
-            return (c_p.hydroMinimumExpected[hydroGen], c_p.hydroCapacityExpected[hydroGen])
+            return (
+                c_p.hydroMinimumExpected[hydroGen],
+                c_p.hydroCapacityExpected[hydroGen],
+            )
 
         b.hydroGeneration = pyo.Var(
             m.hydroGenerators,
