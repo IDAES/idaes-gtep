@@ -30,6 +30,7 @@ def create_objective_function(m):
 
     # NOTE: We add battery storage cost only when "storage" is set to
     # True in the configuration input, otherwise its cost value is 0.
+
     @m.Expression()
     def operatingCostTotal(m):
         return sum(
@@ -43,7 +44,7 @@ def create_objective_function(m):
                 m.investmentStage[stage].storageCostInvestment for stage in m.stages
             )
         else:
-            return 0
+            return 0 * u.USD
 
     @m.Expression()
     def expansionCostTotal(m):

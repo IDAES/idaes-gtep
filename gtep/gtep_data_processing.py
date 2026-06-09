@@ -287,11 +287,104 @@ class DataProcessing:
         self.gen_data_target["Output_pct_1"] = pd.to_numeric(
             self.gen_data_target["Output_pct_1"], errors="coerce"
         ).fillna(1)
+        df["Output_pct_0"] = pd.to_numeric(df["Output_pct_0"], errors="coerce").fillna(
+            0.6
+        )
+        df["Output_pct_1"] = pd.to_numeric(df["Output_pct_1"], errors="coerce").fillna(
+            1
+        )
 
-        self.gen_data_target.fillna("", inplace=True)
-        self.gen_data_target.head()
+        df.fillna("", inplace=True)
+        return df
 
         if save_csv:
             self.gen_data_target.to_csv(
                 "./gtep/data/costs/candidate_generators_initial_list.csv", index=False
+    def load_gen_data(
+        self,
+        bus_data_path: Path,
+        cost_data_path: Path,
+        ng_cost_path: Path,
+        candidate_gens: list[str],
+        years: list[int] = [2025, 2030, 2035],
+        scenario: str = "Moderate",
+        ng_cost_quantity: str = "Reference case",
+        save_csv: bool = False,
+        out_path: Path | None = None,
+    ):
+        """
+        Builds a dataframe containing cost data for generators of specified type from bus data.
+        Stores the result in `self.gen_data_target` and optionally writes to a CSV.
+
+        :param bus_data_path:               Path to bus data.
+        :param cost_data_path:              Path to cost data.
+        :param ng_cost_path:                Path to natural gas cost data.
+        :param candidate_gens:              Generator types to extract cost data for.
+        :param years:                       Years to extract cost data for.
+        :param scenario:                    Cost scenario. Defaults to `"Moderate"`.
+        :param ng_cost_quantity:            Natural gas cost quantity to use. Defaults to `"Reference case"`.
+        :param save_csv:                    Whether to save the resulting dataframe to csv. Defaults to `False`.
+        :param out_path:                    Directory to save the csv to. Defaults to `None`, but must be provided if `save_csv=True` is passed.
+        :type bus_data_path:                pathlib.Path
+        :type cost_data_path:               pathlib.Path
+        :type ng_cost_path:                 pathlib.Path
+        :type candidate_gens:               list[str]
+        :type years:                        list[int]
+        :type scenario:                     str
+        :type ng_cost_quantity:             str
+        :type save_csv:                     bool
+        :type out_path:                     pathlib.Path | None
+        """
+        if save_csv and out_path is None:
+            raise TypeError("With save_csv=True, out_path must be a provided.")
+
+        gen_bus_df = self.get_gen_bus_data(bus_data_path)
+
+        # get natural gas data and check we have the matching cost quantity and years
+        ng_cost_df = self.get_ng_costs(ng_cost_path)
+        if ng_cost_quantity not in ng_cost_df.index:
+            raise ValueError(
+                f"The provided natural gas quantity {ng_cost_quantity} is not in the natural gas cost dataset. Available quantities: {ng_cost_df.index}"
             )
+        missing_years = [year for year in years if str(year) not in ng_cost_df.columns]
+        if missing_years:
+            raise ValueError(
+                f"One or more years ({missing_years}) were not in the natural gas cost dataset. Available columns: {ng_cost_df.columns}"
+            )
+
+        # maps set of generator types in gen_bus_df to set of generator types w/ cost data
+        candidate_gens_dict = self.get_clean_gens_dict(candidate_gens)
+
+        buses_by_gen = self.get_buses_by_gen(
+            gen_bus_df, set(candidate_gens_dict.keys())
+        )
+        cost_dict = self.extract_cost_data(
+            cost_data_path, set(candidate_gens_dict.values()), years, scenario
+        )
+
+        # build output dataframe
+        df_rows = []
+        for bus_gen, cost_gen in candidate_gens_dict.items():
+            # NOTE: the current implementation in main has a possible bug: Natural Gas CT are not included in the output csv!
+            # the following two lines recreate the bug to allow comparison of remaining outputs
+            # if bus_gen != cost_gen:
+            #     continue
+            gen_cost_df = self.get_gen_cost_data(
+                cost_dict[cost_gen], gen_bus_df, bus_gen
+            )
+            for bus_name, bus in buses_by_gen[bus_gen].items():
+                df_rows.append(
+                    self.build_cost_data_row(
+                        gen_cost_df=gen_cost_df,
+                        years=years,
+                        bus_id=bus,
+                        bus_name=bus_name,
+                        gen=bus_gen,
+                        ng_cost_df=ng_cost_df,
+                        ng_cost_quantity=ng_cost_quantity,
+                    )
+                )
+        self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
+
+        if save_csv:
+            self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
