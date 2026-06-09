@@ -297,9 +297,9 @@ class DataProcessing:
         df.fillna("", inplace=True)
         return df
 
-        if save_csv:
-            self.gen_data_target.to_csv(
-                "./gtep/data/costs/candidate_generators_initial_list.csv", index=False
+    if save_csv:
+        self.gen_data_target.to_csv(
+            "./gtep/data/costs/candidate_generators_initial_list.csv", index=False
     def load_gen_data(
         self,
         bus_data_path: Path,

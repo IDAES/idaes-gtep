@@ -44,4 +44,8 @@ def add_representative_hydropower_average(b, commitmentPeriod):
         doc="Enforce total hydropower generation requirements for given representative period",
     )
     def average_hydro_generation(b, hydroGen):
-        return sum(b.c_p.d_p.hydroGeneration[hydroGen] for c_p in b.commitmentPeriods for d_p in c_p.dispatchPeriods) == sum(b.c_p.hydroAverageExpected[hydroGen] for c_p in b.commitmentPeriods)
+        return sum(
+            b.c_p.d_p.hydroGeneration[hydroGen]
+            for c_p in b.commitmentPeriods
+            for d_p in c_p.dispatchPeriods
+        ) == sum(b.c_p.hydroAverageExpected[hydroGen] for c_p in b.commitmentPeriods)
