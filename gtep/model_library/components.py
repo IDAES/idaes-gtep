@@ -165,7 +165,7 @@ def add_model_parameters(m):
     if m.config["advanced_hydro"]:
         m.hydroCapacity = pyo.Param(
             m.hydroGenerators,
-            initialze={
+            initialize={
                 gen: m.md.data["elements"]["generator"][gen]["p_max"]
                 for gen in m.hydroGenerators
             },
