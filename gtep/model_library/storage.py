@@ -722,6 +722,13 @@ def add_storage_logical_constraints(m):
 
     """
 
+    for stor in m.storage:
+        if m.md.data["elements"]["storage"][stor]["in_service"] == False:
+            m.investmentStage[1].storOperational[stor].indicator_var.fix(False)
+            m.investmentStage[1].storExtended[stor].indicator_var.fix(False)
+        else:
+            m.investmentStage[1].storOperational[stor].indicator_var.fix(True)
+
     @m.LogicalConstraint(
         m.stages,
         m.storage,
@@ -828,6 +835,9 @@ def add_storage_logical_constraints(m):
 
 def add_dispatch_storage_variables_and_constraints(m, b):
 
+    c_p = b.parent_block()
+    r_p = c_p.parent_block()
+
     # NOTE: The lower bound should be > 0 (from data input)
     def storage_capacity_limits(b, bat):
         return (
@@ -847,6 +857,17 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         initialize=init_storage_capacity,
         units=u.MW,
     )
+
+    if (
+        c_p.commitmentPeriod == r_p.commitmentPeriods.first()
+        and b.dispatchPeriod == c_p.dispatchPeriods.first()
+    ):
+        for stor in m.storage:
+            b.storageChargeLevel[stor].fix(m.storageCapacity[stor] / 2)
+    # if (c_p.commitmentPeriod == r_p.commitmentPeriods.last()
+    #     and b.dispatchPeriod == c_p.dispatchPeriods.last()):
+    #     for stor in m.storage:
+    #         b.storageChargeLevel[stor].fix(m.storageCapacity[stor]/2)
 
     # Define bounds on charging/discharging capability. Note that
     # constraints enforce that there are min & max charge/discharge

@@ -37,6 +37,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     r_p = c_p.parent_block()
     i_p = r_p.parent_block()
 
+    b.dispatchPeriod = dispatch_period
+
     # Add variables and bounds for generators and storage, when needed
     gens.add_dispatch_generators_variables(m, b)
 

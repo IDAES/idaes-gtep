@@ -71,6 +71,8 @@ class ExpansionPlanningSolution:
         generation = {}
         curtailment = {}
         reserves = {}
+        charging = {}
+        discharging = {}
         for var in m.component_objects(pyo.Var, descend_into=True):
             for index in var:
                 if "Shed" in var.name:
@@ -88,6 +90,12 @@ class ExpansionPlanningSolution:
                 elif "Curtailment" in var.name:
                     if pyo.value(var[index]) >= 0.001:
                         curtailment[var.name + "." + str(index)] = pyo.value(var[index])
+                elif "storageCharged" in var.name:
+                    if pyo.value(var[index]) >= 0.001:
+                        charging[var.name + "." + str(index)] = pyo.value(var[index])
+                elif "storageDischarge" in var.name:
+                    if pyo.value(var[index]) >= 0.001:
+                        discharging[var.name + "." + str(index)] = pyo.value(var[index])
                 for name in valid_names:
                     if name in var.name:
                         if pyo.value(var[index]) >= 0.001:
@@ -130,6 +138,8 @@ class ExpansionPlanningSolution:
             "curtailment": curtailment,
             "loads": loads,
             "reserves": reserves,
+            "charging": charging,
+            "discharging": discharging,
         }
 
         if not os.path.exists(folder_name):
@@ -204,7 +214,7 @@ class ExpansionPlanningSolution:
             "WIND": GenerationType("Wind", "#4f94cd"),
             "DR": GenerationType("Demand Response", "#a020f0"),
             "HYDRO": GenerationType("Hydro", "#00bfff"),
-            "BATTERY": GenerationType("Battery", "#7b9095"),
+            "BATTERY": GenerationType("Battery", "#25ccff"),
         }
 
         def get_gen_arrays(gen_case_json, results_path, data_path, GENERATION_TYPES):
@@ -355,7 +365,7 @@ class ExpansionPlanningSolution:
                     )
 
             fig.update_layout(
-                barmode="stack",
+                barmode="relative",
                 title="Generation Mix",
                 xaxis_title="Investment Year",
                 yaxis_title="Nameplate Capacity [MW]",
@@ -575,6 +585,12 @@ class ExpansionPlanningSolution:
         with open(f"{results_path}/reserves.json", "r") as f:
             reserves_data = json.load(f)
 
+        with open(f"{results_path}/charging.json", "r") as f:
+            charging_data = json.load(f)
+
+        with open(f"{results_path}/discharging.json", "r") as f:
+            discharging_data = json.load(f)
+
         # Note that these are the same colors used in the stack plots
         # and pie charts above
         def darken_color(hex_color, percent=0.2):
@@ -590,13 +606,14 @@ class ExpansionPlanningSolution:
             "hydro": "#00bfff",
             "cc_gas": "#20b2aa",
             "ct_gas": "#6e8b3d",
-            "battery": "#7b9095",
+            "battery_discharge": "#25ccff",
             "wind": "#4f94cd",
             "solar": "#ffb90f",
             "thermal_other": "#e25822",
             "steam": "#b0b0b0",
             "dr": "#a020f0",
             "ES4": "#a0522d",
+            "battery_charge": "#25ccff",
             # Candidates: 20% darker than original, same pattern for all
             "hydro-c": darken_color("#00bfff"),
             "gas_cc-c": darken_color("#20b2aa"),
@@ -619,6 +636,8 @@ class ExpansionPlanningSolution:
             "hydro": "",
             "nuclear": "",
             "ES4": "",
+            "battery_discharge": "",
+            "battery_charge": "",
             # Candidates get a hatch pattern
             "hydro-c": "////",
             "gas_cc-c": "////",
@@ -648,6 +667,8 @@ class ExpansionPlanningSolution:
             "hydro-c": "Hydro (Candidate)",
             "ES4-c": "ES4 (Candidate)",
             "steam-c": "Steam (Candidate)",
+            "battery_charge": "Battery Charging",
+            "battery_discharge": "Battery Discharging",
         }
 
         generation = {}
@@ -656,27 +677,119 @@ class ExpansionPlanningSolution:
             _, (stage,) = c.pop(0)
             if stage not in generation:
                 generation[stage] = {}
-            stage = generation[stage]
+            stage_dict = generation[stage]
+
             _, (period,) = c.pop(0)
-            if period not in stage:
-                stage[period] = {}
-            period = stage[period]
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
             _, (commitment,) = c.pop(0)
-            if commitment not in period:
-                period[commitment] = {}
-            commitment = period[commitment]
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
             _, (dispatch,) = c.pop(0)
-            if dispatch not in commitment:
-                commitment[dispatch] = dict.fromkeys(GEN_TYPES, 0)
-            dispatch = commitment[dispatch]
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
             gen_name = c[-1][0]
             _type = None
             for gt in GEN_TYPES:
                 if gen_name.endswith(gt):
                     _type = gt
+                    break
             if _type is None:
                 raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
-            dispatch[_type] += val
+            dispatch_dict[_type] += val
+
+        # Add battery charging data to generation structure
+        for g, val in charging_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in generation:
+                generation[stage] = {}
+            stage_dict = generation[stage]
+
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
+            _, (dispatch,) = c.pop(0)
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
+            dispatch_dict["battery_charge"] -= val
+
+        # Add battery discharging data to generation structure
+        # Per request, plot discharge as negative (below x-axis)
+        for g, val in discharging_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in generation:
+                generation[stage] = {}
+            stage_dict = generation[stage]
+
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
+            _, (dispatch,) = c.pop(0)
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
+            dispatch_dict["battery_discharge"] += val
+
+        print("\n[DEBUG] Storage summary from JSON inputs")
+
+        total_charging = sum(charging_data.values())
+        total_discharging = sum(discharging_data.values())
+
+        print(f"[DEBUG] Total charging (raw): {total_charging:,.3f}")
+        print(f"[DEBUG] Total discharging (raw): {total_discharging:,.3f}")
+
+        charging_by_suffix = defaultdict(float)
+        for g, val in charging_data.items():
+            name = g.split(".")[-1]
+            if name.endswith("_battery"):
+                charging_by_suffix["battery"] += val
+            elif name.endswith("_ps"):
+                charging_by_suffix["ps"] += val
+            else:
+                charging_by_suffix["other"] += val
+
+        discharging_by_suffix = defaultdict(float)
+        for g, val in discharging_data.items():
+            name = g.split(".")[-1]
+            if name.endswith("_battery"):
+                discharging_by_suffix["battery"] += val
+            elif name.endswith("_ps"):
+                discharging_by_suffix["ps"] += val
+            else:
+                discharging_by_suffix["other"] += val
+
+        print("[DEBUG] Charging by storage type suffix:")
+        for k, v in charging_by_suffix.items():
+            print(f"    {k}: {v:,.3f}")
+
+        print("[DEBUG] Discharging by storage type suffix:")
+        for k, v in discharging_by_suffix.items():
+            print(f"    {k}: {v:,.3f}")
 
         time_periods = [
             (s, p, c, d)
@@ -856,7 +969,7 @@ class ExpansionPlanningSolution:
             #     )
             # )
             fig.update_layout(
-                barmode="stack",
+                barmode="relative",
                 bargap=0,  # remove white spacing between bars
                 title="Generation Mix (Representative Days)",
                 xaxis=dict(
@@ -902,22 +1015,49 @@ class ExpansionPlanningSolution:
                 )
 
             # Add a little space above the tallest bar
-            yvals = np.sum(
-                [
-                    np.array(
-                        [generation[s][p][c][d][name] for s, p, c, d in time_periods]
-                    )
-                    for name in GEN_TYPES
-                ],
+            all_series = {
+                name: np.array(
+                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                )
+                for name in GEN_TYPES
+            }
+
+            positive_stack = np.sum(
+                [np.clip(vals, 0, None) for vals in all_series.values()],
                 axis=0,
             )
-            ymax = yvals.max()
-            fig.update_yaxes(range=[0, ymax * 1.25])
+            negative_stack = np.sum(
+                [np.clip(vals, None, 0) for vals in all_series.values()],
+                axis=0,
+            )
+
+            ymin = negative_stack.min() if len(negative_stack) else 0
+            ymax = positive_stack.max() if len(positive_stack) else 0
+
+            if loads_trace:
+                ymax = max(ymax, max(loads_trace))
+
+            lower = ymin * 1.25 if ymin < 0 else -1
+            upper = ymax * 1.25 if ymax > 0 else 1
+
+            fig.update_yaxes(
+                range=[lower, upper],
+                zeroline=True,
+                zerolinewidth=2,
+                zerolinecolor="black",
+            )
 
             # Save as interactive HTML
             plot_path = f"{results_path}/plots/stackgraph_generators_interactive.html"
             fig.write_html(f"{plot_path}")
             print(f" -> Saved interactive stackgraph to {plot_path}")
+
+            print("\n[DEBUG] First 10 plotted values by type:")
+            for name in ["battery_charge", "battery_discharge"]:
+                values = np.array(
+                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                )
+                print(f"[DEBUG] {name}: {values[:10]}")
 
         plotly_stackgraph(
             times,
