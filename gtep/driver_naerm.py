@@ -86,6 +86,10 @@ data_processing_object.load_gen_data(
     candidate_branch_csv_path=f"{data_path}/branch.csv",
 )
 
+
+print(data_object.md.data["elements"]["generator"]["AVA_hydro"].keys())
+# raise SystemExit
+
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
     data=data_object,
@@ -99,6 +103,7 @@ mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
 mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
+mod_object.config["advanced_hydro"] = True
 
 mod_object.create_model()
 print("model is created!")

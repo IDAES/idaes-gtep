@@ -154,6 +154,15 @@ def _add_investment_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare(
+        "advanced_hydro",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include daily average hydro requirements",
+        ),
+    )
+
 
 def _add_solver_configs(CONFIG):
     pass
