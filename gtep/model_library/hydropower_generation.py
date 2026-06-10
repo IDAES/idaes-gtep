@@ -34,6 +34,7 @@ from pyomo.environ import units as u
 #     def strict_hydro_minimum(b, commitmentPeriod, gen):
 #         return b.hydroGeneration >= 0
 
+
 def fix_hydropower_limits(b, commitmentPeriod):
 
     m = b.model()
@@ -64,6 +65,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
             ]
             * units_renewable_capacity
         )
+
 
 def add_representative_hydropower_average(b, commitmentPeriod):
     m = b.model()
