@@ -42,7 +42,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_path = "./data/WECC_ADS_PNNL"
+data_path = "./gtep/data/WECC_ADS_PNNL"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -86,6 +86,10 @@ data_processing_object.load_gen_data(
     candidate_branch_csv_path=f"{data_path}/branch.csv",
 )
 
+
+print(data_object.md.data["elements"]["generator"]["AVA_hydro"].keys())
+# raise SystemExit
+
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
     data=data_object,
@@ -97,8 +101,9 @@ mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
-mod_object.config["storage"] = False
+mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
+mod_object.config["advanced_hydro"] = True
 
 mod_object.create_model()
 print("model is created!")
@@ -115,10 +120,14 @@ if solver == "xpress":
         "logfile": log_folder + "/" + solver + ".log",
     }
 
+    # xpress.controls.heurdivespeedup = 0
+    # xpress.controls.heursearchrootcutfreq = 1
+    xpress.controls.miprelstop = 0.01
+
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
-        logfile=log_folder + "/" + solver + ".log",
+        # logfile=log_folder + "/" + solver + ".log",
     )
 
 print(pyo.value(mod_object.model.total_cost_objective_rule))
