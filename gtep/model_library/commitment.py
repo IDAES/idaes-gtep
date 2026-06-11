@@ -35,18 +35,20 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [ESR: Corrected to be in the commitment block "b", not in main
     # model "m".]
-    b.renewableCapacityExpected = {}
+    b.renewableCapacityExpected = pyo.Param(
+        m.renewableGenerators,
+        domain=pyo.NonNegativeReals,
+        units=u.MW,
+    )
 
-    units_renewable_capacity = u.MW
     for renewableGen in m.renewableGenerators:
         if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float:
-            b.renewableCapacityExpected[renewableGen] = 0 * units_renewable_capacity
+            b.renewableCapacityExpected[renewableGen] = 0
         else:
             b.renewableCapacityExpected[renewableGen] = (
                 m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
                     commitment_period - 1
                 ]
-                * units_renewable_capacity
             )
 
     # [TODO: Redesign load scaling and allow nature of

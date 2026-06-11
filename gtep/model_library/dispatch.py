@@ -26,7 +26,10 @@ import gtep.model_library.transmission as transm
 
 def add_dispatch_variables(b):
     """This method adds dispatch-associated variables to
-    representative period block.
+    dispatch period block.
+
+    :param b:   dispatch block
+    :type b:    pyo.Block
     """
 
     m = b.model()
@@ -204,8 +207,10 @@ def add_dispatch_variables(b):
 
 def add_dispatch_constraints(b):
     """This method adds dispatch-associated inequalities to the
-    representative period block.
+    dispatch period block.
 
+    :param b:   dispatch block
+    :type b:    pyo.Block
     """
 
     m = b.model()
@@ -219,22 +224,15 @@ def add_dispatch_constraints(b):
         @b.Constraint(doc="Energy balance for copper-plate formulation")
         def CP_flow_balance(b):
             balance = 0 * u.MW
-            buses = [bus for bus in m.buses]
-            loads = [l for l in b.loads]
-            gens = [gen for gen in m.generators]
-            batts = [bat for bat in m.storage] if m.config["storage"] else []
-            balance += sum(
-                b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
-            )
-            balance += sum(
-                b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
-            )
+            balance += sum([b.thermalGeneration[g] for g in m.thermalGenerators])
+            balance += sum([b.renewableGeneration[g] for g in m.renewableGenerators])
             """ Battery Storage added to flow balance constraint """
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
+            batts = m.storage if m.config["storage"] else []
+            balance += sum([b.storageDischarged[bt] for bt in batts])
+            balance -= sum([b.storageCharged[bt] for bt in batts])
 
-            balance -= sum(c_p.loads[l] for l in loads)
-            balance += sum(b.loadShed[bus] for bus in buses)
+            balance -= sum([c_p.loads[bus] for bus in m.buses])
+            balance += sum([b.loadShed[bus] for bus in m.buses])
 
             return balance == 0 * u.MW
 

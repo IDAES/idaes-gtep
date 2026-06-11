@@ -27,7 +27,16 @@ input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
 
 def check_CP_flow_balance(td, c: pyo.Constraint):
-    pass
+    """Checks the copper-plate flow balance constraint."""
+    expected = [td.b.thermalGeneration[g] for g in td.m.thermalGenerators]
+    expected += [td.b.renewableGeneration[g] for g in td.m.renewableGenerators]
+    if td.m.config["storage"]:
+        expected += [td.b.storageDischarged[bt] for bt in td.m.storage]
+        expected += [td.b.storageCharged[bt] for bt in td.m.storage]
+    expected += [td.b.parent_block().loads[bus] for bus in td.m.buses]
+    expected += [td.b.loadShed[bus] for bus in td.m.buses]
+    
+    td.check_helper.check_expr_contains(c, expected)
 
 
 def check_flow_balance(td, c: pyo.Constraint):
@@ -65,6 +74,19 @@ def check_flow_balance(td, c: pyo.Constraint):
     td.check_helper.check_expr_contains(c, expected)
 
 
+def check_capacity_factor(td, c: pyo.Constraint):
+    expected = {
+        i: [
+            td.b.renewableGeneration[i],
+            td.b.renewableCurtailment[i],
+            td.b.parent_block().renewableCapacityExpected[i],
+        ]
+        for i in c.index_set()
+    }
+    
+    td.check_helper.check_expr_contains(c, expected)
+
+
 class TestDispatch(unittest.TestCase):
 
     def _create_model(self, config={}):
@@ -80,11 +102,10 @@ class TestDispatch(unittest.TestCase):
         mod_object = ExpansionPlanningModel(
             data=data_object,
         )
-        mod_object.create_model()
-
         for config_option, config_val in config.items():
             mod_object.config[config_option] = config_val
 
+        mod_object.create_model()
         return mod_object
 
     def _get_first_dispatch_block(self):
@@ -213,19 +234,26 @@ class TestDispatch(unittest.TestCase):
         )
         self.check_helper.add_object(
             name="CP_flow_balance",
-            units=u.dimensionless,
+            units=u.MW,
             obj_type=pyo.Constraint,
-            index=self.m.buses,
+            index=None,
             check_func=check_CP_flow_balance,
             cond=self.m.config["flow_model"] == "CP",
         )
         self.check_helper.add_object(
             name="flow_balance",
-            units=u.dimensionless,
+            units=u.MW,
             obj_type=pyo.Constraint,
             index=self.m.buses,
             check_func=check_flow_balance,
             cond=self.m.config["flow_model"] != "CP",
+        )
+        self.check_helper.add_object(
+            name="capacity_factor",
+            units=u.MW,
+            obj_type=pyo.Constraint,
+            index=self.m.renewableGenerators,
+            check_func=check_capacity_factor,
         )
 
     def _coordinate_tests(self, config):
@@ -239,6 +267,9 @@ class TestDispatch(unittest.TestCase):
 
     def test_default_config_options(self):
         self._coordinate_tests(config={})
+
+    def test_copper_plate(self):
+        self._coordinate_tests(config={"flow_model": "CP"})
 
     def _test_other_config(self):
         pass
