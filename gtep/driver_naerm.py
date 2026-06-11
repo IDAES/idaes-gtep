@@ -97,8 +97,9 @@ mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
-mod_object.config["storage"] = False
+mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
+mod_object.config["advanced_hydro"] = True
 
 mod_object.create_model()
 print("model is created!")
@@ -115,10 +116,14 @@ if solver == "xpress":
         "logfile": log_folder + "/" + solver + ".log",
     }
 
+    # xpress.controls.heurdivespeedup = 0
+    # xpress.controls.heursearchrootcutfreq = 1
+    xpress.controls.miprelstop = 0.01
+
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
-        logfile=log_folder + "/" + solver + ".log",
+        # logfile=log_folder + "/" + solver + ".log",
     )
 
 print(pyo.value(mod_object.model.total_cost_objective_rule))

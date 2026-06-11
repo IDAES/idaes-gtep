@@ -16,7 +16,7 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
-
+import csv 
 from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
@@ -166,8 +166,6 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
-        # print(f"{self.representative_dates = }")
-
         if not representative_weights:
             # set the weight for each day to the total weight divided by number of days
             total_weight = prescient_options.num_days * self.stages
@@ -177,8 +175,39 @@ class ExpansionPlanningData:
                 for date, key in enumerate(self.representative_dates)
             }
 
-        time_keys = self.md.data["system"]["time_keys"]
+        # Add new hydro time series data for p_average to self.md. Add
+        # this before creating representative_data to make sure all
+        # representative period ModelData clones will include the new
+        # hydro data. NOTE: Prescient does not handle hydro average
+        # time series, so we manually add it here from the processed
+        # CSV.
+        hydro_avg_file = os.path.join(data_path, "DAY_AHEAD_hydro_average.csv")
+        with open(hydro_avg_file, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            hydro_gens = [col for col in reader.fieldnames if col not in ("Year", "Month", "Day", "Period")]
+            hydro_data = {gen: [] for gen in hydro_gens}
+            for row in reader:
+                for gen in hydro_gens:
+                    try:
+                        val = float(row[gen])
+                    except (ValueError, TypeError, KeyError):
+                        val = 0.0
+                    hydro_data[gen].append(val)
 
+        # Assign to m.md
+        for hydroGen in hydro_gens:
+            self.md.data["elements"]["generator"][hydroGen]["p_average"] = {
+                "data_type": "time_series",
+                "values": hydro_data[hydroGen],
+            }
+                
+
+        # IMPORTANT TO READ: Always add or modify any new elements in
+        # self.md.data (such as new time series or parameters) BEFORE
+        # creating representative_data using clone_at_time_keys. This
+        # ensures all representative ModelData objects will have the
+        # new elements.
+        time_keys = self.md.data["system"]["time_keys"]
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + period_per_step]
@@ -186,7 +215,6 @@ class ExpansionPlanningData:
 
         self.representative_data = data_list
 
-        # print(f"{data_list[0].data["elements"]["load"] = }")
 
     def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.

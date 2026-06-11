@@ -435,6 +435,7 @@ def create_stages(
                 rep_period.add_representative_period_logical_constraints(
                     b_rep, representative_period
                 )
+
             # --------------------------------------------------------------
 
     for investment_stage in m.stages:
