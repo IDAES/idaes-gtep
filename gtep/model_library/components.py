@@ -162,9 +162,10 @@ def add_model_parameters(m):
         m.hydroCapacity = pyo.Param(
             m.hydroGenerators,
             initialize={
-                gen: m.md.data["elements"]["generator"][gen]["p_max"]
+                gen: max(m.md.data["elements"]["generator"][gen]["p_max"])
                 for gen in m.hydroGenerators
             },
+            # domain=pyo.NonNegativeReals,
             mutable=True,
             units=u.MW,
             doc="Maximum output of each hydropower generator",
