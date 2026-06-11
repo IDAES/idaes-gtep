@@ -141,7 +141,7 @@ class PyomoCheckHelper:
             )
         else:
             self.test_class.assertTrue(
-                obj.is_indexed(), f"Expected {obj} to be indexed, but isn't"
+                obj.is_indexed(), f"Expected {obj} to be indexed, but it isn't"
             )
             if isinstance(
                 properties["index"], dict
