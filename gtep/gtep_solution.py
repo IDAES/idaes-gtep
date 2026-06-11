@@ -783,13 +783,13 @@ class ExpansionPlanningSolution:
             else:
                 discharging_by_suffix["other"] += val
 
-        print("[DEBUG] Charging by storage type suffix:")
-        for k, v in charging_by_suffix.items():
-            print(f"    {k}: {v:,.3f}")
+        # print("[DEBUG] Charging by storage type suffix:")
+        # for k, v in charging_by_suffix.items():
+        #     print(f"    {k}: {v:,.3f}")
 
-        print("[DEBUG] Discharging by storage type suffix:")
-        for k, v in discharging_by_suffix.items():
-            print(f"    {k}: {v:,.3f}")
+        # print("[DEBUG] Discharging by storage type suffix:")
+        # for k, v in discharging_by_suffix.items():
+        #     print(f"    {k}: {v:,.3f}")
 
         time_periods = [
             (s, p, c, d)
@@ -858,6 +858,39 @@ class ExpansionPlanningSolution:
             "xxxx": "x",  # crosshatch
         }
 
+        #### Print info for specific days
+        
+        # Find the index for 7pm on 07/12/2034
+        target_day = "2034-07-12 00:00"
+        target_hour = 19  # 7pm
+
+        try:
+            day_idx = rep_days.index(target_day)
+        except ValueError:
+            raise ValueError(f"Target day {target_day} not found in rep_days!")
+
+        target_idx = day_idx * 24 + target_hour
+        target_time_period = time_periods[target_idx]
+        
+        print(f"\n--- Peak hour (7pm on 07/12/2034) ---")
+        print(f"Representative day: {target_day}, hour: {target_hour} (index {target_idx})")
+
+        # Total load
+        total_load_gw = loads_trace[target_idx]/1000
+        print(f"Total load (GW): {total_load_gw:.2f}")
+        
+        # Generation per type
+        print("Generation by type:")
+        for gen_type in [
+                "cc_gas", "ct_gas", "coal", "nuclear", "thermal_other", "hydro", "solar",
+                "wind", "battery_discharge", "steam", "dr", "ES4", "battery_charge",
+                "hydro-c", "gas_cc-c", "gas_ct-c", "battery-c", "wind-c", "pv-c", "steam-c", "ES4-c"
+        ]:
+            value = generation[target_time_period[0]][target_time_period[1]][target_time_period[2]][target_time_period[3]].get(gen_type, 0)
+            value_gw = value/1000
+            print(f"  {gen_type} (GW): {value_gw:.2f}")
+
+            
         def plotly_stackgraph(
             times,
             time_periods,
@@ -1052,12 +1085,12 @@ class ExpansionPlanningSolution:
             fig.write_html(f"{plot_path}")
             print(f" -> Saved interactive stackgraph to {plot_path}")
 
-            print("\n[DEBUG] First 10 plotted values by type:")
-            for name in ["battery_charge", "battery_discharge"]:
-                values = np.array(
-                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
-                )
-                print(f"[DEBUG] {name}: {values[:10]}")
+            # print("\n[DEBUG] First 10 plotted values by type:")
+            # for name in ["battery_charge", "battery_discharge"]:
+            #     values = np.array(
+            #         [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+            #     )
+            #     print(f"[DEBUG] {name}: {values[:10]}")
 
         plotly_stackgraph(
             times,
@@ -1069,6 +1102,76 @@ class ExpansionPlanningSolution:
             HATCH_TO_PATTERN,
             results_path,
         )
+
+
+    def calculate_metrics(self, folder_name):
+        """
+        Reads the generation.json file and calculates the total generation by generator type.
+        
+        :param folder_name: Directory containing the generation.json file.
+        :return: Dictionary with total generation by type.
+        """
+        gen_types = [
+            "cc_gas", "ct_gas", "coal", "nuclear", "thermal_other", "hydro", "solar",
+            "wind", "battery_discharge", "steam", "dr", "ES4", "battery_charge",
+            "hydro-c", "gas_cc-c", "gas_ct-c", "battery-c", "wind-c", "pv-c", "steam-c", "ES4-c"
+        ]
+
+        total_gen_by_type = defaultdict(float)
+        file_path = os.path.join(folder_name, "generation.json")
+        if not os.path.exists(file_path):
+            print(f"[WARNING] File not found: {file_path}")
+            return {}
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            
+        for key, value in data.items():
+            # The generator type is always at the end after the last '.'
+            gen_name = key.split('.')[-1]
+            for gen_type in gen_types:
+                if gen_name.endswith(gen_type):
+                    total_gen_by_type[gen_type] += value
+                    break
+        
+        def mw_to_gwh(total_mw, hours_per_period=1):
+            """
+            Converts total MW (sum over all periods) to GWh.
+            :param total_mw: Total MW (sum of MW for each period)
+            :param hours_per_period: Duration of each period in hours (default 1)
+            :return: Total GWh
+            """
+            total_mwh = total_mw * hours_per_period
+            total_gwh = total_mwh / 1000
+            return total_gwh
+
+        total_gen_all_types = sum(total_gen_by_type.values())
+        total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
+        print(f"Total generation (GWh): {total_gen_gwh}")
+
+        print("Total generation by generator type:")
+        for gen_type, total in total_gen_by_type.items():
+            total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
+            print(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+        
+
+        # Read charging.json and discharging.json, sums all _battery keys
+        for file_type in ["charging", "discharging"]:
+            file_path = os.path.join(folder_name, f"{file_type}.json")
+            if not os.path.exists(file_path):
+                print(f"[WARNING] File not found: {file_path}")
+                continue
+
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            
+            total_battery = sum(
+                value for key, value in data.items() if key.endswith("_battery") or key.endswith("_ps")
+            )
+            total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
+            print(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+
+
 
     def create_html_report(self, results_path, plot_type):
 
@@ -1214,3 +1317,4 @@ class ExpansionPlanningSolution:
         with open(html_file, "w") as f:
             f.write(html)
         print(f" HTML report written to {html_file}")
+
