@@ -84,48 +84,89 @@ class PyomoCheckHelper:
 
     def _check_exists(self, properties: dict):
         """Checks that an attribute with the provided name exists on `self.parent`."""
-        self.test_class.assertTrue(hasattr(self.parent, properties["name"]))
+        self.test_class.assertTrue(
+            hasattr(self.parent, properties["name"]),
+            f"{self.parent} does not have the attribute {properties['name']}, but should",
+        )
 
     def _check_does_not_exist(self, properties: dict):
         """Checks that an attribute with the provided name does not exist on `self.parent`."""
-        self.test_class.assertFalse(hasattr(self.parent, properties["name"]))
+        self.test_class.assertFalse(
+            hasattr(self.parent, properties["name"]),
+            f"{self.parent} has the attribute {properties['name']}, but shouldn't",
+        )
 
     def _check_type(self, obj: pyo.Component, properties: dict):
         """Checks the type of the provided object."""
-        self.test_class.assertIsInstance(obj, properties["obj_type"])
+        self.test_class.assertIsInstance(
+            obj,
+            properties["obj_type"],
+            f"{obj} of unexpected type",
+        )
 
-    def _iter_func_over_index(self, obj: pyo.Component, func):
+    def _iter_func_over_index(self, func, obj: pyo.Component, **additional_args):
         """
         Iterates the provided `func` over each element of `obj`. If `obj`
         is not indexed, then simply calls `func(obj)`.
+
+        If additional keyword arguments are passed, they are also passed into
+        the `func` call. If `obj` is indexed, then each `arg[i]` must exist
+        for every `i` in `obj.index_set()`.
         """
         if obj.is_indexed():
             for i in obj.index_set():
-                func(obj[i])
+                func(
+                    obj[i],
+                    **{k: v[i] for k, v in additional_args.items()},
+                )
         else:
-            func(obj)
+            func(obj, **additional_args)
 
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
+        units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
         iter_func = lambda x: self.test_class.assertEqual(
-            u.get_units(x), properties["units"]
+            units(x),
+            properties["units"],
+            f"Expected {x.name} to have units {properties['units']} but got {units(x)}",
         )
-        self._iter_func_over_index(obj, iter_func)
+        self._iter_func_over_index(iter_func, obj)
 
     def _check_index(self, obj: pyo.Component, properties: dict):
         """Checks the object's index (including whether it has an index)."""
         if properties["index"] is None:
-            self.test_class.assertFalse(obj.is_indexed())
+            self.test_class.assertFalse(
+                obj.is_indexed(),
+                f"Expected {obj} to not be indexed, but it is",
+            )
         else:
-            self.test_class.assertTrue(obj.is_indexed())
-            if isinstance(properties["index"], dict):
+            self.test_class.assertTrue(
+                obj.is_indexed(), f"Expected {obj} to be indexed, but isn't"
+            )
+            if isinstance(
+                properties["index"], dict
+            ):  # remove once stop indexing by dicts
+                exp = len(properties["index"])
+                got = len(obj.index_set())
                 self.test_class.assertEqual(
-                    len(properties["index"]), len(obj.index_set())
+                    exp,
+                    got,
+                    f"Expected index of {obj} to have {exp} elements, but got {got}",
                 )
                 for key in properties["index"]:
-                    self.test_class.assertIn(key, obj.index_set())
+                    self.test_class.assertIn(
+                        key,
+                        obj.index_set(),
+                        f"{key} not found in index of {obj}: {obj.index_set()}",
+                    )
             else:
-                self.test_class.assertIs(obj.index_set(), properties["index"])
+                exp = properties["index"]
+                got = obj.index_set()
+                self.test_class.assertIs(
+                    exp,
+                    got,
+                    f"Expected {obj} to have index set {exp} but got {got}",
+                )
 
     def _check_bounds(self, obj: pyo.Component):
         """Checks that the object's bounds are consistent with its domain (if it has them)."""
@@ -134,9 +175,13 @@ class PyomoCheckHelper:
             if hasattr(x, "bounds"):
                 for bound in x.bounds:
                     if bound is not None:
-                        self.test_class.assertIn(bound, x.domain)
+                        self.test_class.assertIn(
+                            bound,
+                            x.domain,
+                            f"{obj}'s bound ({bound}) not in its domain {(x.domain)}",
+                        )
 
-        self._iter_func_over_index(obj, iter_func)
+        self._iter_func_over_index(iter_func, obj)
 
     def _run_check_func(self, obj: pyo.Component, properties: dict):
         """Runs the additional check function, if a check function is provided."""
