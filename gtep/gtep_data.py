@@ -330,6 +330,9 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
                     self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
                     self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
+                    self.md.data["elements"]["generator"][gen].setdefault(
+                        "non_fuel_startup_cost", 0
+                    )
             if "branch" in self.md.data["elements"].keys():
                 for branch in self.md.data["elements"]["branch"]:
                     self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
