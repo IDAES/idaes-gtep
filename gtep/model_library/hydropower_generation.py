@@ -47,19 +47,19 @@ def fix_hydropower_limits(b, commitmentPeriod):
 
     for hydroGen in m.hydroGenerators:
         print(m.md.data["elements"]["generator"][hydroGen])
-        b.hydroCapacityExpected = (
+        b.hydroCapacityExpected[hydroGen] = (
             m.md.data["elements"]["generator"][hydroGen]["p_max"]["values"][
                 commitmentPeriod - 1
             ]
             * units_renewable_capacity
         )
-        b.hydroMinimumExpected = (
+        b.hydroMinimumExpected[hydroGen] = (
             m.md.data["elements"]["generator"][hydroGen]["p_min"]["values"][
                 commitmentPeriod - 1
             ]
             * units_renewable_capacity
         )
-        b.hydroAverageExpected = (
+        b.hydroAverageExpected[hydroGen] = (
             m.md.data["elements"]["generator"][hydroGen]["average"]["values"][
                 commitmentPeriod - 1
             ]
