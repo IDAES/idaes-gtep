@@ -776,11 +776,14 @@ def add_dispatch_generators_variables(m, b):
                 c_p.hydroCapacityExpected[hydroGen],
             )
 
+        def hydro_generation_init(b, hydroGen):
+            return c_p.hydroMinimumExpected[hydroGen]
+        
         b.hydroGeneration = pyo.Var(
             m.hydroGenerators,
             domain=pyo.NonNegativeReals,
             bounds=hydro_generation_limits,
-            initialize=0,
+            initialize=hydro_generation_init,
             units=u.MW,
             doc="Hydropower generation",
         )
