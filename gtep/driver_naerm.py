@@ -42,7 +42,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_path = "./gtep/data/WECC_ADS_PNNL"
+data_path = "./data/WECC_ADS_PNNL"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -85,10 +85,6 @@ data_processing_object.load_gen_data(
     candidate_storage_csv_path=f"{data_path}/storage.csv",
     candidate_branch_csv_path=f"{data_path}/branch.csv",
 )
-
-
-print(data_object.md.data["elements"]["generator"]["AVA_hydro"].keys())
-# raise SystemExit
 
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
