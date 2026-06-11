@@ -324,18 +324,18 @@ def add_model_parameters(m):
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
-    # Initialize fuel cost. This is re-calculated during the
-    # investment stage with values from preprocessing data.
-    conversion_MMBTU_MWh = 3.412142
+    # Initialize fuel cost. This is multiplied by the heat_rate
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
         initialize={
             gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"]
-                * conversion_MMBTU_MWh
+                m.md.data["elements"]["generator"][gen]["fuel_cost"]  # in $ / MMBTU
+                * m.md.data["elements"]["generator"][gen]["heat_rate"]  # in MMBTU/MWh
                 if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-                * conversion_MMBTU_MWh
+                else (
+                        m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+                        * m.md.data["elements"]["generator"][gen]["heat_rate"]
+                )
             )
             for gen in m.thermalGenerators
         },

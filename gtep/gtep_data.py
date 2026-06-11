@@ -200,7 +200,30 @@ class ExpansionPlanningData:
                 "data_type": "time_series",
                 "values": hydro_data[hydroGen],
             }
-                
+
+        # Read heat rates from gen.csv
+        gen_csv_file = os.path.join(data_path, "gen.csv")
+        heat_rate_dict = {}
+        with open(gen_csv_file, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                gen_uid = row.get("GEN UID")
+                # Try to get heat rate from a column like "HR_avg_0" or similar
+                # Adjust the column name if your file uses a different one
+                heat_rate_str = row.get("HR_avg_0")
+                try:
+                    heat_rate = float(heat_rate_str) if heat_rate_str not in (None, "", "NA") else None
+                except ValueError:
+                    heat_rate = None
+                if gen_uid and heat_rate is not None:
+                    heat_rate_dict[gen_uid] = heat_rate
+
+        # Assign heat_rate to each generator in self.md
+        for gen in self.md.data["elements"]["generator"]:
+            if gen in heat_rate_dict:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = heat_rate_dict[gen]
+            else:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
 
         # IMPORTANT TO READ: Always add or modify any new elements in
         # self.md.data (such as new time series or parameters) BEFORE
