@@ -241,32 +241,23 @@ def add_dispatch_constraints(b):
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
             balance = 0
+            # Add power flow to constraint
             end_points = [line for line in m.lines if m.from_bus[line] == bus]
             start_points = [line for line in m.lines if m.to_bus[line] == bus]
-            gens = [
-                gen
-                for gen in m.generators
-                if m.md.data["elements"]["generator"][gen]["bus"] == bus
-            ]
-            batts = []
-            if m.config["storage"]:
-                batts = [
-                    bat
-                    for bat in m.storage
-                    if m.md.data["elements"]["storage"][bat]["bus"] == bus
-                ]
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
+            # Add generation to constraint
             balance += sum(
-                b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
+                b.thermalGeneration[g]
+                for g in m.thermalGenerators & m.generatorsByBus[bus]
             )
             balance += sum(
-                b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
+                b.renewableGeneration[g]
+                for g in m.renewableGenerators & m.generatorsByBus[bus]
             )
-            """ Battery Storage added to flow balance constraint """
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
-
+            # Add battery storage to constraint
+            balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])
+            balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]
             balance += b.loadShed[bus]

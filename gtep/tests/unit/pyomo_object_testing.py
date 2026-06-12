@@ -99,7 +99,7 @@ class PyomoCheckHelper:
     def _check_type(self, obj: pyo.Component, properties: dict):
         """Checks the type of the provided object."""
         self.test_class.assertIsInstance(
-            obj, 
+            obj,
             properties["obj_type"],
             f"{obj} of unexpected type",
         )
@@ -124,12 +124,7 @@ class PyomoCheckHelper:
 
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
-        units = (
-            lambda x:
-            u.get_units(x.expr)
-            if hasattr(x, "expr")
-            else u.get_units(x)
-        )
+        units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
         iter_func = lambda x: self.test_class.assertEqual(
             units(x),
             properties["units"],
@@ -143,12 +138,14 @@ class PyomoCheckHelper:
             self.test_class.assertFalse(
                 obj.is_indexed(),
                 f"Expected {obj} to not be indexed, but it is",
-                )
+            )
         else:
             self.test_class.assertTrue(
-                obj.is_indexed(), f"Expected {obj} to be indexed, but isn't"
+                obj.is_indexed(), f"Expected {obj} to be indexed, but it isn't"
             )
-            if isinstance(properties["index"], dict):  # remove once stop indexing by dicts
+            if isinstance(
+                properties["index"], dict
+            ):  # remove once stop indexing by dicts
                 exp = len(properties["index"])
                 got = len(obj.index_set())
                 self.test_class.assertEqual(
