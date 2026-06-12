@@ -39,10 +39,10 @@ rep_days = [
     "2034-10-29 00:00",
     "2034-11-10 00:00",
     "2034-12-06 00:00",
-]
+] 
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-11-2026"
+data_date = "6-12-2026"
 data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -145,7 +145,7 @@ if solver == "xpress":
 
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
-    xpress.controls.miprelstop = 0.01
+    xpress.controls.miprelstop = 0.2
 
     mod_object.results = opt.solve(
         mod_object.model,

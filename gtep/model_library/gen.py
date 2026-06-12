@@ -570,6 +570,8 @@ def add_generators_logical_constraints(m):
         doc="Thermal generator retirement",
     )
     def thermalgen_retirement(m, stage, gen):
+        # if stage > pyo.value(m.genLifetimes[gen]):
+        #     m.investmentStage[stage - pyo.value(m.genLifetimes[gen])].genOperational[gen].indicator_var.pprint()
         return (
             (
                 m.investmentStage[stage - pyo.value(m.genLifetimes[gen])]
@@ -577,7 +579,7 @@ def add_generators_logical_constraints(m):
                 .indicator_var
                 | m.investmentStage[
                     stage - pyo.value(m.genLifetimes[gen])
-                ].genInstalled[gen]
+                ].genInstalled[gen].indicator_var
             ).implies(
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
