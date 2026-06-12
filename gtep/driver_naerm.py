@@ -42,7 +42,8 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-11-2026"
+
+data_date = "6-12-2026"
 data_path = f"./data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -119,8 +120,7 @@ if solver == "xpress":
 
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
-    xpress.controls.miprelstop = 0.01
-
+    xpress.controls.miprelstop = 0.2
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
@@ -150,7 +150,8 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-sol_object.create_stackgraph_and_metrics(dir_name, rep_days)
+day_hour_list = [("2034-07-12 00:00", 19), ("2034-07-12 00:00", 5)]
+sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report
 # sol_object.create_html_report(dir_name, plot_type)
