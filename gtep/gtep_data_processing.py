@@ -61,22 +61,8 @@ class DataProcessing:
             if os.path.exists(path):
                 print(f"Loading costs from existing file: {path}")
                 df = pd.read_csv(path)
-
-                # Filter the .csv data to only take the candidates
-                # "-c" from the file
-                filter_str = "-c"
-                if filter_col and filter_str:
-                    if filter_col in df.columns:
-                        df = df[
-                            df[filter_col]
-                            .astype(str)
-                            .str.contains(filter_str, na=False)
-                        ]
-                    else:
-                        print(
-                            f"[WARNING] Column '{filter_col}' not found in {path}. No filtering applied."
-                        )
-
+                
+                # Check for required columns with the given prefixes
                 missing_cols = []
                 for prefix in prefixes:
                     if not any(col.startswith(prefix) for col in df.columns):
@@ -85,26 +71,43 @@ class DataProcessing:
                     raise ValueError(
                         f"Missing required columns in {os.path.basename(path)}: {missing_cols}"
                     )
+
                 setattr(self, target_attr, df)
+
+                # Now process costs for each generator
+                print("\nGenerator cost summary:")
+                for _, row in df.iterrows():
+                    gen_uid = row.get("GEN UID", "")
+                    is_candidate = "-c" in str(gen_uid)
+                    # You may need to adjust the year suffix below
+                    lifetime = row.get("lifetime_2034", 3)
+                    fixed_ops = row.get("fixed_ops_2034", 0)
+                    capex = row.get("capex_2034", 0) if is_candidate else 0
+                    var_ops = row.get("var_ops_2034", 0) if is_candidate else 0
+                    
+                    # Handle NaN or missing values
+                    lifetime = 0 if pd.isna(lifetime) else lifetime
+                    fixed_ops = 0 if pd.isna(fixed_ops) else fixed_ops
+                    capex = 0 if pd.isna(capex) else capex
+                    var_ops = 0 if pd.isna(var_ops) else var_ops
+
+                    # print(f"{gen_uid}: lifetime={lifetime}, fixed_ops={fixed_ops}, capex={capex}, var_ops={var_ops}")
 
         # Load and check that the.csv files have the needed cost data.
         load_and_check_csv(
             candidate_gen_csv_path,
             prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
             target_attr="gen_data_target",
-            filter_col="GEN UID",
         )
         load_and_check_csv(
             candidate_storage_csv_path,
             prefixes=["lifetime_", "capex_", "fixed_ops_", "var_ops_"],
             target_attr="storage_data_target",
-            filter_col="name",
         )
         load_and_check_csv(
             candidate_branch_csv_path,
             prefixes=["lifetime_", "capex_"],
             target_attr="branch_data_target",
-            filter_col="UID",
         )
 
         if os.path.exists(candidate_gen_csv_path):
