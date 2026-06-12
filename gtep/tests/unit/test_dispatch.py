@@ -35,7 +35,7 @@ def check_CP_flow_balance(td, c: pyo.Constraint):
         expected += [td.b.storageCharged[bt] for bt in td.m.storage]
     expected += [td.b.parent_block().loads[bus] for bus in td.m.buses]
     expected += [td.b.loadShed[bus] for bus in td.m.buses]
-    
+
     td.check_helper.check_expr_contains(c, expected)
 
 
@@ -83,7 +83,7 @@ def check_capacity_factor(td, c: pyo.Constraint):
         ]
         for i in c.index_set()
     }
-    
+
     td.check_helper.check_expr_contains(c, expected)
 
 
