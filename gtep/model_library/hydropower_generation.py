@@ -80,3 +80,15 @@ def add_representative_hydropower_average(b, commitmentPeriod):
             for c_p in b.commitmentPeriods
             for d_p in c_p.dispatchPeriods
         ) == sum(b.c_p.hydroAverageExpected[hydroGen] for c_p in b.commitmentPeriods)
+
+    # @b.Expression(
+    #     doc="Hydro generators operational cost",
+    # )
+    # def hydroGeneratorCostTotal(b):
+    #     return sum(
+    #         b.c_p.hydroGeneration[hydroGen] * # add fixed and var costs here
+    #         for c_p in b.commitmentPeriods
+    #         for d_p in c_p.dispatchPeriods
+    #         for hydroGen in m.hydroGenerators
+    #     )
+    
