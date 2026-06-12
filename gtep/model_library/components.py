@@ -16,6 +16,7 @@ Planning (GTEP) Model
 
 """
 
+import pandas as pd
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -80,15 +81,43 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Thermal generators; subset of all generators",
     )
 
-    m.renewableGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
+    if m.config["advanced_hydro"]:
+        m.hydroGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
+            ),
+            doc="Hydropower generators; subset of all generators",
+        )
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if (
+                    m.md.data["elements"]["generator"][gen]["generator_type"]
+                    == "renewable"
+                    and m.md.data["elements"]["generator"][gen]["unit_type"] != "HYDRO"
+                )
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
+
+    else:
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["generator_type"]
+                == "renewable"
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
 
     m.lines = pyo.Set(
         initialize=m.transmission.keys(), doc="Individual transmission lines"
@@ -129,6 +158,19 @@ def add_model_parameters(m):
         units=u.MW,
         doc="Maximum output of each thermal generator",
     )
+
+    if m.config["advanced_hydro"]:
+        m.hydroCapacity = pyo.Param(
+            m.hydroGenerators,
+            initialize={
+                gen: max(m.md.data["elements"]["generator"][gen]["p_max"])
+                for gen in m.hydroGenerators
+            },
+            # domain=pyo.NonNegativeReals,
+            mutable=True,
+            units=u.MW,
+            doc="Maximum output of each hydropower generator",
+        )
 
     m.genLifetimes = pyo.Param(
         m.generators,
@@ -283,18 +325,18 @@ def add_model_parameters(m):
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
-    # Initialize fuel cost. This is re-calculated during the
-    # investment stage with values from preprocessing data.
-    conversion_MMBTU_MWh = 3.412142
+    # Initialize fuel cost. This is multiplied by the heat_rate
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
         initialize={
             gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"]
-                * conversion_MMBTU_MWh
+                m.md.data["elements"]["generator"][gen]["fuel_cost"]  # in $ / MMBTU
+                * m.md.data["elements"]["generator"][gen]["heat_rate"]  # in MMBTU/MWh
                 if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-                * conversion_MMBTU_MWh
+                else (
+                        m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+                        * m.md.data["elements"]["generator"][gen]["heat_rate"]
+                )
             )
             for gen in m.thermalGenerators
         },
@@ -648,15 +690,15 @@ def add_model_cost_parameters_from_csv(m, year):
     # Re-populating lifetimes parameters for branches and generators
     # since we have data in the m.mc model object.
     lifetime_col = f"lifetime_{year}"
+    lifetime_col = f"lifetime_{year}"
     new_branch_lifetimes = {
-        row["UID"]: int(row.get(lifetime_col, 0))
+        row["UID"]: int(row[lifetime_col]) if pd.notna(row[lifetime_col]) else 3
         for _, row in m.mc.branch_data_target.iterrows()
     }
     new_gen_lifetimes = {
-        row["GEN UID"]: int(row.get(lifetime_col, 0))
+        row["GEN UID"]: int(row[lifetime_col]) if pd.notna(row[lifetime_col]) else 3
         for _, row in m.mc.gen_data_target.iterrows()
     }
-
     for branch in m.transmission:
         if branch in new_branch_lifetimes:
             m.branchLifetimes[branch] = new_branch_lifetimes[branch]
@@ -686,8 +728,11 @@ def add_model_cost_parameters_from_csv(m, year):
                 print(
                     f"[WARNING] No {capex_col} found for branch '{branch_uid}'. Assuming investment cost of 0."
                 )
+            if pd.isna(capex_col):
+                annualized_cost = 0
+
             inv_cost = annualized_to_total_capex(
-                annualized_cost, years=m.branchLifetimes[branch_uid], discount_rate=0.07
+                annualized_cost, years=pyo.value(m.branchLifetimes[branch_uid]), discount_rate=0.07
             )
             m.branchInvestmentCost[branch_uid] = inv_cost
     # print(branch_investment_cost_dict)
@@ -696,8 +741,6 @@ def add_model_cost_parameters_from_csv(m, year):
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
             unit_type = row["Unit Type"].upper()
-            if gen_uid not in m.generators:
-                continue
 
             # Read costs for the selected year. All units in $/MW-yr
             capex_yr = float(row[f"capex_{year}"])
@@ -707,14 +750,17 @@ def add_model_cost_parameters_from_csv(m, year):
             original_units = u.USD / (u.MW * u.year)
             final_units = u.USD / (u.MW * u.hr)
             final_inv_units = u.USD / u.MW
+
             # Convert investment cost from $/MW-year (annualized) to
             # $/MW (de-annualized). Lifetime of 30 years to
-            # deannualize.
-            inv_cost_annualized = capex_yr
-            inv_cost = annualized_to_total_capex(
-                capex_yr, years=m.genLifetimes[gen_uid], discount_rate=0.07
-            )
+            # deannualize. NOTE: Get lifetime, handle missing or zero
+            if pd.isna(capex_yr):
+                capex_yr = 0
 
+            inv_cost = annualized_to_total_capex(
+                capex_yr, years=pyo.value(m.genLifetimes[gen_uid]), discount_rate=0.07
+            )
+            
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units
             fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
