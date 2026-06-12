@@ -42,7 +42,8 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_path = "./gtep/data/WECC_ADS_PNNL"
+data_date = "6-11-2026"
+data_path = f"./data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -85,10 +86,6 @@ data_processing_object.load_gen_data(
     candidate_storage_csv_path=f"{data_path}/storage.csv",
     candidate_branch_csv_path=f"{data_path}/branch.csv",
 )
-
-
-print(data_object.md.data["elements"]["generator"]["AVA_hydro"].keys())
-# raise SystemExit
 
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
@@ -133,7 +130,7 @@ if solver == "xpress":
 print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
-dir_name = "NAERM_initial_testing"
+dir_name = f"NAERM_initial_testing_{data_date}"
 
 # Define the plot type for the generationmix. The options are:
 # stackplot, treemap or pie chart. If nothing is select, all the files
@@ -153,7 +150,7 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-sol_object.create_stackgraph(dir_name, rep_days)
+sol_object.create_stackgraph_and_metrics(dir_name, rep_days)
 
 # # Create report
 # sol_object.create_html_report(dir_name, plot_type)
