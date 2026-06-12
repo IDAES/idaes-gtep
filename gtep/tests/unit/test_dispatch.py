@@ -35,7 +35,6 @@ def check_CP_flow_balance(td, c: pyo.Constraint):
         expected += [td.b.storageCharged[bt] for bt in td.m.storage]
     expected += [td.b.parent_block().loads[bus] for bus in td.m.buses]
     expected += [td.b.loadShed[bus] for bus in td.m.buses]
-
     td.check_helper.check_expr_contains(c, expected)
 
 
@@ -70,7 +69,6 @@ def check_flow_balance(td, c: pyo.Constraint):
                 for bat in td.m.storage
                 if td.m.md.data["elements"]["storage"][bat]["bus"] == i
             ]
-
     td.check_helper.check_expr_contains(c, expected)
 
 
@@ -83,7 +81,20 @@ def check_capacity_factor(td, c: pyo.Constraint):
         ]
         for i in c.index_set()
     }
+    td.check_helper.check_expr_contains(c, expected)
 
+
+def check_operational_renewables_only(td, c: pyo.Constraint):
+    i_p = td.b.parent_block().parent_block().parent_block()
+    expected = {
+        i: [
+            td.b.renewableGeneration[i],
+            i_p.renewableInstalled[i],
+            i_p.renewableOperational[i],
+            i_p.renewableExtended[i],
+        ]
+        for i in c.index_set()
+    }
     td.check_helper.check_expr_contains(c, expected)
 
 
@@ -152,6 +163,15 @@ class TestDispatch(unittest.TestCase):
             units=u.USD,
             obj_type=pyo.Expression,
             index=self.m.thermalGenerators,
+            cond=(
+                self.m.config["flow_model"] == "ACR"
+                or self.m.config["flow_model"] == "ACP"
+            ),
+        )
+        self.check_helper.add_object(
+            name="reactiveGenerationCostDispatch",
+            units=u.USD,
+            obj_type=pyo.Expression,
             cond=(
                 self.m.config["flow_model"] == "ACR"
                 or self.m.config["flow_model"] == "ACP"
@@ -255,6 +275,13 @@ class TestDispatch(unittest.TestCase):
             index=self.m.renewableGenerators,
             check_func=check_capacity_factor,
         )
+        self.check_helper.add_object(
+            name="operational_renewables_only",
+            units=u.MW,
+            obj_type=pyo.Constraint,
+            index=self.m.renewableGenerators,
+            check_func=check_operational_renewables_only,
+        )
 
     def _coordinate_tests(self, config):
         """Creates a model and runs tests for a given set of config options."""
@@ -271,6 +298,8 @@ class TestDispatch(unittest.TestCase):
     def test_copper_plate(self):
         self._coordinate_tests(config={"flow_model": "CP"})
 
-    def _test_other_config(self):
-        pass
-        # self._coordinate_tests(config={config_options})
+    # def test_ac_rectangular(self):
+    #     self._coordinate_tests(config={"flow_model": "ACR"})
+
+    # def test_ac_polar(self):
+    #     self._coordinate_tests(config={"flow_model": "ACP"})
