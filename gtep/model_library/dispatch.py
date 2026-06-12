@@ -167,7 +167,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         if m.config["storage"]:
             storage_term = (
                 b.storageCostDispatch  # includes costs for charge and discharge
-                + b.storageLevelCostDispatch  # includes fixed costs
+                # + b.storageLevelCostDispatch  # includes fixed costs
             )
         else:
             storage_term = 0
