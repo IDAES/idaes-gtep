@@ -172,10 +172,6 @@ class TestDispatch(unittest.TestCase):
             name="reactiveGenerationCostDispatch",
             units=u.USD,
             obj_type=pyo.Expression,
-            cond=(
-                self.m.config["flow_model"] == "ACR"
-                or self.m.config["flow_model"] == "ACP"
-            ),
         )
         self.check_helper.add_object(
             name="loadShed",
