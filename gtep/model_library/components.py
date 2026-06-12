@@ -726,10 +726,10 @@ def add_model_cost_parameters_from_csv(m, year):
             branch_uid = row["UID"]
             capex_col = f"capex_{year}"
             annualized_cost = float(row.get(capex_col, 0))
-            if annualized_cost == 0 or annualized_cost is None:
-                print(
-                    f"[WARNING] No {capex_col} found for branch '{branch_uid}'. Assuming investment cost of 0."
-                )
+            # if annualized_cost == 0 or annualized_cost is None:
+            #     print(
+            #         f"[WARNING] No {capex_col} found for branch '{branch_uid}'. Assuming investment cost of 0."
+            #     )
             if pd.isna(capex_col):
                 annualized_cost = 0
 
@@ -754,8 +754,7 @@ def add_model_cost_parameters_from_csv(m, year):
             final_inv_units = u.USD / u.MW
 
             # Convert investment cost from $/MW-year (annualized) to
-            # $/MW (de-annualized). Lifetime of 30 years to
-            # deannualize. NOTE: Get lifetime, handle missing or zero
+            # $/MW (de-annualized). Use lifetime from data.
             if pd.isna(capex_yr):
                 capex_yr = 0
 
@@ -767,8 +766,7 @@ def add_model_cost_parameters_from_csv(m, year):
             fixed_cost = fixed_ops_yr * original_units
             fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
 
-            # Variable cost: We assume is in $/MWh already (since it has a
-            # value of 0)
+            # Variable cost: it is in $/MWh already
             var_cost = var_ops_yr * final_units
             # print(f"{pyo.value(var_cost) = }")
             # print(f"{pyo.value(fixed_cost) = }")
@@ -777,3 +775,6 @@ def add_model_cost_parameters_from_csv(m, year):
             m.fixedCost[gen_uid] = pyo.value(fixed_cost)
             m.varCost[gen_uid] = pyo.value(var_cost)
             m.generatorInvestmentCost[gen_uid] = pyo.value(inv_cost)
+    # m.fixedCost.display()
+    # m.varCost.display()
+    # m.generatorInvestmentCost.display()

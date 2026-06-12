@@ -176,7 +176,8 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-sol_object.create_stackgraph_and_metrics(dir_name, rep_days)
+day_hour_list = [("2034-07-12 00:00", 19), ("2034-07-12 00:00", 5)]
+sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report
 # sol_object.create_html_report(dir_name, plot_type)
