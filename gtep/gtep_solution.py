@@ -18,6 +18,9 @@
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
 
 import os
+import io
+import csv
+import sys
 import logging
 import json
 import pandas as pd
@@ -1163,6 +1166,47 @@ class ExpansionPlanningSolution:
                     value_gw = value/1000
                     print(f"  {gen_type} (GW): {value_gw:.2f}")
 
+        def save_metrics_and_generation_to_csv(
+            results_path,
+            rep_days,
+            time_periods,
+            loads_trace,
+            generation,
+            day_hour_list,
+            output_csv_file
+        ):
+            # Helper to capture print output from a function
+            def capture_print(func, *args, **kwargs):
+                old_stdout = sys.stdout
+                sys.stdout = mystdout = io.StringIO()
+                try:
+                    func(*args, **kwargs)
+                finally:
+                    sys.stdout = old_stdout
+                return mystdout.getvalue().splitlines()
+
+            # Capture output from both functions
+            metrics_lines = capture_print(calculate_metrics, results_path)
+            gen_lines = capture_print(
+                print_generation_for_days,
+                rep_days,
+                time_periods,
+                loads_trace,
+                generation,
+                day_hour_list,
+            )
+
+            # Write to CSV: each message as a row, with a label for the source
+            with open(output_csv_file, "w", newline="") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["Source", "Message"])
+                for line in metrics_lines:
+                    writer.writerow(["calculate_metrics", line])
+                    for line in gen_lines:
+                        writer.writerow(["print_generation_for_days", line])
+
+            print(f"Saved metrics and generation output to {output_csv_file}")
+
 
         plotly_stackgraph(
             times,
@@ -1176,7 +1220,6 @@ class ExpansionPlanningSolution:
         )
 
         calculate_metrics(results_path)
-
         print_generation_for_days(
             rep_days=rep_days,
             time_periods=time_periods,
@@ -1184,6 +1227,17 @@ class ExpansionPlanningSolution:
             generation=generation,
             day_hour_list=day_hour_list,
         )
+
+        # save_metrics_and_generation_to_csv(
+        #     results_path,
+        #     rep_days,
+        #     time_periods,
+        #     loads_trace,
+        #     generation,
+        #     day_hour_list,
+        #     "metrics_and_generation_output.csv"
+        # )
+
     
     def create_html_report(self, results_path, plot_type):
 
