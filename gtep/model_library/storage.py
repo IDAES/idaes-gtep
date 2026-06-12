@@ -77,7 +77,7 @@ def add_storage_params(m):
         domain=pyo.NonNegativeReals,
         doc="Cost to discharge per unit electricity",
     )
-
+    
     # Initialize fixed and variable costs and update values during
     # investment stage.
     m.storagefixedCost = pyo.Param(
@@ -327,8 +327,8 @@ def add_storage_cost_parameters_from_csv(m, year):
             m.storagevarCost[storage_uid] = pyo.value(var_cost)
             m.storageInvestmentCost[storage_uid] = pyo.value(inv_cost)
     # m.storagefixedCost.display()
+    # m.storagevarCost.display()
     # m.storageInvestmentCost.display()
-    # quit()
 
 def add_storage_state_disjuncts(m, b, commitment_period):
     """This method includes the battery storage charging and
