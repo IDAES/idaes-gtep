@@ -144,6 +144,7 @@ def add_commitment_constraints(b, comm_per):
             )
             return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
 
+    
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):
         return sum(

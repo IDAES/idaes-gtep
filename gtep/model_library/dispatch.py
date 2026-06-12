@@ -66,7 +66,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * (m.fixedCost[gen] + m.varCost[gen])
         )
-
+    
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
         return (

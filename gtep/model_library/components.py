@@ -415,6 +415,7 @@ def add_model_parameters(m):
         initialize={gen: 0 for gen in m.generators},
         mutable=True,
         units=u.USD / u.MW,
+        domain = pyo.NonNegativeReals,
         doc="Investment cost for all generators",
     )
     m.branchInvestmentCost = pyo.Param(
@@ -422,6 +423,7 @@ def add_model_parameters(m):
         initialize={branch: 0 for branch in m.transmission},
         mutable=True,
         units=u.USD / u.MW,
+        domain=pyo.NonNegativeReals,
         doc="Investment cost for each new branch",
     )
 
@@ -768,6 +770,8 @@ def add_model_cost_parameters_from_csv(m, year):
             # Variable cost: We assume is in $/MWh already (since it has a
             # value of 0)
             var_cost = var_ops_yr * final_units
+            # print(f"{pyo.value(var_cost) = }")
+            # print(f"{pyo.value(fixed_cost) = }")
 
             # Assign to Pyomo parameters (strip units for Pyomo Param)
             m.fixedCost[gen_uid] = pyo.value(fixed_cost)
