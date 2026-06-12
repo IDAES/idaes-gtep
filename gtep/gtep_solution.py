@@ -566,7 +566,7 @@ class ExpansionPlanningSolution:
                 f"Plot type '{plot_type}' is not supported. Please choose between 'stackplot', 'treemap', or 'piechart'."
             )
 
-    def create_stackgraph_and_metrics(self, results_path, rep_days):
+    def create_stackgraph_and_metrics(self, results_path, rep_days, day_hour_list):
 
         try:
             import ujson as json
@@ -1059,9 +1059,7 @@ class ExpansionPlanningSolution:
             #     )
             #     print(f"[DEBUG] {name}: {values[:10]}")
 
-        def calculate_metrics(
-                folder_name, rep_days, time_periods, loads_trace, generation, target_day, target_hour
-        ):
+        def calculate_metrics(folder_name):
             """
             Reads the generation.json file and calculates the total generation by generator type.
             
@@ -1127,31 +1125,43 @@ class ExpansionPlanningSolution:
                 total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
                 print(f"Total battery {file_type} (GWh): {total_battery_gwh}")
 
-            # Find the index for desired day and time
-            try:
-                day_idx = rep_days.index(target_day)
-            except ValueError:
-                raise ValueError(f"Target day {target_day} not found in rep_days!")
+        def print_generation_for_days(rep_days, time_periods, loads_trace, generation, day_hour_list):
+            """Prints load and generation by type for multiple (day,
+                hour) pairs.
+                
+            :param rep_days: List of representative day strings (e.g., "2034-07-12 00:00")
+            :param time_periods: List of time period tuples (s, p, c, d)
+            :param loads_trace: List of load values per time period
+            :param generation: Nested dict of generation by time period and type
+            :param day_hour_list: List of (target_day, target_hour) tuples
 
-            target_idx = day_idx * 24 + target_hour
-            target_time_period = time_periods[target_idx]
+            """
+            for target_day, target_hour in day_hour_list:      
+                # Find the index for desired day and time
+                try:
+                    day_idx = rep_days.index(target_day)
+                except ValueError:
+                    raise ValueError(f"Target day {target_day} not found in rep_days!")
+                
+                target_idx = day_idx * 24 + target_hour
+                target_time_period = time_periods[target_idx]
             
-            print(f"Results for representative day: {target_day}, hour: {target_hour} (index {target_idx})")
+                print(f"Results for representative day: {target_day}, hour: {target_hour} (index {target_idx})")
 
-            # Total load
-            total_load_gw = loads_trace[target_idx]/1000
-            print(f"Total load (GW): {total_load_gw:.2f}")
-            
-            # Generation per type
-            print("Generation by type:")
-            for gen_type in [
-                    "cc_gas", "ct_gas", "coal", "nuclear", "thermal_other", "hydro", "solar",
-                    "wind", "battery_discharge", "steam", "dr", "ES4", "battery_charge",
-                    "hydro-c", "gas_cc-c", "gas_ct-c", "battery-c", "wind-c", "pv-c", "steam-c", "ES4-c"
-            ]:
-                value = generation[target_time_period[0]][target_time_period[1]][target_time_period[2]][target_time_period[3]].get(gen_type, 0)
-                value_gw = value/1000
-                print(f"  {gen_type} (GW): {value_gw:.2f}")
+                # Total load
+                total_load_gw = loads_trace[target_idx]/1000
+                print(f"Total load (GW): {total_load_gw:.2f}")
+                
+                # Generation per type
+                print("Generation by type:")
+                for gen_type in [
+                        "cc_gas", "ct_gas", "coal", "nuclear", "thermal_other", "hydro", "solar",
+                        "wind", "battery_discharge", "steam", "dr", "ES4", "battery_charge",
+                        "hydro-c", "gas_cc-c", "gas_ct-c", "battery-c", "wind-c", "pv-c", "steam-c", "ES4-c"
+                ]:
+                    value = generation[target_time_period[0]][target_time_period[1]][target_time_period[2]][target_time_period[3]].get(gen_type, 0)
+                    value_gw = value/1000
+                    print(f"  {gen_type} (GW): {value_gw:.2f}")
 
 
         plotly_stackgraph(
@@ -1165,14 +1175,14 @@ class ExpansionPlanningSolution:
             results_path,
         )
 
-        calculate_metrics(
-            results_path,
+        calculate_metrics(results_path)
+
+        print_generation_for_days(
             rep_days=rep_days,
             time_periods=time_periods,
             loads_trace=loads_trace,
             generation=generation,
-            target_day="2034-07-12 00:00",
-            target_hour=19,
+            day_hour_list=day_hour_list,
         )
     
     def create_html_report(self, results_path, plot_type):
