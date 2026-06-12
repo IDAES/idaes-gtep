@@ -15,7 +15,7 @@
 Transmission Expansion Planning (GTEP) Model
 
 """
-
+import pandas as pd
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -76,6 +76,23 @@ def add_storage_params(m):
         },
         domain=pyo.NonNegativeReals,
         doc="Cost to discharge per unit electricity",
+    )
+
+    # Initialize fixed and variable costs and update values during
+    # investment stage.
+    m.storagefixedCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Fixed operating costs",
+    )
+    m.storagevarCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Variable costs",
     )
 
     m.dischargeMin = pyo.Param(
@@ -254,7 +271,7 @@ def add_storage_cost_parameters_from_csv(m, year):
     # since we have data in the m.mc model object.
     lifetime_col = f"lifetime_{year}"
     new_storage_lifetimes = {
-        row["name"]: int(row.get(lifetime_col, 0))
+        row["name"]: int(row.get(lifetime_col, 0) if pd.notna(row[lifetime_col]) else 3)
         for _, row in m.mc.storage_data_target.iterrows()
     }
 
@@ -278,19 +295,40 @@ def add_storage_cost_parameters_from_csv(m, year):
     if m.mc is not None:
         for index, row in m.mc.storage_data_target.iterrows():
             storage_uid = row["name"]
-            if storage_uid not in m.storage:
-                continue
 
             # Read costs for the selected year. All units in $/MW-yr
             capex_yr = float(row[f"capex_{year}"])
+            fixed_ops_yr = float(row[f"fixed_ops_{year}"])
+            var_ops_yr = float(row[f"var_ops_{year}"])
+            
+            original_units = u.USD / (u.MW * u.year)
+            final_units = u.USD / (u.MW * u.hr)
+            final_inv_units = u.USD / u.MW
+
             # Convert investment cost from $/MW-year (annualized) to
             # $/MW (de-annualized)
-            inv_cost_annualized = capex_yr
+            if pd.isna(capex_yr):
+                capex_yr = 0
+            
             inv_cost = annualized_to_total_capex(
-                capex_yr, years=m.storageLifetimes[storage_uid], discount_rate=0.07
+                capex_yr, years=pyo.value(m.storageLifetimes[storage_uid]), discount_rate=0.07
             )
-            m.storageInvestmentCost[storage_uid] = pyo.value(inv_cost)
+            
+            # Convert fixed cost from $/MW-year to $/MWh
+            fixed_cost = fixed_ops_yr * original_units
+            fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
 
+            # Variable cost: We assume is in $/MWh already (since it has a
+            # value of 0)
+            var_cost = var_ops_yr * final_units
+
+            # Assign to Pyomo parameters (strip units for Pyomo Param)
+            m.storagefixedCost[storage_uid] = pyo.value(fixed_cost)
+            m.storagevarCost[storage_uid] = pyo.value(var_cost)
+            m.storageInvestmentCost[storage_uid] = pyo.value(inv_cost)
+    # m.storagefixedCost.display()
+    # m.storageInvestmentCost.display()
+    # quit()
 
 def add_storage_state_disjuncts(m, b, commitment_period):
     """This method includes the battery storage charging and
