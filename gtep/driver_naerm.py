@@ -153,7 +153,7 @@ if solver == "xpress":
         # logfile=log_folder + "/" + solver + ".log",
     )
 
-print(pyo.value(mod_object.model.total_cost_objective_rule))
+# print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
 dir_name = f"NAERM_initial_testing_{data_date}"
