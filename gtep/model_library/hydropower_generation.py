@@ -67,7 +67,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         )
 
 
-def add_representative_hydropower_average(b, commitmentPeriod):
+def add_representative_hydropower_average(b, repPer):
     m = b.model()
 
     @b.Constraint(
@@ -76,10 +76,15 @@ def add_representative_hydropower_average(b, commitmentPeriod):
     )
     def average_hydro_generation(b, hydroGen):
         return sum(
-            b.c_p.d_p.hydroGeneration[hydroGen]
+            b.commitmentPeriod[c_p].dispatchPeriod[d_p].hydroGeneration[hydroGen]
             for c_p in b.commitmentPeriods
-            for d_p in c_p.dispatchPeriods
-        ) == sum(b.c_p.hydroAverageExpected[hydroGen] for c_p in b.commitmentPeriods)
+            for d_p in b.commitmentPeriod[c_p].dispatchPeriods
+        ) <= sum(
+            b.commitmentPeriod[c_p].hydroAverageExpected[hydroGen]
+            for c_p in b.commitmentPeriods
+        )
+    
+    b.average_hydro_generation.pprint()
 
     # @b.Expression(
     #     doc="Hydro generators operational cost",
