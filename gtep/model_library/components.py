@@ -177,6 +177,28 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         doc="Maximum output of each thermal generator",
     )
 
+    m.thermalReactiveMax = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
+            for thermalGen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MVAR,
+        doc="Maximum reactive output of each thermal generator",
+    )
+
+    m.thermalReactiveMin = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
+            for thermalGen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MVAR,
+        doc="Minimum reactive output of each thermal generator",
+    )
+
     m.lifetimes = pyo.Param(
         m.generators,
         initialize={
