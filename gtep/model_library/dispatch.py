@@ -77,7 +77,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
-            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+            return (
+                b.thermalReactiveGeneration[gen]
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * m.fuelCostReactive[gen]
+            )
 
     b.loadShed = pyo.Var(
         m.buses,

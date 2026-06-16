@@ -406,6 +406,15 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         doc="Cost per unit of fuel at each generator",
     )
 
+    # setting to be the same as real fuel cost for now... but maybe should be different?
+    m.fuelCostReactive = pyo.Param(
+        m.generators,
+        initialize={gen: m.fuelCost[gen] for gen in m.thermalGenerators},
+        mutable=True,
+        units=u.USD / (u.MVAR * u.hr),
+        doc="Cost per unit of fuel at each generator (reactive power)",
+    )
+
     m.emissionsFactor = pyo.Param(
         m.generators,
         initialize={
@@ -684,6 +693,7 @@ def add_model_cost_parameters(m, year):
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
     units_fuel_cost = u.USD / (u.MW * u.hr)
+    units_reactive_fuel_cost = u.USD / (u.MVAR * u.hr)
     for gen in m.generators:
         if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
             m.fixedCost[gen] = pyo.units.convert(
@@ -699,7 +709,7 @@ def add_model_cost_parameters(m, year):
             # Add fuel costs from preprocessed data. Consider this
             # cost is for Natural Gas generators, not coal.
             m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
-
+            m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
         else:
 
             # For renewable
