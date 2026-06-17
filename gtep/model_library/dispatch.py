@@ -72,21 +72,13 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(m, b)
 
-        @b.Expression(m.storage, doc="Cost per storage unit in $")
-        def storageLevelCost(b, stor):
-            return (
-                b.storageChargeLevel[stor]
-                * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-                * (m.storagefixedCost[stor] + m.storagevarCost[stor])
-            )
-
     if m.config["advanced_hydro"]:
         @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
         def hydroGeneratorCost(b, hydroGen):
             return (
                 b.hydroGeneration[hydroGen]
                 * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-                * (m.fixedCost[hydroGen] + m.varCost[hydroGen])
+                * m.varCost[hydroGen]
             )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
@@ -127,11 +119,6 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     @b.Expression()
     def thermalGenerationCostDispatch(b):
         return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
-
-    if m.config["storage"]:
-        @b.Expression()
-        def storageLevelCostDispatch(b):
-            return sum(b.storageLevelCost[stor] for stor in m.storage)
 
     if m.config["advanced_hydro"]:
         @b.Expression()
