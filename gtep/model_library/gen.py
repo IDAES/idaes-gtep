@@ -570,14 +570,16 @@ def add_generators_logical_constraints(m):
         doc="Thermal generator retirement",
     )
     def thermalgen_retirement(m, stage, gen):
+        # if stage > pyo.value(m.genLifetimes[gen]):
+        #     m.investmentStage[stage - pyo.value(m.genLifetimes[gen])].genOperational[gen].indicator_var.pprint()
         return (
             (
                 m.investmentStage[stage - pyo.value(m.genLifetimes[gen])]
                 .genOperational[gen]
                 .indicator_var
-                | m.investmentStage[
-                    stage - pyo.value(m.genLifetimes[gen])
-                ].genInstalled[gen]
+                | m.investmentStage[stage - pyo.value(m.genLifetimes[gen])]
+                .genInstalled[gen]
+                .indicator_var
             ).implies(
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
@@ -778,7 +780,7 @@ def add_dispatch_generators_variables(m, b):
 
         def hydro_generation_init(b, hydroGen):
             return c_p.hydroMinimumExpected[hydroGen]
-        
+
         b.hydroGeneration = pyo.Var(
             m.hydroGenerators,
             domain=pyo.NonNegativeReals,

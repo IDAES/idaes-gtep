@@ -42,9 +42,8 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-
 data_date = "6-12-2026"
-data_path = f"./data/WECC_ADS_PNNL_{data_date}"
+data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -94,7 +93,7 @@ mod_object = ExpansionPlanningModel(
     cost_data=data_processing_object,
 )
 
-mod_object.config["include_investment"] = True
+mod_object.config["include_investment"] = False
 mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
@@ -105,6 +104,32 @@ mod_object.config["advanced_hydro"] = True
 
 mod_object.create_model()
 print("model is created!")
+
+# # print(mod_object.model.md.data['elements']['generator']['AESO_cc_gas'])
+# from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
+
+# def get_variables_in_expr(expression):
+#     # If it's a Pyomo variable, yield it
+#     if hasattr(expression, "is_variable_type") and expression.is_variable_type():
+#         yield expression
+#     # If the expression has arguments (like a sum or product), recurse
+#     elif hasattr(expression, "args"):
+#         for arg in expression.args:
+#             yield from get_variables_in_expr(arg)
+
+# for var in get_variables_in_expr(mod_object.model.total_cost_objective_rule.expr):
+#     if not is_numeric_data(var):
+#         if not type(var) == bool:
+#             print(f"Non-numeric term found: {type(var)} with value {var}")
+
+# # Check specific terms during your constraint building logic
+# # for term in mod_object.model.total_cost_objective_rule.expr.args:
+# #     if not is_numeric_data(term):
+# #         print(f"Non-numeric term found: {type(term)} with value {term}")
+# raise SystemExit
+
+# mod_object.model.total_cost_objective_rule.pprint()
+# mod_object.model.investmentStage[1].genInstalled['AESO_cc_gas'].pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
@@ -120,14 +145,15 @@ if solver == "xpress":
 
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
-    xpress.controls.miprelstop = 0.2
+    xpress.controls.miprelstop = 0.1
+
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
         # logfile=log_folder + "/" + solver + ".log",
     )
 
-print(pyo.value(mod_object.model.total_cost_objective_rule))
+# print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
 dir_name = f"NAERM_initial_testing_{data_date}"

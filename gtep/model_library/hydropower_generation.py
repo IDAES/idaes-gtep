@@ -67,7 +67,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         )
 
 
-def add_representative_hydropower_average(b, commitmentPeriod):
+def add_representative_hydropower_average(b, repPer):
     m = b.model()
 
     @b.Constraint(
@@ -83,5 +83,3 @@ def add_representative_hydropower_average(b, commitmentPeriod):
             b.commitmentPeriod[c_p].hydroAverageExpected[hydroGen]
             for c_p in b.commitmentPeriods
         )
-
-    

@@ -133,6 +133,12 @@ def add_commitment_constraints(b, comm_per):
                 for gen in m.thermalGenerators
             )
 
+            op_cost_gen_state += sum(m.fixedCost[gen] * b.commitmentPeriodLength * m.renewableCapacityNameplate[gen] for gen in m.renewableGenerators)
+
+            # if m.config["advanced_hydro"]:
+            #     op_cost_gen_state += sum(m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen] for gen in m.hydroGenerators)
+
+
             return op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup
         else:
             op_cost_gen_state = sum(
@@ -142,6 +148,10 @@ def add_commitment_constraints(b, comm_per):
                 * b.genOn[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
+            op_cost_gen_state += sum(m.fixedCost[gen] * b.commitmentPeriodLength * m.renewableCapacityNameplate[gen] for gen in m.renewableGenerators)
+
+            # if m.config["advanced_hydro"]:
+            #     op_cost_gen_state += sum(m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen] for gen in m.hydroGenerators)
             return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
