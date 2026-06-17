@@ -46,7 +46,6 @@ def fix_hydropower_limits(b, commitmentPeriod):
     units_renewable_capacity = u.MW
 
     for hydroGen in m.hydroGenerators:
-        # print(m.md.data["elements"]["generator"][hydroGen])
         b.hydroCapacityExpected[hydroGen] = (
             m.md.data["elements"]["generator"][hydroGen]["p_max"]["values"][
                 commitmentPeriod - 1
@@ -67,7 +66,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         )
 
 
-def add_representative_hydropower_average(b, commitmentPeriod):
+def add_representative_hydropower_average(b, repPer):
     m = b.model()
 
     @b.Constraint(
@@ -83,5 +82,3 @@ def add_representative_hydropower_average(b, commitmentPeriod):
             b.commitmentPeriod[c_p].hydroAverageExpected[hydroGen]
             for c_p in b.commitmentPeriods
         )
-
-    
