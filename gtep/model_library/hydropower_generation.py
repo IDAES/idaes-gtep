@@ -46,7 +46,6 @@ def fix_hydropower_limits(b, commitmentPeriod):
     units_renewable_capacity = u.MW
 
     for hydroGen in m.hydroGenerators:
-        # print(m.md.data["elements"]["generator"][hydroGen])
         b.hydroCapacityExpected[hydroGen] = (
             m.md.data["elements"]["generator"][hydroGen]["p_max"]["values"][
                 commitmentPeriod - 1
