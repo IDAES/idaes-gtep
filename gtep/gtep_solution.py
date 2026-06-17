@@ -1217,7 +1217,7 @@ class ExpansionPlanningSolution:
             loads_trace,
             generation,
             day_hour_list,
-            output_csv_file
+            output_csv_file,
         ):
             # Helper to capture print output from a function
             def capture_print(func, *args, **kwargs):
@@ -1251,7 +1251,6 @@ class ExpansionPlanningSolution:
 
             print(f"Saved metrics and generation output to {output_csv_file}")
 
-
         plotly_stackgraph(
             times,
             time_periods,
@@ -1281,7 +1280,6 @@ class ExpansionPlanningSolution:
         #     day_hour_list,
         #     "metrics_and_generation_output.csv"
         # )
-
 
     def create_html_report(self, results_path, plot_type):
 

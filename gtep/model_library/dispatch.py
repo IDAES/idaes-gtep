@@ -73,6 +73,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         stor.add_dispatch_storage_variables_and_constraints(m, b)
 
     if m.config["advanced_hydro"]:
+
         @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
         def hydroGeneratorCost(b, hydroGen):
             return (
@@ -121,6 +122,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
 
     if m.config["advanced_hydro"]:
+
         @b.Expression()
         def hydroGenerationCostDispatch(b):
             return sum(b.hydroGeneratorCost[gen] for gen in m.hydroGenerators)
