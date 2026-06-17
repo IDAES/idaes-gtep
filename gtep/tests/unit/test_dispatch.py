@@ -294,8 +294,8 @@ class TestDispatch(unittest.TestCase):
     def test_copper_plate(self):
         self._coordinate_tests(config={"flow_model": "CP"})
 
-    # def test_ac_rectangular(self):
-    #     self._coordinate_tests(config={"flow_model": "ACR"})
+    def test_ac_rectangular(self):
+        self._coordinate_tests(config={"flow_model": "ACR"})
 
-    # def test_ac_polar(self):
-    #     self._coordinate_tests(config={"flow_model": "ACP"})
+    def test_ac_polar(self):
+        self._coordinate_tests(config={"flow_model": "ACP"})
