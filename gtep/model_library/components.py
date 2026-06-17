@@ -334,8 +334,8 @@ def add_model_parameters(m):
                 * m.md.data["elements"]["generator"][gen]["heat_rate"]  # in MMBTU/MWh
                 if "RTS-GMLC" in m.md.data["system"]["name"]
                 else (
-                        m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-                        * m.md.data["elements"]["generator"][gen]["heat_rate"]
+                    m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
+                    * m.md.data["elements"]["generator"][gen]["heat_rate"]
                 )
             )
             for gen in m.thermalGenerators
@@ -415,7 +415,7 @@ def add_model_parameters(m):
         initialize={gen: 0 for gen in m.generators},
         mutable=True,
         units=u.USD / u.MW,
-        domain = pyo.NonNegativeReals,
+        domain=pyo.NonNegativeReals,
         doc="Investment cost for all generators",
     )
     m.branchInvestmentCost = pyo.Param(
@@ -734,7 +734,9 @@ def add_model_cost_parameters_from_csv(m, year):
                 annualized_cost = 0
 
             inv_cost = annualized_to_total_capex(
-                annualized_cost, years=pyo.value(m.branchLifetimes[branch_uid]), discount_rate=0.07
+                annualized_cost,
+                years=pyo.value(m.branchLifetimes[branch_uid]),
+                discount_rate=0.07,
             )
             m.branchInvestmentCost[branch_uid] = inv_cost
     # print(branch_investment_cost_dict)
@@ -761,7 +763,7 @@ def add_model_cost_parameters_from_csv(m, year):
             inv_cost = annualized_to_total_capex(
                 capex_yr, years=pyo.value(m.genLifetimes[gen_uid]), discount_rate=0.07
             )
-            
+
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units
             fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)

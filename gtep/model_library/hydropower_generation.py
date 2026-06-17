@@ -83,8 +83,8 @@ def add_representative_hydropower_average(b, repPer):
             b.commitmentPeriod[c_p].hydroAverageExpected[hydroGen]
             for c_p in b.commitmentPeriods
         )
-    
-    b.average_hydro_generation.pprint()
+
+    # b.average_hydro_generation.pprint()
 
     # @b.Expression(
     #     doc="Hydro generators operational cost",
@@ -96,4 +96,3 @@ def add_representative_hydropower_average(b, repPer):
     #         for d_p in c_p.dispatchPeriods
     #         for hydroGen in m.hydroGenerators
     #     )
-    

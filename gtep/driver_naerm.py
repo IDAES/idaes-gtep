@@ -39,7 +39,7 @@ rep_days = [
     "2034-10-29 00:00",
     "2034-11-10 00:00",
     "2034-12-06 00:00",
-] 
+]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
 data_date = "6-12-2026"
@@ -93,7 +93,7 @@ mod_object = ExpansionPlanningModel(
     cost_data=data_processing_object,
 )
 
-mod_object.config["include_investment"] = True
+mod_object.config["include_investment"] = False
 mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
@@ -128,7 +128,7 @@ print("model is created!")
 # #         print(f"Non-numeric term found: {type(term)} with value {term}")
 # raise SystemExit
 
-#mod_object.model.total_cost_objective_rule.pprint()
+# mod_object.model.total_cost_objective_rule.pprint()
 # mod_object.model.investmentStage[1].genInstalled['AESO_cc_gas'].pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
@@ -145,7 +145,7 @@ if solver == "xpress":
 
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
-    xpress.controls.miprelstop = 0.2
+    xpress.controls.miprelstop = 0.1
 
     mod_object.results = opt.solve(
         mod_object.model,

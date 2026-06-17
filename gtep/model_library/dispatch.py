@@ -64,16 +64,15 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * (m.fixedCost[gen] + m.varCost[gen])
-            +  b.thermalGeneration[gen] * m.fuelCost[gen]
+            * (m.varCost[gen] + m.fuelCost[gen])
         )
-    
+
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            * m.varCost[gen]
         )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
@@ -238,6 +237,10 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
+            if m.config["advanced_hydro"]:
+                balance += sum(
+                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
+                )
             """ Battery Storage added to flow balance constraint """
             if m.config["storage"]:
                 balance += sum(b.storageDischarged[bt] for bt in batts)
@@ -281,6 +284,10 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
+            if m.config["advanced_hydro"]:
+                balance += sum(
+                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
+                )
             """ Battery Storage added to flow balance constraint """
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)

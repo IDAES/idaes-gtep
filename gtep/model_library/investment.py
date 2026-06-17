@@ -126,6 +126,7 @@ def add_investment_constraints(
             )
         )
         return m.investmentFactor[investment_stage] * baseline_cost
+
     # from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
     # print(is_numeric_data(investment_cost))
     # if m.config["include_commitment"]:

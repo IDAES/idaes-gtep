@@ -39,8 +39,6 @@ def add_representative_period_logical_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
 
-    
-
     # [TODO: This needs to be updated for variable length
     # commitment periods. Do this by (pre) processing the set of
     # commitment periods for req_shutdown_periods.]

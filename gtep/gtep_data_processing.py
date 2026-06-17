@@ -61,7 +61,7 @@ class DataProcessing:
             if os.path.exists(path):
                 print(f"Loading costs from existing file: {path}")
                 df = pd.read_csv(path)
-                
+
                 # Check for required columns with the given prefixes
                 missing_cols = []
                 for prefix in prefixes:
@@ -84,7 +84,7 @@ class DataProcessing:
                     fixed_ops = row.get("fixed_ops_2034", 0)
                     capex = row.get("capex_2034", 0) if is_candidate else 0
                     var_ops = row.get("var_ops_2034", 0) if is_candidate else 0
-                    
+
                     # Handle NaN or missing values
                     lifetime = 0 if pd.isna(lifetime) else lifetime
                     fixed_ops = 0 if pd.isna(fixed_ops) else fixed_ops
