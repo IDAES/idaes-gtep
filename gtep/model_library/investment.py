@@ -140,7 +140,7 @@ def add_investment_constraints(
         def renewable_generation_requirement(b):
             renewableSurplusRepresentative = 0
             # [TODO: preprocess loads for the appropriate sum here.]
-            ed = 0
+            b.ed = pyo.Param(initialize=0, mutable=True)
             for rep_per in b.representativePeriods:
                 for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                     renewableSurplusRepresentative += (
@@ -151,5 +151,5 @@ def add_investment_constraints(
                     )
             return (
                 renewableSurplusRepresentative + b.quotaDeficit
-                >= m.renewableQuota[investment_stage] * ed
+                >= m.renewableQuota[investment_stage] * b.ed
             )
