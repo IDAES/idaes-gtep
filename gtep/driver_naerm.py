@@ -42,7 +42,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-17-2026"
+data_date = "6-18-2026"
 data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -146,10 +146,11 @@ if solver == "xpress":
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
     xpress.controls.miprelstop = 0.1
-    xpress.controls.globallsheurstrategy = 1
-    xpress.controls.mippresolve = 2
+    xpress.controls.heurfreq = 0  # disable most heuristics
+    xpress.controls.threads = 0  # use all available threads
+    xpress.controls.presolve = 3
     xpress.controls.cutstrategy = 3
-    
+
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
