@@ -16,7 +16,7 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
-import csv 
+import csv
 from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
@@ -166,8 +166,24 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
-        if not representative_weights:
-            # set the weight for each day to the total weight divided by number of days
+        if representative_weights:
+
+            if len(representative_dates) != len(representative_weights):
+                raise ValueError("Length of representative_dates and representative_weights must match.")
+            else:
+                print("INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object...")
+
+            # Store as a list attribute
+            self.representative_weights = list(representative_weights)
+
+            # Additionally, create a mapping for later use:
+            self.representative_weights_dict = dict(
+                zip(representative_dates, representative_weights)
+            )
+
+        else:
+            # Set the weight for each day to the total weight divided
+            # by number of days
             total_weight = prescient_options.num_days * self.stages
             weight_per_date = int(total_weight / (len(representative_dates)))
             self.representative_weights = {
@@ -184,7 +200,11 @@ class ExpansionPlanningData:
         hydro_avg_file = os.path.join(data_path, "DAY_AHEAD_hydro_average.csv")
         with open(hydro_avg_file, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
-            hydro_gens = [col for col in reader.fieldnames if col not in ("Year", "Month", "Day", "Period")]
+            hydro_gens = [
+                col
+                for col in reader.fieldnames
+                if col not in ("Year", "Month", "Day", "Period")
+            ]
             hydro_data = {gen: [] for gen in hydro_gens}
             for row in reader:
                 for gen in hydro_gens:
@@ -212,7 +232,11 @@ class ExpansionPlanningData:
                 # Adjust the column name if your file uses a different one
                 heat_rate_str = row.get("HR_avg_0")
                 try:
-                    heat_rate = float(heat_rate_str) if heat_rate_str not in (None, "", "NA") else None
+                    heat_rate = (
+                        float(heat_rate_str)
+                        if heat_rate_str not in (None, "", "NA")
+                        else None
+                    )
                 except ValueError:
                     heat_rate = None
                 if gen_uid and heat_rate is not None:
@@ -221,7 +245,9 @@ class ExpansionPlanningData:
         # Assign heat_rate to each generator in self.md
         for gen in self.md.data["elements"]["generator"]:
             if gen in heat_rate_dict:
-                self.md.data["elements"]["generator"][gen]["heat_rate"] = heat_rate_dict[gen]
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = (
+                    heat_rate_dict[gen]
+                )
             else:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
 

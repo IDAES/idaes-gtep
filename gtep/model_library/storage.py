@@ -15,6 +15,7 @@
 Transmission Expansion Planning (GTEP) Model
 
 """
+
 import pandas as pd
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -77,7 +78,7 @@ def add_storage_params(m):
         domain=pyo.NonNegativeReals,
         doc="Cost to discharge per unit electricity",
     )
-    
+
     # Initialize fixed and variable costs and update values during
     # investment stage.
     m.storagefixedCost = pyo.Param(
@@ -300,7 +301,7 @@ def add_storage_cost_parameters_from_csv(m, year):
             capex_yr = float(row[f"capex_{year}"])
             fixed_ops_yr = float(row[f"fixed_ops_{year}"])
             var_ops_yr = float(row[f"var_ops_{year}"])
-            
+
             original_units = u.USD / (u.MW * u.year)
             final_units = u.USD / (u.MW * u.hr)
             final_inv_units = u.USD / u.MW
@@ -309,11 +310,13 @@ def add_storage_cost_parameters_from_csv(m, year):
             # $/MW (de-annualized)
             if pd.isna(capex_yr):
                 capex_yr = 0
-            
+
             inv_cost = annualized_to_total_capex(
-                capex_yr, years=pyo.value(m.storageLifetimes[storage_uid]), discount_rate=0.07
+                capex_yr,
+                years=pyo.value(m.storageLifetimes[storage_uid]),
+                discount_rate=0.07,
             )
-            
+
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units
             fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
@@ -329,6 +332,7 @@ def add_storage_cost_parameters_from_csv(m, year):
     # m.storagefixedCost.display()
     # m.storagevarCost.display()
     # m.storageInvestmentCost.display()
+
 
 def add_storage_state_disjuncts(m, b, commitment_period):
     """This method includes the battery storage charging and
@@ -900,6 +904,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         c_p.commitmentPeriod == r_p.commitmentPeriods.first()
         and b.dispatchPeriod == c_p.dispatchPeriods.first()
     ):
+        print("setting initial state of charge for the representative period")
         for stor in m.storage:
             b.storageChargeLevel[stor].fix(m.storageCapacity[stor] / 2)
     # if (c_p.commitmentPeriod == r_p.commitmentPeriods.last()

@@ -64,8 +64,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * (m.fixedCost[gen] + m.varCost[gen])
-            +  b.thermalGeneration[gen] * m.fuelCost[gen]
+            * (m.varCost[gen] + m.fuelCost[gen])
         )
 
     if m.config["storage"]:
@@ -73,21 +72,14 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(m, b)
 
-        @b.Expression(m.storage, doc="Cost per storage unit in $")
-        def storageLevelCost(b, stor):
-            return (
-                b.storageChargeLevel[stor]
-                * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-                * (m.storagefixedCost[stor] + m.storagevarCost[stor])
-            )
-
     if m.config["advanced_hydro"]:
+
         @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
         def hydroGeneratorCost(b, hydroGen):
             return (
                 b.hydroGeneration[hydroGen]
                 * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-                * (m.fixedCost[hydroGen] + m.varCost[hydroGen])
+                * m.varCost[hydroGen]
             )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
@@ -95,7 +87,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            * m.varCost[gen]
         )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
@@ -129,12 +121,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def thermalGenerationCostDispatch(b):
         return sum(b.thermalGeneratorCost[gen] for gen in m.thermalGenerators)
 
-    if m.config["storage"]:
-        @b.Expression()
-        def storageLevelCostDispatch(b):
-            return sum(b.storageLevelCost[stor] for stor in m.storage)
-
     if m.config["advanced_hydro"]:
+
         @b.Expression()
         def hydroGenerationCostDispatch(b):
             return sum(b.hydroGeneratorCost[gen] for gen in m.hydroGenerators)
@@ -269,6 +257,10 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
+            if m.config["advanced_hydro"]:
+                balance += sum(
+                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
+                )
             """ Battery Storage added to flow balance constraint """
             if m.config["storage"]:
                 balance += sum(b.storageDischarged[bt] for bt in batts)
@@ -312,6 +304,10 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
+            if m.config["advanced_hydro"]:
+                balance += sum(
+                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
+                )
             """ Battery Storage added to flow balance constraint """
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)

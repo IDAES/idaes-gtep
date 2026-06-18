@@ -36,17 +36,6 @@ def create_objective_function(m):
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
 
-    # [ESR: Comment this expression since storageCostInvestment is
-    # declared but not calculated in the model.]
-    # @m.Expression()
-    # def storageCostTotal(m):
-    #     if m.config["storage"]:
-    #         return sum(
-    #             m.investmentStage[stage].storageCostInvestment for stage in m.stages
-    #         )
-    #     else:
-    #         return 0
-
     # [ESR: expansionCostTotal already includes the storage_investment_cost
     # when storage is True]
     @m.Expression()
