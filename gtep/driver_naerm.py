@@ -42,7 +42,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-12-2026"
+data_date = "6-17-2026"
 data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -142,17 +142,23 @@ if solver == "xpress":
     options_dict = {
         "logfile": log_folder + "/" + solver + ".log",
     }
-
+    # print(dir(xpress.controls))
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
     xpress.controls.miprelstop = 0.1
-
+    xpress.controls.globallsheurstrategy = 1
+    xpress.controls.mippresolve = 2
+    xpress.controls.cutstrategy = 3
+    
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
         # logfile=log_folder + "/" + solver + ".log",
     )
 
+# mod_object.model.operatingCostTotal.display()
+# mod_object.model.expansionCostTotal.display()
+# mod_object.model.penaltyCostTotal.display()
 # print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
