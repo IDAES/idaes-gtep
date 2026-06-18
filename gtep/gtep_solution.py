@@ -388,7 +388,7 @@ class ExpansionPlanningSolution:
 
             # Save as an interactive HTML
             plot_path = (
-                f"{results_path}/plots/{case_json}_gen_mix_summary_interactive.html"
+                f"{results_path}/plots/investment_{case_json}_gen_mix_summary_interactive.html"
             )
             fig.write_html(f"{plot_path}")
             print(f" -> Saved interactive stack plot for generation mix to {plot_path}")
@@ -758,13 +758,13 @@ class ExpansionPlanningSolution:
 
             dispatch_dict["battery_discharge"] += val
 
-        print("\n[DEBUG] Storage summary from JSON inputs")
+        # print("\n[DEBUG] Storage summary from JSON inputs")
 
         total_charging = sum(charging_data.values())
         total_discharging = sum(discharging_data.values())
 
-        print(f"[DEBUG] Total charging (raw): {total_charging:,.3f}")
-        print(f"[DEBUG] Total discharging (raw): {total_discharging:,.3f}")
+        # print(f"[DEBUG] Total charging (raw): {total_charging:,.3f}")
+        # print(f"[DEBUG] Total discharging (raw): {total_discharging:,.3f}")
 
         charging_by_suffix = defaultdict(float)
         for g, val in charging_data.items():
@@ -1062,6 +1062,42 @@ class ExpansionPlanningSolution:
             #     )
             #     print(f"[DEBUG] {name}: {values[:10]}")
 
+        def plot_generation_pie_chart(generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path):
+            """Plots a pie chart of total generation by unit type.
+
+            """
+            # Sum total generation for each type
+            total_by_type = {name: 0.0 for name in GEN_TYPES}
+            for s, p, c, d in time_periods:
+                for name in GEN_TYPES:
+                    total_by_type[name] += generation[s][p][c][d][name]
+
+            # Filter out types with zero total
+            total_by_type = {k: v for k, v in total_by_type.items() if abs(v) > 1e-6}
+            
+            labels = [
+                f"{GEN_TYPE_ALIASES.get(name, name)} ({total_by_type[name]:,.1f} MW)"
+                for name in total_by_type
+            ]
+            values = [total_by_type[name] for name in total_by_type]
+            colors = [GEN_TYPES[name] for name in total_by_type]
+            
+            fig = go.Figure(
+                data=[go.Pie(labels=labels, values=values, marker=dict(colors=colors))]
+            )
+            fig.update_layout(
+                title="Total Generation Mix by Unit Type",
+                legend=dict(font=dict(size=14)),
+                width=700,
+                height=500,
+            )
+
+            # Save as HTML
+            plot_path = f"{results_path}/plots/generation_mix_pie_chart.html"
+            fig.write_html(plot_path)
+            print(f" -> Saved generation mix pie chart to {plot_path}")
+
+
         def calculate_metrics(folder_name):
             """
             Reads the generation.json file and calculates the total generation by generator type.
@@ -1069,6 +1105,7 @@ class ExpansionPlanningSolution:
             :param folder_name: Directory containing the generation.json file.
             :return: Dictionary with total generation by type.
             """
+            messages = []
             gen_types = [
                 "cc_gas",
                 "ct_gas",
@@ -1123,12 +1160,12 @@ class ExpansionPlanningSolution:
 
             total_gen_all_types = sum(total_gen_by_type.values())
             total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
-            print(f"Total generation (GWh): {total_gen_gwh}")
+            messages.append(f"Total generation (GWh): {total_gen_gwh}")
 
-            print("Total generation by generator type:")
+            messages.append("Total generation by generator type:")
             for gen_type, total in total_gen_by_type.items():
                 total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
-                print(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+                messages.append(f"  {gen_type}_(GWh): {total_per_type_gwh}")
 
             # Read charging.json and discharging.json, sums all _battery keys
             for file_type in ["charging", "discharging"]:
@@ -1146,7 +1183,9 @@ class ExpansionPlanningSolution:
                     if key.endswith("_battery") or key.endswith("_ps")
                 )
                 total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
-                print(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+                messages.append(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+
+            return messages
 
         def print_generation_for_days(
             rep_days, time_periods, loads_trace, generation, day_hour_list
@@ -1161,6 +1200,7 @@ class ExpansionPlanningSolution:
             :param day_hour_list: List of (target_day, target_hour) tuples
 
             """
+            messages = []
             for target_day, target_hour in day_hour_list:
                 # Find the index for desired day and time
                 try:
@@ -1171,16 +1211,16 @@ class ExpansionPlanningSolution:
                 target_idx = day_idx * 24 + target_hour
                 target_time_period = time_periods[target_idx]
 
-                print(
+                messages.append(
                     f"Results for representative day: {target_day}, hour: {target_hour} (index {target_idx})"
                 )
 
                 # Total load
                 total_load_gw = loads_trace[target_idx] / 1000
-                print(f"Total load (GW): {total_load_gw:.2f}")
+                messages.append(f"Total load (GW): {total_load_gw:.2f}")
 
                 # Generation per type
-                print("Generation by type:")
+                messages.append("Generation by type:")
                 for gen_type in [
                     "cc_gas",
                     "ct_gas",
@@ -1208,49 +1248,51 @@ class ExpansionPlanningSolution:
                         target_time_period[2]
                     ][target_time_period[3]].get(gen_type, 0)
                     value_gw = value / 1000
-                    print(f"  {gen_type} (GW): {value_gw:.2f}")
+                    messages.append(f"  {gen_type} (GW): {value_gw:.2f}")
+
+            return messages
 
         def save_metrics_and_generation_to_csv(
-            results_path,
-            rep_days,
-            time_periods,
-            loads_trace,
-            generation,
-            day_hour_list,
-            output_csv_file,
-        ):
-            # Helper to capture print output from a function
-            def capture_print(func, *args, **kwargs):
-                old_stdout = sys.stdout
-                sys.stdout = mystdout = io.StringIO()
-                try:
-                    func(*args, **kwargs)
-                finally:
-                    sys.stdout = old_stdout
-                return mystdout.getvalue().splitlines()
-
-            # Capture output from both functions
-            metrics_lines = capture_print(calculate_metrics, results_path)
-            gen_lines = capture_print(
-                print_generation_for_days,
+                results_path,
                 rep_days,
                 time_periods,
                 loads_trace,
                 generation,
                 day_hour_list,
-            )
+                output_csv_file,
+        ):
 
-            # Write to CSV: each message as a row, with a label for the source
+            def split_message(message):
+                if ":" in message:
+                    parts = message.rsplit(":", 1)
+                    label = parts[0].strip()
+                    value = parts[1].strip()
+                    return label, value
+                else:
+                    return message, ""  # No value, just text
+                
+            metrics_lines = calculate_metrics(results_path)
+            gen_lines = print_generation_for_days(
+                rep_days, time_periods, loads_trace, generation, day_hour_list
+            )
+            
             with open(output_csv_file, "w", newline="") as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Source", "Message"])
+                writer.writerow(["Description", "Value"])
                 for line in metrics_lines:
-                    writer.writerow(["calculate_metrics", line])
-                    for line in gen_lines:
-                        writer.writerow(["print_generation_for_days", line])
+                    label, value = split_message(line)
+                    writer.writerow([label, value])
+                for line in gen_lines:
+                    label, value = split_message(line)
+                    writer.writerow([label, value])
 
-            print(f"Saved metrics and generation output to {output_csv_file}")
+            print(f" -> Saved metrics and generation output to {output_csv_file}")
 
+
+
+        plot_generation_pie_chart(
+            generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path
+        )
         plotly_stackgraph(
             times,
             time_periods,
@@ -1271,15 +1313,15 @@ class ExpansionPlanningSolution:
             day_hour_list=day_hour_list,
         )
 
-        # save_metrics_and_generation_to_csv(
-        #     results_path,
-        #     rep_days,
-        #     time_periods,
-        #     loads_trace,
-        #     generation,
-        #     day_hour_list,
-        #     "metrics_and_generation_output.csv"
-        # )
+        save_metrics_and_generation_to_csv(
+            results_path,
+            rep_days,
+            time_periods,
+            loads_trace,
+            generation,
+            day_hour_list,
+            f"{results_path}/metrics_and_generation_output.csv"
+        )
 
     def create_html_report(self, results_path, plot_type):
 
