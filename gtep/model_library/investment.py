@@ -112,19 +112,22 @@ def add_investment_constraints(
     # consistently.]
     @b.Expression(doc="Investment costs for the investment period in $")
     def investment_cost(b):
+        if m.config["storage"] == True:
+            storage_term = b.storage_investment_cost
+        else:
+            storage_term = 0 * u.USD
+
+        if m.config["transmission"] == True:
+            transmission_term = b.transmission_investment_cost
+        else:
+            transmission_term = 0 * u.USD
+            
         baseline_cost = (
             b.generators_investment_cost
-            + (
-                b.storage_investment_cost
-                if m.config["storage"] == True
-                else (0 * u.USD)
-            )
-            + (
-                b.transmission_investment_cost
-                if m.config["transmission"] == True
-                else (0 * u.USD)
-            )
+            + storage_term
+            + transmission_term
         )
+        print(pyo.value(m.investmentFactor[investment_stage]))
         return m.investmentFactor[investment_stage] * baseline_cost
 
     # from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
