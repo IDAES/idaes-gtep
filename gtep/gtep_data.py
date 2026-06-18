@@ -166,8 +166,24 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
-        if not representative_weights:
-            # set the weight for each day to the total weight divided by number of days
+        if representative_weights:
+
+            if len(representative_dates) != len(representative_weights):
+                raise ValueError("Length of representative_dates and representative_weights must match.")
+            else:
+                print("INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object...")
+
+            # Store as a list attribute
+            self.representative_weights = list(representative_weights)
+
+            # Additionally, create a mapping for later use:
+            self.representative_weights_dict = dict(
+                zip(representative_dates, representative_weights)
+            )
+
+        else:
+            # Set the weight for each day to the total weight divided
+            # by number of days
             total_weight = prescient_options.num_days * self.stages
             weight_per_date = int(total_weight / (len(representative_dates)))
             self.representative_weights = {
@@ -247,6 +263,7 @@ class ExpansionPlanningData:
             data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
+
 
     def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.
