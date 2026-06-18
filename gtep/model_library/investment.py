@@ -127,7 +127,7 @@ def add_investment_constraints(
             + storage_term
             + transmission_term
         )
-        print(pyo.value(m.investmentFactor[investment_stage]))
+
         return m.investmentFactor[investment_stage] * baseline_cost
 
     # from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
