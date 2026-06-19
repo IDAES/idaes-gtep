@@ -387,9 +387,7 @@ class ExpansionPlanningSolution:
             fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="lightgray")
 
             # Save as an interactive HTML
-            plot_path = (
-                f"{results_path}/plots/investment_{case_json}_gen_mix_summary_interactive.html"
-            )
+            plot_path = f"{results_path}/plots/investment_{case_json}_gen_mix_summary_interactive.html"
             fig.write_html(f"{plot_path}")
             print(f" -> Saved interactive stack plot for generation mix to {plot_path}")
 
@@ -1062,10 +1060,10 @@ class ExpansionPlanningSolution:
             #     )
             #     print(f"[DEBUG] {name}: {values[:10]}")
 
-        def plot_generation_pie_chart(generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path):
-            """Plots a pie chart of total generation by unit type.
-
-            """
+        def plot_generation_pie_chart(
+            generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path
+        ):
+            """Plots a pie chart of total generation by unit type."""
             # Sum total generation for each type
             total_by_type = {name: 0.0 for name in GEN_TYPES}
             for s, p, c, d in time_periods:
@@ -1074,14 +1072,14 @@ class ExpansionPlanningSolution:
 
             # Filter out types with zero total
             total_by_type = {k: v for k, v in total_by_type.items() if abs(v) > 1e-6}
-            
+
             labels = [
                 f"{GEN_TYPE_ALIASES.get(name, name)} ({total_by_type[name]:,.1f} MW)"
                 for name in total_by_type
             ]
             values = [total_by_type[name] for name in total_by_type]
             colors = [GEN_TYPES[name] for name in total_by_type]
-            
+
             fig = go.Figure(
                 data=[go.Pie(labels=labels, values=values, marker=dict(colors=colors))]
             )
@@ -1096,7 +1094,6 @@ class ExpansionPlanningSolution:
             plot_path = f"{results_path}/plots/generation_mix_pie_chart.html"
             fig.write_html(plot_path)
             print(f" -> Saved generation mix pie chart to {plot_path}")
-
 
         def calculate_metrics(folder_name):
             """
@@ -1253,13 +1250,13 @@ class ExpansionPlanningSolution:
             return messages
 
         def save_metrics_and_generation_to_csv(
-                results_path,
-                rep_days,
-                time_periods,
-                loads_trace,
-                generation,
-                day_hour_list,
-                output_csv_file,
+            results_path,
+            rep_days,
+            time_periods,
+            loads_trace,
+            generation,
+            day_hour_list,
+            output_csv_file,
         ):
 
             def split_message(message):
@@ -1270,12 +1267,12 @@ class ExpansionPlanningSolution:
                     return label, value
                 else:
                     return message, ""  # No value, just text
-                
+
             metrics_lines = calculate_metrics(results_path)
             gen_lines = print_generation_for_days(
                 rep_days, time_periods, loads_trace, generation, day_hour_list
             )
-            
+
             with open(output_csv_file, "w", newline="") as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["Description", "Value"])
@@ -1287,8 +1284,6 @@ class ExpansionPlanningSolution:
                     writer.writerow([label, value])
 
             print(f" -> Saved metrics and generation output to {output_csv_file}")
-
-
 
         plot_generation_pie_chart(
             generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path
@@ -1320,7 +1315,7 @@ class ExpansionPlanningSolution:
             loads_trace,
             generation,
             day_hour_list,
-            f"{results_path}/metrics_and_generation_output.csv"
+            f"{results_path}/metrics_and_generation_output.csv",
         )
 
     def create_html_report(self, results_path, plot_type):

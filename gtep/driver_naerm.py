@@ -159,11 +159,11 @@ if solver == "xpress":
         # logfile=log_folder + "/" + solver + ".log",
     )
 else:
-    options_dict = {"MIPGap":0.05}
+    options_dict = {"MIPGap": 0.05}
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
-        options=options_dict
+        options=options_dict,
         # logfile=log_folder + "/" + solver + ".log",
     )
 # mod_object.model.operatingCostTotal.display()
