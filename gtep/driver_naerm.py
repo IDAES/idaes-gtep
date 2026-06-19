@@ -136,7 +136,7 @@ print("model is transformed!")
 
 solver = "xpress"
 opt = pyo.SolverFactory(solver)
-# xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
+xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
 if solver == "xpress":
     log_folder = "xpress_log_files"
     options_dict = {
