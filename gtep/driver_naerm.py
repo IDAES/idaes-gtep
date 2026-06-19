@@ -93,7 +93,7 @@ mod_object = ExpansionPlanningModel(
     cost_data=data_processing_object,
 )
 
-mod_object.config["include_investment"] = False
+mod_object.config["include_investment"] = True
 mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
@@ -134,9 +134,9 @@ print("model is created!")
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
 
-solver = "xpress"
+solver = "gurobi"
 opt = pyo.SolverFactory(solver)
-xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
+# xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
 if solver == "xpress":
     log_folder = "xpress_log_files"
     options_dict = {
@@ -145,18 +145,25 @@ if solver == "xpress":
     # print(dir(xpress.controls))
     # xpress.controls.heurdivespeedup = 0
     # xpress.controls.heursearchrootcutfreq = 1
-    xpress.controls.miprelstop = 0.1
-    xpress.controls.heurfreq = 0  # disable most heuristics
-    xpress.controls.threads = 0  # use all available threads
-    xpress.controls.presolve = 3
-    xpress.controls.cutstrategy = 3
+    # xpress.controls.miprelstop = 0.1
+    # xpress.controls.heurfreq = 0  # disable most heuristics
+    # xpress.controls.threads = 0  # use all available threads
+    # xpress.controls.presolve = 3
+    # xpress.controls.cutstrategy = 3
 
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
         # logfile=log_folder + "/" + solver + ".log",
     )
-
+else:
+    options_dict = {"MIPGap":0.05}
+    mod_object.results = opt.solve(
+        mod_object.model,
+        tee=True,
+        options=options_dict
+        # logfile=log_folder + "/" + solver + ".log",
+    )
 # mod_object.model.operatingCostTotal.display()
 # mod_object.model.expansionCostTotal.display()
 # mod_object.model.penaltyCostTotal.display()
