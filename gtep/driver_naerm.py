@@ -131,7 +131,7 @@ print("model is created!")
 # mod_object.model.total_cost_objective_rule.pprint()
 # mod_object.model.investmentStage[1].genInstalled['AESO_cc_gas'].pprint()
 
-pyo.TransformationFactory("gdp.hull").apply_to(mod_object.model)
+pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 print("model is transformed!")
 
 solver = "xpress"
