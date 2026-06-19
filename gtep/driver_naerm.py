@@ -143,13 +143,15 @@ if solver == "xpress":
         "logfile": log_folder + "/" + solver + ".log",
     }
     # print(dir(xpress.controls))
-    # xpress.controls.heurdivespeedup = 0
-    # xpress.controls.heursearchrootcutfreq = 1
+    xpress.controls.heurdivespeedup = 0
+    xpress.controls.heursearchrootcutfreq = 1
     # xpress.controls.miprelstop = 0.1
     # xpress.controls.heurfreq = 0  # disable most heuristics
     # xpress.controls.threads = 0  # use all available threads
     # xpress.controls.presolve = 3
     # xpress.controls.cutstrategy = 3
+    xpress.controls.scaling = 16
+    xpress.controls.maxmiptasks = 16
 
     mod_object.results = opt.solve(
         mod_object.model,
@@ -190,7 +192,7 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-day_hour_list = [("2034-07-12 00:00", 19), ("2034-07-12 00:00", 5)]
+day_hour_list = [("2034-07-12 00:00", 18), ("2034-07-13 00:00", 4)]
 sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report
