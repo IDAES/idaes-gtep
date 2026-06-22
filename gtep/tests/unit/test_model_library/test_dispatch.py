@@ -161,7 +161,11 @@ class TestDispatch(unittest.TestCase):
             data=data_object,
             cost_data=data_processing_object,
         )
+
+        for config_option, config_val in config.items():
+            mod_object.config[config_option] = config_val
         mod_object.create_model()
+        
         return mod_object
 
     def _add_expected_properties_for_objects(self):
