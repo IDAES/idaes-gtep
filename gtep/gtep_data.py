@@ -57,13 +57,13 @@ class ExpansionPlanningData:
         self,
         data_path,
         representative_dates=None,
-        representative_weights={},
+        representative_weights=None,
         options_dict=None,
     ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
+        :param representative_dates: List of time points to include.
         :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
         :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
 
@@ -72,21 +72,21 @@ class ExpansionPlanningData:
         # create prescient config object with defaults
         prescient_options = PrescientConfig()
 
-        # work around for prescient throwing an error with Path objects
-        if isinstance(data_path, Path):
-            data_path = str(data_path)
-
         if options_dict is None:
             # set basic configurations that do not match prescient defaults
             options_dict = {
-                "data_path": data_path,
+                "data_path": str(
+                    data_path
+                ),  # work around for prescient (error with Path objects)
                 "num_days": 365,
                 "ruc_horizon": 36,
             }
 
         else:
             # ensure data path is included in options dictionary
-            options_dict["data_path"] = data_path
+            options_dict["data_path"] = str(
+                data_path
+            )  # work around for prescient (error with Path objects)
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
@@ -153,15 +153,22 @@ class ExpansionPlanningData:
                 "2020-07-05 00:00",
                 "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
             ]
+        #enforce representative dates as a list
+        if not isinstance(representative_dates, list):
+            representative_dates = [representative_dates]
+        #check that the representative dates has at least one value
+        if not len(representative_dates) >= 1:
+            raise ValueError('Invalid input for representative_dates. representative_dates should be a list of date strings')
         self.representative_dates = representative_dates
+        self.representative_weights = representative_weights
 
-        if not representative_weights:
+        if representative_weights is None:
             # set the weight for each day to the total weight divided by number of days
             total_weight = prescient_options.num_days * self.stages
             weight_per_date = int(total_weight / (len(representative_dates)))
             self.representative_weights = {
                 key: weight_per_date
-                for date, key in enumerate(self.representative_dates)
+                for key, date in enumerate(self.representative_dates)
             }
 
         time_keys = self.md.data["system"]["time_keys"]
@@ -197,7 +204,7 @@ class ExpansionPlanningData:
 
         adjusted_forecast_by_period = adjusted_forecast[
             adjusted_forecast["year"].isin(forecast_years)
-        ]
+        ].copy()
 
         base_zones = [
             "base_economic_coast",
@@ -263,12 +270,15 @@ class ExpansionPlanningData:
             r" (\d+):"
         )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
-        county_to_fips = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
-        )
-        bus_to_county = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
-        )
+
+        base_dir = Path(load_file_name).parent
+
+        county_fips_path = base_dir / "county_fips_match.csv"
+        bus_to_county_path = base_dir / "Bus_data_gen_weights_mappings.csv"
+
+        county_to_fips = pd.read_csv(county_fips_path)
+        bus_to_county = pd.read_csv(bus_to_county_path)
+
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
         bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
@@ -280,7 +290,8 @@ class ExpansionPlanningData:
             how="left",
         )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
-        bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
+        csv_path = base_dir / "not_right.csv"
+        bus_hours.to_csv(csv_path)
         self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
@@ -349,8 +360,12 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for storage data csv file
         """
+        # enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
         try:
-            storage_path = data_path + "/storage.csv"
+            storage_path = data_path / "storage.csv"
             storage_df = pd.read_csv(storage_path)
 
             storage_data = {}
@@ -371,10 +386,18 @@ class ExpansionPlanningData:
         :param data_path: filepath for generator data csv file
         """
         # check that datapath is coming from a texas case study directory
-        if "Texas" or "Coal" not in data_path:
+        if (
+            ("Texas" not in str(data_path))
+            and ("Coal" not in str(data_path))
+            and ("Resil_Week" not in str(data_path))
+        ):
             raise ValueError("The data path provided is not a Texas case study")
 
-        generator_update_path = data_path + "/gen.csv"
+        # enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
+        generator_update_path = data_path / "gen.csv"
         generator_df = pd.read_csv(generator_update_path)
         bonus_feature_list = [
             "capex1",
@@ -394,6 +417,8 @@ class ExpansionPlanningData:
             for col in bonus_feature_list:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
-                        data_point.data["elements"]["generator"][gen][col] = float(
-                            generator_df[generator_df["GEN UID"] == gen][col]
-                        )
+                        matching_rows = generator_df[generator_df["GEN UID"] == gen]
+                        if not matching_rows.empty:
+                            data_point.data["elements"]["generator"][gen][col] = float(
+                                matching_rows[col].iloc[0]
+                            )
