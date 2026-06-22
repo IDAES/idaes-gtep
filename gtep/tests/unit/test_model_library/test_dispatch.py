@@ -24,9 +24,7 @@ from gtep.gtep_data_processing import DataProcessing
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
 
 curr_dir = Path(__file__).resolve().parent
-input_data_source = (
-    curr_dir / ".." / ".." / ".." / "data" / "9_bus_GTEP_dir"
-).resolve()
+input_data_source = (curr_dir / ".." / ".." / ".." / "data" / "5bus").resolve()
 
 bus_data_path = (
     curr_dir
@@ -140,7 +138,6 @@ class TestDispatch(unittest.TestCase):
             num_dispatch=1,
         )
         data_object.load_prescient(input_data_source)
-        data_object.load_storage_csv(str(input_data_source))
 
         candidate_gens = [
             "Natural Gas_FE",
@@ -165,7 +162,7 @@ class TestDispatch(unittest.TestCase):
         for config_option, config_val in config.items():
             mod_object.config[config_option] = config_val
         mod_object.create_model()
-        
+
         return mod_object
 
     def _add_expected_properties_for_objects(self):
