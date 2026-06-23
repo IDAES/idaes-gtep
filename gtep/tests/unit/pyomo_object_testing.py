@@ -126,8 +126,8 @@ class PyomoCheckHelper:
         """Checks the object's units."""
         units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
         iter_func = lambda x: self.test_class.assertEqual(
-            units(x),
-            properties["units"],
+            u._pintUnitExtractionVisitor.walk_expression(units(x)),
+            u._pintUnitExtractionVisitor.walk_expression(properties["units"]),
             f"Expected {x.name} to have units {properties['units']} but got {units(x)}",
         )
         self._iter_func_over_index(iter_func, obj)
