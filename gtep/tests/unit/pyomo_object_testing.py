@@ -15,6 +15,7 @@
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
 from pyomo.core.base.component import ComponentData
+from pyomo.util.check_units import check_units_equivalent
 import pyomo.environ as pyo
 
 
@@ -125,9 +126,8 @@ class PyomoCheckHelper:
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
         units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
-        iter_func = lambda x: self.test_class.assertEqual(
-            u._pintUnitExtractionVisitor.walk_expression(units(x)),
-            u._pintUnitExtractionVisitor.walk_expression(properties["units"]),
+        iter_func = lambda x: self.test_class.assertTrue(
+            check_units_equivalent(units(x), properties["units"]),
             f"Expected {x.name} to have units {properties['units']} but got {units(x)}",
         )
         self._iter_func_over_index(iter_func, obj)
