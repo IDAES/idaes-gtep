@@ -768,7 +768,7 @@ def add_dispatch_generators_variables(m, b):
         def thermal_reactive_generation_limits(
             b, thermalGen, doc="Bounds on thermal generator reactive generation"
         ):
-            return (0, m.thermalReactiveCapacity[thermalGen])
+            return (m.thermalReactiveMin[thermalGen], m.thermalReactiveMax[thermalGen])
 
         b.thermalReactiveGeneration = pyo.Var(
             m.thermalGenerators,
