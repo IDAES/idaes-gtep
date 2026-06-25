@@ -21,8 +21,16 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
 # Add data
-data_path = "./data/5bus"
-data_object = ExpansionPlanningData()
+data_path = "./gtep/data/5bus"
+data_object = ExpansionPlanningData(
+    stages=2,
+    num_reps=2,
+    len_reps=1,
+    num_commit=6,
+    num_dispatch=4,
+    # [ESR: in min by default, for now]
+    duration_dispatch=15,
+)
 data_object.load_prescient(data_path)
 
 # [ESR WIP: Add bus and cost data files to be used on the
@@ -33,8 +41,8 @@ data_object.load_prescient(data_path)
 # types: (a) Natural Gas: Combustion Turbine (CT) and Fuel Efficiency
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
 
-bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+bus_data_path = "gtep/data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 candidate_gens = [
     "Natural Gas_CT",
     "Natural Gas_FE",
@@ -42,25 +50,18 @@ candidate_gens = [
     "Land-Based Wind",
 ]
 
-data_processing_object = DataProcessing()
-data_processing_object.load_gen_data(
-    bus_data_path=bus_data_path,
-    cost_data_path=cost_data_path,
-    candidate_gens=candidate_gens,
-    save_csv=True,
-)
+# data_processing_object = DataProcessing()
+# data_processing_object.load_gen_data(
+#     bus_data_path=bus_data_path,
+#     cost_data_path=cost_data_path,
+#     candidate_gens=candidate_gens,
+#     save_csv=True,
+# )
 
 # Populate and create GTEP model
 mod_object = ExpansionPlanningModel(
-    stages=2,
     data=data_object,
-    cost_data=data_processing_object,
-    num_reps=2,
-    len_reps=1,
-    num_commit=6,
-    num_dispatch=4,
-    # [ESR: in min by default, for now]
-    duration_dispatch=15,
+    # cost_data=data_processing_object,
 )
 
 mod_object.config["include_investment"] = True
@@ -82,9 +83,17 @@ pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 # opt = Highs()
 # mod_object.results = opt.solve(mod_object.model)
 
-opt = pyo.SolverFactory("gurobi")
-# opt = pyo.SolverFactory("highs")
+# opt = pyo.SolverFactory("gurobi")
+opt = pyo.SolverFactory("highs")
 mod_object.results = opt.solve(mod_object.model, tee=True)
+variables = [
+    var.local_name
+    for var in mod_object.model.component_objects(pyo.Var, descend_into=True)
+]
+var_list = []
+for item in variables:
+    if "br" in item or "Br" in item:
+        var_list.append(item)
 print(mod_object.results)
 # mod_object.model.investmentStage.display()
 # mod_object.report_model()
