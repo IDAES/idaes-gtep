@@ -47,13 +47,18 @@ ng_data_path = (
 ).resolve()
 
 
-def create_model(input_data_path=input_data_path, config={}):
-    data_object = ExpansionPlanningData(
+def create_model(input_data_path=input_data_path, planning_data_args={}, config={}):
+    default_data_planning_args = dict(
         stages=1,
         num_reps=1,
         num_commit=1,
         num_dispatch=1,
     )
+    for arg, val in default_data_planning_args.items():
+        if arg not in planning_data_args:
+            planning_data_args[arg] = val
+
+    data_object = ExpansionPlanningData(**planning_data_args)
     data_object.load_prescient(input_data_path)
     if "storage" in config and config["storage"]:
         data_object.load_storage_csv(str(input_data_path))
