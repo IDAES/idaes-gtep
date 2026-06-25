@@ -61,8 +61,8 @@ def add_dispatch_variables(b):
     def thermalGeneratorCost(b, gen):
         return (
             b.thermalGeneration[gen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
-            * (m.fixedCost[gen] + m.varCost[gen])
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * (m.fixedCost[gen] + m.varCost[gen] + m.fuelCost[gen])
         )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
@@ -72,6 +72,16 @@ def add_dispatch_variables(b):
             * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.fixedCost[gen]
         )
+
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+
+        @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
+        def reactiveGeneratorCost(b, gen):
+            return (
+                b.thermalReactiveGeneration[gen]
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * m.fuelCostReactive[gen]
+            )
 
     b.loadShed = pyo.Var(
         m.buses,
