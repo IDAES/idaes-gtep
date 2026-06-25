@@ -148,10 +148,14 @@ def add_storage_params(m):
     }
 
     # Future not real cost: idealized DoE 10-yr targets or something
-    m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
-        for bat in m.storage
-    }
+    m.storageInvestmentCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+            for bat in m.storage
+        },
+        units=u.USD,
+    )
 
 
 def add_storage_state_disjuncts(m, b, commitment_period):
