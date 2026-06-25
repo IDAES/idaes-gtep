@@ -120,9 +120,7 @@ if solver == "xpress":
     xpress.controls.miprelstop = 0.01
 
     mod_object.results = opt.solve(
-        mod_object.model,
-        tee=True,
-        logfile="xpress_log_files/xpress.log"
+        mod_object.model, tee=True, logfile="xpress_log_files/xpress.log"
     )
 
 # Save the results in .json files using the solution class
@@ -146,7 +144,7 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-day_hour_list = [("2034-07-12 00:00", 18), ("2034-07-12 00:00",4)]
+day_hour_list = [("2034-07-12 00:00", 18), ("2034-07-12 00:00", 4)]
 sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report

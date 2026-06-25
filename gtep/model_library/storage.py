@@ -41,7 +41,9 @@ def add_storage_params(m):
     m.initStorageChargeLevel = pyo.Param(
         m.storage,
         initialize={
-            bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]  # 80% energy capacity
+            bat: m.md.data["elements"]["storage"][bat][
+                "initial_state_of_charge"
+            ]  # 80% energy capacity
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
@@ -52,7 +54,9 @@ def add_storage_params(m):
     m.minStorageChargeLevel = pyo.Param(
         m.storage,
         initialize={
-            bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]  # 20% energy capacity
+            bat: m.md.data["elements"]["storage"][bat][
+                "minimum_state_of_charge"
+            ]  # 20% energy capacity
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
@@ -149,7 +153,7 @@ def add_storage_params(m):
         units=u.MW,
         doc="Maximum amount of ramp down between dispatch periods when charging",
     )
-    
+
     m.storageDischargingEfficiency = pyo.Param(
         m.storage,
         initialize={
@@ -356,7 +360,7 @@ def add_storage_cost_parameters_from_csv(m, year):
             # Variable cost: We assume is in $/MWh already (since it
             # has a value of 0)
             var_cost = var_ops_yr * final_units
-            
+
             # Assign to Pyomo parameters (strip units for Pyomo Param)
             m.storagefixedCost[storage_uid] = pyo.value(fixed_cost)
             m.storagevarCost[storage_uid] = pyo.value(var_cost)
@@ -952,14 +956,16 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
         return (
-            b.storageCharged[bat] * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)  # in MWh
+            b.storageCharged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)  # in MWh
             * m.chargingCost[bat]  # in $/MWh
         )
 
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
         return (
-            b.storageDischarged[bat] * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)  # in MWh
+            b.storageDischarged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)  # in MWh
             * m.dischargingCost[bat]  # in $/MWh
         )
 
@@ -990,18 +996,14 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         if disp_per != 1 and commitment_period != 1:
             # If this is not the first dispatch period, use the previous
             # dispatch period in the same commitment period.
-            previous_soc = c_p.dispatchPeriod[
-                disp_per - 1
-            ].storageChargeLevel[bat]
+            previous_soc = c_p.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
 
         elif disp_per == 1 and commitment_period != 1:
             # If this is the first dispatch period of this commitment
             # period, but not the first commitment period, use the
             # final dispatch period from the previous commitment
             # period.
-            previous_commitment = r_p.commitmentPeriod[
-                commitment_period - 1
-            ]
+            previous_commitment = r_p.commitmentPeriod[commitment_period - 1]
             previous_dispatch = previous_commitment.dispatchPeriods.at(-1)
             previous_soc = previous_commitment.dispatchPeriod[
                 previous_dispatch
@@ -1016,8 +1018,12 @@ def add_dispatch_storage_variables_and_constraints(m, b):
 
         return b.storageChargeLevel[bat] == (
             m.storageRetentionRate[bat] * previous_soc
-            + m.storageChargingEfficiency[bat] * b.storageCharged[bat] * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
-            - m.storageDischargingEfficiency[bat] * b.storageDischarged[bat] * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            + m.storageChargingEfficiency[bat]
+            * b.storageCharged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            - m.storageDischargingEfficiency[bat]
+            * b.storageDischarged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
         )
 
     @b.Constraint(doc="Storage cap")
@@ -1027,6 +1033,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
             + sum(b.storageDischarged[bat] for bat in m.storage)  # in MW
             <= m.storageDischargeLimit  # in MW
         )
+
 
 def add_commitment_storage_constraints(b):
 

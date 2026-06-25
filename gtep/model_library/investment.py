@@ -121,12 +121,8 @@ def add_investment_constraints(
             transmission_term = b.transmission_investment_cost
         else:
             transmission_term = 0 * u.USD
-            
-        baseline_cost = (
-            b.generators_investment_cost
-            + storage_term
-            + transmission_term
-        )
+
+        baseline_cost = b.generators_investment_cost + storage_term + transmission_term
 
         return m.investmentFactor[investment_stage] * baseline_cost
 

@@ -169,9 +169,13 @@ class ExpansionPlanningData:
         if representative_weights:
 
             if len(representative_dates) != len(representative_weights):
-                raise ValueError("Length of representative_dates and representative_weights must match.")
+                raise ValueError(
+                    "Length of representative_dates and representative_weights must match."
+                )
             else:
-                print("INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object...")
+                print(
+                    "INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object..."
+                )
 
             # Store as a list attribute
             self.representative_weights = list(representative_weights)
@@ -263,7 +267,6 @@ class ExpansionPlanningData:
             data_list.append(self.md.clone_at_time_keys(time_key_set))
 
         self.representative_data = data_list
-
 
     def import_load_scaling(self, load_file_name, forecast_years=None):
         """Imports load scaling data for forecast years.
