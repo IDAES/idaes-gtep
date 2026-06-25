@@ -15,6 +15,7 @@
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
 from pyomo.core.base.component import ComponentData
+from pyomo.util.check_units import check_units_equivalent
 import pyomo.environ as pyo
 
 
@@ -46,6 +47,8 @@ class PyomoCheckHelper:
         index: pyo.Set | None = None,
         check_func=None,
         cond: bool = True,
+        parent: str | None = None,
+        skipped_on: list = [],
     ):
         """
         Add a pyomo object to check.
@@ -64,12 +67,21 @@ class PyomoCheckHelper:
                                     If `cond=False`, we check that `block` does NOT have an
                                     attribute `name`, and no other checks are performed.
                                     Defaults to `True`.
+        :param parent:          Optional, used if the object to be checked is not an attribute
+                                    of `self.parent` and is instead an attribute of an attribute
+                                    of `self.parent`. Identifies the name of the intermediate
+                                    object.
+        :param skipped_on:      List of indexes where this pyomo object should have been assigned
+                                    `pyo.Constraint.Skip`. Defaults to an empty list. Ignored
+                                    if `index=None`.
         :type name:             str
         :type obj_type:         type
         :type units:            tuple | None, optional
         :type index:            pyomo.environ.Set | None, optional
         :type check_func:       function, optional
         :type cond:             bool, optional
+        :type parent:           str | None, optional
+        :type skipped_on:       func, optional
         """
         self.object_properties.append(
             {
@@ -79,21 +91,34 @@ class PyomoCheckHelper:
                 "index": index,
                 "check_func": check_func,
                 "cond": cond,
+                "parent": parent,
+                "skipped_on": skipped_on,
             }
         )
 
+    def _get_parent(self, properties: dict):
+        if properties["parent"] is None:
+            return self.parent
+        parent = self.parent.component(properties["parent"])
+        if parent.is_indexed():
+            return parent[parent.index_set().first()]
+        return parent
+
     def _check_exists(self, properties: dict):
-        """Checks that an attribute with the provided name exists on `self.parent`."""
+        """Checks that an attribute with the provided name exists."""
+        parent = self._get_parent(properties)
         self.test_class.assertTrue(
-            hasattr(self.parent, properties["name"]),
-            f"{self.parent} does not have the attribute {properties['name']}, but should",
+            hasattr(parent, properties["name"]),
+            f"{parent} does not have the attribute {properties['name']}, but should",
         )
+        return parent.component(properties["name"])
 
     def _check_does_not_exist(self, properties: dict):
-        """Checks that an attribute with the provided name does not exist on `self.parent`."""
+        """Checks that an attribute with the provided name does not exist."""
+        parent = self._get_parent(properties)
         self.test_class.assertFalse(
-            hasattr(self.parent, properties["name"]),
-            f"{self.parent} has the attribute {properties['name']}, but shouldn't",
+            hasattr(parent, properties["name"]),
+            f"{parent} has the attribute {properties['name']}, but shouldn't",
         )
 
     def _check_type(self, obj: pyo.Component, properties: dict):
@@ -112,9 +137,15 @@ class PyomoCheckHelper:
         If additional keyword arguments are passed, they are also passed into
         the `func` call. If `obj` is indexed, then each `arg[i]` must exist
         for every `i` in `obj.index_set()`.
+
+        Note: this method silently skips any indices in the index set
+        which are unused (e.g., via `pyo.Constraint.Skip`). `_check_skipped`
+        is used to verify the expected indices are indeed skipped.
         """
         if obj.is_indexed():
             for i in obj.index_set():
+                if i not in obj:
+                    continue
                 func(
                     obj[i],
                     **{k: v[i] for k, v in additional_args.items()},
@@ -125,9 +156,8 @@ class PyomoCheckHelper:
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
         units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
-        iter_func = lambda x: self.test_class.assertEqual(
-            units(x),
-            properties["units"],
+        iter_func = lambda x: self.test_class.assertTrue(
+            check_units_equivalent(units(x), properties["units"]),
             f"Expected {x.name} to have units {properties['units']} but got {units(x)}",
         )
         self._iter_func_over_index(iter_func, obj)
@@ -168,6 +198,17 @@ class PyomoCheckHelper:
                     f"Expected {obj} to have index set {exp} but got {got}",
                 )
 
+    def _check_skipped(self, obj: pyo.Component, properties: dict):
+        """Checks that the object is `pyo.Constraint.Skip`."""
+        not_skipped = []
+        for i in obj.index_set():
+            if i in properties["skipped_on"]:
+                self.test_class.assertNotIn(i, obj)
+            else:
+                self.test_class.assertIn(i, obj)
+                not_skipped.append(i)
+        return not_skipped
+
     def _check_bounds(self, obj: pyo.Component):
         """Checks that the object's bounds are consistent with its domain (if it has them)."""
 
@@ -192,12 +233,12 @@ class PyomoCheckHelper:
         """Performs checks on all members of `self.object_properties`."""
         for properties in self.object_properties:
             if properties["cond"]:
-                self._check_exists(properties)
-                obj = self.parent.component(properties["name"])
-
+                obj = self._check_exists(properties)
                 self._check_type(obj, properties)
-                self._check_units(obj, properties)
                 self._check_index(obj, properties)
+                if properties["index"] is not None:
+                    properties["index"] = self._check_skipped(obj, properties)
+                self._check_units(obj, properties)
                 self._check_bounds(obj)
                 self._run_check_func(obj, properties)
             else:

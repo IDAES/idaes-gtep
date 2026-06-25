@@ -18,150 +18,235 @@ Transmission Expansion Planning (GTEP) Model
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from pyomo.core.base.block import BlockData
 
 
-def add_storage_params(m):
-    """This method defines all the battery storage properties from
-    data
-
+def add_storage_params(m: pyo.Model):
     """
+    This method defines all the battery storage properties from data.
 
-    # Maximum storage capacity
-    m.storageCapacity = {
-        bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
-        for bat in m.storage
-    }
+    :param m:       model object
+    :type m:        pyomo.environ.Model
+    """
+    m.storageCapacity = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
+            for bat in m.storage
+        },
+        units=u.MW * u.hr,
+        doc="Maximum storage capacity (in MWh)",
+    )
 
-    # Initial storage capacity
-    m.initStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
-        for bat in m.storage
-    }
+    m.initStorageChargeLevel = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
+            for bat in m.storage
+        },
+        units=u.MW * u.hr,
+        doc="Initial state of charge (in MWh)",
+    )
 
-    # Minimum storage capacity
-    m.minStorageChargeLevel = {
-        bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
-        for bat in m.storage
-    }
+    m.minStorageChargeLevel = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
+            for bat in m.storage
+        },
+        units=u.MW * u.hr,
+        doc="Minimum state of charge (in MWh)",
+    )
 
-    # Cost to charge per unit electricity
-    m.chargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
-    }
+    m.chargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+            for bat in m.storage
+        },
+        units=u.USD / u.MW / u.hr,
+        doc="Cost to charge (in USD/MWh)",
+    )
 
-    # Cost to discharge per unit electricity
-    m.dischargingCost = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-        for bat in m.storage
-    }
+    m.dischargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+            for bat in m.storage
+        },
+        units=u.USD / u.MW / u.hr,
+        doc="Cost to discharge (in USD/MWh)",
+    )
 
-    # Minimum amount to discharge per dispatch period when discharging
-    m.dischargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
-        for bat in m.storage
-    }
+    m.dischargeMin = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
+            for bat in m.storage
+        },
+        units=u.MW,
+        doc="Minimum discharge rate (in MW)",
+    )
 
-    # Maximum amount to discharge per dispatch period when discharging
-    m.dischargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
-        for bat in m.storage
-    }
+    m.dischargeMax = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
+            for bat in m.storage
+        },
+        units=u.MW,
+        doc="Maximum discharge rate (in MW)",
+    )
 
-    # Minimum amount to charge per dispatch period when charging
-    m.chargeMin = {
-        bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
-        for bat in m.storage
-    }
+    m.chargeMin = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
+            for bat in m.storage
+        },
+        units=u.MW,
+        doc="Minimum charging rate (in MW)",
+    )
 
-    # Maximum amount to charge per dispatch period when charging
-    m.chargeMax = {
-        bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
-        for bat in m.storage
-    }
+    m.chargeMax = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
+            for bat in m.storage
+        },
+        units=u.MW,
+        doc="Maximum charging rate (in MW)",
+    )
 
-    # Maximum amount of ramp up between dispatch periods when
-    # discharging. NOTE that default EGRET naming convention assumes
+    # NOTE that default EGRET naming convention assumes
     # dispatch periods are 60 minutes.
-    m.storageDischargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
-        for bat in m.storage
-    }
+    m.storageDischargingRampUpRates = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
+            for bat in m.storage
+        },
+        units=u.MW / u.hr,  # units?
+        doc="Maximum amount of ramp up between dispatch periods when discharging",
+    )
 
-    # Maximum amount of ramp down between dispatch periods when
-    # discharging.
-    m.storageDischargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
-        for bat in m.storage
-    }
+    m.storageDischargingRampDownRates = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
+            for bat in m.storage
+        },
+        units=u.MW / u.hr,  # units?
+        doc="Maximum amount of ramp down between dispatch periods when discharging",
+    )
 
-    # Maximum amount of ramp up between dispatch periods when
-    # charging.
-    m.storageChargingRampUpRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
-        for bat in m.storage
-    }
+    m.storageChargingRampUpRates = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
+            for bat in m.storage
+        },
+        units=u.MW / u.hr,  # units?
+        doc="Maximum amount of ramp up between dispatch periods when charging",
+    )
 
-    # Maximum amount of ramp down between dispatch periods when
-    # charging.
-    m.storageChargingRampDownRates = {
-        bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
-        for bat in m.storage
-    }
+    m.storageChargingRampDownRates = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
+            for bat in m.storage
+        },
+        units=u.MW / u.hr,  # units?
+        doc="Maximum amount of ramp down between dispatch periods when charging",
+    )
 
-    # Proportion of energy discharged that is not lost to
-    # technological inefficiencies with in dispatch periods and which
-    # is usable in the flow balance
-    m.storageDischargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
-        for bat in m.storage
-    }
+    m.storageDischargingEfficiency = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
+            for bat in m.storage
+        },
+        units=u.dimensionless,
+        doc="Proportion of energy discharged not lost to technological inefficencies within dispatch periods and which is usable in the flow balance",
+    )
 
-    # Proportion of energy charged that is not lost to technological
-    # inefficiencies within dispatch periods and which is usable in
-    # the flow balance
-    m.storageChargingEfficiency = {
-        bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
-        for bat in m.storage
-    }
+    m.storageChargingEfficiency = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
+            for bat in m.storage
+        },
+        units=u.dimensionless,
+        doc="Proportion of energy charged not lost to technological inefficiencies within dispatch periods and which is usable in the flow balance",
+    )
 
-    # Proportion of energy discharged that is not lost to
-    # technological inefficiencies between dispatch periods and which
-    # is usable in the flow balance
-    m.storageRetentionRate = {
-        bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
-        for bat in m.storage
-    }
+    m.storageRetentionRate = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
+            for bat in m.storage
+        },
+        units=1 / u.hr,
+        doc="Proportion of stored energy that is preserved per hour (in 1/hr)",
+    )
 
-    # (Arbitrary) multiplier for new battery investments corresponds
-    # to depreciation schedules for individual technologies; higher
-    # values are indicative of slow depreciation
-    m.storageCapitalMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
-        for bat in m.storage
-    }
+    m.storageCapitalMultiplier = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
+            for bat in m.storage
+        },
+        units=u.dimensionless,
+        doc="(Arbitrary) multiplier for new battery investments, corresponding to depreciation schedules for individual technologies; higher values indicate slower depreciation",
+    )
 
-    # Cost of life extension for each battery, expressed as a fraction
-    # of initial investment cost
-    m.storageExtensionMultiplier = {
-        bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
-        for bat in m.storage
-    }
+    m.storageExtensionMultiplier = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
+            for bat in m.storage
+        },
+        units=u.dimensionless,
+        doc="Cost of life extension, as a fraction of initial investment cost",
+    )
 
-    # Future not real cost: idealized DoE 10-yr targets or something
-    m.storageInvestmentCost = {
-        bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
-        for bat in m.storage
-    }
+    m.storageInvestmentCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
+            for bat in m.storage
+        },
+        units=u.USD / u.MW / u.hr,  # TODO: check that this is indeed what's in the data
+        doc="Future not real cost; based on idealized targets, in $/MWh",
+    )
 
 
-def add_storage_state_disjuncts(m, b, commitment_period):
-    """This method includes the battery storage charging and
-    discharging constraints
+# def _charge_discharge_helper(b: BlockData, disj: gdp.Disjunct, charging: bool, bat):
+#     """
+#     :param b:           Commitment block
+#     :param disj:        Charging/discharging disjunct
+#     :param charging:    Whether we are in the charging disjunct
+#     :param bat:         Element of `m.storage`
+#     """
+#     descrip = "charge" if charging else "discharge"
 
+#     disj.add_component()
+#     pass
+
+
+def add_storage_state_disjuncts(b: BlockData):
+    """
+    This function adds battery storage charging and discharging
+    disjuncts and constraints.
+
+    :param b:           Commitment block to add disjuncts to
+    :type b:            pyomo.core.base.block.BlockData
     """
 
+    m = b.model()
     r_p = b.parent_block()
     i_p = r_p.parent_block()
+    comm_per = b.index()
 
     #########################
     # Discharging constraints
@@ -169,23 +254,21 @@ def add_storage_state_disjuncts(m, b, commitment_period):
 
     @b.Disjunct(m.storage, doc="Storage discharging operating limits")
     def storDischarging(disj, bat):
-        b = disj.parent_block()
 
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Storage discharging minimum operating Limits if storage unit is on",
         )
-        def discharge_limit_min(d, disp_per):
+        def discharge_limit_min(disj, disp_per):
             return (
-                m.dischargeMin[bat]  # Assuming dischargeMin is an absolute value (MW)
-                <= b.dispatchPeriod[disp_per].storageDischarged[bat]
+                m.dischargeMin[bat] <= b.dispatchPeriod[disp_per].storageDischarged[bat]
             )
 
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Storage discharging maximum operating limits",
         )
-        def discharge_limit_max(d, disp_per):
+        def discharge_limit_max(disj, disp_per):
             return (
                 b.dispatchPeriod[disp_per].storageDischarged[bat] <= m.dischargeMax[bat]
             )
@@ -195,81 +278,55 @@ def add_storage_state_disjuncts(m, b, commitment_period):
             doc="Storage discharging ramp up limit when fully on",
         )
         def discharge_ramp_up_limits(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
                 return (
                     b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    - b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
-                    <= m.storageDischargingRampUpRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .storageDischarged[bat]
-                    <= m.storageDischargingRampUpRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            else:
-                return pyo.Constraint.Skip
+                    - r_p.prevStorageDischarged[(comm_per, disp_per), bat]
+                ) / u.convert(
+                    m.dispatchPeriodLength, u.hr
+                ) <= m.storageDischargingRampUpRates[
+                    bat
+                ]
+            return pyo.Constraint.Skip
 
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Storage discharging ramp down limit when fully on",
         )
         def discharge_ramp_down_limits(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
                 return (
-                    b.dispatchPeriod[disp_per - 1].storageDischarged[bat]
+                    r_p.prevStorageDischarged[(comm_per, disp_per), bat]
                     - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    <= m.storageDischargingRampDownRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods[-1]]
-                    .storageDischarged[bat]
-                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    <= m.storageDischargingRampDownRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            else:
-                return pyo.Constraint.Skip
+                ) / u.convert(
+                    m.dispatchPeriodLength, u.hr
+                ) <= m.storageDischargingRampDownRates[
+                    bat
+                ]
+            return pyo.Constraint.Skip
 
         @disj.Constraint(b.dispatchPeriods, doc="Forces no charge when discharging")
         def no_charge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] <= 0
+            return b.dispatchPeriod[disp_per].storageCharged[bat] <= 0 * u.MW
 
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Enforces that batteries that are charging both gain and lose energy",
         )
         def discharging_battery_storage_balance(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
+                return b.dispatchPeriod[disp_per].storageChargeLevel[
+                    bat
+                ] == r_p.retainedStorageChargeLevelFromPrev[
+                    (comm_per, disp_per), bat
+                ] - b.dispatchPeriod[
+                    disp_per
+                ].storageDischarged[
+                    bat
+                ] * u.convert(
+                    m.dispatchPeriodLength, u.hr
                 )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods[-1]]
-                    .storageChargeLevel[bat]
-                    - m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageDischarged[bat]
-                )
-            else:
-                return pyo.Constraint.Skip
+            return pyo.Constraint.Skip
 
     #########################
     # Charging constraints
@@ -281,10 +338,7 @@ def add_storage_state_disjuncts(m, b, commitment_period):
 
         @disj.Constraint(b.dispatchPeriods)
         def charge_limit_min(d, disp_per):
-            return (
-                m.chargeMin[bat]  # Assuming chargeMin is an absolute value (MW)
-                <= b.dispatchPeriod[disp_per].storageCharged[bat]
-            )
+            return m.chargeMin[bat] <= b.dispatchPeriod[disp_per].storageCharged[bat]
 
         @disj.Constraint(
             b.dispatchPeriods,
@@ -298,52 +352,26 @@ def add_storage_state_disjuncts(m, b, commitment_period):
             doc="Storage charging ramp up limit when fully on",
         )
         def charge_ramp_up_limits(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
                 return (
                     b.dispatchPeriod[disp_per].storageCharged[bat]
-                    - b.dispatchPeriod[disp_per - 1].storageCharged[bat]
-                    <= m.storageChargingRampUpRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
+                    - r_p.prevStorageCharged[(comm_per, disp_per), bat]
+                    <= m.storageChargingRampUpRates[bat]
                 )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageCharged[bat]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .storageCharged[bat]
-                    <= m.storageChargingRampUpRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            else:
-                return pyo.Constraint.Skip
+            return pyo.Constraint.Skip
 
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Storage charging ramp down limit when fully on",
         )
         def charge_ramp_down_limits(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
                 return (
-                    b.dispatchPeriod[disp_per - 1].storageCharged[bat]
+                    r_p.prevStorageCharged[(comm_per, disp_per), bat]
                     - b.dispatchPeriod[disp_per].storageCharged[bat]
-                    <= m.storageChargingRampDownRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
+                    <= m.storageChargingRampDownRates[bat]
                 )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .storageCharged[bat]
-                    - b.dispatchPeriod[disp_per].storageCharged[bat]
-                    <= m.storageChargingRampDownRates[
-                        bat
-                    ]  # battery ramp rates are currently absolute values
-                )
-            else:
-                return pyo.Constraint.Skip
+            return pyo.Constraint.Skip
 
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
@@ -354,26 +382,19 @@ def add_storage_state_disjuncts(m, b, commitment_period):
             doc="Enforces that batteries that are charging both gain and lose energy",
         )
         def charging_battery_storage_balance(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
-                    + m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageCharged[bat]
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
+                return b.dispatchPeriod[disp_per].storageChargeLevel[
+                    bat
+                ] == r_p.retainedStorageChargeLevelFromPrev[
+                    (comm_per, disp_per), bat
+                ] + b.dispatchPeriod[
+                    disp_per
+                ].storageCharged[
+                    bat
+                ] * u.convert(
+                    m.dispatchPeriodLength, u.hr
                 )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods[-1]]
-                    .storageChargeLevel[bat]
-                    + m.storageChargingEfficiency[bat]
-                    * b.dispatchPeriod[disp_per].storageCharged[bat]
-                )
-            else:
-                return pyo.Constraint.Skip
+            return pyo.Constraint.Skip
 
     #########################
     # Storage Off Constraints
@@ -403,22 +424,12 @@ def add_storage_state_disjuncts(m, b, commitment_period):
 
         @disj.Constraint(b.dispatchPeriods)
         def off_batteries_lose_storage(disj, disp_per):
-            if disp_per != 1 and commitment_period != 1:
+            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
                 return (
                     b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * b.dispatchPeriod[disp_per - 1].storageChargeLevel[bat]
+                    == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat]
                 )
-            elif disp_per == 1 and commitment_period != 1:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == m.storageRetentionRate[bat]
-                    * r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .storageChargeLevel[bat]
-                )
-            else:
-                return pyo.Constraint.Skip
+            return pyo.Constraint.Skip
 
     @b.Disjunction(
         m.storage,
@@ -430,9 +441,6 @@ def add_storage_state_disjuncts(m, b, commitment_period):
             disj.storDischarging[bat],
             disj.storOff[bat],
         ]
-
-    r_p = b.parent_block()
-    i_p = r_p.parent_block()
 
     @b.LogicalConstraint(
         m.storage,
@@ -710,7 +718,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         domain=pyo.NonNegativeReals,
         bounds=storage_capacity_limits,
         initialize=init_storage_capacity,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Define bounds on charging/discharging capability. Note that
