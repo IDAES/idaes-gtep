@@ -32,7 +32,10 @@ mod_object.create_model()
 
 # CT 99.6
 # CC 80.3
-'''
+"""
 Oakes, Matt, et al. "Cost and Performance Baseline for Fossil Energy Plants, Volume 5: Natural Gas Electricity Generating Units for Flexible Operation." , May. 2023. https://doi.org/10.2172/1973266
-'''
+"""
+
+# nuclear 0
+# coal 8 (kyle will send reference)
 pass
