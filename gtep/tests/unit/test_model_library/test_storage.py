@@ -15,6 +15,7 @@ from pathlib import Path
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.common.unittest import TestCase
+import pyomo.gdp as gdp
 
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_data_processing import DataProcessing
@@ -56,14 +57,19 @@ ng_data_path = (
 
 
 class TestObjective(TestCase):
-    def _create_model(self, config={}):
+    def _create_model(self, planning_data_args={}, config={}):
         # create model
-        data_object = ExpansionPlanningData(
+        default_data_planning_args = dict(
             stages=1,
             num_reps=1,
             num_commit=1,
             num_dispatch=1,
         )
+        for arg, val in default_data_planning_args.items():
+            if arg not in planning_data_args:
+                planning_data_args[arg] = val
+
+        data_object = ExpansionPlanningData(**planning_data_args)
         data_object.load_prescient(input_data_source)
         data_object.load_storage_csv(str(input_data_source))
 
@@ -151,25 +157,25 @@ class TestObjective(TestCase):
         self.check_helper.add_object(
             name="storageDischargingRampUpRates",
             obj_type=pyo.Param,
-            units=u.MW,
+            units=u.MW / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
             name="storageDischargingRampDownRates",
             obj_type=pyo.Param,
-            units=u.MW,
+            units=u.MW / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
             name="storageChargingRampUpRates",
             obj_type=pyo.Param,
-            units=u.MW,
+            units=u.MW / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
             name="storageChargingRampDownRates",
             obj_type=pyo.Param,
-            units=u.MW,
+            units=u.MW / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
@@ -187,7 +193,7 @@ class TestObjective(TestCase):
         self.check_helper.add_object(
             name="storageRetentionRate",
             obj_type=pyo.Param,
-            units=u.dimensionless,
+            units=1 / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
@@ -205,17 +211,87 @@ class TestObjective(TestCase):
         self.check_helper.add_object(
             name="storageInvestmentCost",
             obj_type=pyo.Param,
-            units=u.USD,
+            units=u.USD / u.MW / u.hr,
             index=self.m.storage,
         )
 
-    def _coordinate_tests(self, config):
-        """Creates a model and runs tests for a given set of config options."""
-        self.m = self._create_model(config=config)
+    def _add_storage_state_disjuncts(self):
+        continuity_constraint_skipped = [
+            d
+            for d in self.b.dispatchPeriods
+            if (self.b.parent_block().index(), d)
+            == self.b.parent_block().commitDispatchPairs.first()
+        ]
+        self.check_helper.add_object(
+            name="storDischarging",
+            obj_type=gdp.Disjunct,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="discharge_limit_min",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+        )
+        self.check_helper.add_object(
+            name="discharge_limit_max",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+        )
+        self.check_helper.add_object(
+            name="discharge_ramp_up_limits",
+            obj_type=pyo.Constraint,
+            units=u.MW / u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+            skipped_on=continuity_constraint_skipped,
+        )
+        self.check_helper.add_object(
+            name="discharge_ramp_down_limits",
+            obj_type=pyo.Constraint,
+            units=u.MW / u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+            skipped_on=continuity_constraint_skipped,
+        )
+        self.check_helper.add_object(
+            name="no_charge",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+        )
+        self.check_helper.add_object(
+            name="discharging_battery_storage_balance",
+            obj_type=pyo.Constraint,
+            units=u.MW * u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storDischarging",
+            skipped_on=continuity_constraint_skipped,
+        )
 
+    def _coordinate_tests(self, planning_data_args, config):
+        """Creates a model and runs tests for a given set of config options."""
+        self.m = self._create_model(
+            planning_data_args=planning_data_args, config=config
+        )
+
+        # checks on model attributes
         self.check_helper = PyomoCheckHelper(self, self.m)
         self._add_storage_params()
         self.check_helper.check_all_objects()
 
-    def test_default_config_options(self):
-        self._coordinate_tests(config={"storage": True})
+        # checks on commitment block attributes
+        self.b = self.m.investmentStage[1].representativePeriod[1].commitmentPeriod[1]
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._add_storage_state_disjuncts()
+        self.check_helper.check_all_objects()
+
+    def test_(self):
+        self._coordinate_tests(
+            planning_data_args={"num_commit": 2, "num_dispatch": 2},
+            config={"storage": True},
+        )
