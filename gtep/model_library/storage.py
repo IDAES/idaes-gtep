@@ -44,12 +44,12 @@ def add_storage_params(m):
         for bat in m.storage
     }
 
-    # Cost to charge per unit electricity
+    # Cost to charge per unit electricity in $/MW
     m.chargingCost = {
         bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
     }
 
-    # Cost to discharge per unit electricity
+    # Cost to discharge per unit electricity in $/MW
     m.dischargingCost = {
         bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
         for bat in m.storage
@@ -751,7 +751,10 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         units=u.MW,
     )
 
-    # Operational cost variables and expressions per storage unit
+    # Operational cost variables and expressions per storage
+    # unit. Here we assume the costs are in $/MW. If instead the costs
+    # are in $/MWh, the storageCharge/Discharged should be multiplied
+    # by b.dispatchPeriodLength, in hours.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
         return b.storageCharged[bat] * m.chargingCost[bat]
