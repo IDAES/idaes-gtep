@@ -26,7 +26,7 @@ def add_storage_params(m):
 
     """
 
-    # Maximum storage capacity
+    # Maximum storage capacity in MWh
     m.storageCapacity = {
         bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
         for bat in m.storage
@@ -154,6 +154,21 @@ def add_storage_params(m):
         bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
         for bat in m.storage
     }
+
+    m.storagefixedCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Fixed operating costs",
+    )
+    m.storagevarCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Variable costs",
+    )
 
 
 def add_storage_state_disjuncts(m, b, commitment_period):
