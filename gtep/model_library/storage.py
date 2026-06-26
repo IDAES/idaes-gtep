@@ -450,12 +450,6 @@ def add_storage_state_disjuncts(m, b, commitment_period):
         )
 
 
-# def add_investment_storage_variables(b):
-#     b.storageCostInvestment = pyo.Var(
-#         within=pyo.NonNegativeReals, initialize=0, units=u.USD
-#     )
-
-
 def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on

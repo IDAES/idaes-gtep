@@ -46,7 +46,10 @@ candidate_gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV"]
 
 data_processing_object = DataProcessing()
 data_processing_object.load_gen_data(
-    bus_data_path, cost_data_path, ng_cost_path, candidate_gens,
+    bus_data_path,
+    cost_data_path,
+    ng_cost_path,
+    candidate_gens,
 )
 
 # Populate and create GTEP model
