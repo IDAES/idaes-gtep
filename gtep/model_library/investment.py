@@ -103,12 +103,12 @@ def add_investment_constraints(
     @b.Expression(doc="Investment costs for the investment period in $")
     def investment_cost(b):
 
-        if m.config["storage"] == True:
+        if m.config["storage"]:
             storage_term = b.storage_investment_cost
         else:
             storage_term = 0 * u.USD
 
-        if m.config["transmission"] == True:
+        if m.config["transmission"]:
             transmission_term = b.transmission_investment_cost
         else:
             transmission_term = 0 * u.USD
