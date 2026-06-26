@@ -75,7 +75,6 @@ class DataProcessing:
                 setattr(self, target_attr, df)
 
                 # Now process costs for each generator
-                print("\nGenerator cost summary:")
                 for _, row in df.iterrows():
                     gen_uid = row.get("GEN UID", "")
                     is_candidate = "-c" in str(gen_uid)

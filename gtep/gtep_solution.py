@@ -27,6 +27,8 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from collections import namedtuple, defaultdict
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 import pyomo.environ as pyo
 import pyomo.gdp as gdp
@@ -206,18 +208,34 @@ class ExpansionPlanningSolution:
         print(f" Created the subdirectory '{plots_dir}' to save the plots.")
 
         GenerationType = namedtuple("GenerationType", ["label", "color"])
+        # GENERATION_TYPES = {
+        #     "CC": GenerationType("Gas CC", "#20b2aa"),
+        #     "CT": GenerationType("Gas CT", "#6e8b3d"),
+        #     "PV": GenerationType("Solar", "#ffb90f"),
+        #     "NUC": GenerationType("Nuclear", "#39FF14"),
+        #     "STEAM": GenerationType("Steam", "#b0b0b0"),
+        #     "THERMAL": GenerationType("Thermal", "#e25822"),
+        #     "COAL": GenerationType("Coal", "#333333"),
+        #     "WIND": GenerationType("Wind", "#4f94cd"),
+        #     "DR": GenerationType("Demand Response", "#a020f0"),
+        #     "HYDRO": GenerationType("Hydro", "#00bfff"),
+        #     "BATTERY": GenerationType("Battery", "#25ccff"),
+        # }
+        tab20 = plt.get_cmap("tab20")
         GENERATION_TYPES = {
-            "CC": GenerationType("Gas CC", "#20b2aa"),
-            "CT": GenerationType("Gas CT", "#6e8b3d"),
-            "PV": GenerationType("Solar", "#ffb90f"),
-            "NUC": GenerationType("Nuclear", "#39FF14"),
-            "STEAM": GenerationType("Steam", "#b0b0b0"),
-            "THERMAL": GenerationType("Thermal", "#e25822"),
-            "COAL": GenerationType("Coal", "#333333"),
-            "WIND": GenerationType("Wind", "#4f94cd"),
-            "DR": GenerationType("Demand Response", "#a020f0"),
-            "HYDRO": GenerationType("Hydro", "#00bfff"),
-            "BATTERY": GenerationType("Battery", "#25ccff"),
+            "CC": GenerationType("Gas CC", mcolors.to_hex(tab20(1))),
+            "CT": GenerationType("Gas CT", mcolors.to_hex(tab20(3))),
+            "COAL": GenerationType("Coal", mcolors.to_hex(tab20(5))),
+            "NUC": GenerationType("Nuclear", mcolors.to_hex(tab20(2))),
+            "PV": GenerationType("Solar", mcolors.to_hex(tab20(9))),
+            "WIND": GenerationType("Wind", mcolors.to_hex(tab20(11))),
+            "THERMAL": GenerationType("Thermal", mcolors.to_hex(tab20(13))),
+            "STEAM": GenerationType("Steam", mcolors.to_hex(tab20(14))),
+            "HYDRO": GenerationType("Hydro", mcolors.to_hex(tab20(19))),
+            "BATTERY": GenerationType("Battery", mcolors.to_hex(tab20(15))),
+            "ES4": GenerationType("ES4", mcolors.to_hex(tab20(17))),
+            "PS": GenerationType("Pumped Storage", mcolors.to_hex(tab20(19))),
+            "DR": GenerationType("Demand Response", mcolors.to_hex(tab20(18))),
         }
 
         def get_gen_arrays(gen_case_json, results_path, data_path, GENERATION_TYPES):
@@ -387,9 +405,7 @@ class ExpansionPlanningSolution:
             fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="lightgray")
 
             # Save as an interactive HTML
-            plot_path = (
-                f"{results_path}/plots/investment_{case_json}_gen_mix_summary_interactive.html"
-            )
+            plot_path = f"{results_path}/plots/investment_{case_json}_gen_mix_summary_interactive.html"
             fig.write_html(f"{plot_path}")
             print(f" -> Saved interactive stack plot for generation mix to {plot_path}")
 
@@ -603,75 +619,78 @@ class ExpansionPlanningSolution:
             darker_rgb = [max(0, int(c * (1 - percent))) for c in rgb]
             return "#" + "".join(f"{c:02x}" for c in darker_rgb)
 
+        tab20 = plt.get_cmap("tab20")
         GEN_TYPES = {
-            "nuclear": "#39FF14",
-            "coal": "#333333",
-            "hydro": "#00bfff",
-            "cc_gas": "#20b2aa",
-            "ct_gas": "#6e8b3d",
-            "battery_discharge": "#25ccff",
-            "wind": "#4f94cd",
-            "solar": "#ffb90f",
-            "thermal_other": "#e25822",
-            "steam": "#b0b0b0",
-            "dr": "#a020f0",
-            "ES4": "#a0522d",
-            "battery_charge": "#25ccff",
-            # Candidates: 20% darker than original, same pattern for all
-            "hydro-c": darken_color("#00bfff"),
-            "gas_cc-c": darken_color("#20b2aa"),
-            "gas_ct-c": darken_color("#6e8b3d"),
-            "battery-c": darken_color("#7b9095"),
-            "wind-c": darken_color("#4f94cd"),
-            "pv-c": darken_color("#ffb90f"),
-            "steam-c": darken_color("#b0b0b0"),
-            "ES4-c": darken_color("#a0522d"),
+            "nuclear": mcolors.to_hex(tab20(2)),
+            "coal": mcolors.to_hex(tab20(5)),
+            "cc_gas": mcolors.to_hex(tab20(1)),
+            "ct_gas": mcolors.to_hex(tab20(3)),
+            "thermal_other": mcolors.to_hex(tab20(13)),
+            "steam": mcolors.to_hex(tab20(14)),
+            "solar": mcolors.to_hex(tab20(9)),
+            "wind": mcolors.to_hex(tab20(11)),
+            "hydro": mcolors.to_hex(tab20(19)),
+            "battery_discharge": mcolors.to_hex(tab20(15)),
+            "battery_charge": mcolors.to_hex(tab20(15)),
+            "ES4": mcolors.to_hex(tab20(17)),
+            "ps": mcolors.to_hex(tab20(19)),
+            "dr": mcolors.to_hex(tab20(18)),
+            # Candidates: 20% darker than original
+            "gas_cc-c": darken_color(mcolors.to_hex(tab20(1))),
+            "gas_ct-c": darken_color(mcolors.to_hex(tab20(3))),
+            "pv-c": darken_color(mcolors.to_hex(tab20(9))),
+            "wind-c": darken_color(mcolors.to_hex(tab20(11))),
+            "hydro-c": darken_color(mcolors.to_hex(tab20(19))),
+            "battery-c": darken_color(mcolors.to_hex(tab20(15))),
+            "ES4-c": darken_color(mcolors.to_hex(tab20(17))),
+            "ps-c": darken_color(mcolors.to_hex(tab20(19))),
         }
         GEN_TYPE_HATCHES = {
             # No hatch pattern for "original" types
+            "nuclear": "",
             "coal": "",
             "cc_gas": "",
             "ct_gas": "",
+            "thermal_other": "",
+            "steam": "",
             "solar": "",
             "wind": "",
-            "thermal_other": "",
-            "dr": "",
             "hydro": "",
-            "nuclear": "",
-            "ES4": "",
             "battery_discharge": "",
             "battery_charge": "",
+            "ES4": "",
+            "dr": "",
             # Candidates get a hatch pattern
-            "hydro-c": "////",
             "gas_cc-c": "////",
             "gas_ct-c": "////",
-            "battery-c": "////",
-            "wind-c": "////",
-            "pv-c": "////",
             "steam-c": "////",
+            "pv-c": "////",
+            "wind-c": "////",
+            "hydro-c": "////",
+            "battery-c": "////",
             "ES4-c": "////",
         }
         GEN_TYPE_ALIASES = {
+            "nuclear": "Nuclear",
             "coal": "Coal",
             "cc_gas": "CC",
             "ct_gas": "CT",
-            "dr": "DR",
-            "solar": "Solar",
             "thermal_other": "Thermal",
-            "wind": "Wind",
-            "nuclear": "Nuclear",
-            "hydro": "Hydro",
-            "ES4": "ES4",
             "steam": "Steam",
+            "solar": "Solar",
+            "wind": "Wind",
+            "hydro": "Hydro",
+            "battery_charge": "Battery Charging",
+            "battery_discharge": "Battery Discharging",
+            "ES4": "ES4",
+            "dr": "DR",
+            "steam-c": "Steam (Candidate)",
             "gas_cc-c": "CC (Candidate)",
             "gas_ct-c": "CT (Candidate)",
             "pv-c": "Solar (Candidate)",
             "wind-c": "Wind (Candidate)",
             "hydro-c": "Hydro (Candidate)",
             "ES4-c": "ES4 (Candidate)",
-            "steam-c": "Steam (Candidate)",
-            "battery_charge": "Battery Charging",
-            "battery_discharge": "Battery Discharging",
         }
 
         generation = {}
@@ -938,12 +957,13 @@ class ExpansionPlanningSolution:
                     )
                 )
             # Add load shed as a stacked bar
+            tab20 = plt.get_cmap("tab20")
             traces.append(
                 go.Bar(
                     x=times,
                     y=load_shed_trace,
                     name="Load Shed",
-                    marker_color="magenta",
+                    marker_color=mcolors.to_hex(tab20(7)),
                     opacity=0.7,
                     marker_line_width=0,
                 )
@@ -1062,10 +1082,10 @@ class ExpansionPlanningSolution:
             #     )
             #     print(f"[DEBUG] {name}: {values[:10]}")
 
-        def plot_generation_pie_chart(generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path):
-            """Plots a pie chart of total generation by unit type.
-
-            """
+        def plot_generation_pie_chart(
+            generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path
+        ):
+            """Plots a pie chart of total generation by unit type."""
             # Sum total generation for each type
             total_by_type = {name: 0.0 for name in GEN_TYPES}
             for s, p, c, d in time_periods:
@@ -1074,14 +1094,14 @@ class ExpansionPlanningSolution:
 
             # Filter out types with zero total
             total_by_type = {k: v for k, v in total_by_type.items() if abs(v) > 1e-6}
-            
+
             labels = [
                 f"{GEN_TYPE_ALIASES.get(name, name)} ({total_by_type[name]:,.1f} MW)"
                 for name in total_by_type
             ]
             values = [total_by_type[name] for name in total_by_type]
             colors = [GEN_TYPES[name] for name in total_by_type]
-            
+
             fig = go.Figure(
                 data=[go.Pie(labels=labels, values=values, marker=dict(colors=colors))]
             )
@@ -1096,7 +1116,6 @@ class ExpansionPlanningSolution:
             plot_path = f"{results_path}/plots/generation_mix_pie_chart.html"
             fig.write_html(plot_path)
             print(f" -> Saved generation mix pie chart to {plot_path}")
-
 
         def calculate_metrics(folder_name):
             """
@@ -1253,13 +1272,13 @@ class ExpansionPlanningSolution:
             return messages
 
         def save_metrics_and_generation_to_csv(
-                results_path,
-                rep_days,
-                time_periods,
-                loads_trace,
-                generation,
-                day_hour_list,
-                output_csv_file,
+            results_path,
+            rep_days,
+            time_periods,
+            loads_trace,
+            generation,
+            day_hour_list,
+            output_csv_file,
         ):
 
             def split_message(message):
@@ -1270,12 +1289,12 @@ class ExpansionPlanningSolution:
                     return label, value
                 else:
                     return message, ""  # No value, just text
-                
+
             metrics_lines = calculate_metrics(results_path)
             gen_lines = print_generation_for_days(
                 rep_days, time_periods, loads_trace, generation, day_hour_list
             )
-            
+
             with open(output_csv_file, "w", newline="") as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["Description", "Value"])
@@ -1287,8 +1306,6 @@ class ExpansionPlanningSolution:
                     writer.writerow([label, value])
 
             print(f" -> Saved metrics and generation output to {output_csv_file}")
-
-
 
         plot_generation_pie_chart(
             generation, time_periods, GEN_TYPES, GEN_TYPE_ALIASES, results_path
@@ -1320,7 +1337,7 @@ class ExpansionPlanningSolution:
             loads_trace,
             generation,
             day_hour_list,
-            f"{results_path}/metrics_and_generation_output.csv"
+            f"{results_path}/metrics_and_generation_output.csv",
         )
 
     def create_html_report(self, results_path, plot_type):
