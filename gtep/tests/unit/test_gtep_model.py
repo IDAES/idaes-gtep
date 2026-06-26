@@ -54,6 +54,8 @@ def read_debug_model(
     num_commit=24,
     num_dispatch=4,
     duration_dispatch=15,
+    representative_dates=["2020-01-28 00:00", "2020-04-23 00:00"],
+    representative_weights=None,
 ):
     curr_dir = dirname(abspath(__file__))
     debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
@@ -65,7 +67,11 @@ def read_debug_model(
         num_dispatch=num_dispatch,
         duration_dispatch=duration_dispatch,
     )
-    dataObject.load_prescient(debug_data_path)
+    dataObject.load_prescient(
+        debug_data_path,
+        representative_dates,
+        representative_weights,
+    )
     return dataObject
 
 
@@ -76,6 +82,8 @@ def prepare_model_and_cost_data(
     num_commit=24,
     num_dispatch=4,
     duration_dispatch=15,
+    representative_dates=None,
+    representative_weights=None,
 ):
     # Prepare model and cost data
     dataObject = read_debug_model(
@@ -85,6 +93,8 @@ def prepare_model_and_cost_data(
         num_commit,
         num_dispatch,
         duration_dispatch,
+        representative_dates,
+        representative_weights,
     )
     curr_dir = dirname(abspath(__file__))
     data_path = abspath(join(curr_dir, "..", "..", "data", "costs"))
@@ -121,8 +131,11 @@ def prepare_model_and_cost_data(
 @pytest.mark.usefixtures("patch_unit_handlers")
 class TestGTEP(unittest.TestCase):
     def test_model_init(self):
-        # Test that the ExpansionPlanningModel object can read a default dataset and init
-        # properly with default values, including building a Pyomo.ConcreteModel object
+        # Test that the ExpansionPlanningModel object can read a
+        # default dataset and init properly with default values,
+        # including building a Pyomo.ConcreteModel object. Set
+        # representative_dates and weights to None to get default
+        # values from gtep_data model object.
         data_object = read_debug_model(
             stages=1,
             num_reps=3,
@@ -130,6 +143,8 @@ class TestGTEP(unittest.TestCase):
             num_commit=24,
             num_dispatch=4,
             duration_dispatch=60,
+            representative_dates=None,
+            representative_weights=None,
         )
         modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
@@ -144,8 +159,10 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(modObject.num_dispatch, 4)
         self.assertEqual(modObject.duration_dispatch, 60)
 
-        # Test that the ExpansionPlanningModel object can read a default dataset and init
-        # properly with non-default values
+        # Test that the ExpansionPlanningModel object can read a
+        # default dataset and init properly with non-default
+        # values. Set representative_dates and weights to None to get
+        # default values from gtep_data model object.
         data_object = read_debug_model(
             stages=2,
             num_reps=4,
@@ -153,6 +170,8 @@ class TestGTEP(unittest.TestCase):
             num_commit=12,
             num_dispatch=12,
             duration_dispatch=30,
+            representative_dates=None,
+            representative_weights=None,
         )
         modObject = ExpansionPlanningModel(
             data=data_object,
@@ -416,6 +435,63 @@ class TestGTEP(unittest.TestCase):
         # previous successful objective values: 1524533561.02, 926187704.4
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 926190577.22, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_with_cost_data_and_weights(self):
+
+        # Typically, representative weights should reflect how many
+        # actual days each representative day represents. For example,
+        # with 2 representative days in a 365-day year, the weights
+        # would be approximately [182, 183].  For now, we use
+        # simplified test values because the model becomes infeasible
+        # with HiGHS when using the full representative-day weights.
+        # These values are intended only to verify that the model
+        # reads and applies representative weights correctly.
+        weights = [10, 10]
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+            stages=2,
+            num_reps=2,
+            len_reps=1,
+            num_commit=6,
+            num_dispatch=4,
+            duration_dispatch=15,
+            representative_dates=["2020-01-28 00:00", "2020-04-23 00:00"],
+            representative_weights=weights,
+        )
+
+        # Populate and create GTEP model
+        modObject = ExpansionPlanningModel(
+            data=dataObject,
+            cost_data=dataProcessingObject,
+        )
+
+        modObject.config["include_investment"] = True
+        modObject.config["include_commitment"] = True
+        modObject.config["include_redispatch"] = True
+        modObject.config["scale_loads"] = True
+        modObject.config["transmission"] = True
+        modObject.config["storage"] = False
+        modObject.config["flow_model"] = "DC"
+
+        modObject.create_model()
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 7794940302.85, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
