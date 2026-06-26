@@ -30,24 +30,20 @@ def create_objective_function(m):
 
     """
 
-    # NOTE: We add battery storage cost only when "storage" is set to
-    # True in the configuration input, otherwise its cost value is 0.
-
+    # operatingCostTotal includes generator operating costs from the
+    # commitment stage, calculated using fixed and variable cost
+    # terms. NOTE: the operatingCostInvestment is weighted by the
+    # representative period weights.
     @m.Expression()
     def operatingCostTotal(m):
         return sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
 
-    @m.Expression()
-    def storageCostTotal(m):
-        if m.config["storage"]:
-            return sum(
-                m.investmentStage[stage].storageCostInvestment for stage in m.stages
-            )
-        else:
-            return 0 * u.USD
-
+    # expansionCostTotal includes capital investment costs for
+    # generators, storage (if enabled), and transmission (if
+    # enabled). Generator investment costs include both thermal and
+    # renewable resources.
     @m.Expression()
     def expansionCostTotal(m):
         return sum(m.investmentStage[stage].investment_cost for stage in m.stages)
@@ -64,9 +60,4 @@ def create_objective_function(m):
 
     @m.Objective()
     def total_cost_objective_rule(m):
-        return (
-            m.operatingCostTotal
-            + m.expansionCostTotal
-            + m.penaltyCostTotal
-            + m.storageCostTotal
-        )
+        return m.operatingCostTotal + m.expansionCostTotal + m.penaltyCostTotal
