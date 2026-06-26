@@ -73,7 +73,8 @@ def add_storage_params(m):
         for bat in m.storage
     }
 
-    # Maximum amount to charge per dispatch period when charging
+    # Maximum amount to charge per dispatch period when charging, in
+    # MW
     m.chargeMax = {
         bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
         for bat in m.storage
@@ -148,6 +149,7 @@ def add_storage_params(m):
     }
 
     # Future not real cost: idealized DoE 10-yr targets or something
+    # in $/MW
     m.storageInvestmentCost = {
         bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
         for bat in m.storage
@@ -470,11 +472,13 @@ def add_investment_storage_constraints(m, b, investment_stage):
     def storage_investment_cost(b):
         return sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
             for bat in m.storage
