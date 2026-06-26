@@ -147,7 +147,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-24-2026"
+data_date = "6-25-2026"
 data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -247,6 +247,7 @@ export_block_constraints_hierarchical(
 # mod_object.model.investmentStage[1].genInstalled['AESO_cc_gas'].pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+# pyo.TransformationFactory("gdp.chull").apply_to(mod_object.model)
 print("model is transformed!")
 
 solver = "xpress"
@@ -269,9 +270,7 @@ if solver == "xpress":
     xpress.controls.maxmiptasks = 16
 
     mod_object.results = opt.solve(
-        mod_object.model,
-        tee=True,
-        # logfile=log_folder + "/" + solver + ".log",
+        mod_object.model, tee=True, logfile="xpress_log_files/xpress.log"
     )
     mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
 else:

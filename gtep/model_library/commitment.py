@@ -116,9 +116,7 @@ def add_commitment_constraints(b, comm_per):
 
         if m.config["storage"]:
             op_cost_storage = sum(
-                m.storagefixedCost[stor]
-                * b.commitmentPeriodLength
-                * m.storageCapacity[stor]
+                m.storagefixedCost[stor] * m.storageCapacity[stor]  # in $/MWh  # in MWh
                 for stor in m.storage
             )
             # op_cost_storage = 0
