@@ -105,6 +105,8 @@ def add_commitment_constraints(b, comm_per):
     # re-assessed and account for missing data.]
     @b.Expression(doc="Total operating costs for commitment block in $")
     def operatingCostCommitment(b):
+        m = b.model()
+
         # [ESR Note: This term includes the op cost for each
         # 15-min dispatch period.]
         op_cost_dispatch = sum(

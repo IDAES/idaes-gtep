@@ -102,6 +102,7 @@ def add_investment_constraints(
     # consistently.]
     @b.Expression(doc="Investment costs for the investment period in $")
     def investment_cost(b):
+        m = b.model()
 
         if m.config["storage"]:
             storage_term = b.storage_investment_cost

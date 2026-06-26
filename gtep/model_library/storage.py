@@ -160,14 +160,14 @@ def add_storage_params(m):
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
+        doc="Storage fixed operating costs",
     )
     m.storagevarCost = pyo.Param(
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
+        doc="Storage variable costs",
     )
 
 
@@ -485,6 +485,8 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
+        m = b.model()
+
         return sum(
             m.storageInvestmentCost[bat]
             * m.chargeMax[bat]

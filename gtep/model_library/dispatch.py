@@ -51,6 +51,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
+        m = b.model()
+
         return (
             b.renewableCurtailment[renewableGen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
@@ -59,6 +61,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
@@ -67,6 +71,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
