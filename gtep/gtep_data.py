@@ -155,17 +155,54 @@ class ExpansionPlanningData:
             ]
         self.representative_dates = representative_dates
 
-        if not representative_weights:
-            # set the weight for each day to the total weight divided by number of days
-            total_weight = prescient_options.num_days * self.stages
-            weight_per_date = int(total_weight / (len(representative_dates)))
-            self.representative_weights = {
-                key: weight_per_date
-                for date, key in enumerate(self.representative_dates)
+        if representative_weights:
+
+            if len(representative_dates) != len(representative_weights):
+                raise ValueError(
+                    "Length of representative_dates and representative_weights must match."
+                )
+            else:
+                print(
+                    "INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object..."
+                )
+
+            # Store as a list attribute
+            self.representative_weights = list(representative_weights)
+
+            # Additionally, create a mapping for later use:
+            self.representative_weights_dict = dict(
+                zip(representative_dates, representative_weights)
+            )
+
+        else:
+
+            # Set weight for each representative day to default value
+            # of 1. The other option is to set the weight for each day
+            # to the total weight divided by the number of
+            # representative dates.
+            set_default_weight = True
+            if set_default_weight:
+                weight_per_date = 1
+            else:
+                total_weight = prescient_options.num_days * self.stages
+                weight_per_date = int(total_weight / len(representative_dates))
+
+            # Store weights as a list, aligned with self.representative_dates
+            self.representative_weights = [
+                weight_per_date for _ in self.representative_dates
+            ]
+
+            # Store weights also as a dictionary by representative date
+            self.representative_weights_dict = {
+                date: weight_per_date for date in self.representative_dates
             }
 
+        # IMPORTANT TO READ: Always add or modify any new elements in
+        # self.md.data (such as new time series or parameters) BEFORE
+        # creating representative_data using clone_at_time_keys. This
+        # ensures all representative ModelData objects will have the
+        # new elements.
         time_keys = self.md.data["system"]["time_keys"]
-
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + period_per_step]

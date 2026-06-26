@@ -383,7 +383,16 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
-    m.weights = pyo.Param(m.representativePeriods, default=1)
+
+    weights_dict = {
+        i: w for i, w in zip(m.representativePeriods, m.data.representative_weights)
+    }
+    m.weights = pyo.Param(
+        m.representativePeriods,
+        initialize=weights_dict,
+        mutable=False,
+    )
+
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
