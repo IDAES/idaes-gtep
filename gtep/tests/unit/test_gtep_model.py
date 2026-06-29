@@ -454,7 +454,7 @@ class TestGTEP(unittest.TestCase):
         # with HiGHS when using the full representative-day weights.
         # These values are intended only to verify that the model
         # reads and applies representative weights correctly.
-        weights = [10, 10]
+        weights = [10, 12]
         dataObject, dataProcessingObject = prepare_model_and_cost_data(
             stages=2,
             num_reps=2,
@@ -496,7 +496,12 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7794863409.17, places=1
+            value(modObject.model.total_cost_objective_rule), 8584301655.08, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+        # Check that each representative period in the model is
+        # assigned the expected representative weight
+        for rep_period, expected_weight in zip(modObject.model.representativePeriods, weights):
+            self.assertEqual(value(modObject.model.weights[rep_period]), expected_weight)
