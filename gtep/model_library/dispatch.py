@@ -51,6 +51,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
+        m = b.model()
+
         return (
             b.renewableCurtailment[renewableGen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
@@ -59,25 +61,38 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * (m.fixedCost[gen] + m.varCost[gen])
+            * (m.varCost[gen] + m.fuelCost[gen])
         )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            * m.varCost[gen]
         )
+
+    if m.config["storage"]:
+        # Add storage variables and constraints. It also includes its
+        # operational costs variables.
+        stor.add_dispatch_storage_variables_and_constraints(m, b)
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
-            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+            return (
+                b.thermalReactiveGeneration[gen]
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * m.fuelCostReactive[gen]
+            )
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -121,11 +136,6 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     @b.Expression()
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
-
-    if m.config["storage"]:
-        # Add storage variables and constraints. It also includes its
-        # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
 
     # [BLN TODO: Check the config check in the Expression rule.]
     @b.Expression(doc="Total cost for dispatch in $")
@@ -228,17 +238,17 @@ def add_dispatch_constraints(b, disp_per):
             buses = [bus for bus in m.buses]
             loads = [l for l in b.loads]
             gens = [gen for gen in m.generators]
-            batts = [bat for bat in m.storage]
+            batts = [bat for bat in m.storage] if m.config["storage"] else []
             balance += sum(
                 b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
             )
             balance += sum(
                 b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
             )
-            """ Battery Storage added to flow balance constraint """
+            # Add battery storage to constraint
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
-
+            # Add the loads as a parameter (already includes units).
             balance -= sum(c_p.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
@@ -249,32 +259,23 @@ def add_dispatch_constraints(b, disp_per):
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
             balance = 0
+            # Add power flow to constraint
             end_points = [line for line in m.lines if m.from_bus[line] == bus]
             start_points = [line for line in m.lines if m.to_bus[line] == bus]
-            gens = [
-                gen
-                for gen in m.generators
-                if m.md.data["elements"]["generator"][gen]["bus"] == bus
-            ]
-            batts = []
-            if m.config["storage"]:
-                batts = [
-                    bat
-                    for bat in m.storage
-                    if m.md.data["elements"]["storage"][bat]["bus"] == bus
-                ]
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
+            # Add generation to constraint
             balance += sum(
-                b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
+                b.thermalGeneration[g]
+                for g in m.thermalGenerators & m.generatorsByBus[bus]
             )
             balance += sum(
-                b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
+                b.renewableGeneration[g]
+                for g in m.renewableGenerators & m.generatorsByBus[bus]
             )
-            """ Battery Storage added to flow balance constraint """
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
-
+            # Add battery storage to constraint
+            balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])
+            balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]
             balance += b.loadShed[bus]

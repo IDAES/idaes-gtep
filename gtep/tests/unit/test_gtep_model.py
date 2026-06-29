@@ -282,9 +282,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4
+        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977055.4, places=1
+            value(modObject.model.total_cost_objective_rule), 7977153.07, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
@@ -317,9 +317,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4
+        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977055.4, places=1
+            value(modObject.model.total_cost_objective_rule), 7977153.07, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -365,9 +365,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89, 779334165.7
+        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779344643.1, places=1
+            value(modObject.model.total_cost_objective_rule), 779486735.40, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -413,9 +413,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02
+        # previous successful objective values: 1524533561.02, 926187704.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 926187704.4, places=1
+            value(modObject.model.total_cost_objective_rule), 926195251.45, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)

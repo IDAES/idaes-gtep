@@ -66,6 +66,18 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="All generators",
     )
 
+    m.generatorsByBus = pyo.Set(
+        m.buses,
+        initialize={
+            bus: [
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["bus"] == bus
+            ]
+            for bus in m.buses
+        },
+    )
+
     m.thermalGenerators = pyo.Set(
         within=m.generators,
         initialize=(
@@ -96,6 +108,22 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             initialize=(ess for ess in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
+
+    m.storageByBus = pyo.Set(
+        m.buses,
+        initialize={
+            bus: (
+                [
+                    batt
+                    for batt in m.storage
+                    if m.md.data["elements"]["storage"][batt]["bus"] == bus
+                ]
+                if m.md.data["elements"].get("storage")
+                else []
+            )
+            for bus in m.buses
+        },
+    )
 
 
 def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
@@ -147,6 +175,28 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         mutable=True,
         units=u.MW,
         doc="Maximum output of each thermal generator",
+    )
+
+    m.thermalReactiveMax = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
+            for thermalGen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MVAR,
+        doc="Maximum reactive output of each thermal generator",
+    )
+
+    m.thermalReactiveMin = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
+            for thermalGen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MVAR,
+        doc="Minimum reactive output of each thermal generator",
     )
 
     m.lifetimes = pyo.Param(
@@ -298,7 +348,7 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
             for branch in m.lines
         },
         mutable=True,
-        units=u.USD,
+        units=u.USD / u.MW,
         doc="Investment cost for each new branch",
     )
 
@@ -354,6 +404,15 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator",
+    )
+
+    # setting to be the same as real fuel cost for now... but maybe should be different?
+    m.fuelCostReactive = pyo.Param(
+        m.generators,
+        initialize={gen: m.fuelCost[gen] for gen in m.thermalGenerators},
+        mutable=True,
+        units=u.USD / (u.MVAR * u.hr),
+        doc="Cost per unit of fuel at each generator (reactive power)",
     )
 
     m.emissionsFactor = pyo.Param(
@@ -634,6 +693,7 @@ def add_model_cost_parameters(m, year):
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
     units_fuel_cost = u.USD / (u.MW * u.hr)
+    units_reactive_fuel_cost = u.USD / (u.MVAR * u.hr)
     for gen in m.generators:
         if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
             m.fixedCost[gen] = pyo.units.convert(
@@ -649,7 +709,7 @@ def add_model_cost_parameters(m, year):
             # Add fuel costs from preprocessed data. Consider this
             # cost is for Natural Gas generators, not coal.
             m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
-
+            m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
         else:
 
             # For renewable
