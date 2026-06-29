@@ -105,12 +105,23 @@ def add_commitment_constraints(b, comm_per):
     # re-assessed and account for missing data.]
     @b.Expression(doc="Total operating costs for commitment block in $")
     def operatingCostCommitment(b):
+        m = b.model()
+
         # [ESR Note: This term includes the op cost for each
         # 15-min dispatch period.]
         op_cost_dispatch = sum(
             b.dispatchPeriod[disp_per].operatingCostDispatch  # in $
             for disp_per in b.dispatchPeriods
         )
+
+        if m.config["storage"]:
+            op_cost_storage = sum(
+                m.storagefixedCost[stor] * m.storageCapacity[stor]  # in $/MWh * MWh
+                for stor in m.storage
+            )
+        else:
+            op_cost_storage = 0
+
         # [ESR: Assuming we are paying for the full capacity of our
         # generator and should be included to have consistent units.]
         if m.config["include_commitment"]:
@@ -130,8 +141,19 @@ def add_commitment_constraints(b, comm_per):
                 * b.genStartup[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
+            op_cost_gen_state += sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.renewableCapacityNameplate[gen]
+                for gen in m.renewableGenerators
+            )
 
-            return op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup
+            return (
+                op_cost_dispatch
+                + op_cost_gen_state
+                + op_cost_gen_startup
+                + op_cost_storage
+            )
         else:
             op_cost_gen_state = sum(
                 m.fixedCost[gen]
@@ -140,7 +162,14 @@ def add_commitment_constraints(b, comm_per):
                 * b.genOn[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
-            return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
+            op_cost_gen_state += sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.renewableCapacityNameplate[gen]
+                for gen in m.renewableGenerators
+            )
+
+            return op_cost_dispatch + op_cost_gen_state + op_cost_storage
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):
