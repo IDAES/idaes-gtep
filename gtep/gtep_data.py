@@ -16,6 +16,7 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
+import random
 
 from pyomo.environ import *
 from prescient.simulator.config import PrescientConfig
@@ -142,17 +143,86 @@ class ExpansionPlanningData:
             if "-c" in stor:  # key/Branch UID
                 self.md.data["elements"]["storage"][stor]["in_service"] = False
 
-        ## NOTE: Below is only for multiple representative periods and creates a list
-        ## of modelData objects, not just a single modelData object
-        # Arbitrary time points and lengths picked for representative periods
-        # default here allows up to 24 hours for periods
+        # Get the timestamps in the loaded day-ahead data. Default
+        # representative_dates are selected from this list to ensure
+        # they correspond to valid input data timestamps. if
+        # representative_dates are provided by the user, those values
+        # are used instead.
+        time_keys = self.md.data["system"]["time_keys"]
+
         if representative_dates is None:
-            representative_dates = [
-                "2020-01-28 00:00",
-                "2020-04-23 00:00",
-                "2020-07-05 00:00",
-                "2020-10-14 00:00",  ## Change the last date for whatever extreme day is needed based on the given run(s)
+            available_day_starts = time_keys[::period_per_step]
+
+            if len(available_day_starts) < self.num_reps:
+                raise ValueError(
+                    "Not enough available day-start timestamps to select default representative dates. Please provide a custom list of representative_dates in the driver or reduce num_reps."
+                )
+
+            # Pick 4 default representative dates from the loaded data:
+            # winter, spring, summer, and fall. If self.num_reps < 4, use only
+            # the first self.num_reps default dates. If more than 4 representative
+            # periods are requested, keep these 4 defaults and randomly select the
+            # remaining dates from the available day-start timestamps.
+            default_representative_dates = [
+                available_day_starts[
+                    int(0.074 * len(available_day_starts))
+                ],  # 2020-01-28
+                available_day_starts[
+                    int(0.310 * len(available_day_starts))
+                ],  # 2020-04-23
+                available_day_starts[
+                    int(0.510 * len(available_day_starts))
+                ],  # 2020-07-05
+                available_day_starts[
+                    int(0.788 * len(available_day_starts))
+                ],  # 2020-10-14
             ]
+
+            if self.num_reps <= 4:
+                representative_dates = default_representative_dates[: self.num_reps]
+            else:
+                if len(available_day_starts) < self.num_reps:
+                    raise ValueError(
+                        "Not enough available day-start timestamps to select default representative dates. "
+                        "Please provide a custom list of representative_dates in the driver or reduce num_reps."
+                    )
+
+                random_seed = 42
+                rng = random.Random(random_seed)
+                remaining_dates = [
+                    date
+                    for date in available_day_starts
+                    if date not in default_representative_dates
+                ]
+                additional_dates = rng.sample(
+                    remaining_dates,
+                    self.num_reps - len(default_representative_dates),
+                )
+                representative_dates = sorted(
+                    default_representative_dates + additional_dates,
+                    key=lambda date: time_keys.index(date),
+                )
+        else:
+            # Validate that the user-provided representative_dates
+            # match the requested number of representative periods.
+            if len(representative_dates) != self.num_reps:
+                raise ValueError(
+                    f"The number of provided representative_dates must match num_reps. "
+                    f"Received len(representative_dates)={len(representative_dates)}, "
+                    f"but num_reps={self.num_reps}."
+                )
+
+            # Validate that all user-provided representative dates
+            # exist in the loaded day-ahead timestamps.
+            missing_dates = [
+                date for date in representative_dates if date not in time_keys
+            ]
+            if missing_dates:
+                raise ValueError(
+                    "The following representative_dates are not valid timestamps in the "
+                    f"loaded day-ahead input data: {missing_dates}"
+                )
+
         self.representative_dates = representative_dates
 
         if representative_weights:
@@ -166,10 +236,7 @@ class ExpansionPlanningData:
                     "INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object..."
                 )
 
-            # Store as a list attribute
-            self.representative_weights = list(representative_weights)
-
-            # Additionally, create a mapping for later use:
+            # Store as a dictionary
             self.representative_weights_dict = dict(
                 zip(representative_dates, representative_weights)
             )
@@ -187,12 +254,7 @@ class ExpansionPlanningData:
                 total_weight = prescient_options.num_days * self.stages
                 weight_per_date = int(total_weight / len(representative_dates))
 
-            # Store weights as a list, aligned with self.representative_dates
-            self.representative_weights = [
-                weight_per_date for _ in self.representative_dates
-            ]
-
-            # Store weights also as a dictionary by representative date
+            # Store weights as a dictionary by representative date
             self.representative_weights_dict = {
                 date: weight_per_date for date in self.representative_dates
             }
