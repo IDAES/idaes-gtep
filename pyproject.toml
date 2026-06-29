@@ -66,3 +66,6 @@ gtep = [
     "data/costs/**",
     "*.ipynb"
     ]
+
+[tool.setuptools]
+packages = ["gtep"]
