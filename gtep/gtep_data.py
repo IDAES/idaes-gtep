@@ -158,24 +158,17 @@ class ExpansionPlanningData:
                     "Not enough available day-start timestamps to select default representative dates. Please provide a custom list of representative_dates in the driver or reduce num_reps."
                 )
 
-            # Pick 4 default representative dates from the loaded data:
-            # winter, spring, summer, and fall. If self.num_reps < 4, use only
-            # the first self.num_reps default dates. If more than 4 representative
-            # periods are requested, keep these 4 defaults and randomly select the
-            # remaining dates from the available day-start timestamps.
+            # Pick 4 default representative dates from the loaded
+            # data: winter, spring, summer, and fall. If self.num_reps
+            # < 4, use only the first self.num_reps default dates. If
+            # more than 4 representative periods are requested, keep
+            # these 4 defaults and randomly select the remaining dates
+            # from the available day-start timestamps.
             default_representative_dates = [
-                available_day_starts[
-                    int(0.074 * len(available_day_starts))
-                ],  # 2020-01-28
-                available_day_starts[
-                    int(0.310 * len(available_day_starts))
-                ],  # 2020-04-23
-                available_day_starts[
-                    int(0.510 * len(available_day_starts))
-                ],  # 2020-07-05
-                available_day_starts[
-                    int(0.788 * len(available_day_starts))
-                ],  # 2020-10-14
+                available_day_starts[27],  # 2020-01-28
+                available_day_starts[113],  # 2020-04-23
+                available_day_starts[186],  # 2020-07-05
+                available_day_starts[287],  # 2020-10-14
             ]
 
             if self.num_reps <= 4:
