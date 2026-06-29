@@ -53,21 +53,6 @@ def fix_hydropower_limits(b, commitmentPeriod):
         doc="Expected minimum hydro generation for each hydro generator",
     )
 
-    b.hydroAverageExpected = pyo.Param(
-        m.hydroGenerators,
-        initialize={
-            hydroGen: (
-                m.md.data["elements"]["generator"][hydroGen]["p_average"]["values"][
-                    commitmentPeriod - 1
-                ]
-            )
-            for hydroGen in m.hydroGenerators
-        },
-        # mutable=True,
-        units=units_renewable_capacity,
-        doc="Expected average hydro generation for each hydro generator",
-    )
-
 
 def add_representative_hydropower_average(b, repPer):
     m = b.model()
