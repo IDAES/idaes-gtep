@@ -26,7 +26,9 @@ gc.disable()
 
 
 data_path = "./gtep/data/123_Bus_Resil_Week"
-data_object = ExpansionPlanningData()
+data_object = ExpansionPlanningData(
+    stages=3, num_reps=4, len_reps=24, num_commit=24, num_dispatch=1
+)
 data_object.load_prescient(data_path)
 
 # for data in data_object.representative_data:

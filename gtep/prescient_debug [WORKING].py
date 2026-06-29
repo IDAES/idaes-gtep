@@ -207,9 +207,9 @@ def _read_generators(base_dir: str, elements: dict, bus_id_to_name: dict) -> Non
     gen_df = None
 
 
-# data_path = "./gtep/data/123_Bus_Resil_Week"
+data_path = "./gtep/data/123_Bus_Resil_Week"
 # data_path = "./gtep/data/123_Bus_Coal"
-data_path = "./gtep/data/5bus"
+# data_path = "./gtep/data/5bus"
 
 ### from egret _create_rtsgmlc_skeleton ###
 model_data = ModelData.empty_model_data_dict()

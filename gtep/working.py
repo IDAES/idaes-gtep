@@ -4,15 +4,19 @@ import pandas as pd
 import os
 import pyomo.environ as pyo
 
-data_path = "./gtep/data/123_Bus_Coal"
+data_path = "./gtep/data/123_Bus_Resil_Week"
 # data_path = "./gtep/data/5bus"
 
-# df = pd.read_csv(os.path.join(data_path, "branch.csv"))
+ramps = {"CT": 99.6, "CC": 80.3, "COAL": 8, "NUC": 0}
+
+df = pd.read_csv(os.path.join(data_path, "gen.csv"))
+
+df["Ramp Rate MW/Min"] = df["Unit Type"].map(ramps).fillna(df["Ramp Rate MW/Min"])
 
 # new_df = df.astype({"From Bus": "int32", "To Bus": "int32"})
 
-# new_path = os.path.join(data_path, "branch.csv")
-# new_df.to_csv(new_path, header=True, index=False)
+new_path = os.path.join(data_path, "gen.csv")
+df.to_csv(new_path, header=True, index=False)
 # pass
 
 data_object = ExpansionPlanningData(
