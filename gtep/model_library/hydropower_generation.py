@@ -37,7 +37,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         units=units_renewable_capacity,
         doc="Expected maximum hydro capacity for each hydro generator",
     )
-    
+
     b.hydroMinimumExpected = pyo.Param(
         m.hydroGenerators,
         initialize={
