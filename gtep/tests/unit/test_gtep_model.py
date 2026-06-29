@@ -503,5 +503,9 @@ class TestGTEP(unittest.TestCase):
 
         # Check that each representative period in the model is
         # assigned the expected representative weight
-        for rep_period, expected_weight in zip(modObject.model.representativePeriods, weights):
-            self.assertEqual(value(modObject.model.weights[rep_period]), expected_weight)
+        for rep_period, expected_weight in zip(
+            modObject.model.representativePeriods, weights
+        ):
+            self.assertEqual(
+                value(modObject.model.weights[rep_period]), expected_weight
+            )
