@@ -84,6 +84,15 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(m, b)
 
+    if m.config["advanced_hydro"]:
+        @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
+        def hydroGeneratorCost(b, hydroGen):
+            return (
+                b.hydroGeneration[hydroGen]
+                * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+                * m.varCost[hydroGen]
+            )
+
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
@@ -123,6 +132,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     def renewableGenerationCostDispatch(b):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
+    if m.config["advanced_hydro"]:
+        @b.Expression()
+        def hydroGenerationCostDispatch(b):
+            return sum(b.hydroGeneratorCost[gen] for gen in m.hydroGenerators)
+
     # Reactive generation cost
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
         b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
@@ -153,6 +167,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
             + b.renewableGenerationCostDispatch
+            + b.hydroGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
             + storage_term
