@@ -22,6 +22,7 @@ from pyomo.environ import units as u
 import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.scaling as scaling
+import gtep.model_library.hydropower_generation as hydro
 
 
 def add_commitment_parameters(b, commitment_period, investmentStage):
@@ -48,6 +49,9 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
                 ]
                 * units_renewable_capacity
             )
+
+    if m.config["advanced_hydro"]:
+        hydro.fix_hydropower_limits(b, commitment_period)
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
