@@ -26,12 +26,9 @@ from pyomo.environ import units as u
 import pyomo.environ as pyo
 import pytest
 from unittest.mock import patch
-
-import pytest
 import pyomo.common.unittest as unittest
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
-import pyomo.environ as pyo
-from pyomo.environ import units as u
+
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_data_processing import DataProcessing
