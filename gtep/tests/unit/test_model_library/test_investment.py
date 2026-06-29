@@ -156,7 +156,7 @@ class TestInvestment(unittest.TestCase):
         """Creates a model and runs tests for a given set of config options."""
         self.investment_stage = 1
         self.m = self._create_model(config=config).model
-        # self.b = self.m.investmentStage[self.investment_stage]
+        self.b = self.m.investmentStage[self.investment_stage]
 
     # def test_add_investment_param_and_var(self):
     #     self.create_testing_obj(config={})
@@ -170,81 +170,107 @@ class TestInvestment(unittest.TestCase):
     #     self.assertEqual(self.b.quotaDeficit.domain.name, "NonNegativeReals")
     #     self.assertEqual(self.b.expansionCost.domain.name, "NonNegativeReals")
 
-    @patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
-    @patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
-    @patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
-    def test_add_investment_disjuncts_all_true(self, mock_transm, mock_stor, mock_gens):
+    def test_add_investment_disjuncts_all_true(self):
         self.create_testing_obj(config={"storage": True, "transmission": True})
-        # m = self.b.model
 
-        # add_investment_disjuncts(m)
-        # mock_gens.assert_called_once_with(
-        #     self.b, m.thermalGenerators, m.renewableGenerators
-        # )
+        with patch("gtep.model_library.investment.gens.add_generators_status_disjuncts") as mock_gens, \
+         patch("gtep.model_library.investment.stor.add_storage_status_disjuncts") as mock_stor, \
+         patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts") as mock_transm:
 
-        # # Check that storage disjuncts are added if storage config is True
-        # mock_stor.assert_called_once_with(self.b, m.storage)
+            # call the function you want to test here
+            add_investment_disjuncts(self.b)
 
-        # # Check that transmission disjuncts are added if transmission config is True
-        # mock_transm.assert_called_once_with(self.b, m.transmission)
+            mock_gens.assert_called_once_with(
+                self.b, self.m.thermalGenerators, self.m.renewableGenerators
+            )
 
-    # @patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
-    # @patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
-    # @patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
-    # def test_add_investment_disjuncts_no_storage(
-    #     self, mock_transm, mock_stor, mock_gens
-    # ):
-    #     self.create_testing_obj(config={"storage": False, "transmission": True})
-    #     m = self.b.model
-    #     add_investment_disjuncts(m)
-    #     mock_gens.assert_called_once_with(
-    #         self.b, m.thermalGenerators, m.renewableGenerators
-    #     )
+            # Check that storage disjuncts are added
+            mock_stor.assert_called_once_with(self.b, self.m.storage)
 
-    #     # check that they were not called with false config
-    #     mock_stor.assert_not_called()
+            # Check that transmission disjuncts are added 
+            mock_transm.assert_called_once_with(self.b, self.m.lines)
 
-    #     # Check that transmission disjuncts are added if transmission config is True
-    #     mock_transm.assert_called_once_with(self.b, m.transmission)
+    def test_add_investment_disjuncts_no_storage(self):
+        self.create_testing_obj(config={"storage": False, "transmission": True})
 
-    # @patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
-    # @patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
-    # @patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
-    # def test_add_investment_disjuncts_no_transmission(
-    #     self, mock_transm, mock_stor, mock_gens
-    # ):
-    #     self.create_testing_obj(config={"storage": True, "transmission": False})
-    #     m = self.b.model
+        with patch("gtep.model_library.investment.gens.add_generators_status_disjuncts") as mock_gens, \
+         patch("gtep.model_library.investment.stor.add_storage_status_disjuncts") as mock_stor, \
+         patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts") as mock_transm:
 
-    #     mock_gens.assert_called_once_with(
-    #         self.b, m.thermalGenerators, m.renewableGenerators
-    #     )
+            # call the function you want to test here
+            add_investment_disjuncts(self.b)
 
-    #     # Check that storage disjuncts are added if storage config is True
-    #     mock_stor.assert_called_once_with(self.b, m.storage)
+            mock_gens.assert_called_once_with(
+                self.b, self.m.thermalGenerators, self.m.renewableGenerators
+            )
 
-    #     # check that they were not called with false config
-    #     mock_transm.assert_not_called()
+            # Check that storage disjuncts are not added to match config
+            mock_stor.assert_not_called()
 
-    # @patch("gtep.model_library.investment.gens.add_generators_status_disjuncts")
-    # @patch("gtep.model_library.investment.stor.add_storage_status_disjuncts")
-    # @patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts")
-    # def test_add_investment_disjuncts_no_storage_no_transmission(
-    #     self, mock_transm, mock_stor, mock_gens
-    # ):
-    #     self.create_testing_obj(config={"storage": False, "transmission": False})
-    #     m = self.b.model
+            # Check that transmission disjuncts are added 
+            mock_transm.assert_called_once_with(self.b, self.m.lines)
 
-    #     mock_gens.assert_called_once_with(
-    #         self.b, m.thermalGenerators, m.renewableGenerators
-    #     )
+    def test_add_investment_disjuncts_no_transmission(self):
+        self.create_testing_obj(config={"storage": True, "transmission": False})
 
-    #     # check that they were not called with false config
-    #     mock_stor.assert_not_called()
-    #     mock_transm.assert_not_called()
+        with patch("gtep.model_library.investment.gens.add_generators_status_disjuncts") as mock_gens, \
+         patch("gtep.model_library.investment.stor.add_storage_status_disjuncts") as mock_stor, \
+         patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts") as mock_transm:
+
+            # call the function you want to test here
+            add_investment_disjuncts(self.b)
+
+            mock_gens.assert_called_once_with(
+                self.b, self.m.thermalGenerators, self.m.renewableGenerators
+            )
+
+            # Check that storage disjuncts are added to match config
+            mock_stor.assert_called_once_with(self.b, self.m.storage)
+
+            # Check that transmission disjuncts are not added 
+            mock_transm.assert_not_called()
+
+    def test_add_investment_disjuncts_no_storage_no_transmission(self):
+        self.create_testing_obj(config={"storage": False, "transmission": False})
+
+        with patch("gtep.model_library.investment.gens.add_generators_status_disjuncts") as mock_gens, \
+         patch("gtep.model_library.investment.stor.add_storage_status_disjuncts") as mock_stor, \
+         patch("gtep.model_library.investment.transm.add_transmission_status_disjuncts") as mock_transm:
+
+            # call the function you want to test here
+            add_investment_disjuncts(self.b)
+
+            mock_gens.assert_called_once_with(
+                self.b, self.m.thermalGenerators, self.m.renewableGenerators
+            )
+
+            # check that config dependent functions are not called
+            mock_stor.assert_not_called()
+            mock_transm.assert_not_called()
 
 
-# ------------------------------------ADD INVESTMENT CONSTRAINTS------------------------------------ #
+### ADD INVESTMENT CONSTRAINTS ###
+    def test_add_investment_constraints_all_true(self):
+
+        self.create_testing_obj(config={"storage": True, "transmission": True})
+
+        with patch("gtep.model_library.investment.gens.add_investment_constraints") as mock_gens, \
+         patch("gtep.model_library.investment.stor.add_investment_transmission_constraints") as mock_transm, \
+         patch("gtep.model_library.investment.transm.add_investment_storage_constraints") as mock_stor:
+
+            # call the function you want to test here
+            add_investment_disjuncts(self.b)
+
+            mock_gens.assert_called_once_with(
+                self.b, self.m.thermalGenerators, self.m.renewableGenerators
+            )
+
+            # Check that storage disjuncts are added
+            mock_stor.assert_called_once_with(self.b, self.m.storage)
+
+            # Check that transmission disjuncts are added 
+            mock_transm.assert_called_once_with(self.b, self.m.lines)
+
 # @patch("gtep.model_library.investment.gens.add_investment_generators_constraints")
 # @patch("gtep.model_library.investment.stor.add_investment_storage_constraints")
 # @patch("gtep.model_library.investment.transm.add_investment_transmission_constraints")
