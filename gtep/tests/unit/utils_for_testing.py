@@ -42,18 +42,16 @@ ng_data_path = (
 
 def create_model(
     input_data_path: Path = input_data_path,
-    planning_data_args: dict = {},
-    config: dict = {},
-    candidate_gens: list[str] = [
-        "Natural Gas_FE",
-        "Solar - Utility PV",
-        "Land-Based Wind",
-    ],
+    planning_data_args: dict | None = None,
+    prescient_data_args: dict | None = None,
+    config: dict | None = None,
+    candidate_gens: list[str] | None = None,
     include_cost_data: bool = True,
 ):
     """
     :param input_data_path:             Path to the input data. Defaults to 5bus model
     :param planning_data_args:          Keyword arguments to pass to the constructor for `ExpansionPlanningData`. Defaults to `{}`
+    :param prescient_data_args:         Keyword arguments to pass to `load_prescient`. Defaults to `{}`
     :param config:                      Dictionary of model config options. Defaults to `{}`
     :param candidate_gens:              List of candidate generators passed to `DataProcessing.load_gen_data`. Defaults to
                                             `["Natural Gas_FE", "Solar - Utility PV", "Land-Based Wind"]`
@@ -65,6 +63,23 @@ def create_model(
     :type candidate_gens:               list[str], optional
     :type include_cost_data:            bool, optional
     """
+
+    if planning_data_args is None:
+        planning_data_args = {}
+
+    if prescient_data_args is None:
+        prescient_data_args = {}
+
+    if config is None:
+        config = {}
+
+    if candidate_gens is None:
+        candidate_gens = [
+            "Natural Gas_FE",
+            "Solar - Utility PV",
+            "Land-Based Wind",
+        ]
+
     default_data_planning_args = dict(
         stages=1,
         num_reps=1,
@@ -76,7 +91,7 @@ def create_model(
             planning_data_args[arg] = val
 
     data_object = ExpansionPlanningData(**planning_data_args)
-    data_object.load_prescient(input_data_path)
+    data_object.load_prescient(input_data_path, **prescient_data_args)
     if "storage" in config and config["storage"]:
         data_object.load_storage_csv(str(input_data_path))
 
