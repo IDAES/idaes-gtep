@@ -25,7 +25,7 @@ from pathlib import Path
 from os.path import join, dirname, abspath
 
 datadir = join(dirname(abspath(str(__file__))), "data")
-logger = logging.getLogger('pyomo.common')
+logger = logging.getLogger("pyomo.common")
 
 """
 References

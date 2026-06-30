@@ -25,7 +25,8 @@ import os
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 
-logger = logging.getLogger('pyomo.common')
+logger = logging.getLogger("pyomo.common")
+
 
 class ExpansionPlanningData:
     """Standard data storage class for the IDAES GTEP model."""

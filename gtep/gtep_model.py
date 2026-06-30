@@ -54,12 +54,14 @@ import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
-logger = logging.getLogger('pyomo.common')
+logger = logging.getLogger("pyomo.common")
 
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
 # unit transformations.
-u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]", "MMBTU = 1e6 * BTU"])
+u.load_definitions_from_strings(
+    ["USD = [currency]", "MVAR = [power]", "MMBTU = 1e6 * BTU"]
+)
 
 
 ## TODO: Egret features
