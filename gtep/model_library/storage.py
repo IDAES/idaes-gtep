@@ -876,22 +876,28 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     # costs.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
+        m = b.model()
+        
         return (
             b.storageCharged[bat]
-            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.chargingCost[bat]  # in $/MWh
         )
 
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
+        m = b.model()
+        
         return (
             b.storageDischarged[bat]
-            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
             * m.dischargingCost[bat]  # in $/MWh
         )
 
     @b.Expression()
     def storageCostDispatch(b):
+        m = b.model()
+
         return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
             b.storageDischargingCost[bat] for bat in m.storage
         )
@@ -899,6 +905,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     # [ESR: Add storage cap. Commented for now]
     # @b.Constraint(doc="Storage cap")
     # def total_storage_cap(b):
+    #     m = b.model()
     #     return (
     #         sum(b.storageCharged[bat] for bat in m.storage)  # in MW
     #         + sum(b.storageDischarged[bat] for bat in m.storage)  # in MW
