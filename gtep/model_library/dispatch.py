@@ -51,6 +51,8 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
     def renewableCurtailmentCost(b, renewableGen):
+        m = b.model()
+
         return (
             b.renewableCurtailment[renewableGen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
@@ -59,25 +61,38 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
 
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * (m.fixedCost[gen] + m.varCost[gen])
+            * (m.varCost[gen] + m.fuelCost[gen])
         )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
     def renewableGeneratorCost(b, gen):
+        m = b.model()
+
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            * m.varCost[gen]
         )
+
+    if m.config["storage"]:
+        # Add storage variables and constraints. It also includes its
+        # operational costs variables.
+        stor.add_dispatch_storage_variables_and_constraints(m, b)
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
-            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+            return (
+                b.thermalReactiveGeneration[gen]
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * m.fuelCostReactive[gen]
+            )
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -121,11 +136,6 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     @b.Expression()
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
-
-    if m.config["storage"]:
-        # Add storage variables and constraints. It also includes its
-        # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
 
     # [BLN TODO: Check the config check in the Expression rule.]
     @b.Expression(doc="Total cost for dispatch in $")

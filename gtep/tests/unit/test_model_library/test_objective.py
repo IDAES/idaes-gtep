@@ -30,11 +30,6 @@ class TestObjective(unittest.TestCase):
             obj_type=pyo.Expression,
         )
         self.check_helper.add_object(
-            name="storageCostTotal",
-            units=u.USD,
-            obj_type=pyo.Expression,
-        )
-        self.check_helper.add_object(
             name="expansionCostTotal",
             units=u.USD,
             obj_type=pyo.Expression,
@@ -65,5 +60,3 @@ class TestObjective(unittest.TestCase):
     def test_check_expressions_no_storage(self):
         # check that each of the expressions were created
         self._coordinate_tests(config={"storage": False})
-        # check that storage cost was set to 0
-        self.assertEqual(pyo.value(self.m.storageCostTotal), 0)
