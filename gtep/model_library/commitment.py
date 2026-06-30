@@ -184,7 +184,7 @@ def add_commitment_constraints(b, comm_per):
                     m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
                 )
-                
+
             return op_cost_dispatch + op_cost_gen_state + op_cost_storage
 
     @b.Expression(doc="Total curtailment for commitment block in MW")

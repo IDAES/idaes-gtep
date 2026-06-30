@@ -750,7 +750,7 @@ def add_generators_logical_constraints(m):
 def add_dispatch_generators_variables(m, b):
 
     c_p = b.parent_block()
-    
+
     def thermal_generation_limits(
         b, thermalGen, doc="Bounds on active generation of thermal generators"
     ):
