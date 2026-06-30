@@ -34,11 +34,6 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # without being forced.]
     m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
 
-    m.representativeDates = pyo.Set(
-        initialize=m.data.representative_dates,
-        doc="Set of representative dates used for each representative period",
-    )
-
     m.representativePeriods = pyo.Set(
         initialize=rep_per,
         doc="Set of representative periods for each planning period",
