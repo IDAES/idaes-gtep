@@ -258,7 +258,7 @@ def add_storage_params(m):
         units=u.USD / (u.MW * u.hr),
         doc="Cost to discharge per unit electricity",
     )
-    
+
     m.storagefixedCost = pyo.Param(
         m.storage,
         initialize={stor: 0 for stor in m.storage},
@@ -877,7 +877,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
         m = b.model()
-        
+
         return (
             b.storageCharged[bat]
             * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
@@ -887,7 +887,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
         m = b.model()
-        
+
         return (
             b.storageDischarged[bat]
             * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
