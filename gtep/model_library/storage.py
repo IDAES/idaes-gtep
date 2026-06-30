@@ -458,12 +458,6 @@ def add_storage_state_disjuncts(b: BlockData):
         )
 
 
-# def add_investment_storage_variables(b):
-#     b.storageCostInvestment = pyo.Var(
-#         within=pyo.NonNegativeReals, initialize=0, units=u.USD
-#     )
-
-
 def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on
@@ -482,13 +476,17 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
+        m = b.model()
+
         return sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
             for bat in m.storage
@@ -746,7 +744,10 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         units=u.MW,
     )
 
-    # Operational cost variables and expressions per storage unit
+    # Operational cost variables and expressions per storage
+    # unit. Here we assume the costs are in $/MW. If instead the costs
+    # are in $/MWh, the storageCharge/Discharged should be multiplied
+    # by b.dispatchPeriodLength, in hours.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
         return b.storageCharged[bat] * m.chargingCost[bat]

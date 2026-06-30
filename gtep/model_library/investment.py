@@ -45,14 +45,6 @@ def add_investment_params_and_variables(b, investment_stage):
     b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
 
-    # [TODO: Add this only when storage is included. Commented
-    # condition for now since it causes an error during testing.]
-    # if m.config["storage"]:
-    #     stor.add_investment_storage_variables(b)
-    b.storageCostInvestment = pyo.Var(
-        within=pyo.NonNegativeReals, initialize=0, units=u.USD
-    )
-
     # if m.config["include_commitment"]:
     commit.add_investment_commitment_variables(b)
 
@@ -110,19 +102,20 @@ def add_investment_constraints(
     # consistently.]
     @b.Expression(doc="Investment costs for the investment period in $")
     def investment_cost(b):
-        baseline_cost = (
-            b.generators_investment_cost
-            + (
-                b.storage_investment_cost
-                if m.config["storage"] == True
-                else (0 * u.USD)
-            )
-            + (
-                b.transmission_investment_cost
-                if m.config["transmission"] == True
-                else (0 * u.USD)
-            )
-        )
+        m = b.model()
+
+        if m.config["storage"]:
+            storage_term = b.storage_investment_cost
+        else:
+            storage_term = 0 * u.USD
+
+        if m.config["transmission"]:
+            transmission_term = b.transmission_investment_cost
+        else:
+            transmission_term = 0 * u.USD
+
+        baseline_cost = b.generators_investment_cost + storage_term + transmission_term
+
         return m.investmentFactor[investment_stage] * baseline_cost
 
     # if m.config["include_commitment"]:
