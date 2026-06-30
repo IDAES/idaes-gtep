@@ -34,6 +34,7 @@ def add_representative_period_variables(b, rep_per):
     if m.config["advanced_hydro"]:
         hydro.add_representative_hydropower(b, rep_per)
 
+
 def add_representative_period_logical_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
