@@ -198,7 +198,7 @@ class TestGTEP(unittest.TestCase):
                 "duration_dispatch": 15,
             },
             prescient_data_args={
-                "representative_dates":["2020-01-28 00:00"],
+                "representative_dates": ["2020-01-28 00:00"],
             },
             include_cost_data=False,
         )
@@ -234,7 +234,7 @@ class TestGTEP(unittest.TestCase):
                 "duration_dispatch": 15,
             },
             prescient_data_args={
-                "representative_dates":["2020-01-28 00:00"],
+                "representative_dates": ["2020-01-28 00:00"],
             },
             config={
                 "include_investment": False,
@@ -381,8 +381,8 @@ class TestGTEP(unittest.TestCase):
                 "duration_dispatch": 15,
             },
             prescient_data_args={
-                "representative_dates":["2020-01-28 00:00", "2020-04-23 00:00"],
-                "representative_weights":weights
+                "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
+                "representative_weights": weights,
             },
             config={
                 "include_investment": True,
