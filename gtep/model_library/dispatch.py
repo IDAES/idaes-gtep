@@ -258,9 +258,10 @@ def add_dispatch_constraints(b, disp_per):
         def CP_flow_balance(b):
             balance = 0
             buses = [bus for bus in m.buses]
-            loads = [l for l in b.loads]
+            loads = [l for l in c_p.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage] if m.config["storage"] else []
+
             balance += sum(
                 b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
             )
@@ -271,11 +272,13 @@ def add_dispatch_constraints(b, disp_per):
                 balance += sum(
                     b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
                 )
+
             # Add battery storage to constraint
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
+
             # Add the loads as a parameter (already includes units).
-            balance -= sum(c_p.loads[l] for l in loads)
+            balance -= sum(b.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
@@ -313,6 +316,7 @@ def add_dispatch_constraints(b, disp_per):
             # Add battery storage to constraint
             balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])
             balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
+
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]
             balance += b.loadShed[bus]
