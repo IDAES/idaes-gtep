@@ -65,7 +65,7 @@ def add_dispatch_variables(b):
 
         return (
             b.thermalGeneration[gen]
-            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
             * (m.varCost[gen] + m.fuelCost[gen])
         )
 
@@ -76,23 +76,13 @@ def add_dispatch_variables(b):
         return (
             b.renewableGeneration[gen]
             * u.convert(m.dispatchPeriodLength, to_units=u.hr)
-            * m.fixedCost[gen]
+            * m.varCost[gen]
         )
 
     if m.config["storage"]:
         # Add storage variables and constraints. It also includes its
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(m, b)
-
-    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
-
-        @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
-        def reactiveGeneratorCost(b, gen):
-            return (
-                b.thermalReactiveGeneration[gen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
-                * m.fuelCostReactive[gen]
-            )
 
     b.loadShed = pyo.Var(
         m.buses,
@@ -129,7 +119,11 @@ def add_dispatch_variables(b):
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
-            return b.thermalReactiveGeneration[gen] * m.fuelCost[gen]
+            return (
+                b.thermalReactiveGeneration[gen]
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * m.fuelCostReactive[gen]
+            )
 
         @b.Expression(doc=total_reactive_cost_doc)
         def reactiveGenerationCostDispatch(b):
