@@ -27,6 +27,7 @@ __author__ = "Kyle Skolfield"
 import json
 import numpy as np
 import re
+from warnings import warn
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -227,8 +228,16 @@ def create_stages(m, stages):
         b_inv.year = m.years[investment_stage - 1]
         print(f"{b_inv}.year = {b_inv.year}")
 
-        # Declare costs parameters for each stage, since they depend
-        # on the investment year.
+        # Declare cost parameters for each stage because they depend
+        # on the investment year. IMPORTANT NOTE: This function
+        # repopulates m.fuelCost, m.generatorInvestmentCost,
+        # m.fixedCost, and m.varCost, which were previously
+        # initialized in component.py. To preserve component.py
+        # values, comment out this call or the specific parameter
+        # updates inside the function.
+        warn(
+            f"[INFO]: Re-populating m.fuelCost, m.generatorInvestmentCost, m.fixedCost, and m.varCost for year {b_inv.year}. These initialized parameters are overwritten using preprocessed data from m.mc.gen_data_target."
+        )
         comps.add_model_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status

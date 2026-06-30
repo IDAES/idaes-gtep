@@ -16,10 +16,11 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
+from pathlib import Path
 import csv
 import pandas as pd
 import os
-from pathlib import Path
+from warnings import warn
 
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
@@ -192,6 +193,20 @@ class ExpansionPlanningData:
                 )
             else:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
+
+        thermal_heat_rates = [
+            self.md.data["elements"]["generator"][gen].get("heat_rate", 0)
+            for gen in self.md.data["elements"]["generator"]
+            if self.md.data["elements"]["generator"][gen].get("generator_type")
+            == "thermal"
+        ]
+
+        if thermal_heat_rates and all(hr == 0 for hr in thermal_heat_rates):
+            warn(
+                "[INFO]: All thermal generators have heat_rate values equal to 0. "
+                "Please re-check the input data. Fuel costs are multiplied by "
+                "heat_rate, so resulting fuel costs will all be 0."
+            )
 
         time_keys = self.md.data["system"]["time_keys"]
         for date in self.representative_dates:
