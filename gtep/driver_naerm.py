@@ -207,6 +207,18 @@ mod_object.config["advanced_hydro"] = True
 mod_object.create_model()
 print("model is created!")
 
+# print(data_object.md.data["elements"]["generator"].keys())
+# mod_object.model.renewableGenerators.pprint()
+# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
+#     1
+# ].dispatchPeriod[1].renewableGeneratorCost.pprint()
+# mod_object.model.varCost.pprint()
+# mod_object.model.generatorInvestmentCost.pprint()
+mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
+    1
+].dispatchPeriod[1].operational_renewables_only.pprint()
+
+# raise SystemExit
 # mod_object.model.renewableQuota.pprint()
 # mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
 
@@ -270,7 +282,8 @@ if solver == "xpress":
         mod_object.model,
         tee=True,
     )
-    mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
+
+    # mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
 else:
     options_dict = {"MIPGap": 0.05}
     mod_object.results = opt.solve(
@@ -283,6 +296,10 @@ else:
 # mod_object.model.expansionCostTotal.display()
 # mod_object.model.penaltyCostTotal.display()
 # print(pyo.value(mod_object.model.total_cost_objective_rule))
+mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
+    1
+].dispatchPeriod[1].renewableGeneration.pprint()
+raise SystemExit
 
 # Save the results in .json files using the solution class
 dir_name = f"NAERM_initial_testing_{data_date}"

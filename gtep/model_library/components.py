@@ -772,6 +772,7 @@ def add_model_cost_parameters_from_csv(m, year):
             inv_cost = annualized_to_total_capex(
                 capex_yr, years=pyo.value(m.genLifetimes[gen_uid]), discount_rate=0.07
             )
+            inv_cost = capex_yr
 
             # Convert fixed cost from $/MW-year to $/MWh
             fixed_cost = fixed_ops_yr * original_units
