@@ -348,7 +348,7 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
             for branch in m.lines
         },
         mutable=True,
-        units=u.USD,
+        units=u.USD / u.MW,
         doc="Investment cost for each new branch",
     )
 

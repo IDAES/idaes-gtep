@@ -26,7 +26,7 @@ def add_storage_params(m):
 
     """
 
-    # Maximum storage capacity
+    # Maximum storage capacity in MWh
     m.storageCapacity = {
         bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
         for bat in m.storage
@@ -44,12 +44,12 @@ def add_storage_params(m):
         for bat in m.storage
     }
 
-    # Cost to charge per unit electricity
+    # Cost to charge per unit electricity in $/MW
     m.chargingCost = {
         bat: m.md.data["elements"]["storage"][bat]["charge_cost"] for bat in m.storage
     }
 
-    # Cost to discharge per unit electricity
+    # Cost to discharge per unit electricity in $/MW
     m.dischargingCost = {
         bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
         for bat in m.storage
@@ -73,7 +73,8 @@ def add_storage_params(m):
         for bat in m.storage
     }
 
-    # Maximum amount to charge per dispatch period when charging
+    # Maximum amount to charge per dispatch period when charging, in
+    # MW
     m.chargeMax = {
         bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
         for bat in m.storage
@@ -148,10 +149,26 @@ def add_storage_params(m):
     }
 
     # Future not real cost: idealized DoE 10-yr targets or something
+    # in $/MW
     m.storageInvestmentCost = {
         bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
         for bat in m.storage
     }
+
+    m.storagefixedCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage fixed operating costs",
+    )
+    m.storagevarCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage variable costs",
+    )
 
 
 def add_storage_state_disjuncts(m, b, commitment_period):
@@ -450,12 +467,6 @@ def add_storage_state_disjuncts(m, b, commitment_period):
         )
 
 
-# def add_investment_storage_variables(b):
-#     b.storageCostInvestment = pyo.Var(
-#         within=pyo.NonNegativeReals, initialize=0, units=u.USD
-#     )
-
-
 def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on
@@ -474,13 +485,17 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
+        m = b.model()
+
         return sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
             m.storageInvestmentCost[bat]
+            * m.chargeMax[bat]
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
             for bat in m.storage

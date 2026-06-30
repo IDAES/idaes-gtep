@@ -37,13 +37,17 @@ def add_investment_transmission_constraints(m, b, investment_stage):
 
     @b.Expression(doc="Transmission investment costs in $")
     def transmission_investment_cost(b):
+        m = b.model()
+
         return sum(
-            m.branchInvestmentCost[branch]
+            m.transmissionCapacity[branch]
+            * m.branchInvestmentCost[branch]
             * m.branchCapitalMultiplier[branch]
             * b.branchInstalled[branch].indicator_var.get_associated_binary()
             for branch in m.lines
         ) + sum(
-            m.branchInvestmentCost[branch]
+            m.transmissionCapacity[branch]
+            * m.branchInvestmentCost[branch]
             * m.branchExtensionMultiplier[branch]
             * b.branchExtended[branch].indicator_var.get_associated_binary()
             for branch in m.lines
