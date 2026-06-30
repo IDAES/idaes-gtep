@@ -349,6 +349,7 @@ class TestGTEP(unittest.TestCase):
         modObject.config["transmission"] = True
         modObject.config["storage"] = False
         modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = False
 
         modObject.create_model()
 
@@ -397,6 +398,7 @@ class TestGTEP(unittest.TestCase):
         modObject.config["transmission"] = True
         modObject.config["storage"] = False
         modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = False
 
         modObject.create_model()
 
@@ -416,6 +418,55 @@ class TestGTEP(unittest.TestCase):
         # previous successful objective values: 1524533561.02, 926187704.4
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 926195251.45, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+
+    def test_with_cost_data_and_hydro(self):
+        # Test ExpansionPlanningModel with cost data and no commitment
+        # This model originated from driver_esr.py
+        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+            stages=2,
+            num_reps=2,
+            len_reps=1,
+            num_commit=6,
+            num_dispatch=4,
+            duration_dispatch=15,
+        )
+
+        # Populate and create GTEP model
+        modObject = ExpansionPlanningModel(
+            data=dataObject,
+            cost_data=dataProcessingObject,
+        )
+
+        modObject.config["include_investment"] = True
+        modObject.config["include_commitment"] = True
+        modObject.config["include_redispatch"] = True
+        modObject.config["scale_loads"] = True
+        modObject.config["transmission"] = True
+        modObject.config["storage"] = False
+        modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = True
+
+        modObject.create_model()
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 779485794.27, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
