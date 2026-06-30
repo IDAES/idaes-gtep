@@ -12,47 +12,12 @@
 #################################################################################
 
 
-from pathlib import Path
-
 import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
-from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_data import ExpansionPlanningData
-from gtep.gtep_data_processing import DataProcessing
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
-
-curr_dir = Path(__file__).resolve().parent
-input_data_source = (curr_dir / ".." / ".." / ".." / "data" / "5bus").resolve()
-
-bus_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "Bus_data_gen_weights_mappings.csv"
-).resolve()
-cost_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-).resolve()
-ng_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "Total_Energy_Supply_Disposition_and_Price_Summary.csv"
-).resolve()
+from gtep.tests.unit.utils_for_testing import create_model
 
 
 def check_CP_flow_balance(td, c: pyo.Constraint):
@@ -128,43 +93,6 @@ def check_operational_renewables_only(td, c: pyo.Constraint):
 
 
 class TestDispatch(unittest.TestCase):
-
-    def _create_model(self, config={}):
-        # create model
-        data_object = ExpansionPlanningData(
-            stages=1,
-            num_reps=1,
-            num_commit=1,
-            num_dispatch=1,
-        )
-        data_object.load_prescient(input_data_source)
-
-        candidate_gens = [
-            "Natural Gas_FE",
-            "Solar - Utility PV",
-            "Land-Based Wind",
-        ]
-
-        data_processing_object = DataProcessing()
-        data_processing_object.load_gen_data(
-            bus_data_path=bus_data_path,
-            cost_data_path=cost_data_path,
-            ng_cost_path=ng_data_path,
-            candidate_gens=candidate_gens,
-            save_csv=False,
-        )
-
-        mod_object = ExpansionPlanningModel(
-            data=data_object,
-            cost_data=data_processing_object,
-        )
-
-        for config_option, config_val in config.items():
-            mod_object.config[config_option] = config_val
-        mod_object.create_model()
-
-        return mod_object
-
     def _add_expected_properties_for_objects(self):
         self.check_helper.add_object(
             name="renewableGenerationSurplus",
@@ -313,7 +241,7 @@ class TestDispatch(unittest.TestCase):
 
     def _coordinate_tests(self, config):
         """Creates a model and runs tests for a given set of config options."""
-        self.m = self._create_model(config=config).model
+        self.m = create_model(config=config).model
         self.b = (
             self.m.investmentStage[1]
             .representativePeriod[1]
