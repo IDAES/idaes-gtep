@@ -21,7 +21,7 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
 # Add data
-data_path = "./data/5bus"
+data_path = "./data/5bus_updated"
 data_object = ExpansionPlanningData(
     stages=2,
     num_reps=2,
