@@ -41,13 +41,17 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
         units=u.MW,
     )
 
+    units_renewable_capacity = u.MW
     for renewableGen in m.renewableGenerators:
         if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float:
-            b.renewableCapacityExpected[renewableGen] = 0
+            b.renewableCapacityExpected[renewableGen] = 0 * units_renewable_capacity
         else:
-            b.renewableCapacityExpected[renewableGen] = m.md.data["elements"][
-                "generator"
-            ][renewableGen]["p_max"]["values"][commitment_period - 1]
+            b.renewableCapacityExpected[renewableGen] = (
+                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
+                    commitment_period - 1
+                ]
+                * units_renewable_capacity
+            )
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
