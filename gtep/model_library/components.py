@@ -105,7 +105,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # built-in structure from EGRET or just a placeholder?
     if m.md.data["elements"].get("storage"):
         m.storage = pyo.Set(
-            initialize=(ess for ess in m.md.data["elements"]["storage"]),
+            initialize=(stor for stor in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
 
