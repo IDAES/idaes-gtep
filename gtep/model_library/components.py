@@ -16,6 +16,8 @@ Planning (GTEP) Model
 
 """
 
+from warnings import warn
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -711,10 +713,9 @@ def add_model_cost_parameters(m, year):
         m.genRenewableVarOpCost.append(1)  # $/MWh
         m.genRenewableFuelCost.append(1)
 
-    # Update data for fixed and variable costs (previously defined
-    # with random default values in add_model_parameters) since they
-    # depend on the investment year. Also, convert the units to be
-    # consistent.
+    # Update data for investment, fixed and variable, and fuel costs
+    # previously defined since they depend on the investment
+    # year. Also, convert the units to be consistent.
     units_fixed_cost = u.USD / (u.kW * u.year)
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
