@@ -35,7 +35,11 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [ESR: Corrected to be in the commitment block "b", not in main
     # model "m".]
-    b.renewableCapacityExpected = {}
+    b.renewableCapacityExpected = pyo.Param(
+        m.renewableGenerators,
+        domain=pyo.NonNegativeReals,
+        units=u.MW,
+    )
 
     units_renewable_capacity = u.MW
     for renewableGen in m.renewableGenerators:
