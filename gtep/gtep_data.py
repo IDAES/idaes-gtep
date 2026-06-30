@@ -16,13 +16,13 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
-
-from pyomo.environ import *
-from prescient.simulator.config import PrescientConfig
-from prescient.data.providers import gmlc_data_provider
+import csv
 import pandas as pd
 import os
 from pathlib import Path
+
+from prescient.simulator.config import PrescientConfig
+from prescient.data.providers import gmlc_data_provider
 
 
 class ExpansionPlanningData:
@@ -164,8 +164,35 @@ class ExpansionPlanningData:
                 for date, key in enumerate(self.representative_dates)
             }
 
-        time_keys = self.md.data["system"]["time_keys"]
+        # Read average heat rates from the "HR_avg_0" column in
+        # gen.csv and assign them to each generator in self.md. This
+        # is done manually because the generator data loaded into
+        # self.md does not include heat rate values by default.
+        gen_csv_file = os.path.join(data_path, "gen.csv")
+        heat_rate_dict = {}
+        with open(gen_csv_file, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                gen_uid = row.get("GEN UID")
+                heat_rate_str = row.get("HR_avg_0")
 
+                if heat_rate_str not in (None, "", "NA"):
+                    heat_rate = float(heat_rate_str)
+                else:
+                    heat_rate = None
+            
+                if gen_uid and heat_rate is not None:
+                    heat_rate_dict[gen_uid] = heat_rate
+
+        for gen in self.md.data["elements"]["generator"]:
+            if gen in heat_rate_dict:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = (
+                    heat_rate_dict[gen]
+                )
+            else:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
+        
+        time_keys = self.md.data["system"]["time_keys"]
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
             time_key_set = time_keys[key_idx : key_idx + period_per_step]
