@@ -394,7 +394,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     # Calculate fuel costs for thermal generators using fuel price and
     # heat rate. Define the MMBTU unit explicitly because it is not
     # included in Pyomo units by default.
-    u.load_definitions_from_strings(["MMBTU = 1e6 * BTU"])
     m.fuelCostperMMBTU = pyo.Param(
         m.thermalGenerators,
         initialize={
