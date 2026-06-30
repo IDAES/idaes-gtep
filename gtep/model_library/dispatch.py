@@ -79,11 +79,6 @@ def add_dispatch_variables(b):
             * m.varCost[gen]
         )
 
-    if m.config["storage"]:
-        # Add storage variables and constraints. It also includes its
-        # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
-
     b.loadShed = pyo.Var(
         m.buses,
         domain=pyo.NonNegativeReals,
@@ -145,7 +140,11 @@ def add_dispatch_variables(b):
 
     # Add storage variables and constraints. It also includes its
     # operational costs variables.
-    stor.add_dispatch_storage_variables_and_constraints(m, b)
+    if m.config["storage"]:
+        stor.add_dispatch_storage_variables_and_constraints(m, b)
+        storage_term = b.storageCostDispatch
+    else:
+        storage_term = 0 * u.USD
 
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
@@ -155,7 +154,7 @@ def add_dispatch_variables(b):
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
             + b.curtailmentCostDispatch
-            + b.storageCostDispatch
+            + storage_term
         )
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
