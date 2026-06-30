@@ -16,15 +16,16 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
+import logging
 from pathlib import Path
 import csv
 import pandas as pd
 import os
-from warnings import warn
 
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 
+logger = logging.getLogger('pyomo.common')
 
 class ExpansionPlanningData:
     """Standard data storage class for the IDAES GTEP model."""
@@ -202,8 +203,8 @@ class ExpansionPlanningData:
         ]
 
         if thermal_heat_rates and all(hr == 0 for hr in thermal_heat_rates):
-            warn(
-                "[INFO]: All thermal generators have heat_rate values equal to 0. "
+            logger.info(
+                "All thermal generators have heat_rate values equal to 0. "
                 "Please re-check the input data. Fuel costs are multiplied by "
                 "heat_rate, so resulting fuel costs will all be 0."
             )
