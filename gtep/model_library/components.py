@@ -655,7 +655,7 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """
 
 
-def add_model_cost_parameters(m, year):
+def repopulate_cost_parameters(m, year):
     """This method saves lists with all relevant costs (fixed and
     variable operating costs, fuel costs, and investment costs) for
     thermal and renewable generators. Refer to gtep_data_processing

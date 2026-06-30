@@ -238,7 +238,7 @@ def create_stages(m, stages):
         warn(
             f"[INFO]: Re-populating m.fuelCost, m.generatorInvestmentCost, m.fixedCost, and m.varCost for year {b_inv.year}. These initialized parameters are overwritten using preprocessed data from m.mc.gen_data_target."
         )
-        comps.add_model_cost_parameters(m, b_inv.year)
+        comps.repopulate_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
