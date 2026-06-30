@@ -410,18 +410,23 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.heatRate = pyo.Param(
         m.thermalGenerators,
         initialize={
-            gen: (m.md.data["elements"]["generator"][gen]["heat_rate"]
-                  if "RTS-GMLC" in m.md.data["system"]["name"]
-                  else m.md.data["elements"]["generator"][gen]["heat_rate"]
+            gen: (
+                m.md.data["elements"]["generator"][gen]["heat_rate"]
+                if "RTS-GMLC" in m.md.data["system"]["name"]
+                else m.md.data["elements"]["generator"][gen]["heat_rate"]
             )
             for gen in m.thermalGenerators
-        },        mutable=True,
+        },
+        mutable=True,
         units=u.MMBTU / (u.MW * u.hr),
         doc="Heat rate for each thermal generator",
     )
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
-        initialize={gen: m.fuelCostperMMBTU[gen] * m.heatRate[gen] for gen in m.thermalGenerators},
+        initialize={
+            gen: m.fuelCostperMMBTU[gen] * m.heatRate[gen]
+            for gen in m.thermalGenerators
+        },
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator",
@@ -705,7 +710,7 @@ def add_model_cost_parameters(m, year):
         m.genRenewableFixOpCost.append(1)  # in $/kW-yr
         m.genRenewableVarOpCost.append(1)  # $/MWh
         m.genRenewableFuelCost.append(1)
-       
+
     # Update data for fixed and variable costs (previously defined
     # with random default values in add_model_parameters) since they
     # depend on the investment year. Also, convert the units to be

@@ -181,7 +181,7 @@ class ExpansionPlanningData:
                     heat_rate = float(heat_rate_str)
                 else:
                     heat_rate = None
-            
+
                 if gen_uid and heat_rate is not None:
                     heat_rate_dict[gen_uid] = heat_rate
 
@@ -192,7 +192,7 @@ class ExpansionPlanningData:
                 )
             else:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
-        
+
         time_keys = self.md.data["system"]["time_keys"]
         for date in self.representative_dates:
             key_idx = time_keys.index(date)
