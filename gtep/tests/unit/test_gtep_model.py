@@ -56,7 +56,7 @@ def read_debug_model(
     duration_dispatch=15,
 ):
     curr_dir = dirname(abspath(__file__))
-    debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
+    debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus_updated"))
     dataObject = ExpansionPlanningData(
         stages=stages,
         num_reps=num_reps,
