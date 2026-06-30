@@ -4,27 +4,11 @@ import pandas as pd
 import pyomo.common.unittest as unittest
 from pyomo.common.tempfiles import TempfileManager
 from gtep.gtep_data_processing import DataProcessing
-
-curr_dir = Path(__file__).resolve().parent
-bus_data_path = (
-    curr_dir / ".." / ".." / "data" / "costs" / "Bus_data_gen_weights_mappings.csv"
-).resolve()
-cost_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-).resolve()
-ng_cost_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "Total_Energy_Supply_Disposition_and_Price_Summary.csv"
-).resolve()
+from gtep.tests.unit.utils_for_testing import (
+    bus_data_path,
+    cost_data_path,
+    ng_data_path,
+)
 
 
 class TestGTEPDataProcessing(unittest.TestCase):
@@ -232,7 +216,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
-                ng_cost_path,
+                ng_data_path,
                 gens,
             )
             self.assertIsInstance(self.data_processing.gen_data_target, pd.DataFrame)
@@ -247,7 +231,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
-                ng_cost_path,
+                ng_data_path,
                 gens,
                 ng_cost_quantity="Invalid quantity",
             )
@@ -257,7 +241,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
-                ng_cost_path,
+                ng_data_path,
                 gens,
                 years=[1999],
             )
@@ -267,7 +251,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
-                ng_cost_path,
+                ng_data_path,
                 gens,
                 save_csv=True,
             )
@@ -278,7 +262,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             self.data_processing.load_gen_data(
                 bus_data_path,
                 cost_data_path,
-                ng_cost_path,
+                ng_data_path,
                 gens,
                 save_csv=True,
                 out_path=tempdir,
