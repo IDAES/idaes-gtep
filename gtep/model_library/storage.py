@@ -282,7 +282,10 @@ def add_storage_params(m):
             bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
             for bat in m.storage
         },
-        units=u.USD,
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.USD / u.MW,
+        doc="Investment cost for storage units",
     )
 
 
@@ -833,14 +836,14 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     # [TODO: We need to adjust this constraint since this does not fix
     # initial battery capacity at the first dispatch period.]
     def init_storage_capacity(b, bat):
-        return m.initStorageChargeLevel[bat]
+        return m.initStorageChargeLevel[bat]  # in MWh
 
     b.storageChargeLevel = pyo.Var(
         m.storage,
         domain=pyo.NonNegativeReals,
         bounds=storage_capacity_limits,
         initialize=init_storage_capacity,
-        units=u.MW,
+        units=u.MW * u.hr,
     )
 
     # Define bounds on charging/discharging capability. Note that
@@ -868,23 +871,39 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         units=u.MW,
     )
 
-    # Operational cost variables and expressions per storage
-    # unit. Here we assume the costs are in $/MW. If instead the costs
-    # are in $/MWh, the storageCharge/Discharged should be multiplied
-    # by b.dispatchPeriodLength, in hours.
+    # Operational cost expressions for each storage unit. Costs are
+    # assumed to be in $/MWh, consistent with generator operational
+    # costs.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
+        return (
+            b.storageCharged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            * m.chargingCost[bat]  # in $/MWh
+        )
 
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
+        return (
+            b.storageDischarged[bat]
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
+            * m.dischargingCost[bat]  # in $/MWh
+        )
 
     @b.Expression()
     def storageCostDispatch(b):
         return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
             b.storageDischargingCost[bat] for bat in m.storage
         )
+
+    # [ESR: Add storage cap. Commented for now]
+    # @b.Constraint(doc="Storage cap")
+    # def total_storage_cap(b):
+    #     return (
+    #         sum(b.storageCharged[bat] for bat in m.storage)  # in MW
+    #         + sum(b.storageDischarged[bat] for bat in m.storage)  # in MW
+    #         <= m.storageDischargeLimit  # in MW
+    #     )
 
 
 def add_commitment_storage_constraints(b):
