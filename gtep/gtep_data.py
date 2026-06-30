@@ -167,7 +167,8 @@ class ExpansionPlanningData:
         # Read average heat rates from the "HR_avg_0" column in
         # gen.csv and assign them to each generator in self.md. This
         # is done manually because the generator data loaded into
-        # self.md does not include heat rate values by default.
+        # self.md does not include heat rate values by default. Units
+        # should be in MMBTU/MWh.
         gen_csv_file = os.path.join(data_path, "gen.csv")
         heat_rate_dict = {}
         with open(gen_csv_file, newline="") as csvfile:
