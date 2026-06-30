@@ -27,11 +27,7 @@ import os
 
 def _sanitize_path_part(name):
     return (
-        str(name)
-        .replace("[", "_")
-        .replace("]", "")
-        .replace(",", "_")
-        .replace(" ", "_")
+        str(name).replace("[", "_").replace("]", "").replace(",", "_").replace(" ", "_")
     )
 
 
@@ -52,8 +48,8 @@ def _block_path_components(block, root_block=None):
 
     if root_block is not None and root_block.name is not None:
         root_parts = root_block.name.split(".")
-        if parts[:len(root_parts)] == root_parts:
-            parts = parts[len(root_parts):]
+        if parts[: len(root_parts)] == root_parts:
+            parts = parts[len(root_parts) :]
 
     if not parts:
         parts = ["root"]
@@ -126,6 +122,7 @@ def export_block_constraints_hierarchical(
 
             if not found_any:
                 f.write("No constraints found on this block.\n")
+
 
 # Add data
 rep_days = [
@@ -203,22 +200,22 @@ mod_object.config["include_commitment"] = False
 mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = False
 mod_object.config["transmission"] = True
-mod_object.config["storage"] = False
+mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
 mod_object.config["advanced_hydro"] = True
 
 mod_object.create_model()
 print("model is created!")
 
-mod_object.model.renewableQuota.pprint()
-mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
+# mod_object.model.renewableQuota.pprint()
+# mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
 
-export_block_constraints_hierarchical(
-    mod_object.model,
-    output_folder="naerm_nonsense_invesstment",
-    individual_entries=True,
-    recurse=True,
-)
+# export_block_constraints_hierarchical(
+#     mod_object.model,
+#     output_folder="naerm_nonsense_no_investment",
+#     individual_entries=True,
+#     recurse=True,
+# )
 
 # # print(mod_object.model.md.data['elements']['generator']['AESO_cc_gas'])
 # from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
@@ -270,7 +267,8 @@ if solver == "xpress":
     xpress.controls.maxmiptasks = 16
 
     mod_object.results = opt.solve(
-        mod_object.model, tee=True, logfile="xpress_log_files/xpress.log"
+        mod_object.model,
+        tee=True,
     )
     mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
 else:

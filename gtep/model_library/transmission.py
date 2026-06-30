@@ -29,11 +29,14 @@ def add_investment_transmission_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.branchOperational[branch].indicator_var.fix(False)
+            b.branchExtended[branch].indicator_var.fix(False)
+            b.branchRetired[branch].indicator_var.fix(False)
         elif (
             m.md.data["elements"]["branch"][branch]["in_service"] == True
             and investment_stage == 1
         ):
-            b.branchOperational[branch].indicator_var.fix(True)
+            b.branchInstalled[branch].indicator_var.fix(False)
+            b.branchRetired[branch].indicator_var.fix(False)
 
     @b.Expression(doc="Transmission investment costs in $")
     def transmission_investment_cost(b):
