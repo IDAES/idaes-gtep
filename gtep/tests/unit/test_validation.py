@@ -13,9 +13,8 @@
 
 from pathlib import Path
 
-from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
+from gtep.tests.unit.utils_for_testing import create_model, input_data_path
 from pyomo.core import TransformationFactory
 from pyomo.contrib.appsi.solvers.highs import Highs
 import pyomo.common.unittest as unittest
@@ -36,24 +35,17 @@ from gtep.validation import (
     populate_transmission,
 )
 
-curr_dir = Path(__file__).resolve().parent
-input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
-
 
 def get_solution_object():
-    data_object = ExpansionPlanningData(
-        stages=2,
-        num_reps=2,
-        len_reps=1,
-        num_commit=6,
-        num_dispatch=4,
+    mod_object = create_model(
+        planning_data_args={
+            "stages": 2,
+            "num_reps": 2,
+            "len_reps": 1,
+            "num_commit": 6,
+            "num_dispatch": 4,
+        }
     )
-    data_object.load_prescient(str(input_data_source))
-
-    mod_object = ExpansionPlanningModel(
-        data=data_object,
-    )
-    mod_object.create_model()
     TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
     TransformationFactory("gdp.bigm").apply_to(mod_object.model)
     opt = Highs()
@@ -159,9 +151,9 @@ class TestValidation(unittest.TestCase):
         # so these functions need to be tested together
         with TempfileManager.new_context() as tempfile:
             temp_dir = Path(tempfile.mkdtemp())
-            populate_generators(input_data_source, self.solution, temp_dir)
+            populate_generators(input_data_path, self.solution, temp_dir)
             self.assertTrue(self._check_fname_in_dir("gen.csv", temp_dir))
-            filter_pointers(input_data_source, temp_dir)
+            filter_pointers(input_data_path, temp_dir)
             self.assertTrue(
                 self._check_fname_in_dir("timeseries_pointers.csv", temp_dir)
             )
@@ -169,15 +161,15 @@ class TestValidation(unittest.TestCase):
     def test_populate_transmission(self):
         with TempfileManager.new_context() as tempfile:
             temp_dir = Path(tempfile.mkdtemp())
-            populate_transmission(input_data_source, self.solution, temp_dir)
+            populate_transmission(input_data_path, self.solution, temp_dir)
             self.assertTrue(self._check_fname_in_dir("branch.csv", temp_dir))
 
     def test_copy_prescient_inputs(self):
         with TempfileManager.new_context() as tempfile:
             temp_dir = Path(tempfile.mkdtemp())
-            copy_prescient_inputs(input_data_source, temp_dir)
+            copy_prescient_inputs(input_data_path, temp_dir)
 
-            for fpath in list(input_data_source.iterdir()):
+            for fpath in list(input_data_path.iterdir()):
                 if fpath.name in [
                     "gen.csv",
                     "timeseries_pointers.csv",

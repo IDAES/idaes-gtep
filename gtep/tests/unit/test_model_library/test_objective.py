@@ -18,11 +18,7 @@ import pyomo.common.unittest as unittest
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
 import pyomo.environ as pyo
 from pyomo.environ import units as u
-from pathlib import Path
-from gtep.tests.unit.test_model_library.model_library_test_utils import create_model
-
-curr_dir = Path(__file__).resolve().parent
-path_9_bus = (curr_dir / ".." / ".." / ".." / "data" / "9_bus_GTEP_dir").resolve()
+from gtep.tests.unit.utils_for_testing import create_model, path_9_bus
 
 
 class TestObjective(unittest.TestCase):
@@ -57,7 +53,7 @@ class TestObjective(unittest.TestCase):
 
     def _coordinate_tests(self, config):
         """Creates a model and runs tests for a given set of config options."""
-        self.m = create_model(input_data_path=path_9_bus, config=config)
+        self.m = create_model(input_data_path=path_9_bus, config=config).model
 
         self.check_helper = PyomoCheckHelper(self, self.m)
         self._make_expressions()
