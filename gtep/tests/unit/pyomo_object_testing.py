@@ -15,6 +15,7 @@
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
 from pyomo.core.base.component import ComponentData
+from pyomo.core.base.set import SetProduct
 from pyomo.util.check_units import check_units_equivalent
 import pyomo.environ as pyo
 
@@ -179,25 +180,27 @@ class PyomoCheckHelper:
             self.test_class.assertTrue(
                 obj.is_indexed(), f"Expected {obj} to be indexed, but it isn't"
             )
-            if isinstance(
-                properties["index"], dict
-            ):  # remove once stop indexing by dicts
-                exp = len(properties["index"])
-                got = len(obj.index_set())
-                self.test_class.assertEqual(
-                    exp,
+            exp = properties["index"]
+            got = obj.index_set()
+            if isinstance(exp, tuple):
+                self.test_class.assertIsInstance(
                     got,
-                    f"Expected index of {obj} to have {exp} elements, but got {got}",
+                    SetProduct,
+                    f"Expected {obj} to have multiple sets but got {got}",
                 )
-                for key in properties["index"]:
-                    self.test_class.assertIn(
-                        key,
-                        obj.index_set(),
-                        f"{key} not found in index of {obj}: {obj.index_set()}",
+                subsets = list(got.subsets())
+                self.test_class.assertEqual(
+                    len(exp),
+                    len(subsets),
+                    f"Expected index of {obj} to have {len(exp)} sets but got {len(subsets)}",
+                )
+                for subset_exp, subset_got in zip(sorted(exp), sorted(subsets)):
+                    self.test_class.assertIs(
+                        len(subset_exp),
+                        len(subset_got),
+                        f"Index set {subset_got} did not match expected {subset_exp}",
                     )
             else:
-                exp = properties["index"]
-                got = obj.index_set()
                 self.test_class.assertIs(
                     exp,
                     got,

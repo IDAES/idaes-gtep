@@ -237,17 +237,103 @@ def add_storage_params(m: pyo.Model):
     )
 
 
-# def _charge_discharge_helper(b: BlockData, disj: gdp.Disjunct, charging: bool, bat):
-#     """
-#     :param b:           Commitment block
-#     :param disj:        Charging/discharging disjunct
-#     :param charging:    Whether we are in the charging disjunct
-#     :param bat:         Element of `m.storage`
-#     """
-#     descrip = "charge" if charging else "discharge"
+### HELPER FUNCTIONS
+def _charge_discharge_limit(b, bat, charging: bool, upper: bool):
+    """
+    Returns a constraint on battery charging/discharging.
 
-#     disj.add_component()
-#     pass
+    :param b:           Commitment block
+    :param bat:         Battery
+    :param charging:    Whether to apply constraint on charge (rather than discharge)
+    :param upper:       Whether to apply the upper limit (rather than lower)
+    """
+    m = b.model()
+    descrip = "charge" if charging else "discharge"
+    max_or_min = "max" if upper else "min"
+    limit = m.component(f"{descrip}{max_or_min.capitalize()}")[bat]
+
+    return pyo.Constraint(
+        b.dispatchPeriods,
+        expr={
+            d: (
+                limit * (-1 if upper else 1)
+                <= b.dispatchPeriod[d].component(f"storage{descrip.capitalize()}d")[bat]
+                * (-1 if upper else 1)
+            )
+            for d in b.dispatchPeriods
+        },
+        doc=f"Storage {descrip} {max_or_min} operating limits",
+    )
+
+
+def _ramp_limit_rule(b, bat, disp_per, charging, up):
+    m = b.model()
+    r_p = b.parent_block()
+    comm_per = b.index()
+
+    if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
+        cur = (
+            b.dispatchPeriod[disp_per].storageCharged[bat]
+            if charging
+            else b.dispatchPeriod[disp_per].storageDischarged[bat]
+        )
+        prev = (
+            r_p.prevStorageCharged[(comm_per, disp_per), bat]
+            if charging
+            else r_p.prevStorageDischarged[(comm_per, disp_per), bat]
+        )
+        limit = m.component(
+            f"storage{'C' if charging else 'Disc'}hargingRamp{'Up' if up else 'Down'}Rates"
+        )[bat]
+        return (cur - prev if up else prev - cur) / u.convert(
+            m.dispatchPeriodLength, u.hr
+        ) <= limit
+    return pyo.Constraint.Skip
+
+
+def _ramp_limit(b, bat, charging: bool, up: bool):
+    """
+    Returns a constraint on battery charge/discharge ramping.
+
+    :param b:           Commitment block
+    :param bat:         Battery
+    :param charging:    Whether to apply constraint on charge (rather than discharge)
+    :param up:          Whether to apply ramp up limit (rather than ramp down)
+    """
+    descrip = "charge" if charging else "discharge"
+    up_or_down = "up" if up else "down"
+
+    return pyo.Constraint(
+        b.dispatchPeriods,
+        expr={
+            disp_per: _ramp_limit_rule(b, bat, disp_per, charging, up)
+            for disp_per in b.dispatchPeriods
+        },
+        doc=f"Storage {descrip} ramp {up_or_down} limit",
+    )
+
+
+def _no_charge_discharge(b, bat, charge: bool):
+    """
+    Returns a constraint to prevent charging/discharging.
+
+    :param b:           Commitment block
+    :param bat:         Battery
+    :param charging:    Whether to apply constraint on charge (rather than discharge)
+    """
+    return pyo.Constraint(
+        b.dispatchPeriods,
+        expr={
+            d: (
+                b.dispatchPeriod[d].storageCharged[bat]
+                if charge
+                else b.dispatchPeriod[d].storageDischarged[bat]
+            )
+            <= 0 * u.MW
+            for d in b.dispatchPeriods
+        },
+        doc=f"Forces no {'charging' if charge else 'discharging'}",
+    )
 
 
 def add_storage_state_disjuncts(b: BlockData):
@@ -264,85 +350,46 @@ def add_storage_state_disjuncts(b: BlockData):
     i_p = r_p.parent_block()
     comm_per = b.index()
 
+    ####################
+    # Common constraints
+    ####################
+
+    @b.Constraint(m.storage, b.dispatchPeriods)
+    def battery_storage_balance(b, bat, disp_per):
+        if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
+            return b.dispatchPeriod[disp_per].storageChargeLevel[
+                bat
+            ] == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat] + (
+                b.dispatchPeriod[disp_per].storageCharged[bat]
+                - b.dispatchPeriod[disp_per].storageDischarged[bat]
+            ) * u.convert(
+                m.dispatchPeriodLength, u.hr
+            )
+        return pyo.Constraint.Skip
+
     #########################
     # Discharging constraints
     #########################
 
     @b.Disjunct(m.storage, doc="Storage discharging operating limits")
     def storDischarging(disj, bat):
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage discharging minimum operating Limits if storage unit is on",
+        disj.add_component(
+            "discharge_limit_min",
+            _charge_discharge_limit(b, bat, charging=False, upper=False),
         )
-        def discharge_limit_min(disj, disp_per):
-            return (
-                m.dischargeMin[bat] <= b.dispatchPeriod[disp_per].storageDischarged[bat]
-            )
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage discharging maximum operating limits",
+        disj.add_component(
+            "discharge_limit_max",
+            _charge_discharge_limit(b, bat, charging=False, upper=True),
         )
-        def discharge_limit_max(disj, disp_per):
-            return (
-                b.dispatchPeriod[disp_per].storageDischarged[bat] <= m.dischargeMax[bat]
-            )
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage discharging ramp up limit when fully on",
+        disj.add_component(
+            "discharge_ramp_down_limits",
+            _ramp_limit(b, bat, charging=False, up=False),
         )
-        def discharge_ramp_up_limits(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return (
-                    b.dispatchPeriod[disp_per].storageDischarged[bat]
-                    - r_p.prevStorageDischarged[(comm_per, disp_per), bat]
-                ) / u.convert(
-                    m.dispatchPeriodLength, u.hr
-                ) <= m.storageDischargingRampUpRates[
-                    bat
-                ]
-            return pyo.Constraint.Skip
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage discharging ramp down limit when fully on",
+        disj.add_component(
+            "discharge_ramp_up_limits",
+            _ramp_limit(b, bat, charging=False, up=True),
         )
-        def discharge_ramp_down_limits(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return (
-                    r_p.prevStorageDischarged[(comm_per, disp_per), bat]
-                    - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                ) / u.convert(
-                    m.dispatchPeriodLength, u.hr
-                ) <= m.storageDischargingRampDownRates[
-                    bat
-                ]
-            return pyo.Constraint.Skip
-
-        @disj.Constraint(b.dispatchPeriods, doc="Forces no charge when discharging")
-        def no_charge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] <= 0 * u.MW
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that batteries that are charging both gain and lose energy",
-        )
-        def discharging_battery_storage_balance(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return b.dispatchPeriod[disp_per].storageChargeLevel[
-                    bat
-                ] == r_p.retainedStorageChargeLevelFromPrev[
-                    (comm_per, disp_per), bat
-                ] - b.dispatchPeriod[
-                    disp_per
-                ].storageDischarged[
-                    bat
-                ] * u.convert(
-                    m.dispatchPeriodLength, u.hr
-                )
-            return pyo.Constraint.Skip
+        disj.add_component("no_charge", _no_charge_discharge(b, bat, charge=True))
 
     #########################
     # Charging constraints
@@ -350,73 +397,23 @@ def add_storage_state_disjuncts(b: BlockData):
 
     @b.Disjunct(m.storage)
     def storCharging(disj, bat):
-        b = disj.parent_block()
-
-        @disj.Constraint(b.dispatchPeriods)
-        def charge_limit_min(d, disp_per):
-            return m.chargeMin[bat] <= b.dispatchPeriod[disp_per].storageCharged[bat]
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage charging maximum operating limits",
+        disj.add_component(
+            "charge_limit_min",
+            _charge_discharge_limit(b, bat, charging=True, upper=False),
         )
-        def charge_limit_max(d, disp_per):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] <= m.chargeMax[bat]
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage charging ramp up limit when fully on",
+        disj.add_component(
+            "charge_limit_max",
+            _charge_discharge_limit(b, bat, charging=True, upper=True),
         )
-        def charge_ramp_up_limits(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return (
-                    b.dispatchPeriod[disp_per].storageCharged[bat]
-                    - r_p.prevStorageCharged[(comm_per, disp_per), bat]
-                ) / u.convert(
-                    m.dispatchPeriodLength, u.hr
-                ) <= m.storageChargingRampUpRates[
-                    bat
-                ]
-            return pyo.Constraint.Skip
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Storage charging ramp down limit when fully on",
+        disj.add_component(
+            "charge_ramp_down_limits",
+            _ramp_limit(b, bat, charging=True, up=False),
         )
-        def charge_ramp_down_limits(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return (
-                    r_p.prevStorageCharged[(comm_per, disp_per), bat]
-                    - b.dispatchPeriod[disp_per].storageCharged[bat]
-                ) / u.convert(
-                    m.dispatchPeriodLength, u.hr
-                ) <= m.storageChargingRampDownRates[
-                    bat
-                ]
-            return pyo.Constraint.Skip
-
-        @disj.Constraint(b.dispatchPeriods)
-        def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageDischarged[bat] <= 0 * u.MW
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that batteries that are charging both gain and lose energy",
+        disj.add_component(
+            "charge_ramp_up_limits",
+            _ramp_limit(b, bat, charging=True, up=True),
         )
-        def charging_battery_storage_balance(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return b.dispatchPeriod[disp_per].storageChargeLevel[
-                    bat
-                ] == r_p.retainedStorageChargeLevelFromPrev[
-                    (comm_per, disp_per), bat
-                ] + b.dispatchPeriod[
-                    disp_per
-                ].storageCharged[
-                    bat
-                ] * u.convert(
-                    m.dispatchPeriodLength, u.hr
-                )
-            return pyo.Constraint.Skip
+        disj.add_component("no_discharge", _no_charge_discharge(b, bat, charge=False))
 
     #########################
     # Storage Off Constraints
@@ -424,34 +421,8 @@ def add_storage_state_disjuncts(b: BlockData):
 
     @b.Disjunct(m.storage)
     def storOff(disj, bat):
-        b = disj.parent_block()
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that, if battery is off, it is not discharging in terms of sending energy to the grid",
-        )
-        def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageDischarged[bat] == 0
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that batteries that are off cannot charge their status",
-        )
-        def no_charge(
-            disj,
-            disp_per,
-            doc="Enforces that batteries that are off still lose energy, and none goes to the grid",
-        ):
-            return b.dispatchPeriod[disp_per].storageCharged[bat] == 0
-
-        @disj.Constraint(b.dispatchPeriods)
-        def off_batteries_lose_storage(disj, disp_per):
-            if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
-                return (
-                    b.dispatchPeriod[disp_per].storageChargeLevel[bat]
-                    == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat]
-                )
-            return pyo.Constraint.Skip
+        disj.add_component("no_charge", _no_charge_discharge(b, bat, charge=True))
+        disj.add_component("no_discharge", _no_charge_discharge(b, bat, charge=False))
 
     @b.Disjunction(
         m.storage,

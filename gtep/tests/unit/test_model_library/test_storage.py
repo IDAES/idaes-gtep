@@ -151,12 +151,26 @@ class TestObjective(TestCase):
         )
 
     def _add_storage_state_disjuncts(self):
+        continuity_constraint_skipped_w_bat = [
+            (bat, d)
+            for bat in self.m.storage
+            for d in self.b.dispatchPeriods
+            if (self.b.parent_block().index(), d)
+            == self.b.parent_block().commitDispatchPairs.first()
+        ]
         continuity_constraint_skipped = [
             d
             for d in self.b.dispatchPeriods
             if (self.b.parent_block().index(), d)
             == self.b.parent_block().commitDispatchPairs.first()
         ]
+        self.check_helper.add_object(
+            name="battery_storage_balance",
+            obj_type=pyo.Constraint,
+            units=u.MW * u.hr,
+            index=(self.m.storage, self.b.dispatchPeriods),
+            skipped_on=continuity_constraint_skipped_w_bat,
+        )
         self.check_helper.add_object(
             name="storDischarging",
             obj_type=gdp.Disjunct,
@@ -198,14 +212,6 @@ class TestObjective(TestCase):
             units=u.MW,
             index=self.b.dispatchPeriods,
             parent="storDischarging",
-        )
-        self.check_helper.add_object(
-            name="discharging_battery_storage_balance",
-            obj_type=pyo.Constraint,
-            units=u.MW * u.hr,
-            index=self.b.dispatchPeriods,
-            parent="storDischarging",
-            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="storCharging",
@@ -250,12 +256,23 @@ class TestObjective(TestCase):
             parent="storCharging",
         )
         self.check_helper.add_object(
-            name="charging_battery_storage_balance",
+            name="storOff",
+            obj_type=gdp.Disjunct,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="no_discharge",
             obj_type=pyo.Constraint,
-            units=u.MW * u.hr,
+            units=u.MW,
             index=self.b.dispatchPeriods,
-            parent="storCharging",
-            skipped_on=continuity_constraint_skipped,
+            parent="storOff",
+        )
+        self.check_helper.add_object(
+            name="no_charge",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storOff",
         )
 
     def _coordinate_tests(self, planning_data_args, config):
