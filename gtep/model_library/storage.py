@@ -220,6 +220,22 @@ def add_storage_params(m: pyo.Model):
         doc="Future not real cost; based on idealized targets, in $/MWh",
     )
 
+    m.storageFixedCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage fixed operating costs, in USD/MWh",
+    )
+
+    m.storageVarCost = pyo.Param(
+        m.storage,
+        initialize={stor: 0 for stor in m.storage},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage variable costs, in USD/MWh",
+    )
+
 
 # def _charge_discharge_helper(b: BlockData, disj: gdp.Disjunct, charging: bool, bat):
 #     """
