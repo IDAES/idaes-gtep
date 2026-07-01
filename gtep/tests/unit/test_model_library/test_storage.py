@@ -183,13 +183,13 @@ class TestObjective(TestCase):
             index=self.b.dispatchPeriods,
             parent="storDischarging",
         )
-        self.check_helper.add_object(
-            name="discharge_limit_max",
-            obj_type=pyo.Constraint,
-            units=u.MW,
-            index=self.b.dispatchPeriods,
-            parent="storDischarging",
-        )
+        # self.check_helper.add_object(
+        #     name="discharge_limit_max",
+        #     obj_type=pyo.Constraint,
+        #     units=u.MW,
+        #     index=self.b.dispatchPeriods,
+        #     parent="storDischarging",
+        # )
         self.check_helper.add_object(
             name="discharge_ramp_up_limits",
             obj_type=pyo.Constraint,
@@ -225,13 +225,13 @@ class TestObjective(TestCase):
             index=self.b.dispatchPeriods,
             parent="storCharging",
         )
-        self.check_helper.add_object(
-            name="charge_limit_max",
-            obj_type=pyo.Constraint,
-            units=u.MW,
-            index=self.b.dispatchPeriods,
-            parent="storCharging",
-        )
+        # self.check_helper.add_object(
+        #     name="charge_limit_max",
+        #     obj_type=pyo.Constraint,
+        #     units=u.MW,
+        #     index=self.b.dispatchPeriods,
+        #     parent="storCharging",
+        # )
         self.check_helper.add_object(
             name="charge_ramp_up_limits",
             obj_type=pyo.Constraint,

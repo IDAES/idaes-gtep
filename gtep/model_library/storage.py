@@ -34,6 +34,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["energy_capacity"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW * u.hr,
         doc="Maximum storage capacity (in MWh)",
     )
@@ -44,6 +45,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["initial_state_of_charge"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW * u.hr,
         doc="Initial state of charge (in MWh)",
     )
@@ -54,28 +56,9 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["minimum_state_of_charge"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW * u.hr,
         doc="Minimum state of charge (in MWh)",
-    )
-
-    m.chargingCost = pyo.Param(
-        m.storage,
-        initialize={
-            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
-            for bat in m.storage
-        },
-        units=u.USD / u.MW / u.hr,
-        doc="Cost to charge (in USD/MWh)",
-    )
-
-    m.dischargingCost = pyo.Param(
-        m.storage,
-        initialize={
-            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-            for bat in m.storage
-        },
-        units=u.USD / u.MW / u.hr,
-        doc="Cost to discharge (in USD/MWh)",
     )
 
     m.dischargeMin = pyo.Param(
@@ -84,6 +67,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["min_discharge_rate"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW,
         doc="Minimum discharge rate (in MW)",
     )
@@ -94,6 +78,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["max_discharge_rate"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW,
         doc="Maximum discharge rate (in MW)",
     )
@@ -104,6 +89,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["min_charge_rate"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW,
         doc="Minimum charging rate (in MW)",
     )
@@ -114,6 +100,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["max_charge_rate"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW,
         doc="Maximum charging rate (in MW)",
     )
@@ -126,6 +113,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["ramp_up_output_60min"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW / u.hr,  # units?
         doc="Maximum amount of ramp up between dispatch periods when discharging",
     )
@@ -136,6 +124,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["ramp_down_output_60min"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW / u.hr,  # units?
         doc="Maximum amount of ramp down between dispatch periods when discharging",
     )
@@ -146,6 +135,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["ramp_up_input_60min"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW / u.hr,  # units?
         doc="Maximum amount of ramp up between dispatch periods when charging",
     )
@@ -156,6 +146,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["ramp_down_input_60min"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.MW / u.hr,  # units?
         doc="Maximum amount of ramp down between dispatch periods when charging",
     )
@@ -166,6 +157,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["discharge_efficiency"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.dimensionless,
         doc="Proportion of energy discharged not lost to technological inefficencies within dispatch periods and which is usable in the flow balance",
     )
@@ -176,6 +168,7 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["charge_efficiency"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.dimensionless,
         doc="Proportion of energy charged not lost to technological inefficiencies within dispatch periods and which is usable in the flow balance",
     )
@@ -186,16 +179,19 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["retention_rate_60min"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=1 / u.hr,
         doc="Proportion of stored energy that is preserved per hour (in 1/hr)",
     )
 
+    # TODO: calculate this instead
     m.storageCapitalMultiplier = pyo.Param(
         m.storage,
         initialize={
             bat: m.md.data["elements"]["storage"][bat]["capital_multiplier"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.dimensionless,
         doc="(Arbitrary) multiplier for new battery investments, corresponding to depreciation schedules for individual technologies; higher values indicate slower depreciation",
     )
@@ -206,8 +202,56 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["extension_multiplier"]
             for bat in m.storage
         },
+        domain=pyo.NonNegativeReals,
         units=u.dimensionless,
         doc="Cost of life extension, as a fraction of initial investment cost",
+    )
+
+    m.storageLifetimes = pyo.Param(
+        m.storage,
+        initialize={stor: 3 for stor in m.storage},
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.year,
+        doc="Lifetime of each storage unit",
+    )
+
+    m.storageChargeLimit = pyo.Param(
+        initialize=sum(pyo.value(m.chargeMax[bat]) for bat in m.storage),
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.MW,
+        doc="Maximum storage charging per dispatch period, in MW",
+    )
+
+    m.storageDischargeLimit = pyo.Param(
+        initialize=sum(pyo.value(m.dischargeMax[bat]) for bat in m.storage),
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.MW,
+        doc="Maximum storage discharging per dispatch period, in MW",
+    )
+
+    m.chargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+            for bat in m.storage
+        },
+        domain=pyo.NonNegativeReals,
+        units=u.USD / u.MW / u.hr,
+        doc="Cost to charge (in USD/MWh)",
+    )
+
+    m.dischargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+            for bat in m.storage
+        },
+        domain=pyo.NonNegativeReals,
+        units=u.USD / u.MW / u.hr,
+        doc="Cost to discharge (in USD/MWh)",
     )
 
     m.storageInvestmentCost = pyo.Param(
@@ -216,6 +260,8 @@ def add_storage_params(m: pyo.Model):
             bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
             for bat in m.storage
         },
+        mutable=True,
+        domain=pyo.NonNegativeReals,
         units=u.USD / u.MW / u.hr,  # TODO: check that this is indeed what's in the data
         doc="Future not real cost; based on idealized targets, in $/MWh",
     )
@@ -224,6 +270,7 @@ def add_storage_params(m: pyo.Model):
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
+        domain=pyo.NonNegativeReals,
         units=u.USD / (u.MW * u.hr),
         doc="Storage fixed operating costs, in USD/MWh",
     )
@@ -232,37 +279,37 @@ def add_storage_params(m: pyo.Model):
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
+        domain=pyo.NonNegativeReals,
         units=u.USD / (u.MW * u.hr),
         doc="Storage variable costs, in USD/MWh",
     )
 
 
 ### HELPER FUNCTIONS
-def _charge_discharge_limit(b, bat, charging: bool, upper: bool):
+def _charge_discharge_min(b, bat, charging: bool):
     """
-    Returns a constraint on battery charging/discharging.
+    Returns a constraint on battery charging/discharging, representing
+    the minimum amount of charging/discharing allowed while in either
+    the charging or discharging state.
 
     :param b:           Commitment block
     :param bat:         Battery
     :param charging:    Whether to apply constraint on charge (rather than discharge)
-    :param upper:       Whether to apply the upper limit (rather than lower)
     """
     m = b.model()
     descrip = "charge" if charging else "discharge"
-    max_or_min = "max" if upper else "min"
-    limit = m.component(f"{descrip}{max_or_min.capitalize()}")[bat]
 
     return pyo.Constraint(
         b.dispatchPeriods,
         expr={
             d: (
-                limit * (-1 if upper else 1)
-                <= b.dispatchPeriod[d].component(f"storage{descrip.capitalize()}d")[bat]
-                * (-1 if upper else 1)
+                b.dispatchPeriod[d].storageCharged[bat] >= m.chargeMin[bat]
+                if charging
+                else b.dispatchPeriod[d].storageDischarged[bat] >= m.dischargeMin[bat]
             )
             for d in b.dispatchPeriods
         },
-        doc=f"Storage {descrip} {max_or_min} operating limits",
+        doc=f"Storage {descrip} minimum operating limit while in the {descrip} state",
     )
 
 
@@ -282,8 +329,14 @@ def _ramp_limit_rule(b, bat, disp_per, charging, up):
             if charging
             else r_p.prevStorageDischarged[(comm_per, disp_per), bat]
         )
-        limit = m.component(
-            f"storage{'C' if charging else 'Disc'}hargingRamp{'Up' if up else 'Down'}Rates"
+        limit = (
+            (m.storageChargingRampUpRates if up else m.storageChargingRampDownRates)
+            if charging
+            else (
+                m.storageDischargingRampUpRates
+                if up
+                else m.storageDischargingRampDownRates
+            )
         )[bat]
         return (cur - prev if up else prev - cur) / u.convert(
             m.dispatchPeriodLength, u.hr
@@ -375,11 +428,7 @@ def add_storage_state_disjuncts(b: BlockData):
     def storDischarging(disj, bat):
         disj.add_component(
             "discharge_limit_min",
-            _charge_discharge_limit(b, bat, charging=False, upper=False),
-        )
-        disj.add_component(
-            "discharge_limit_max",
-            _charge_discharge_limit(b, bat, charging=False, upper=True),
+            _charge_discharge_min(b, bat, charging=False),
         )
         disj.add_component(
             "discharge_ramp_down_limits",
@@ -399,11 +448,7 @@ def add_storage_state_disjuncts(b: BlockData):
     def storCharging(disj, bat):
         disj.add_component(
             "charge_limit_min",
-            _charge_discharge_limit(b, bat, charging=True, upper=False),
-        )
-        disj.add_component(
-            "charge_limit_max",
-            _charge_discharge_limit(b, bat, charging=True, upper=True),
+            _charge_discharge_min(b, bat, charging=True),
         )
         disj.add_component(
             "charge_ramp_down_limits",
@@ -690,7 +735,8 @@ def add_storage_logical_constraints(m):
         )
 
 
-def add_dispatch_storage_variables_and_constraints(m, b):
+def add_dispatch_storage_variables_and_constraints(b):
+    m = b.model()
 
     # NOTE: The lower bound should be > 0 (from data input)
     def storage_capacity_limits(b, bat):
@@ -702,7 +748,7 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     # [TODO: We need to adjust this constraint since this does not fix
     # initial battery capacity at the first dispatch period.]
     def init_storage_capacity(b, bat):
-        return m.initStorageChargeLevel[bat]
+        return m.initStorageChargeLevel[bat]  # in MWh
 
     b.storageChargeLevel = pyo.Var(
         m.storage,
@@ -737,23 +783,40 @@ def add_dispatch_storage_variables_and_constraints(m, b):
         units=u.MW,
     )
 
-    # Operational cost variables and expressions per storage
-    # unit. Here we assume the costs are in $/MW. If instead the costs
-    # are in $/MWh, the storageCharge/Discharged should be multiplied
-    # by b.dispatchPeriodLength, in hours.
+    # Operational cost expressions for each storage unit. Costs are
+    # assumed to be in $/MWh, consistent with generator operational
+    # costs.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
+        return (
+            b.storageCharged[bat]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.chargingCost[bat]  # in $/MWh
+        )
 
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
+        return (
+            b.storageDischarged[bat]
+            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * m.dischargingCost[bat]  # in $/MWh
+        )
 
     @b.Expression()
     def storageCostDispatch(b):
         return sum(b.storageChargingCost[bat] for bat in m.storage) + sum(
             b.storageDischargingCost[bat] for bat in m.storage
         )
+
+    # [ESR: Add storage cap. Commented for now]
+    # @b.Constraint(doc="Storage cap")
+    # def total_storage_cap(b):
+    #     m = b.model()
+    #     return (
+    #         sum(b.storageCharged[bat] for bat in m.storage)  # in MW
+    #         + sum(b.storageDischarged[bat] for bat in m.storage)  # in MW
+    #         <= m.storageDischargeLimit  # in MW
+    #     )
 
 
 def add_commitment_storage_constraints(b):
