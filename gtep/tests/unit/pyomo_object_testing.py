@@ -156,6 +156,13 @@ class PyomoCheckHelper:
 
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
+        if properties["obj_type"] is pyo.LogicalConstraint:
+            self.test_class.assertIs(
+                properties["units"],
+                None,
+                "LogicalConstraint objects shouldn't have units",
+            )
+            return
 
         def units(x):
             try:

@@ -274,6 +274,16 @@ class TestObjective(TestCase):
             index=self.b.dispatchPeriods,
             parent="storOff",
         )
+        self.check_helper.add_object(
+            name="storStatus",
+            obj_type=gdp.Disjunction,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="commit_active_batts_only",
+            obj_type=pyo.LogicalConstraint,
+            index=self.m.storage,
+        )
 
     def _coordinate_tests(self, planning_data_args, config):
         """Creates a model and runs tests for a given set of config options."""
