@@ -155,7 +155,13 @@ class PyomoCheckHelper:
 
     def _check_units(self, obj: pyo.Component, properties: dict):
         """Checks the object's units."""
-        units = lambda x: u.get_units(x.expr) if hasattr(x, "expr") else u.get_units(x)
+
+        def units(x):
+            try:
+                return u.get_units(x.expr if hasattr(x, "expr") else x)
+            except Exception as e:
+                raise RuntimeError(f"Error getting units for {x}") from e
+
         iter_func = lambda x: self.test_class.assertTrue(
             check_units_equivalent(units(x), properties["units"]),
             f"Expected {x.name} to have units {properties['units']} but got {units(x)}",

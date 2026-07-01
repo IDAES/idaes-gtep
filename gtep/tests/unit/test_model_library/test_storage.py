@@ -207,6 +207,56 @@ class TestObjective(TestCase):
             parent="storDischarging",
             skipped_on=continuity_constraint_skipped,
         )
+        self.check_helper.add_object(
+            name="storCharging",
+            obj_type=gdp.Disjunct,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="charge_limit_min",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+        )
+        self.check_helper.add_object(
+            name="charge_limit_max",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+        )
+        self.check_helper.add_object(
+            name="charge_ramp_up_limits",
+            obj_type=pyo.Constraint,
+            units=u.MW / u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+            skipped_on=continuity_constraint_skipped,
+        )
+        self.check_helper.add_object(
+            name="charge_ramp_down_limits",
+            obj_type=pyo.Constraint,
+            units=u.MW / u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+            skipped_on=continuity_constraint_skipped,
+        )
+        self.check_helper.add_object(
+            name="no_discharge",
+            obj_type=pyo.Constraint,
+            units=u.MW,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+        )
+        self.check_helper.add_object(
+            name="charging_battery_storage_balance",
+            obj_type=pyo.Constraint,
+            units=u.MW * u.hr,
+            index=self.b.dispatchPeriods,
+            parent="storCharging",
+            skipped_on=continuity_constraint_skipped,
+        )
 
     def _coordinate_tests(self, planning_data_args, config):
         """Creates a model and runs tests for a given set of config options."""

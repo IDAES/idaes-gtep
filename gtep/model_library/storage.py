@@ -372,8 +372,11 @@ def add_storage_state_disjuncts(b: BlockData):
                 return (
                     b.dispatchPeriod[disp_per].storageCharged[bat]
                     - r_p.prevStorageCharged[(comm_per, disp_per), bat]
-                    <= m.storageChargingRampUpRates[bat]
-                )
+                ) / u.convert(
+                    m.dispatchPeriodLength, u.hr
+                ) <= m.storageChargingRampUpRates[
+                    bat
+                ]
             return pyo.Constraint.Skip
 
         @disj.Constraint(
@@ -385,13 +388,16 @@ def add_storage_state_disjuncts(b: BlockData):
                 return (
                     r_p.prevStorageCharged[(comm_per, disp_per), bat]
                     - b.dispatchPeriod[disp_per].storageCharged[bat]
-                    <= m.storageChargingRampDownRates[bat]
-                )
+                ) / u.convert(
+                    m.dispatchPeriodLength, u.hr
+                ) <= m.storageChargingRampDownRates[
+                    bat
+                ]
             return pyo.Constraint.Skip
 
         @disj.Constraint(b.dispatchPeriods)
         def no_discharge(disj, disp_per):
-            return b.dispatchPeriod[disp_per].storageDischarged[bat] <= 0
+            return b.dispatchPeriod[disp_per].storageDischarged[bat] <= 0 * u.MW
 
         @disj.Constraint(
             b.dispatchPeriods,
@@ -496,13 +502,13 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
         return sum(
             m.storageInvestmentCost[bat]
-            * m.chargeMax[bat]
+            * m.storageCapacity[bat]  # TODO: verify this is correct; was chargeMax
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
             m.storageInvestmentCost[bat]
-            * m.chargeMax[bat]
+            * m.storageCapacity[bat]
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
             for bat in m.storage
