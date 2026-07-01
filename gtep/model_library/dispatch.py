@@ -82,7 +82,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
     if m.config["storage"]:
         # Add storage variables and constraints. It also includes its
         # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
+        stor.add_dispatch_storage_variables_and_constraints(b)
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
 
@@ -236,7 +236,7 @@ def add_dispatch_constraints(b, disp_per):
         def CP_flow_balance(b):
             balance = 0
             buses = [bus for bus in m.buses]
-            loads = [l for l in b.loads]
+            loads = [l for l in c_p.loads]
             gens = [gen for gen in m.generators]
             batts = [bat for bat in m.storage] if m.config["storage"] else []
             balance += sum(
@@ -249,7 +249,7 @@ def add_dispatch_constraints(b, disp_per):
             balance += sum(b.storageDischarged[bt] for bt in batts)
             balance -= sum(b.storageCharged[bt] for bt in batts)
             # Add the loads as a parameter (already includes units).
-            balance -= sum(c_p.loads[l] for l in loads)
+            balance -= sum(b.loads[l] for l in loads)
             balance += sum(b.loadShed[bus] for bus in buses)
 
             return balance == 0
