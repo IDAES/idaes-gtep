@@ -42,18 +42,6 @@ class TestObjective(TestCase):
             index=self.m.storage,
         )
         self.check_helper.add_object(
-            name="chargingCost",
-            obj_type=pyo.Param,
-            units=u.USD / u.MW / u.hr,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
-            name="dischargingCost",
-            obj_type=pyo.Param,
-            units=u.USD / u.MW / u.hr,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
             name="dischargeMin",
             obj_type=pyo.Param,
             units=u.MW,
@@ -75,30 +63,6 @@ class TestObjective(TestCase):
             name="chargeMax",
             obj_type=pyo.Param,
             units=u.MW,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
-            name="storageDischargingRampUpRates",
-            obj_type=pyo.Param,
-            units=u.MW / u.hr,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
-            name="storageDischargingRampDownRates",
-            obj_type=pyo.Param,
-            units=u.MW / u.hr,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
-            name="storageChargingRampUpRates",
-            obj_type=pyo.Param,
-            units=u.MW / u.hr,
-            index=self.m.storage,
-        )
-        self.check_helper.add_object(
-            name="storageChargingRampDownRates",
-            obj_type=pyo.Param,
-            units=u.MW / u.hr,
             index=self.m.storage,
         )
         self.check_helper.add_object(
@@ -132,6 +96,34 @@ class TestObjective(TestCase):
             index=self.m.storage,
         )
         self.check_helper.add_object(
+            name="storageLifetimes",
+            obj_type=pyo.Param,
+            units=u.year,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="storageChargeLimit",
+            obj_type=pyo.Param,
+            units=u.MW,
+        )
+        self.check_helper.add_object(
+            name="storageDischargeLimit",
+            obj_type=pyo.Param,
+            units=u.MW,
+        )
+        self.check_helper.add_object(
+            name="chargingCost",
+            obj_type=pyo.Param,
+            units=u.USD / u.MW / u.hr,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
+            name="dischargingCost",
+            obj_type=pyo.Param,
+            units=u.USD / u.MW / u.hr,
+            index=self.m.storage,
+        )
+        self.check_helper.add_object(
             name="storageInvestmentCost",
             obj_type=pyo.Param,
             units=u.USD / u.MW / u.hr,
@@ -151,15 +143,9 @@ class TestObjective(TestCase):
         )
 
     def _add_storage_state_disjuncts(self):
-        continuity_constraint_skipped_w_bat = [
+        continuity_constraint_skipped = [
             (bat, d)
             for bat in self.m.storage
-            for d in self.b.dispatchPeriods
-            if (self.b.parent_block().index(), d)
-            == self.b.parent_block().commitDispatchPairs.first()
-        ]
-        continuity_constraint_skipped = [
-            d
             for d in self.b.dispatchPeriods
             if (self.b.parent_block().index(), d)
             == self.b.parent_block().commitDispatchPairs.first()
@@ -169,7 +155,7 @@ class TestObjective(TestCase):
             obj_type=pyo.Constraint,
             units=u.MW * u.hr,
             index=(self.m.storage, self.b.dispatchPeriods),
-            skipped_on=continuity_constraint_skipped_w_bat,
+            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="storDischarging",
@@ -182,29 +168,6 @@ class TestObjective(TestCase):
             units=u.MW,
             index=self.b.dispatchPeriods,
             parent="storDischarging",
-        )
-        # self.check_helper.add_object(
-        #     name="discharge_limit_max",
-        #     obj_type=pyo.Constraint,
-        #     units=u.MW,
-        #     index=self.b.dispatchPeriods,
-        #     parent="storDischarging",
-        # )
-        self.check_helper.add_object(
-            name="discharge_ramp_up_limits",
-            obj_type=pyo.Constraint,
-            units=u.MW / u.hr,
-            index=self.b.dispatchPeriods,
-            parent="storDischarging",
-            skipped_on=continuity_constraint_skipped,
-        )
-        self.check_helper.add_object(
-            name="discharge_ramp_down_limits",
-            obj_type=pyo.Constraint,
-            units=u.MW / u.hr,
-            index=self.b.dispatchPeriods,
-            parent="storDischarging",
-            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="no_charge",
@@ -224,29 +187,6 @@ class TestObjective(TestCase):
             units=u.MW,
             index=self.b.dispatchPeriods,
             parent="storCharging",
-        )
-        # self.check_helper.add_object(
-        #     name="charge_limit_max",
-        #     obj_type=pyo.Constraint,
-        #     units=u.MW,
-        #     index=self.b.dispatchPeriods,
-        #     parent="storCharging",
-        # )
-        self.check_helper.add_object(
-            name="charge_ramp_up_limits",
-            obj_type=pyo.Constraint,
-            units=u.MW / u.hr,
-            index=self.b.dispatchPeriods,
-            parent="storCharging",
-            skipped_on=continuity_constraint_skipped,
-        )
-        self.check_helper.add_object(
-            name="charge_ramp_down_limits",
-            obj_type=pyo.Constraint,
-            units=u.MW / u.hr,
-            index=self.b.dispatchPeriods,
-            parent="storCharging",
-            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="no_discharge",
