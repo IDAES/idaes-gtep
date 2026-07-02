@@ -43,32 +43,6 @@ def add_time_links(b: pyo.Block):
     )
 
     if m.config["storage"]:
-        b.prevStorageDischarged = pyo.Expression(
-            b.commitDispatchPairsNotFirst,
-            m.storage,
-            initialize={
-                ((c, d), bat): (
-                    b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
-                    .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
-                    .storageDischarged[bat]
-                )
-                for (c, d) in b.commitDispatchPairsNotFirst
-                for bat in m.storage
-            },
-        )
-        b.prevStorageCharged = pyo.Expression(
-            b.commitDispatchPairsNotFirst,
-            m.storage,
-            initialize={
-                ((c, d), bat): (
-                    b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
-                    .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
-                    .storageCharged[bat]
-                )
-                for (c, d) in b.commitDispatchPairsNotFirst
-                for bat in m.storage
-            },
-        )
         b.retainedStorageChargeLevelFromPrev = pyo.Expression(
             b.commitDispatchPairsNotFirst,
             m.storage,
