@@ -114,7 +114,7 @@ def add_storage_params(m: pyo.Model):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        units=u.MW / u.hr,  # units?
+        units=u.MW / u.hr,  # Soraya has u.MW
         doc="Maximum amount of ramp up between dispatch periods when discharging",
     )
 
@@ -125,7 +125,7 @@ def add_storage_params(m: pyo.Model):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        units=u.MW / u.hr,  # units?
+        units=u.MW / u.hr,  # Soraya has u.MW
         doc="Maximum amount of ramp down between dispatch periods when discharging",
     )
 
@@ -136,7 +136,7 @@ def add_storage_params(m: pyo.Model):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        units=u.MW / u.hr,  # units?
+        units=u.MW / u.hr,  # Soraya has u.MW
         doc="Maximum amount of ramp up between dispatch periods when charging",
     )
 
@@ -147,7 +147,7 @@ def add_storage_params(m: pyo.Model):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        units=u.MW / u.hr,  # units?
+        units=u.MW / u.hr,  # Soraya has u.MW
         doc="Maximum amount of ramp down between dispatch periods when charging",
     )
 
@@ -159,7 +159,7 @@ def add_storage_params(m: pyo.Model):
         },
         domain=pyo.NonNegativeReals,
         units=u.dimensionless,
-        doc="Proportion of energy discharged not lost to technological inefficencies within dispatch periods and which is usable in the flow balance",
+        doc="Proportion of energy that is not lost when discharging",
     )
 
     m.storageChargingEfficiency = pyo.Param(
@@ -170,7 +170,7 @@ def add_storage_params(m: pyo.Model):
         },
         domain=pyo.NonNegativeReals,
         units=u.dimensionless,
-        doc="Proportion of energy charged not lost to technological inefficiencies within dispatch periods and which is usable in the flow balance",
+        doc="Proportion of energy that is not lost when charging",
     )
 
     m.storageRetentionRate = pyo.Param(
@@ -180,7 +180,7 @@ def add_storage_params(m: pyo.Model):
             for bat in m.storage
         },
         domain=pyo.NonNegativeReals,
-        units=1 / u.hr,
+        units=1 / u.hr,  # Soraya has u.dimensionless
         doc="Proportion of stored energy that is preserved per hour (in 1/hr)",
     )
 
@@ -262,7 +262,7 @@ def add_storage_params(m: pyo.Model):
         },
         mutable=True,
         domain=pyo.NonNegativeReals,
-        units=u.USD / u.MW / u.hr,  # TODO: check that this is indeed what's in the data
+        units=u.USD / u.MW / u.hr,  # Soraya has u.USD / u.MW
         doc="Future not real cost; based on idealized targets, in $/MWh",
     )
 
@@ -414,7 +414,9 @@ def add_storage_state_disjuncts(b: BlockData):
                 bat
             ] == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat] + (
                 b.dispatchPeriod[disp_per].storageCharged[bat]
+                * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
+                * m.storageDischargingEfficiency[bat]
             ) * u.convert(
                 m.dispatchPeriodLength, u.hr
             )
@@ -518,7 +520,7 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
         return sum(
             m.storageInvestmentCost[bat]
-            * m.storageCapacity[bat]  # TODO: verify this is correct; was chargeMax
+            * m.storageCapacity[bat]  # Soraya has m.chargeMax, as it was previously
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
