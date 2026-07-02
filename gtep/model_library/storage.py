@@ -257,7 +257,11 @@ def add_storage_state_disjuncts(b: BlockData):
     # Common constraints
     ####################
 
-    @b.Constraint(m.storage, b.dispatchPeriods, doc="Storage balance equation")
+    @b.Constraint(
+        m.storage,
+        b.dispatchPeriods,
+        doc="Storage state of charge changes with charging/discharging and retention rate",
+    )
     def battery_storage_balance(b, bat, disp_per):
         if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
             return b.dispatchPeriod[disp_per].storageChargeLevel[
@@ -293,6 +297,7 @@ def add_storage_state_disjuncts(b: BlockData):
 
     @b.Disjunct(m.storage)
     def storCharging(disj, bat):
+
         @disj.Constraint(b.dispatchPeriods, doc=f"Charging min operating limit")
         def charge_limit_min(disj, disp):
             return b.dispatchPeriod[disp].storageCharged[bat] >= m.chargeMin[bat]
