@@ -16,6 +16,8 @@ Planning (GTEP) Model
 
 """
 
+from warnings import warn
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
@@ -425,15 +427,41 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
-    m.weights = pyo.Param(m.representativePeriods, default=1)
+
+    # Map each representative period to its corresponding date, then
+    # use that date to retrieve the appropriate representative
+    # weight. This keeps the model indexed by representative period
+    # number.
+    representative_dates_dict = {
+        i: date for i, date in zip(m.representativePeriods, m.data.representative_dates)
+    }
+    m.representativeDate = pyo.Param(
+        m.representativePeriods,
+        initialize=representative_dates_dict,
+        within=pyo.Any,
+        mutable=False,
+        doc="Representative date associated with each representative period",
+    )
+    weights_dict = {
+        i: m.data.representative_weights_dict[representative_dates_dict[i]]
+        for i in m.representativePeriods
+    }
+    m.weights = pyo.Param(
+        m.representativePeriods,
+        initialize=weights_dict,
+        mutable=False,
+        doc="Representative period weights indexed by representative period",
+    )
+
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
-    # Initialize fuel cost. This is re-calculated during the
-    # investment stage with values from preprocessing data.
-    m.fuelCost = pyo.Param(
+    # Calculate fuel costs for thermal generators using fuel price and
+    # heat rate. Define the MMBTU unit explicitly because it is not
+    # included in Pyomo units by default.
+    m.fuelCostperMMBTU = pyo.Param(
         m.thermalGenerators,
         initialize={
             gen: (
@@ -444,11 +472,35 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
             for gen in m.thermalGenerators
         },
         mutable=True,
+        units=u.USD / u.MMBTU,
+        doc="Fuel cost per MMBTU at each generator",
+    )
+    m.heatRate = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: (
+                m.md.data["elements"]["generator"][gen]["heat_rate"]
+                if "RTS-GMLC" in m.md.data["system"]["name"]
+                else m.md.data["elements"]["generator"][gen]["heat_rate"]
+            )
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MMBTU / (u.MW * u.hr),
+        doc="Heat rate for each thermal generator",
+    )
+    m.fuelCost = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: m.fuelCostperMMBTU[gen] * m.heatRate[gen]
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator",
     )
 
-    # setting to be the same as real fuel cost for now... but maybe should be different?
+    # [WIP: Setting to be the same as real fuel cost for now]
     m.fuelCostReactive = pyo.Param(
         m.generators,
         initialize={gen: m.fuelCost[gen] for gen in m.thermalGenerators},
@@ -669,9 +721,11 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """
 
 
-def add_model_cost_parameters(m, year):
-    """This method updates generator cost parameters from preprocessed
-    data from m.mc modeling object.
+def repopulate_cost_parameters(m, year):
+    """This method saves lists with all relevant costs (fixed and
+    variable operating costs, fuel costs, and investment costs) for
+    thermal and renewable generators. Refer to gtep_data_processing
+    script for more details about the preprocessing of this data.
 
     Assumes all thermal generators use CT costs and all renewable
     generators use PV costs when technology-specific data are
@@ -726,10 +780,9 @@ def add_model_cost_parameters(m, year):
         m.genRenewableVarOpCost.append(1)  # $/MWh
         m.genRenewableFuelCost.append(1)
 
-    # Update data for fixed and variable costs (previously defined
-    # with random default values in add_model_parameters) since they
-    # depend on the investment year. Also, convert the units to be
-    # consistent.
+    # Update data for investment, fixed and variable, and fuel costs
+    # previously defined since they depend on the investment
+    # year. Also, convert the units to be consistent.
     units_fixed_cost = u.USD / (u.kW * u.year)
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
@@ -768,7 +821,3 @@ def add_model_cost_parameters(m, year):
     # var cost = $/MWh
     # inv cost = $/Mw
     # fuel cost = $/MWh
-
-    # Cost per MW of curtailed renewable energy. This equation
-    # re-calculates curtailment and load shed costa since they depend
-    # on the re-defined parameter "fuelCost".
