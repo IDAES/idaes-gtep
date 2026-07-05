@@ -33,7 +33,13 @@ data_object = ExpansionPlanningData(
     num_dispatch=4,
     duration_dispatch=15,
 )
-data_object.load_prescient(data_path)
+data_object.load_prescient(
+    data_path,
+    # representative_dates=[
+    #     '2020-01-28 00:00', '2020-04-23 00:00', '2020-07-05 00:00', '2020-10-14 00:00'
+    # ],
+    # representative_weights=[1, 1, 1, 1]
+)
 
 # [ESR WIP: Add bus and cost data files to be used on the
 # DataProcessing class. This class processes data for the following

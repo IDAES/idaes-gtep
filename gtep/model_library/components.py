@@ -385,7 +385,32 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
-    m.weights = pyo.Param(m.representativePeriods, default=1)
+
+    # Map each representative period to its corresponding date, then
+    # use that date to retrieve the appropriate representative
+    # weight. This keeps the model indexed by representative period
+    # number.
+    representative_dates_dict = {
+        i: date for i, date in zip(m.representativePeriods, m.data.representative_dates)
+    }
+    m.representativeDate = pyo.Param(
+        m.representativePeriods,
+        initialize=representative_dates_dict,
+        within=pyo.Any,
+        mutable=False,
+        doc="Representative date associated with each representative period",
+    )
+    weights_dict = {
+        i: m.data.representative_weights_dict[representative_dates_dict[i]]
+        for i in m.representativePeriods
+    }
+    m.weights = pyo.Param(
+        m.representativePeriods,
+        initialize=weights_dict,
+        mutable=False,
+        doc="Representative period weights indexed by representative period",
+    )
+
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
