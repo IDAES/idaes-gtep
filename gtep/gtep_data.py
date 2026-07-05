@@ -16,14 +16,17 @@
 # author: Kyle Skolfield
 # date: 01/04/2024
 # Model available at http://www.optimization-online.org/DB_FILE/2017/08/6162.pdf
-import random
-
-from pyomo.environ import *
-from prescient.simulator.config import PrescientConfig
-from prescient.data.providers import gmlc_data_provider
+import logging
+from pathlib import Path
+import csv
 import pandas as pd
 import os
-from pathlib import Path
+import random
+
+from prescient.simulator.config import PrescientConfig
+from prescient.data.providers import gmlc_data_provider
+
+logger = logging.getLogger("pyomo.common")
 
 
 class ExpansionPlanningData:
@@ -251,6 +254,49 @@ class ExpansionPlanningData:
             self.representative_weights_dict = {
                 date: weight_per_date for date in self.representative_dates
             }
+
+        # Read average heat rates from the "HR_avg_0" column in
+        # gen.csv and assign them to each generator in self.md. This
+        # is done manually because the generator data loaded into
+        # self.md does not include heat rate values by default. Units
+        # should be in MMBTU/MWh.
+        gen_csv_file = os.path.join(data_path, "gen.csv")
+        heat_rate_dict = {}
+        with open(gen_csv_file, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                gen_uid = row.get("GEN UID")
+                heat_rate_str = row.get("HR_avg_0")
+
+                if heat_rate_str not in (None, "", "NA"):
+                    heat_rate = float(heat_rate_str)
+                else:
+                    heat_rate = None
+
+                if gen_uid and heat_rate is not None:
+                    heat_rate_dict[gen_uid] = heat_rate
+
+        for gen in self.md.data["elements"]["generator"]:
+            if gen in heat_rate_dict:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = (
+                    heat_rate_dict[gen]
+                )
+            else:
+                self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
+
+        thermal_heat_rates = [
+            self.md.data["elements"]["generator"][gen].get("heat_rate", 0)
+            for gen in self.md.data["elements"]["generator"]
+            if self.md.data["elements"]["generator"][gen].get("generator_type")
+            == "thermal"
+        ]
+
+        if thermal_heat_rates and all(hr == 0 for hr in thermal_heat_rates):
+            logger.info(
+                "All thermal generators have heat_rate values equal to 0. "
+                "Please re-check the input data. Fuel costs are multiplied by "
+                "heat_rate, so resulting fuel costs will all be 0."
+            )
 
         # IMPORTANT TO READ: Always add or modify any new elements in
         # self.md.data (such as new time series or parameters) BEFORE

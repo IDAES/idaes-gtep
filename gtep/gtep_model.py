@@ -24,9 +24,11 @@ References:
 
 __author__ = "Kyle Skolfield"
 
+import logging
 import json
 import numpy as np
 import re
+from warnings import warn
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -52,10 +54,14 @@ import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
+logger = logging.getLogger("pyomo.common")
+
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
 # unit transformations.
-u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]"])
+u.load_definitions_from_strings(
+    ["USD = [currency]", "MVAR = [power]", "MMBTU = 1e6 * BTU"]
+)
 
 
 ## TODO: Egret features
@@ -227,9 +233,17 @@ def create_stages(m, stages):
         b_inv.year = m.years[investment_stage - 1]
         print(f"{b_inv}.year = {b_inv.year}")
 
-        # Declare costs parameters for each stage, since they depend
-        # on the investment year.
-        comps.add_model_cost_parameters(m, b_inv.year)
+        # Declare cost parameters for each stage because they depend
+        # on the investment year. IMPORTANT NOTE: This function
+        # repopulates m.fuelCost, m.generatorInvestmentCost,
+        # m.fixedCost, and m.varCost, which were previously
+        # initialized in component.py. To preserve component.py
+        # values, comment out this call or the specific parameter
+        # updates inside the function.
+        logger.info(
+            f"Re-populating m.fuelCost, m.generatorInvestmentCost, m.fixedCost, and m.varCost for year {b_inv.year}. These initialized parameters are overwritten using preprocessed data from m.mc.gen_data_target."
+        )
+        comps.repopulate_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
