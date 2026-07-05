@@ -342,6 +342,7 @@ class TestGTEP(unittest.TestCase):
             num_commit=6,
             num_dispatch=4,
             duration_dispatch=15,
+        )
         # Test ExpansionPlanningModel with cost data and no commitment
         # This model originated from driver_esr.py
         modObject = create_model(
