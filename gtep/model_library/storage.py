@@ -259,14 +259,14 @@ def add_storage_params(m):
         units=u.USD / (u.MW * u.hr),
         doc="Cost to discharge per unit electricity",
     )
-    m.storagefixedCost = pyo.Param(
+    m.storageFixedCost = pyo.Param(
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Fixed operating costs",
     )
-    m.storagevarCost = pyo.Param(
+    m.storageVariableCost = pyo.Param(
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
@@ -330,44 +330,38 @@ def add_storage_cost_parameters_from_csv(m, year):
         return total_cost
 
     if m.mc is not None:
+        original_units = u.USD / (u.MW * u.year)
+        final_units = u.USD / (u.MW * u.hr)
+        final_inv_units = u.USD / u.MW
+
         for index, row in m.mc.storage_data_target.iterrows():
             storage_uid = row["name"]
 
-            # Read costs for the selected year. All units in $/MW-yr
-            capex_yr = float(row[f"capex_{year}"])
-            fixed_ops_yr = float(row[f"fixed_ops_{year}"])
-            var_ops_yr = float(row[f"var_ops_{year}"])
+            # Read costs for the selected year
+            capex_yr = float(row[f"capex_{year}"])  # units in $/MW-year
+            fixed_ops_yr = float(row[f"fixed_ops_{year}"])  # units in $/MW-year
+            var_ops_yr = float(row[f"var_ops_{year}"])  # units in $/MWh
 
-            original_units = u.USD / (u.MW * u.year)
-            final_units = u.USD / (u.MW * u.hr)
-            final_inv_units = u.USD / u.MW
+            inv_cost = capex_yr * (u.USD / u.MW)
+            # inv_cost = annualized_to_total_capex(
+            #     capex_yr,
+            #     years=pyo.value(m.storageLifetimes[storage_uid]),
+            #     discount_rate=0.07,
+            # )
 
-            # Convert investment cost from $/MWyear (annualized) to
-            # $/MW (deannualized)
-            if pd.isna(capex_yr):
-                capex_yr = 0
-
-            inv_cost = annualized_to_total_capex(
-                capex_yr,
-                years=pyo.value(m.storageLifetimes[storage_uid]),
-                discount_rate=0.07,
+            fixed_cost = pyo.units.convert(
+                fixed_ops_yr * original_units, to_units=final_units
             )
-
-            # Convert fixed cost from $/MW-year to $/MWh
-            fixed_cost = fixed_ops_yr * original_units
-            fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
-
-            # Variable cost: We assume is in $/MWh already (since it
-            # has a value of 0)
-            var_cost = var_ops_yr * final_units
-
+            var_cost = var_ops_yr * final_units  # units in $/MWh
+           
             # Assign to Pyomo parameters (strip units for Pyomo Param)
-            m.storagefixedCost[storage_uid] = pyo.value(fixed_cost)
-            m.storagevarCost[storage_uid] = pyo.value(var_cost)
+            m.storageFixedCost[storage_uid] = pyo.value(fixed_cost)
+            m.storageVariableCost[storage_uid] = pyo.value(var_cost)
             m.storageInvestmentCost[storage_uid] = pyo.value(inv_cost)
-    # m.storagefixedCost.display()
-    # m.storagevarCost.display()
+
     # m.storageInvestmentCost.display()
+    # m.storageFixedCost.display()
+    # m.storageVariableCost.display()
 
 
 def add_storage_state_disjuncts(m, b, commitment_period):
@@ -673,15 +667,23 @@ def add_investment_storage_constraints(m, b, investment_stage):
     # input. [TODO: Initialize storage level (state of charge)]
     for bat in m.storage:
         if (
-            m.md.data["elements"]["storage"][bat]["in_service"] == False
-            and investment_stage == 1
+                m.md.data["elements"]["storage"][bat]["in_service"] == False
+                and investment_stage == 1
         ):
             b.storOperational[bat].indicator_var.fix(False)
         elif (
-            m.md.data["elements"]["storage"][bat]["in_service"] == True
-            and investment_stage == 1
+                m.md.data["elements"]["storage"][bat]["in_service"] == True
+                and investment_stage == 1
         ):
             b.storOperational[bat].indicator_var.fix(True)
+
+    if not m.config["include_investment"]:
+        for stor in m.storage:
+            is_candidate = str(stor).endswith("-c")
+
+            if is_candidate:
+                b.storOperational[stor].indicator_var.fix(False)
+                b.storDisabled[stor].indicator_var.fix(True)
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
