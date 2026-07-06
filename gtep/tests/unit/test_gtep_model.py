@@ -451,7 +451,7 @@ class TestGTEP(unittest.TestCase):
         # hydropower enabled. The test also checks unit consistency
         # and validates the resulting objective value against an
         # expected benchmark.
-        dataObject, dataProcessingObject = create_model(
+        modObject = create_model(
             planning_data_args={
                 "stages": 2,
                 "num_reps": 2,
@@ -461,12 +461,6 @@ class TestGTEP(unittest.TestCase):
                 "duration_dispatch": 15,
             },
             include_cost_data=True,
-        )
-
-        # Populate and create GTEP model
-        modObject = ExpansionPlanningModel(
-            data=dataObject,
-            cost_data=dataProcessingObject,
         )
 
         modObject.config["include_investment"] = True
