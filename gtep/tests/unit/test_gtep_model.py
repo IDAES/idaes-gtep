@@ -24,7 +24,6 @@ from pyomo.util.check_units import (
 )
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.tests.unit.utils_for_testing import create_model
-from gtep.gtep_data_processing import DataProcessing
 from egret.data.model_data import ModelData
 
 
@@ -283,6 +282,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
+                "advanced_hydro": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -291,17 +291,6 @@ class TestGTEP(unittest.TestCase):
                 "Land-Based Wind",
             ],
         )
-
-        modObject.config["include_investment"] = True
-        modObject.config["include_commitment"] = True
-        modObject.config["include_redispatch"] = True
-        modObject.config["scale_loads"] = True
-        modObject.config["transmission"] = True
-        modObject.config["storage"] = False
-        modObject.config["flow_model"] = "DC"
-        modObject.config["advanced_hydro"] = False
-
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -348,6 +337,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
+                "advanced_hydro": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -374,15 +364,6 @@ class TestGTEP(unittest.TestCase):
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 926194856.96, places=1
         )
-
-        modObject.config["include_investment"] = True
-        modObject.config["include_commitment"] = False
-        modObject.config["include_redispatch"] = True
-        modObject.config["scale_loads"] = True
-        modObject.config["transmission"] = True
-        modObject.config["storage"] = False
-        modObject.config["flow_model"] = "DC"
-        modObject.config["advanced_hydro"] = False
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_weights(self):
@@ -460,19 +441,18 @@ class TestGTEP(unittest.TestCase):
                 "num_dispatch": 4,
                 "duration_dispatch": 15,
             },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": True,
+            },
             include_cost_data=True,
         )
-
-        modObject.config["include_investment"] = True
-        modObject.config["include_commitment"] = True
-        modObject.config["include_redispatch"] = True
-        modObject.config["scale_loads"] = True
-        modObject.config["transmission"] = True
-        modObject.config["storage"] = False
-        modObject.config["flow_model"] = "DC"
-        modObject.config["advanced_hydro"] = True
-
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -490,5 +470,4 @@ class TestGTEP(unittest.TestCase):
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
         )
-
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)

@@ -25,7 +25,7 @@ from pathlib import Path
 from os.path import join, dirname, abspath
 
 datadir = join(dirname(abspath(str(__file__))), "data")
-logger = logging.getLogger("pyomo.common")
+logger = logging.getLogger("gtep.gtep_data_processing")
 
 """
 References
@@ -137,7 +137,7 @@ class DataProcessing:
             for gen in candidate_gens
         }
         if "Natural Gas_CT" in candidate_gens:
-            logger.info(
+            logger.warning(
                 "Natural Gas_CT does not have cost data. We will assume all natural gas costs are coming from fossil energy sources (Natural Gas_FE)."
             )
         return result

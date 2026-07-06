@@ -20,7 +20,7 @@ from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
-logger = logging.getLogger("pyomo.common")
+logger = logging.getLogger("gtep.driver_esr")
 logger.setLevel(logging.INFO)
 
 # Add data
