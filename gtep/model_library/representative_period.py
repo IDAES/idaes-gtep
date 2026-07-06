@@ -63,6 +63,7 @@ def add_time_links(b: pyo.Block):
 
 def add_representative_period_variables(b, rep_per):
     # [ESR WIP: This variable is never used. Should we remove it?]
+    m = b.model()
     b.renewableSurplusRepresentative = pyo.Var(
         within=pyo.Reals, initialize=0, units=u.USD
     )
