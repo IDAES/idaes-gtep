@@ -467,12 +467,14 @@ class TestGTEP(unittest.TestCase):
         # and validates the resulting objective value against an
         # expected benchmark.
         dataObject, dataProcessingObject = create_model(
-            stages=2,
-            num_reps=2,
-            len_reps=1,
-            num_commit=6,
-            num_dispatch=4,
-            duration_dispatch=15,
+            planning_data_args={
+                stages: 2,
+                num_reps: 2,
+                len_reps: 1,
+                num_commit: 6,
+                num_dispatch: 4,
+                duration_dispatch: 15,
+            }
         )
 
         # Populate and create GTEP model
