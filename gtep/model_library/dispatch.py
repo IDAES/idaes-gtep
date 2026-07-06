@@ -90,7 +90,7 @@ def add_dispatch_variables(b):
         def hydroGeneratorCost(b, hydroGen):
             return (
                 b.hydroGeneration[hydroGen]
-                * pyo.units.convert(paramPeriodLength, to_units=u.hr)
+                * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
                 * m.varCost[hydroGen]
             )
 
@@ -140,6 +140,7 @@ def add_dispatch_variables(b):
             return sum(b.hydroGeneratorCost[gen] for gen in m.hydroGenerators)
 
     # Reactive generation cost
+    total_reactive_cost_doc = "Total cost for reactive power generation in $"
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
@@ -175,23 +176,13 @@ def add_dispatch_variables(b):
         storage_term = b.storageCostDispatch
     else:
         storage_term = 0 * u.USD
+    if m.config["advanced_hydro"]:
+        hydro_term = b.hydroGenerationCostDispatch
+    else:
+        hydro_term = 0 * u.USD
 
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
-
-        # [ESR WIP: If I don't add the 0 value for storage cost
-        # dispatch, the optimal solution has a value of 0. Check why
-        # this is happening.]
-        if m.config["storage"]:
-            storage_term = b.storageCostDispatch
-        else:
-            storage_term = 0
-
-        if m.config["advanced_hydro"]:
-            hydro_term = b.hydroGenerationCostDispatch
-        else:
-            hydro_term = 0
-
         return (
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
@@ -285,35 +276,11 @@ def add_dispatch_constraints(b):
             balance = 0 * u.MW
             balance += sum([b.thermalGeneration[g] for g in m.thermalGenerators])
             balance += sum([b.renewableGeneration[g] for g in m.renewableGenerators])
-            """ Battery Storage added to flow balance constraint """
-            batts = m.storage if m.config["storage"] else []
-            balance += sum([b.storageDischarged[bt] for bt in batts])
-            balance -= sum([b.storageCharged[bt] for bt in batts])
-            balance = 0
-            buses = [bus for bus in m.buses]
-            loads = [l for l in c_p.loads]
-            gens = [gen for gen in m.generators]
-            batts = [bat for bat in m.storage] if m.config["storage"] else []
-
-            balance += sum(
-                b.thermalGeneration[g] for g in gens if g in m.thermalGenerators
-            )
-            balance += sum(
-                b.renewableGeneration[g] for g in gens if g in m.renewableGenerators
-            )
             if m.config["advanced_hydro"]:
-                balance += sum(
-                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
-                )
-
-            # Add battery storage to constraint
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
-
-            # Add the loads as a parameter (already includes units).
-            balance -= sum(b.loads[l] for l in loads)
-            balance += sum(b.loadShed[bus] for bus in buses)
-
+                balance += sum([b.hydroGeneration[g] for g in m.hydroGenerators])
+            if m.config["storage"]:
+                balance += sum([b.storageDischarged[bt] for bt in m.storage])
+                balance -= sum([b.storageCharged[bt] for bt in m.storage])
             balance -= sum([c_p.loads[bus] for bus in m.buses])
             balance += sum([b.loadShed[bus] for bus in m.buses])
 
@@ -323,16 +290,10 @@ def add_dispatch_constraints(b):
 
         @b.Constraint(m.buses, doc="Energy balance constraint")
         def flow_balance(b, bus):
-            balance = 0
+            balance = 0 * u.MW
             # Add power flow to constraint
             end_points = [line for line in m.lines if m.from_bus[line] == bus]
             start_points = [line for line in m.lines if m.to_bus[line] == bus]
-            gens = [
-                gen
-                for gen in m.generators
-                if m.md.data["elements"]["generator"][gen]["bus"] == bus
-            ]
-
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             # Add generation to constraint
@@ -346,7 +307,8 @@ def add_dispatch_constraints(b):
             )
             if m.config["advanced_hydro"]:
                 balance += sum(
-                    b.hydroGeneration[g] for g in gens if g in m.hydroGenerators
+                    b.hydroGeneration[g]
+                    for g in m.hydroGenerators & m.generatorsByBus[bus]
                 )
 
             # Add battery storage to constraint

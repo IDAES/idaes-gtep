@@ -17,13 +17,15 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
-from gtep.tests.unit.utils_for_testing import create_model
+from gtep.tests.unit.utils_for_testing import create_model, path_9_bus
 
 
 def check_CP_flow_balance(td, c: pyo.Constraint):
     """Checks the copper-plate flow balance constraint."""
     expected = [td.b.thermalGeneration[g] for g in td.m.thermalGenerators]
     expected += [td.b.renewableGeneration[g] for g in td.m.renewableGenerators]
+    if td.m.config["advanced_hydro"]:
+        expected += [td.b.hydroGeneration[g] for g in td.m.hydroGenerators]
     if td.m.config["storage"]:
         expected += [td.b.storageDischarged[bt] for bt in td.m.storage]
         expected += [td.b.storageCharged[bt] for bt in td.m.storage]
@@ -52,6 +54,12 @@ def check_flow_balance(td, c: pyo.Constraint):
             for g in td.m.thermalGenerators
             if td.m.md.data["elements"]["generator"][g]["bus"] == i
         ]
+        if td.m.config["advanced_hydro"]:
+            expected[i] += [
+                td.b.hydroGeneration[g]
+                for g in td.m.hydroGenerators
+                if td.m.md.data["elements"]["generator"][g]["bus"] == i
+            ]
         if td.m.config["storage"]:
             expected[i] += [
                 td.b.storageDischarged[bat]
@@ -239,9 +247,12 @@ class TestDispatch(unittest.TestCase):
             check_func=check_operational_renewables_only,
         )
 
-    def _coordinate_tests(self, config):
+    def _coordinate_tests(self, config, use_9_bus=False):
         """Creates a model and runs tests for a given set of config options."""
-        self.m = create_model(config=config).model
+        if use_9_bus:
+            self.m = create_model(config=config, input_data_path=path_9_bus).model
+        else:
+            self.m = create_model(config=config).model
         self.b = (
             self.m.investmentStage[1]
             .representativePeriod[1]
@@ -264,3 +275,9 @@ class TestDispatch(unittest.TestCase):
 
     def test_ac_polar(self):
         self._coordinate_tests(config={"flow_model": "ACP"})
+
+    def test_with_storage(self):
+        self._coordinate_tests(config={"storage": True}, use_9_bus=True)
+
+    def test_with_advanced_hydro(self):
+        self._coordinate_tests(config={"advanced_hydro": True})

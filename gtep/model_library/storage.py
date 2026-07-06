@@ -762,11 +762,15 @@ def add_dispatch_storage_variables_and_constraints(m, b):
     # by b.dispatchPeriodLength, in hours.
     @b.Expression(m.storage, doc="Charging cost per battery")
     def storageChargingCost(b, bat):
-        return b.storageCharged[bat] * m.chargingCost[bat]
+        return (
+            b.storageCharged[bat] * m.chargingCost[bat] * (u.USD / u.MW)
+        )  # temporary units fix; resolved in storage PR
 
     @b.Expression(m.storage, doc="Discharging cost per battery")
     def storageDischargingCost(b, bat):
-        return b.storageDischarged[bat] * m.dischargingCost[bat]
+        return (
+            b.storageDischarged[bat] * m.dischargingCost[bat] * (u.USD / u.MW)
+        )  # temporary units fix; resolved in storage PR
 
     @b.Expression()
     def storageCostDispatch(b):
