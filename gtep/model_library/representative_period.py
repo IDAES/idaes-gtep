@@ -19,6 +19,7 @@ Generation and Transmission Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from math import ceil
+import gtep.model_library.hydropower_generation as hydro
 
 
 def add_time_links(b: pyo.Block):
@@ -65,6 +66,9 @@ def add_representative_period_variables(b, rep_per):
     b.renewableSurplusRepresentative = pyo.Var(
         within=pyo.Reals, initialize=0, units=u.USD
     )
+
+    if m.config["advanced_hydro"]:
+        hydro.add_representative_hydropower(b, rep_per)
 
 
 def add_representative_period_logical_constraints(b, rep_per):

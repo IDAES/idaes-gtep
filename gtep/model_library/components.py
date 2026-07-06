@@ -16,10 +16,14 @@ Planning (GTEP) Model
 
 """
 
+import logging
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 import gtep.model_library.storage as stor
+
+logger = logging.getLogger("gtep.model_library.components")
 
 
 def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
@@ -88,15 +92,44 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Thermal generators; subset of all generators",
     )
 
-    m.renewableGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
+    if m.config["advanced_hydro"]:
+
+        m.hydroGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
+            ),
+            doc="Hydropower generators; subset of all generators",
+        )
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if (
+                    m.md.data["elements"]["generator"][gen]["generator_type"]
+                    == "renewable"
+                    and m.md.data["elements"]["generator"][gen]["unit_type"] != "HYDRO"
+                )
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
+
+    else:
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["generator_type"]
+                == "renewable"
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
 
     m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
 
@@ -198,6 +231,19 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         units=u.MVAR,
         doc="Minimum reactive output of each thermal generator",
     )
+
+    if m.config["advanced_hydro"]:
+        m.hydroCapacity = pyo.Param(
+            m.hydroGenerators,
+            initialize={
+                gen: max(m.md.data["elements"]["generator"][gen]["p_max"]["values"])
+                for gen in m.hydroGenerators
+            },
+            domain=pyo.NonNegativeReals,
+            mutable=True,
+            units=u.MW,
+            doc="Maximum output of each hydropower generator",
+        )
 
     m.lifetimes = pyo.Param(
         m.generators,
@@ -383,15 +429,41 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
     m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
-    m.weights = pyo.Param(m.representativePeriods, default=1)
+
+    # Map each representative period to its corresponding date, then
+    # use that date to retrieve the appropriate representative
+    # weight. This keeps the model indexed by representative period
+    # number.
+    representative_dates_dict = {
+        i: date for i, date in zip(m.representativePeriods, m.data.representative_dates)
+    }
+    m.representativeDate = pyo.Param(
+        m.representativePeriods,
+        initialize=representative_dates_dict,
+        within=pyo.Any,
+        mutable=False,
+        doc="Representative date associated with each representative period",
+    )
+    weights_dict = {
+        i: m.data.representative_weights_dict[representative_dates_dict[i]]
+        for i in m.representativePeriods
+    }
+    m.weights = pyo.Param(
+        m.representativePeriods,
+        initialize=weights_dict,
+        mutable=False,
+        doc="Representative period weights indexed by representative period",
+    )
+
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
-    # Initialize fuel cost. This is re-calculated during the
-    # investment stage with values from preprocessing data.
-    m.fuelCost = pyo.Param(
+    # Calculate fuel costs for thermal generators using fuel price and
+    # heat rate. Define the MMBTU unit explicitly because it is not
+    # included in Pyomo units by default.
+    m.fuelCostperMMBTU = pyo.Param(
         m.thermalGenerators,
         initialize={
             gen: (
@@ -402,11 +474,35 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
             for gen in m.thermalGenerators
         },
         mutable=True,
+        units=u.USD / u.MMBTU,
+        doc="Fuel cost per MMBTU at each generator",
+    )
+    m.heatRate = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: (
+                m.md.data["elements"]["generator"][gen]["heat_rate"]
+                if "RTS-GMLC" in m.md.data["system"]["name"]
+                else m.md.data["elements"]["generator"][gen]["heat_rate"]
+            )
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MMBTU / (u.MW * u.hr),
+        doc="Heat rate for each thermal generator",
+    )
+    m.fuelCost = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: m.fuelCostperMMBTU[gen] * m.heatRate[gen]
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator",
     )
 
-    # setting to be the same as real fuel cost for now... but maybe should be different?
+    # [WIP: Setting to be the same as real fuel cost for now]
     m.fuelCostReactive = pyo.Param(
         m.generators,
         initialize={gen: m.fuelCost[gen] for gen in m.thermalGenerators},
@@ -627,22 +723,24 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """
 
 
-def add_model_cost_parameters(m, year):
+def repopulate_cost_parameters(m, year):
     """This method saves lists with all relevant costs (fixed and
     variable operating costs, fuel costs, and investment costs) for
     thermal and renewable generators. Refer to gtep_data_processing
     script for more details about the preprocessing of this data.
 
-    Note that the "capex" in the investment costs already include the
-    interest rate for each generator. Additionally, this data only
-    covers three years: 2025, 2030, and 2035. If more investment years
-    are needed, more data should be included in the data file for data
-    processing.
+    Assumes all thermal generators use CT costs and all renewable
+    generators use PV costs when technology-specific data are
+    unavailable. By default, current cost data cover 2025, 2030, and
+    2035.
 
     """
 
-    # [WIP: Assume we have two types of generators: thermal "CT" (with
-    # gas fuel) and renewable "PV" (with "sun" as fuel).]
+    logger.info(
+        "Assigning NG CT cost values to all thermal generators "
+        "and solar PV cost values to all renewable generators."
+    )
+
     gen_thermal_type = "CT"
     gen_renewable_type = "PV"
 
@@ -673,8 +771,9 @@ def add_model_cost_parameters(m, year):
                 continue
     else:
         # TODO: Check what the default costs should be
-        print(
-            "Cost data was not provided in m.mc instance (check DataProcessing for more details). Setting costs parameters to random values for now."
+        logger.warning(
+            "Cost data was not provided in m.mc instance (check DataProcessing for more details). "
+            "Setting costs parameters to random values for now."
         )
         m.genThermalInvCost.append(1)  # in $/kW
         m.genThermalFixOpCost.append(1)  # in $/kW-yr
@@ -685,10 +784,9 @@ def add_model_cost_parameters(m, year):
         m.genRenewableVarOpCost.append(1)  # $/MWh
         m.genRenewableFuelCost.append(1)
 
-    # Update data for fixed and variable costs (previously defined
-    # with random default values in add_model_parameters) since they
-    # depend on the investment year. Also, convert the units to be
-    # consistent.
+    # Update data for investment, fixed and variable, and fuel costs
+    # previously defined since they depend on the investment
+    # year. Also, convert the units to be consistent.
     units_fixed_cost = u.USD / (u.kW * u.year)
     units_var_cost = u.USD / (u.MW * u.hr)
     units_inv_cost = u.USD / u.kW
@@ -711,7 +809,6 @@ def add_model_cost_parameters(m, year):
             m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
             m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
         else:
-
             # For renewable
             m.fixedCost[gen] = pyo.units.convert(
                 m.genRenewableFixOpCost[0] * units_fixed_cost,
@@ -728,7 +825,3 @@ def add_model_cost_parameters(m, year):
     # var cost = $/MWh
     # inv cost = $/Mw
     # fuel cost = $/MWh
-
-    # Cost per MW of curtailed renewable energy. This equation
-    # re-calculates curtailment and load shed costa since they depend
-    # on the re-defined parameter "fuelCost".
