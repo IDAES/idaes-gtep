@@ -758,7 +758,7 @@ def add_model_cost_parameters_from_csv(m, year):
             fixed_ops_yr = float(row[f"fixed_ops_{year}"])  # units in $/MW-year
             var_ops_yr = float(row[f"var_ops_{year}"])  # units in $/MWh
 
-            inv_cost = capex_yr * (u.USD / u.MW)           
+            inv_cost = capex_yr * (u.USD / u.MW)
             # inv_cost = annualized_to_total_capex(
             #     capex_yr,
             #     years=pyo.value(m.branchLifetimes[branch_uid]),
@@ -769,11 +769,11 @@ def add_model_cost_parameters_from_csv(m, year):
                 fixed_ops_yr * original_units, to_units=final_units
             )
             var_cost = var_ops_yr * final_units  # units in $/MWh
-            
+
             m.branchInvestmentCost[branch_uid] = inv_cost
             m.branchFixedCost[branch_uid] = fixed_cost
             m.branchVariableCost[branch_uid] = var_cost
-            
+
     if m.mc is not None:
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
@@ -796,7 +796,7 @@ def add_model_cost_parameters_from_csv(m, year):
                 fixed_ops_yr * original_units, to_units=final_units
             )
             var_cost = var_ops_yr * final_units  # units in $/MWh
-           
+
             m.generatorInvestmentCost[gen_uid] = pyo.value(inv_cost)
             m.generatorFixedCost[gen_uid] = pyo.value(fixed_cost)
             m.generatorVariableCost[gen_uid] = pyo.value(var_cost)

@@ -380,11 +380,10 @@ def add_dispatch_constraints(b, disp_per):
         )
 
         return (
-            b.renewableGeneration[renewableGen]
-            + b.renewableCurtailment[renewableGen]
+            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             == availability_factor * active_capacity
         )
-    
+
     # [TODO: Add renewableExtended to this and anywhere else.]
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):

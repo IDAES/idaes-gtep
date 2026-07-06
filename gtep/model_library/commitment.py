@@ -152,7 +152,9 @@ def add_commitment_constraints(b, comm_per):
 
             if m.config["advanced_hydro"]:
                 op_cost_gen_state += sum(
-                    m.generatorFixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    m.generatorFixedCost[gen]
+                    * b.commitmentPeriodLength
+                    * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
                 )
 
@@ -179,7 +181,9 @@ def add_commitment_constraints(b, comm_per):
 
             if m.config["advanced_hydro"]:
                 op_cost_gen_state += sum(
-                    m.generatorFixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    m.generatorFixedCost[gen]
+                    * b.commitmentPeriodLength
+                    * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
                 )
 

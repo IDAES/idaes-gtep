@@ -47,9 +47,7 @@ rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 data_date = "7-01-2026"
 dir_name = f"NAERM_initial_testing_{data_date}"
 os.makedirs(dir_name, exist_ok=True)
-print(
-    f"\n Creating the directory '{dir_name}' to save the results. Working on it ..."
-)
+print(f"\n Creating the directory '{dir_name}' to save the results. Working on it ...")
 data_path = f"data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -110,7 +108,7 @@ mod_object.config["flow_model"] = "transport"
 mod_object.config["advanced_hydro"] = True
 
 # Save all the config details
-config_csv_path =f"{dir_name}/model_config.csv"
+config_csv_path = f"{dir_name}/model_config.csv"
 with open(config_csv_path, mode="w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["config_key", "config_value", "value_type"])

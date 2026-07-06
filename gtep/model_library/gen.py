@@ -115,12 +115,10 @@ def add_investment_generators_constraints(m, b, investment_stage):
     for gen in m.renewableGenerators:
         is_candidate = str(gen).endswith("-c")
         in_service = m.md.data["elements"]["generator"][gen]["in_service"]
-            
+
         if investment_stage == 1:
             if in_service:
-                b.renewableOperational[gen].fix(
-                    m.renewableCapacityNameplate[gen]
-                )
+                b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
             else:
                 b.renewableOperational[gen].fix(0)
                 b.renewableExtended[gen].fix(0)

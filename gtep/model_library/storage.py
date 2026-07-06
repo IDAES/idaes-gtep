@@ -353,7 +353,7 @@ def add_storage_cost_parameters_from_csv(m, year):
                 fixed_ops_yr * original_units, to_units=final_units
             )
             var_cost = var_ops_yr * final_units  # units in $/MWh
-           
+
             # Assign to Pyomo parameters (strip units for Pyomo Param)
             m.storageFixedCost[storage_uid] = pyo.value(fixed_cost)
             m.storageVariableCost[storage_uid] = pyo.value(var_cost)
@@ -673,7 +673,7 @@ def add_investment_storage_constraints(m, b, investment_stage):
             if in_service:
                 b.storOperational[stor].indicator_var.fix(True)
             else:
-                b.storOperational[stor].indicator_var.fix(False)            
+                b.storOperational[stor].indicator_var.fix(False)
 
     if not m.config["include_investment"]:
         for stor in m.storage:

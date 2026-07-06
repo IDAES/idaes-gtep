@@ -31,8 +31,8 @@ def add_investment_transmission_constraints(m, b, investment_stage):
             if in_service:
                 b.branchOperational[branch].indicator_var.fix(True)
             else:
-                b.branchOperational[branch].indicator_var.fix(False)           
-        
+                b.branchOperational[branch].indicator_var.fix(False)
+
     if not m.config["include_investment"]:
         for branch in m.transmission:
             is_candidate = str(branch).endswith("-c")
