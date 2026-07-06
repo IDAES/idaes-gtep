@@ -318,16 +318,73 @@ def add_dispatch_constraints(b, disp_per):
 
     # print(f"{pyo.value(sum(m.loads[n] for n in m.loads)) = }")
 
-    # NOTE: In comparison to reference [1], this is "per renewable
-    # generator". [TODO: Should we include charging costs from
-    # non-colocated plants?]
+    # # NOTE: In comparison to reference [1], this is "per renewable
+    # # generator". [TODO: Should we include charging costs from
+    # # non-colocated plants?]
+    # @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
+    # def capacity_factor(b, renewableGen):
+    #     return (
+    #         b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
+    #         == c_p.renewableCapacityExpected[renewableGen]
+    #     )
+
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
-        return (
-            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == c_p.renewableCapacityExpected[renewableGen]
+        is_candidate = str(renewableGen).endswith("-c")
+
+        # If investment is disabled, candidate renewable generators
+        # should not generate or curtail.
+        if not m.config["include_investment"] and is_candidate:
+            return (
+                b.renewableGeneration[renewableGen]
+                + b.renewableCurtailment[renewableGen]
+                == 0 * u.MW
+            )
+
+        expected_mw = pyo.value(
+            pyo.units.convert(
+                c_p.renewableCapacityExpected[renewableGen],
+                to_units=u.MW,
+            )
         )
 
+        nameplate_mw = pyo.value(
+            pyo.units.convert(
+                m.renewableCapacityNameplate[renewableGen],
+                to_units=u.MW,
+            )
+        )
+
+        # Avoid division by zero. If nameplate is zero, the renewable
+        # generator has no available capacity in this formulation.
+        if abs(nameplate_mw) <= 1e-9:
+            if abs(expected_mw) > 1e-9:
+                raise ValueError(
+                    f"Renewable generator {renewableGen} has zero nameplate "
+                    f"capacity but nonzero expected renewable output "
+                    f"({expected_mw} MW). Please check input data."
+                )
+
+            return (
+                b.renewableGeneration[renewableGen]
+                + b.renewableCurtailment[renewableGen]
+                == 0 * u.MW
+            )
+
+        availability_factor = expected_mw / nameplate_mw
+
+        active_capacity = (
+            i_p.renewableOperational[renewableGen]
+            + i_p.renewableInstalled[renewableGen]
+            + i_p.renewableExtended[renewableGen]
+        )
+
+        return (
+            b.renewableGeneration[renewableGen]
+            + b.renewableCurtailment[renewableGen]
+            == availability_factor * active_capacity
+        )
+    
     # [TODO: Add renewableExtended to this and anywhere else.]
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
