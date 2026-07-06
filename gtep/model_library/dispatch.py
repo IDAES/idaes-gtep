@@ -64,7 +64,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return (
             b.thermalGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * (m.varCost[gen] + m.fuelCost[gen])
+            * (m.generatorVariableCost[gen] + m.fuelCost[gen])
         )
 
     if m.config["storage"]:
@@ -79,7 +79,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
             return (
                 b.hydroGeneration[hydroGen]
                 * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-                * m.varCost[hydroGen]
+                * m.generatorVariableCost[hydroGen]
             )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
@@ -87,7 +87,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         return (
             b.renewableGeneration[gen]
             * pyo.units.convert(paramPeriodLength, to_units=u.hr)
-            * m.varCost[gen]
+            * m.generatorVariableCost[gen]
         )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
