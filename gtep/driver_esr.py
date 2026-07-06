@@ -71,6 +71,7 @@ mod_object.config["scale_loads"] = True
 mod_object.config["transmission"] = True
 mod_object.config["storage"] = False
 mod_object.config["flow_model"] = "DC"
+mod_object.config["advanced_hydro"] = False
 
 mod_object.create_model()
 

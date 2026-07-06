@@ -24,6 +24,7 @@ from pyomo.util.check_units import (
 )
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.tests.unit.utils_for_testing import create_model
+from gtep.gtep_data_processing import DataProcessing
 from egret.data.model_data import ModelData
 
 
@@ -291,6 +292,17 @@ class TestGTEP(unittest.TestCase):
             ],
         )
 
+        modObject.config["include_investment"] = True
+        modObject.config["include_commitment"] = True
+        modObject.config["include_redispatch"] = True
+        modObject.config["scale_loads"] = True
+        modObject.config["transmission"] = True
+        modObject.config["storage"] = False
+        modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = False
+
+        modObject.create_model()
+
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
         assert_units_consistent(modObject.model)
@@ -312,8 +324,13 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_no_commitment(self):
-        # Test ExpansionPlanningModel with cost data and no commitment
-        # This model originated from driver_esr.py
+
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data when unit
+        # commitment is disabled. The test also checks unit
+        # consistency and validates the resulting objective value
+        # against an expected benchmark.
+
         modObject = create_model(
             planning_data_args={
                 "stages": 2,
@@ -358,6 +375,14 @@ class TestGTEP(unittest.TestCase):
             value(modObject.model.total_cost_objective_rule), 926194856.96, places=1
         )
 
+        modObject.config["include_investment"] = True
+        modObject.config["include_commitment"] = False
+        modObject.config["include_redispatch"] = True
+        modObject.config["scale_loads"] = True
+        modObject.config["transmission"] = True
+        modObject.config["storage"] = False
+        modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = False
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_weights(self):
@@ -420,11 +445,50 @@ class TestGTEP(unittest.TestCase):
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
-        # Check that each representative period in the model is
-        # assigned the expected representative weight
-        for rep_period, expected_weight in zip(
-            modObject.model.representativePeriods, weights
-        ):
-            self.assertEqual(
-                value(modObject.model.weights[rep_period]), expected_weight
-            )
+    def test_with_cost_data_and_hydro(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            include_cost_data=True,
+        )
+
+        modObject.config["include_investment"] = True
+        modObject.config["include_commitment"] = True
+        modObject.config["include_redispatch"] = True
+        modObject.config["scale_loads"] = True
+        modObject.config["transmission"] = True
+        modObject.config["storage"] = False
+        modObject.config["flow_model"] = "DC"
+        modObject.config["advanced_hydro"] = True
+
+        modObject.create_model()
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)

@@ -749,6 +749,8 @@ def add_generators_logical_constraints(m):
 
 def add_dispatch_generators_variables(m, b):
 
+    c_p = b.parent_block()
+
     def thermal_generation_limits(
         b, thermalGen, doc="Bounds on active generation of thermal generators"
     ):
@@ -807,3 +809,24 @@ def add_dispatch_generators_variables(m, b):
         units=u.MW,
         doc="Curtailment of renewable generators",
     )
+
+    if m.config["advanced_hydro"]:
+        # TODO make consistent with how this is handled for other
+        # renewable gens
+        def hydro_generation_limits(b, hydroGen):
+            return (
+                c_p.hydroMinimumExpected[hydroGen],
+                c_p.hydroCapacityExpected[hydroGen],
+            )
+
+        def hydro_generation_init(b, hydroGen):
+            return c_p.hydroMinimumExpected[hydroGen]
+
+        b.hydroGeneration = pyo.Var(
+            m.hydroGenerators,
+            domain=pyo.NonNegativeReals,
+            bounds=hydro_generation_limits,
+            initialize=hydro_generation_init,
+            units=u.MW,
+            doc="Hydropower generation",
+        )

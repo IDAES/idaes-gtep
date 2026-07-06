@@ -90,15 +90,44 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Thermal generators; subset of all generators",
     )
 
-    m.renewableGenerators = pyo.Set(
-        within=m.generators,
-        initialize=(
-            gen
-            for gen in m.generators
-            if m.md.data["elements"]["generator"][gen]["generator_type"] == "renewable"
-        ),
-        doc="Renewable generators; subset of all generators",
-    )
+    if m.config["advanced_hydro"]:
+
+        m.hydroGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
+            ),
+            doc="Hydropower generators; subset of all generators",
+        )
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if (
+                    m.md.data["elements"]["generator"][gen]["generator_type"]
+                    == "renewable"
+                    and m.md.data["elements"]["generator"][gen]["unit_type"] != "HYDRO"
+                )
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
+
+    else:
+
+        m.renewableGenerators = pyo.Set(
+            within=m.generators,
+            initialize=(
+                gen
+                for gen in m.generators
+                if m.md.data["elements"]["generator"][gen]["generator_type"]
+                == "renewable"
+            ),
+            doc="Renewable generators; subset of all generators",
+        )
 
     m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
 
@@ -200,6 +229,19 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         units=u.MVAR,
         doc="Minimum reactive output of each thermal generator",
     )
+
+    if m.config["advanced_hydro"]:
+        m.hydroCapacity = pyo.Param(
+            m.hydroGenerators,
+            initialize={
+                gen: max(m.md.data["elements"]["generator"][gen]["p_max"]["values"])
+                for gen in m.hydroGenerators
+            },
+            domain=pyo.NonNegativeReals,
+            mutable=True,
+            units=u.MW,
+            doc="Maximum output of each hydropower generator",
+        )
 
     m.lifetimes = pyo.Param(
         m.generators,
@@ -685,16 +727,17 @@ def repopulate_cost_parameters(m, year):
     thermal and renewable generators. Refer to gtep_data_processing
     script for more details about the preprocessing of this data.
 
-    Note that the "capex" in the investment costs already include the
-    interest rate for each generator. Additionally, this data only
-    covers three years: 2025, 2030, and 2035. If more investment years
-    are needed, more data should be included in the data file for data
-    processing.
+    Assumes all thermal generators use CT costs and all renewable
+    generators use PV costs when technology-specific data are
+    unavailable. By default, current cost data cover 2025, 2030, and
+    2035.
 
     """
 
-    # [WIP: Assume we have two types of generators: thermal "CT" (with
-    # gas fuel) and renewable "PV" (with "sun" as fuel).]
+    print(
+        "[INFO]: Assigning NG CT cost values to all thermal generators and solar PV cost values to all renewable generators."
+    )
+
     gen_thermal_type = "CT"
     gen_renewable_type = "PV"
 
@@ -762,7 +805,6 @@ def repopulate_cost_parameters(m, year):
             m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
             m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
         else:
-
             # For renewable
             m.fixedCost[gen] = pyo.units.convert(
                 m.genRenewableFixOpCost[0] * units_fixed_cost,
