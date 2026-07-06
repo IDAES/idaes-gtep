@@ -97,30 +97,59 @@ def add_investment_generators_constraints(m, b, investment_stage):
     # indicator variables of the status disjuncts to define the
     # operation of generators.
     for gen in m.thermalGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(False)
-            b.genExtended[gen].indicator_var.fix(False)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(True)
+        is_candidate = str(gen).endswith("-c")
+        in_service = m.md.data["elements"]["generator"][gen]["in_service"]
+
+        if investment_stage == 1:
+            if in_service:
+                b.genOperational[gen].indicator_var.fix(True)
+            else:
+                b.genOperational[gen].indicator_var.fix(False)
+                b.genExtended[gen].indicator_var.fix(False)
+
+            # Candidates should not be retired in the first stage
+            # because they do not exist yet.
+            if is_candidate:
+                b.genRetired[gen].indicator_var.fix(False)
 
     for gen in m.renewableGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(0)
-            b.renewableExtended[gen].fix(0)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+        is_candidate = str(gen).endswith("-c")
+        in_service = m.md.data["elements"]["generator"][gen]["in_service"]
+            
+        if investment_stage == 1:
+            if in_service:
+                b.renewableOperational[gen].fix(
+                    m.renewableCapacityNameplate[gen]
+                )
+            else:
+                b.renewableOperational[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+
+    if not m.config["include_investment"]:
+        for therm_gen in m.thermalGenerators:
+            is_candidate = str(therm_gen).endswith("-c")
+
+            if is_candidate:
+                b.genOperational[therm_gen].indicator_var.fix(False)
+                b.genDisabled[therm_gen].indicator_var.fix(True)
+
+        # Renewable generators currently use continuous capacity
+        # variables instead of investment-status disjuncts.
+        for renew_gen in m.renewableGenerators:
+            is_candidate = str(renew_gen).endswith("-c")
+
+            if is_candidate:
+                b.renewableOperational[renew_gen].fix(0)
+                b.renewableInstalled[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                # print('gen:', renew_gen)
+
+                b.renewableInstalled[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                b.renewableDisabled[gen].fix(0)
 
     @b.Expression(doc="Generators investment costs in $")
     def generators_investment_cost(b):
@@ -629,7 +658,6 @@ def add_generators_logical_constraints(m):
             m.investmentStage[stage].renewableOperational[gen]
             + m.investmentStage[stage].renewableInstalled[gen]
             + m.investmentStage[stage].renewableExtended[gen]
-            + m.investmentStage[stage].renewableRetired[gen]
             + m.investmentStage[stage].renewableRetired[gen]
             <= m.renewableCapacityNameplate[gen]
         )
