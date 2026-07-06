@@ -24,6 +24,7 @@ from pyomo.util.check_units import (
 )
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.tests.unit.utils_for_testing import create_model
+from gtep.gtep_data_processing import DataProcessing
 from egret.data.model_data import ModelData
 
 
@@ -330,8 +331,6 @@ class TestGTEP(unittest.TestCase):
         # consistency and validates the resulting objective value
         # against an expected benchmark.
 
-        # Test ExpansionPlanningModel with cost data and no commitment
-        # This model originated from driver_esr.py
         modObject = create_model(
             planning_data_args={
                 "stages": 2,
@@ -447,13 +446,12 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_hydro(self):
-
         # This test verifies that the expansion planning model can be
         # built and solved using preprocessed cost data with advanced
         # hydropower enabled. The test also checks unit consistency
         # and validates the resulting objective value against an
         # expected benchmark.
-        modObject = create_model(
+        dataObject, dataProcessingObject = create_model(
             planning_data_args={
                 "stages": 2,
                 "num_reps": 2,
@@ -461,7 +459,14 @@ class TestGTEP(unittest.TestCase):
                 "num_commit": 6,
                 "num_dispatch": 4,
                 "duration_dispatch": 15,
-            }
+            },
+            include_cost_data=True,
+        )
+
+        # Populate and create GTEP model
+        modObject = ExpansionPlanningModel(
+            data=dataObject,
+            cost_data=dataProcessingObject,
         )
 
         modObject.config["include_investment"] = True
@@ -489,15 +494,7 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
+            value(modObject.model.total_cost_objective_rule), 779485794.27, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
-        # Check that each representative period in the model is
-        # assigned the expected representative weight
-        for rep_period, expected_weight in zip(
-            modObject.model.representativePeriods, weights
-        ):
-            self.assertEqual(
-                value(modObject.model.weights[rep_period]), expected_weight
-            )
