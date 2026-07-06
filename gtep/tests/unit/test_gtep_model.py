@@ -335,16 +335,7 @@ class TestGTEP(unittest.TestCase):
         # commitment is disabled. The test also checks unit
         # consistency and validates the resulting objective value
         # against an expected benchmark.
-        dataObject, dataProcessingObject = create_model(
-            planning_data_args={
-                "stages": 2,
-                "num_reps": 2,
-                "len_reps": 1,
-                "num_commit": 6,
-                "num_dispatch": 4,
-                "duration_dispatch": 15,
-            }
-        )
+    
         # Test ExpansionPlanningModel with cost data and no commitment
         # This model originated from driver_esr.py
         modObject = create_model(
