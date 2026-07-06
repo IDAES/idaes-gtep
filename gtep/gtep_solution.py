@@ -61,11 +61,6 @@ class ExpansionPlanningSolution:
     def save_results_in_json_files(self, gtep_model, dir_name):
 
         folder_name = dir_name
-
-        os.makedirs(folder_name, exist_ok=True)
-        print(
-            f"\n Creating the directory '{folder_name}' to save the results. Working on it ..."
-        )
         m = gtep_model.model
 
         valid_names = ["Inst", "Oper", "Disa", "Ext", "Ret"]

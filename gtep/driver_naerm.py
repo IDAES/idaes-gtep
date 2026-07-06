@@ -10,7 +10,8 @@
 # All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
 # for full copyright and license information.
 #################################################################################
-
+import os
+import csv
 import pyomo.environ as pyo
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
@@ -144,8 +145,12 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-data_date = "6-25-2026"
-data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
+# Add data paths and create directory to save results
+data_date = "7-01-2026"
+dir_name = f"NAERM_initial_testing_{data_date}"
+os.makedirs(dir_name, exist_ok=True)
+print(f"\n Creating the directory '{dir_name}' to save the results. Working on it ...")
+data_path = f"data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -203,6 +208,15 @@ mod_object.config["transmission"] = True
 mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
 mod_object.config["advanced_hydro"] = True
+
+# Save all the config details
+config_csv_path = f"{dir_name}/model_config.csv"
+with open(config_csv_path, mode="w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["config_key", "config_value", "value_type"])
+    for key, value in sorted(mod_object.config.items()):
+        writer.writerow([key, repr(value), type(value).__name__])
+print(f">>>Saved model configuration to: {config_csv_path}")
 
 mod_object.create_model()
 print("model is created!")
@@ -279,27 +293,8 @@ if solver == "xpress":
     xpress.controls.maxmiptasks = 16
 
     mod_object.results = opt.solve(
-        mod_object.model,
-        tee=True,
+        mod_object.model, tee=True, logfile="xpress_log_files/xpress.log"
     )
-
-    # mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
-else:
-    options_dict = {"MIPGap": 0.05}
-    mod_object.results = opt.solve(
-        mod_object.model,
-        tee=True,
-        options=options_dict,
-        # logfile=log_folder + "/" + solver + ".log",
-    )
-# mod_object.model.operatingCostTotal.display()
-# mod_object.model.expansionCostTotal.display()
-# mod_object.model.penaltyCostTotal.display()
-# print(pyo.value(mod_object.model.total_cost_objective_rule))
-mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
-    1
-].dispatchPeriod[1].renewableGeneration.pprint()
-raise SystemExit
 
 # Save the results in .json files using the solution class
 dir_name = f"NAERM_initial_testing_{data_date}"
@@ -322,7 +317,7 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-day_hour_list = [("2034-07-12 00:00", 18), ("2034-07-12 00:00", 4)]
+day_hour_list = [("2034-07-12 00:00", 18), ("2034-10-01 00:00", 4)]
 sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report
