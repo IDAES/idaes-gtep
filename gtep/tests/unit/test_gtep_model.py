@@ -335,7 +335,7 @@ class TestGTEP(unittest.TestCase):
         # commitment is disabled. The test also checks unit
         # consistency and validates the resulting objective value
         # against an expected benchmark.
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+        dataObject, dataProcessingObject = create_model(
             stages=2,
             num_reps=2,
             len_reps=1,
@@ -466,7 +466,7 @@ class TestGTEP(unittest.TestCase):
         # hydropower enabled. The test also checks unit consistency
         # and validates the resulting objective value against an
         # expected benchmark.
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
+        dataObject, dataProcessingObject = create_model(
             stages=2,
             num_reps=2,
             len_reps=1,
