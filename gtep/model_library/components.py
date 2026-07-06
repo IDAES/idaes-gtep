@@ -513,19 +513,33 @@ def add_model_parameters(m):
 
     # Initialize fixed and variable costs and update values during
     # investment stage.
-    m.fixedCost = pyo.Param(
+    m.generatorFixedCost = pyo.Param(
         m.generators,
         initialize={gen: 0 for gen in m.generators},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
+        doc="Generators fixed operating costs",
     )
-    m.varCost = pyo.Param(
+    m.generatorVariableCost = pyo.Param(
         m.generators,
         initialize={gen: 0 for gen in m.generators},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
+        doc="Generators variable costs",
+    )
+    m.branchFixedCost = pyo.Param(
+        m.transmission,
+        initialize={branch: 0 for branch in m.transmission},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Branches fixed operating costs",
+    )
+    m.branchVariableCost = pyo.Param(
+        m.transmission,
+        initialize={branch: 0 for branch in m.transmission},
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Branches variable costs",
     )
 
     # Initialize curtailment and load shed costs as parameters and
@@ -731,61 +745,62 @@ def add_model_cost_parameters_from_csv(m, year):
         return total_cost
 
     if m.mc is not None:
+
+        original_units = u.USD / (u.MW * u.year)
+        final_units = u.USD / (u.MW * u.hr)
+        final_inv_units = u.USD / u.MW
+
         for index, row in m.mc.branch_data_target.iterrows():
             branch_uid = row["UID"]
-            capex_col = f"capex_{year}"
-            annualized_cost = float(row.get(capex_col, 0))
-            # if annualized_cost == 0 or annualized_cost is None:
-            #     print(
-            #         f"[WARNING] No {capex_col} found for branch '{branch_uid}'. Assuming investment cost of 0."
-            #     )
-            if pd.isna(capex_col):
-                annualized_cost = 0
 
-            inv_cost = annualized_to_total_capex(
-                annualized_cost,
-                years=pyo.value(m.branchLifetimes[branch_uid]),
-                discount_rate=0.07,
+            # Read costs for the selected year
+            capex_yr = float(row[f"capex_{year}"])  # units in $/MW-year
+            fixed_ops_yr = float(row[f"fixed_ops_{year}"])  # units in $/MW-year
+            var_ops_yr = float(row[f"var_ops_{year}"])  # units in $/MWh
+
+            inv_cost = capex_yr * (u.USD / u.MW)           
+            # inv_cost = annualized_to_total_capex(
+            #     capex_yr,
+            #     years=pyo.value(m.branchLifetimes[branch_uid]),
+            #     discount_rate=0.07,
+            # )
+
+            fixed_cost = pyo.units.convert(
+                fixed_ops_yr * original_units, to_units=final_units
             )
+            var_cost = var_ops_yr * final_units  # units in $/MWh
+            
             m.branchInvestmentCost[branch_uid] = inv_cost
-    # print(branch_investment_cost_dict)
-
+            m.branchFixedCost[branch_uid] = fixed_cost
+            m.branchVariableCost[branch_uid] = var_cost
+            
     if m.mc is not None:
         for index, row in m.mc.gen_data_target.iterrows():
             gen_uid = row["GEN UID"]
             unit_type = row["Unit Type"].upper()
 
-            # Read costs for the selected year. All units in $/MW-yr
-            capex_yr = float(row[f"capex_{year}"])
-            fixed_ops_yr = float(row[f"fixed_ops_{year}"])
-            var_ops_yr = float(row[f"var_ops_{year}"])
+            # Read costs for the selected year
+            capex_yr = float(row[f"capex_{year}"])  # units in $/MW-year
+            fixed_ops_yr = float(row[f"fixed_ops_{year}"])  # units in $/MW-year
+            var_ops_yr = float(row[f"var_ops_{year}"])  # units in $/MWh
 
-            original_units = u.USD / (u.MW * u.year)
-            final_units = u.USD / (u.MW * u.hr)
-            final_inv_units = u.USD / u.MW
+            inv_cost = capex_yr * (u.USD / u.MW)
+            # inv_cost = annualized_to_total_capex(
+            #     capex_yr,
+            #     years=pyo.value(m.genLifetimes[gen_uid]),
+            #     discount_rate=0.07,
+            #     # capex_yr, years=1, discount_rate=0.07
+            # )
 
-            # Convert investment cost from $/MW-year (annualized) to
-            # $/MW (de-annualized). Use lifetime from data.
-            if pd.isna(capex_yr):
-                capex_yr = 0
-
-            inv_cost = annualized_to_total_capex(
-                capex_yr, years=pyo.value(m.genLifetimes[gen_uid]), discount_rate=0.07
+            fixed_cost = pyo.units.convert(
+                fixed_ops_yr * original_units, to_units=final_units
             )
-
-            # Convert fixed cost from $/MW-year to $/MWh
-            fixed_cost = fixed_ops_yr * original_units
-            fixed_cost = pyo.units.convert(fixed_cost, to_units=final_units)
-
-            # Variable cost: it is in $/MWh already
-            var_cost = var_ops_yr * final_units
-            # print(f"{pyo.value(var_cost) = }")
-            # print(f"{pyo.value(fixed_cost) = }")
-
-            # Assign to Pyomo parameters (strip units for Pyomo Param)
-            m.fixedCost[gen_uid] = pyo.value(fixed_cost)
-            m.varCost[gen_uid] = pyo.value(var_cost)
+            var_cost = var_ops_yr * final_units  # units in $/MWh
+           
             m.generatorInvestmentCost[gen_uid] = pyo.value(inv_cost)
-    # m.fixedCost.display()
-    # m.varCost.display()
+            m.generatorFixedCost[gen_uid] = pyo.value(fixed_cost)
+            m.generatorVariableCost[gen_uid] = pyo.value(var_cost)
+
     # m.generatorInvestmentCost.display()
+    # m.generatorFixedCost.display()
+    # m.generatorVariableCost.display()
