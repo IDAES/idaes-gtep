@@ -335,7 +335,7 @@ class TestGTEP(unittest.TestCase):
         # commitment is disabled. The test also checks unit
         # consistency and validates the resulting objective value
         # against an expected benchmark.
-    
+
         # Test ExpansionPlanningModel with cost data and no commitment
         # This model originated from driver_esr.py
         modObject = create_model(
