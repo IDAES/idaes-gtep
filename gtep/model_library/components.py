@@ -16,12 +16,14 @@ Planning (GTEP) Model
 
 """
 
-from warnings import warn
+import logging
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 import gtep.model_library.storage as stor
+
+logger = logging.getLogger("gtep.model_library.components")
 
 
 def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
@@ -734,8 +736,9 @@ def repopulate_cost_parameters(m, year):
 
     """
 
-    print(
-        "[INFO]: Assigning NG CT cost values to all thermal generators and solar PV cost values to all renewable generators."
+    logger.info(
+        "Assigning NG CT cost values to all thermal generators "
+        "and solar PV cost values to all renewable generators."
     )
 
     gen_thermal_type = "CT"
@@ -768,8 +771,9 @@ def repopulate_cost_parameters(m, year):
                 continue
     else:
         # TODO: Check what the default costs should be
-        print(
-            "Cost data was not provided in m.mc instance (check DataProcessing for more details). Setting costs parameters to random values for now."
+        logger.warning(
+            "Cost data was not provided in m.mc instance (check DataProcessing for more details). "
+            "Setting costs parameters to random values for now."
         )
         m.genThermalInvCost.append(1)  # in $/kW
         m.genThermalFixOpCost.append(1)  # in $/kW-yr

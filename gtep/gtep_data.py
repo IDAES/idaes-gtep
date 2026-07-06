@@ -26,7 +26,7 @@ import random
 from prescient.simulator.config import PrescientConfig
 from prescient.data.providers import gmlc_data_provider
 
-logger = logging.getLogger("pyomo.common")
+logger = logging.getLogger("gtep.gtep_data")
 
 
 class ExpansionPlanningData:
