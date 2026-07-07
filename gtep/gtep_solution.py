@@ -1144,23 +1144,6 @@ class ExpansionPlanningSolution:
                 "ES4-c",
             ]
 
-            total_gen_by_type = defaultdict(float)
-            file_path = os.path.join(folder_name, "generation.json")
-            if not os.path.exists(file_path):
-                print(f"[WARNING] File not found: {file_path}")
-                return {}
-
-            with open(file_path, "r") as f:
-                data = json.load(f)
-
-                for key, value in data.items():
-                    # The generator type is always at the end after the last '.'
-                    gen_name = key.split(".")[-1]
-                    for gen_type in gen_types:
-                        if gen_name.endswith(gen_type):
-                            total_gen_by_type[gen_type] += value
-                            break
-
             def mw_to_gwh(total_mw, hours_per_period=1):
                 """
                 Converts total MW (sum over all periods) to GWh.
@@ -1172,32 +1155,162 @@ class ExpansionPlanningSolution:
                 total_gwh = total_mwh / 1000
                 return total_gwh
 
-            total_gen_all_types = sum(total_gen_by_type.values())
-            total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
-            messages.append(f"Total generation (GWh): {total_gen_gwh}")
+            def add_generation_metrics():
+                """Add total generation and generation by generator
+                type.
 
-            messages.append("Total generation by generator type:")
-            for gen_type, total in total_gen_by_type.items():
-                total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
-                messages.append(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+                """
+                total_gen_by_type = defaultdict(float)
+                file_path = os.path.join(folder_name, "generation.json")
 
-            # Read charging.json and discharging.json, sums all _battery keys
-            for file_type in ["charging", "discharging"]:
-                file_path = os.path.join(folder_name, f"{file_type}.json")
                 if not os.path.exists(file_path):
                     print(f"[WARNING] File not found: {file_path}")
-                    continue
+                    return
 
                 with open(file_path, "r") as f:
                     data = json.load(f)
 
-                total_battery = sum(
-                    value
-                    for key, value in data.items()
-                    if key.endswith("_battery") or key.endswith("_ps")
-                )
-                total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
-                messages.append(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+                for key, value in data.items():
+                    # The generator type is always at the end after
+                    # the last '.'
+                    gen_name = key.split(".")[-1]
+                    for gen_type in gen_types:
+                        if gen_name.endswith(gen_type):
+                            total_gen_by_type[gen_type] += value
+                            break
+                        
+                total_gen_all_types = sum(total_gen_by_type.values())
+                total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
+
+                messages.append(f"Total generation (GWh): {total_gen_gwh}")
+                messages.append("Total generation by generator type:")
+
+                for gen_type, total in total_gen_by_type.items():
+                    total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
+                    messages.append(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+
+            def add_battery_metrics():
+                """Add total battery charging and discharging.
+
+                """
+
+                # Read charging.json and discharging.json, sums all _battery keys
+                for file_type in ["charging", "discharging"]:
+                    file_path = os.path.join(folder_name, f"{file_type}.json")
+
+                    if not os.path.exists(file_path):
+                        print(f"[WARNING] File not found: {file_path}")
+                        continue
+
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+
+                    total_battery = sum(
+                        value
+                        for key, value in data.items()
+                        if key.endswith("_battery") or key.endswith("_ps")
+                    )
+                    total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
+                    messages.append(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+
+
+            def add_curtailment_metrics():
+                """Add total curtailment.
+                
+                """
+                for curt_file in ["curtailment.json"]:
+                    file_path = os.path.join(folder_name, curt_file)
+
+                    if not os.path.exists(file_path):
+                        continue
+
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+
+                    total_curtailment = sum(float(value) for value in data.values())
+                    total_curtailment_gwh = mw_to_gwh(total_curtailment, hours_per_period=1)
+
+                    messages.append(f"Total curtailment (GWh): {total_curtailment_gwh}")
+                    return
+
+                print("[WARNING] No curtailment file found.")
+
+            def add_generator_investment_metrics():
+                """Add total number of newly installed generators and
+                installed generators by type.
+
+                """
+                installed_gens = set()
+                installed_gens_by_type = defaultdict(int)
+
+                investment_files = [
+                    "renewable_investments.json",
+                    "dispatchable_investments.json",
+                ]
+                
+                for investment_file in investment_files:
+                    file_path = os.path.join(folder_name, investment_file)
+
+                    if not os.path.exists(file_path):
+                        print(f"[WARNING] File not found: {file_path}")
+                        continue
+
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+
+                    for key, value in data.items():
+                        is_gen_installed = (
+                            "renewableInstalled" in key or "genInstalled" in key
+                        )
+
+                        if not is_gen_installed or float(value) < 0.001:
+                            continue
+
+                        gen_name = key.split(".")[-1]
+
+                        if gen_name in installed_gens:
+                            continue
+
+                        installed_gens.add(gen_name)
+                
+                        for gen_type in gen_types:
+                            if gen_name.endswith(gen_type):
+                                installed_gens_by_type[gen_type] += 1
+                                break
+
+                messages.append(f"Number of installed generators: {len(installed_gens)}")
+                messages.append("Number of installed generators by type:")
+
+                for gen_type, count in installed_gens_by_type.items():
+                    messages.append(f"  installed_{gen_type}: {count}")
+
+            def add_branch_investment_metrics():
+                """Add total number of newly installed branches.
+
+                """
+                installed_branches = set()
+                file_path = os.path.join(folder_name, "dispatchable_investments.json")
+
+                if not os.path.exists(file_path):
+                    print(f"[WARNING] File not found: {file_path}")
+                    messages.append("Number of installed branches: 0")
+                    return
+
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+
+                for key, value in data.items():
+                    if "branchInstalled" in key and float(value) >= 0.001:
+                        branch_name = key.split(".")[-1]
+                        installed_branches.add(branch_name)
+
+                messages.append(f"Number of installed branches: {len(installed_branches)}")
+
+            add_generation_metrics()
+            add_battery_metrics()
+            add_curtailment_metrics()
+            add_generator_investment_metrics()
+            add_branch_investment_metrics()
 
             return messages
 
