@@ -146,11 +146,11 @@ rep_days = [
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
 # Add data paths and create directory to save results
-data_date = "7-01-2026"
+data_date = "7-08-2026"
 dir_name = f"NAERM_initial_testing_{data_date}"
 os.makedirs(dir_name, exist_ok=True)
 print(f"\n Creating the directory '{dir_name}' to save the results. Working on it ...")
-data_path = f"data/WECC_ADS_PNNL_{data_date}"
+data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=15,
@@ -228,9 +228,9 @@ print("model is created!")
 # ].dispatchPeriod[1].renewableGeneratorCost.pprint()
 # mod_object.model.varCost.pprint()
 # mod_object.model.generatorInvestmentCost.pprint()
-mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
-    1
-].dispatchPeriod[1].operational_renewables_only.pprint()
+# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
+#     1
+# ].dispatchPeriod[1].operational_renewables_only.pprint()
 
 # raise SystemExit
 # mod_object.model.renewableQuota.pprint()
@@ -293,7 +293,8 @@ if solver == "xpress":
     xpress.controls.maxmiptasks = 16
 
     mod_object.results = opt.solve(
-        mod_object.model, tee=True, logfile="xpress_log_files/xpress.log"
+        mod_object.model,
+        tee=True,
     )
 
 # Save the results in .json files using the solution class

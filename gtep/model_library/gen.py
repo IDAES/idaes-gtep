@@ -115,12 +115,10 @@ def add_investment_generators_constraints(m, b, investment_stage):
     for gen in m.renewableGenerators:
         is_candidate = str(gen).endswith("-c")
         in_service = m.md.data["elements"]["generator"][gen]["in_service"]
-            
+
         if investment_stage == 1:
             if in_service:
-                b.renewableOperational[gen].fix(
-                    m.renewableCapacityNameplate[gen]
-                )
+                b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
             else:
                 b.renewableOperational[gen].fix(0)
                 b.renewableExtended[gen].fix(0)
@@ -327,7 +325,6 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
         @disj.Constraint(
             b.dispatchPeriods,
-            m.thermalGenerators,
             doc="Ramp down limits for fully-on thermal generators",
         )
         def ramp_down_limits(disj, dispatchPeriod, generator):
@@ -351,9 +348,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 return pyo.Constraint.Skip
 
         # NOTE: maxSpinningReserve is a percentage of thermalCapacity
-        @disj.Constraint(
-            b.dispatchPeriods, m.thermalGenerators, doc="Maximum spinning reserve"
-        )
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum spinning reserve")
         def max_spinning_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
@@ -384,7 +379,6 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         # [TODO: Define if the max() function is necessary here.]
         @disj.Constraint(
             b.dispatchPeriods,
-            m.thermalGenerators,
             doc="Ramp up constraints for generators starting up",
         )
         def ramp_up_limits(disj, dispatchPeriod, generator):
@@ -441,7 +435,6 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
         @disj.Constraint(
             b.dispatchPeriods,
-            m.thermalGenerators,
             doc="Ramp down constraints for generators shutting down",
         )
         def ramp_down_limits(disj, dispatchPeriod, generator):
@@ -488,7 +481,6 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         # need to set spinning reserve to 0.]
         @disj.Constraint(
             b.dispatchPeriods,
-            m.thermalGenerators,
             doc="Maximum quickstart reserve constraint",
         )
         def max_quickstart_reserve(disj, dispatchPeriod, generator):

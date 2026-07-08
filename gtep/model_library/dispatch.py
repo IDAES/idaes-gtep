@@ -348,43 +348,11 @@ def add_dispatch_constraints(b, disp_per):
             )
         )
 
-        nameplate_mw = pyo.value(
-            pyo.units.convert(
-                m.renewableCapacityNameplate[renewableGen],
-                to_units=u.MW,
-            )
-        )
-
-        # Avoid division by zero. If nameplate is zero, the renewable
-        # generator has no available capacity in this formulation.
-        if abs(nameplate_mw) <= 1e-9:
-            if abs(expected_mw) > 1e-9:
-                raise ValueError(
-                    f"Renewable generator {renewableGen} has zero nameplate "
-                    f"capacity but nonzero expected renewable output "
-                    f"({expected_mw} MW). Please check input data."
-                )
-
-            return (
-                b.renewableGeneration[renewableGen]
-                + b.renewableCurtailment[renewableGen]
-                == 0 * u.MW
-            )
-
-        availability_factor = expected_mw / nameplate_mw
-
-        active_capacity = (
-            i_p.renewableOperational[renewableGen]
-            + i_p.renewableInstalled[renewableGen]
-            + i_p.renewableExtended[renewableGen]
-        )
-
         return (
-            b.renewableGeneration[renewableGen]
-            + b.renewableCurtailment[renewableGen]
-            == availability_factor * active_capacity
+            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
+            <= expected_mw
         )
-    
+
     # [TODO: Add renewableExtended to this and anywhere else.]
     @b.Constraint(m.renewableGenerators)
     def operational_renewables_only(b, renewableGen):
