@@ -44,7 +44,7 @@ rep_days = [
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
 # Add data paths and create directory to save results
-data_date = "7-01-2026"
+data_date = "7-07-2026"
 dir_name = f"NAERM_initial_testing_{data_date}"
 os.makedirs(dir_name, exist_ok=True)
 print(f"\n Creating the directory '{dir_name}' to save the results. Working on it ...")
