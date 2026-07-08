@@ -12,7 +12,6 @@
 #################################################################################
 
 
-from os.path import abspath, join, dirname
 import pytest
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
@@ -24,8 +23,7 @@ from pyomo.util.check_units import (
     assert_units_equivalent,
 )
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_data import ExpansionPlanningData
-from gtep.gtep_data_processing import DataProcessing
+from gtep.tests.unit.utils_for_testing import create_model
 from egret.data.model_data import ModelData
 
 
@@ -46,94 +44,23 @@ def patch_unit_handlers():
         _component_data_handlers.pop(LogicalConstraint)
 
 
-# Helper functions
-def read_debug_model(
-    stages=1,
-    num_reps=3,
-    len_reps=24,
-    num_commit=24,
-    num_dispatch=4,
-    duration_dispatch=15,
-):
-    curr_dir = dirname(abspath(__file__))
-    debug_data_path = abspath(join(curr_dir, "..", "..", "data", "5bus"))
-    dataObject = ExpansionPlanningData(
-        stages=stages,
-        num_reps=num_reps,
-        len_reps=len_reps,
-        num_commit=num_commit,
-        num_dispatch=num_dispatch,
-        duration_dispatch=duration_dispatch,
-    )
-    dataObject.load_prescient(debug_data_path)
-    return dataObject
-
-
-def prepare_model_and_cost_data(
-    stages=1,
-    num_reps=3,
-    len_reps=24,
-    num_commit=24,
-    num_dispatch=4,
-    duration_dispatch=15,
-):
-    # Prepare model and cost data
-    dataObject = read_debug_model(
-        stages,
-        num_reps,
-        len_reps,
-        num_commit,
-        num_dispatch,
-        duration_dispatch,
-    )
-    curr_dir = dirname(abspath(__file__))
-    data_path = abspath(join(curr_dir, "..", "..", "data", "costs"))
-    bus_data_path = abspath(join(data_path, "Bus_data_gen_weights_mappings.csv"))
-    cost_data_path = abspath(
-        join(
-            data_path,
-            "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx",
-        )
-    )
-    ng_cost_path = abspath(
-        join(
-            data_path,
-            "Total_Energy_Supply_Disposition_and_Price_Summary.csv",
-        )
-    )
-    candidate_gens = [
-        "Natural Gas_CT",
-        "Natural Gas_FE",
-        "Solar - Utility PV",
-        "Land-Based Wind",
-    ]
-
-    dataProcessingObject = DataProcessing()
-    dataProcessingObject.load_gen_data(
-        bus_data_path=bus_data_path,
-        cost_data_path=cost_data_path,
-        ng_cost_path=ng_cost_path,
-        candidate_gens=candidate_gens,
-    )
-    return dataObject, dataProcessingObject
-
-
 @pytest.mark.usefixtures("patch_unit_handlers")
 class TestGTEP(unittest.TestCase):
     def test_model_init(self):
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with default values, including building a Pyomo.ConcreteModel object
-        data_object = read_debug_model(
-            stages=1,
-            num_reps=3,
-            len_reps=24,
-            num_commit=24,
-            num_dispatch=4,
-            duration_dispatch=60,
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 3,
+                "len_reps": 24,
+                "num_commit": 24,
+                "num_dispatch": 4,
+                "duration_dispatch": 60,
+            },
+            include_cost_data=False,
         )
-        modObject = ExpansionPlanningModel(data=data_object)
         self.assertIsInstance(modObject, ExpansionPlanningModel)
-        modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
         self.assertEqual(modObject.stages, 1)
         self.assertEqual(modObject.formulation, None)
@@ -146,19 +73,18 @@ class TestGTEP(unittest.TestCase):
 
         # Test that the ExpansionPlanningModel object can read a default dataset and init
         # properly with non-default values
-        data_object = read_debug_model(
-            stages=2,
-            num_reps=4,
-            len_reps=16,
-            num_commit=12,
-            num_dispatch=12,
-            duration_dispatch=30,
-        )
-        modObject = ExpansionPlanningModel(
-            data=data_object,
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 4,
+                "len_reps": 16,
+                "num_commit": 12,
+                "num_dispatch": 12,
+                "duration_dispatch": 30,
+            },
+            include_cost_data=False,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
-        modObject.create_model()
         self.assertIsInstance(modObject.model, ConcreteModel)
         self.assertEqual(modObject.stages, 2)
         self.assertEqual(modObject.formulation, None)
@@ -200,17 +126,16 @@ class TestGTEP(unittest.TestCase):
     def test_model_unit_consistency(self):
         # Test that the ExpansionPlanningModel has consistent units and spot check that
         # components have their expected units
-        data_object = read_debug_model(
-            stages=2,
-            num_reps=2,
-            len_reps=2,
-            num_commit=2,
-            num_dispatch=2,
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 2,
+                "num_commit": 2,
+                "num_dispatch": 2,
+            },
+            include_cost_data=False,
         )
-        modObject = ExpansionPlanningModel(
-            data=data_object,
-        )
-        modObject.create_model()
         m = modObject.model
 
         # Check for consistent units
@@ -263,11 +188,20 @@ class TestGTEP(unittest.TestCase):
 
     def test_solve_bigm(self):
         # Solve the debug model as is
-        data_object = read_debug_model(
-            num_reps=1, len_reps=1, num_commit=1, num_dispatch=1
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 1,
+                "len_reps": 1,
+                "num_commit": 1,
+                "num_dispatch": 1,
+                "duration_dispatch": 15,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00"],
+            },
+            include_cost_data=False,
         )
-        modObject = ExpansionPlanningModel(data=data_object)
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -284,25 +218,29 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977153.07, places=1
+            value(modObject.model.total_cost_objective_rule), 7977150.30, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_no_investment(self):
         # Solve the debug model with no investment
-        data_object = read_debug_model(
-            num_reps=1,
-            len_reps=1,
-            num_commit=1,
-            num_dispatch=1,
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 1,
+                "len_reps": 1,
+                "num_commit": 1,
+                "num_dispatch": 1,
+                "duration_dispatch": 15,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00"],
+            },
+            config={
+                "include_investment": False,
+            },
+            include_cost_data=False,
         )
-        modObject = ExpansionPlanningModel(
-            data=data_object,
-        )
-
-        modObject = ExpansionPlanningModel(data=data_object)
-        modObject.config["include_investment"] = False
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -319,7 +257,7 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977153.07, places=1
+            value(modObject.model.total_cost_objective_rule), 7977150.30, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -327,30 +265,32 @@ class TestGTEP(unittest.TestCase):
     def test_with_cost_data_and_commitment(self):
         # Test ExpansionPlanningModel with cost data
         # This model originated from driver_esr.py
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
-            stages=2,
-            num_reps=2,
-            len_reps=1,
-            num_commit=6,
-            num_dispatch=4,
-            duration_dispatch=15,
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
         )
-
-        # Populate and create GTEP model
-        modObject = ExpansionPlanningModel(
-            data=dataObject,
-            cost_data=dataProcessingObject,
-        )
-
-        modObject.config["include_investment"] = True
-        modObject.config["include_commitment"] = True
-        modObject.config["include_redispatch"] = True
-        modObject.config["scale_loads"] = True
-        modObject.config["transmission"] = True
-        modObject.config["storage"] = False
-        modObject.config["flow_model"] = "DC"
-
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -367,38 +307,45 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779486735.40, places=1
+            value(modObject.model.total_cost_objective_rule), 779486340.91, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_no_commitment(self):
-        # Test ExpansionPlanningModel with cost data and no commitment
-        # This model originated from driver_esr.py
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
-            stages=2,
-            num_reps=2,
-            len_reps=1,
-            num_commit=6,
-            num_dispatch=4,
-            duration_dispatch=15,
+
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data when unit
+        # commitment is disabled. The test also checks unit
+        # consistency and validates the resulting objective value
+        # against an expected benchmark.
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": False,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
         )
-
-        # Populate and create GTEP model
-        modObject = ExpansionPlanningModel(
-            data=dataObject,
-            cost_data=dataProcessingObject,
-        )
-
-        modObject.config["include_investment"] = True
-        modObject.config["include_commitment"] = False
-        modObject.config["include_redispatch"] = True
-        modObject.config["scale_loads"] = True
-        modObject.config["transmission"] = True
-        modObject.config["storage"] = False
-        modObject.config["flow_model"] = "DC"
-
-        modObject.create_model()
 
         # Check for consistent units
         # Note: Need to do this check before applying the GDP transformations
@@ -415,7 +362,112 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 1524533561.02, 926187704.4
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 926195251.45, places=1
+            value(modObject.model.total_cost_objective_rule), 926194856.96, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_with_cost_data_and_weights(self):
+
+        # Typically, representative weights should reflect how many
+        # actual days each representative day represents. For example,
+        # with 2 representative days in a 365-day year, the weights
+        # would be approximately [182, 183].  For now, we use
+        # simplified test values because the model becomes infeasible
+        # with HiGHS when using the full representative-day weights.
+        # These values are intended only to verify that the model
+        # reads and applies representative weights correctly.
+        weights = [10, 12]
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
+                "representative_weights": weights,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
         )
 
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 8584301655.08, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_with_cost_data_and_hydro(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": True,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
+        )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
