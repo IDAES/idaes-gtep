@@ -17,6 +17,7 @@ Variables and Constraints for the Commitment Stage in the
 Generation and Transmission Expansion Planning (GTEP) Model
 
 """
+
 import pytest
 import pyomo.common.unittest as unittest
 from gtep.model_library.commitment import (
@@ -28,88 +29,97 @@ from gtep.model_library.commitment import (
 )
 import pyomo.environ as pyo
 from pyomo.environ import units as u
-from unittest.mock import MagicMock
-
-commitment_period = 1
-investment_stage = 1
-
-
-import pyomo.environ as pyo
-from unittest.mock import MagicMock
+from gtep.tests.unit.utils_for_testing import create_model, path_9_bus
+from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
+from unittest.mock import patch
 
 
-def create_test_inv(
-    include_commit=True,
-    storage=True,
-    scale_loads=True,
-    p_max_data=None,
-):
-    m = pyo.ConcreteModel()
-    m.stages = [1]
-    m.config = {
-        "include_commitment": include_commit,
-        "storage": storage,
-        "scale_loads": scale_loads,
-    }
-    m.investmentFactor = {1: 1.0}
-    m.weights = {1: 1.0}
+class TestObjective(unittest.TestCase):
+    def _create_testing_obj(self, config):
 
-    m.regions = pyo.Set(initialize=["R1", "R2"])
-    m.thermalGenerators = pyo.Set(initialize=["Gen1", "Gen2"])
-    m.renewableGenerators = pyo.Set(initialize=["Ren1", "Ren2"])
+        self.investment_stage = 1
+        self.repr_period = 1
+        self.commit_period = 1
 
-    m.investmentStage = pyo.Block(m.stages)
-    inv = m.investmentStage[1]
+        self.m = create_model(input_data_path=path_9_bus, config=config).model
+        self.b = (
+            self.m.investmentStage[self.investment_stage]
+            .representativePeriod[self.repr_period]
+            .commitmentPeriods[self.commit_period]
+        )
 
-    # representativePeriods is a list of indices
-    inv.representativePeriods = [1]
-    inv.representativePeriod = pyo.Block(inv.representativePeriods)
+    def _make_commitment_param_objects(self):
+        self.check_helper.add_object(
+            name="commitmentPeriodLength",
+            units=u.hr,
+            obj_type=pyo.Param,
+        )
+        self.check_helper.add_object(
+            name="carbonTax",
+            obj_type=pyo.Param,
+        )
 
-    # Declare commitmentPeriods as an indexed Block inside representativePeriod[1]
-    inv.representativePeriod[1].commitmentPeriods = pyo.Block([1])
+    def test_add_commitment_params_basic(self):
+        self._create_testing_obj(config={"advanced_hydro": False})
 
-    # Access the block for commitmentPeriod 1 (this initializes it)
-    b_comm = inv.representativePeriod[1].commitmentPeriods[1]
+        # Set up helper before function call
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._make_commitment_param_objects()
 
-    # Add any attributes you want to this block
-    b_comm.renewableSurplusCommitment = 10
+        with (
+            patch(
+                "gtep.model_library.hydropower_generation.fix_hydropower_limits"
+            ) as mock_hydro,
+            patch("gtep.model_library.scaling.add_load_scaling") as mock_scaling,
+        ):
+            add_commitment_parameters(self.b, self.commit_period, self.investment_stage)
 
-    if p_max_data is None:
-        p_max_data = {
-            "Ren1": 100.0,
-            "Ren2": {"values": [50.0, 60.0]},
-        }
+            # scaling should always be called
+            mock_scaling.assert_called_once_with(
+                self.m,
+                self.b,
+                self.commit_period,
+                self.investment_stage,
+                scaling_value=10,
+            )
 
-    m.md = MagicMock()
-    m.md.data = {
-        "elements": {
-            "generator": {
-                gen: {"p_max": p_max_data.get(gen, 0)} for gen in m.renewableGenerators
-            }
-        }
-    }
+            # advanced_hydro=False, so this should not be called
+            mock_hydro.assert_not_called()
 
-    return b_comm, inv, m
+        # verify Pyomo params exist / type / units
+        self.check_helper.check_all_objects()
 
+        # renewableCapacityExpected is a plain dict, not a Pyomo component
+        assert hasattr(self.b, "renewableCapacityExpected")
+        assert isinstance(self.b.renewableCapacityExpected, dict)
 
-def test_add_commitment_parameters_basic():
-    b_comm, inv, m = create_test_inv()
+        # it should contain all renewable generators as keys
+        for g in self.m.renewableGenerators:
+            assert g in self.b.renewableCapacityExpected
 
-    # Call function with commitment_period=2 (index 1)
-    add_commitment_parameters(b_comm, commitment_period, investment_stage)
+    def test_add_commitment_params_advanced_hydro(self):
+        self._create_testing_obj(config={"advanced_hydro": True})
 
-    # Check parameters exist and have correct defaults
-    assert isinstance(b_comm.commitmentPeriodLength, pyo.Param)
-    assert b_comm.commitmentPeriodLength.value == 1
-    assert isinstance(b_comm.carbonTax, pyo.Param)
-    assert b_comm.carbonTax.value == 0
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._make_commitment_param_objects()
 
-    # Check renewableCapacityExpected keys and values
-    assert "Ren1" in b_comm.renewableCapacityExpected
-    assert "Ren2" in b_comm.renewableCapacityExpected
+        with (
+            patch(
+                "gtep.model_library.investment.hydro.fix_hydropower_limits"
+            ) as mock_hydro,
+            patch(
+                "gtep.model_library.investment.scaling.add_load_scaling"
+            ) as mock_scaling,
+        ):
+            add_commitment_parameters(self.b, self.commit_period, self.investment_stage)
 
-    # Ren1 p_max is float, so expected capacity should be 0 * units
-    assert b_comm.renewableCapacityExpected["Ren1"].magnitude == 0
+            mock_hydro.assert_called_once_with(self.b, self.commit_period)
+            mock_scaling.assert_called_once_with(
+                self.m,
+                self.b,
+                self.commit_period,
+                self.investment_stage,
+                scaling_value=10,
+            )
 
-    # Ren2 p_max is dict, so expected capacity should be 60.0 * units
-    assert b_comm.renewableCapacityExpected["Ren2"].magnitude == 60.0
+        self.check_helper.check_all_objects()
