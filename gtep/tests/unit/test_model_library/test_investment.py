@@ -30,61 +30,6 @@ import pyomo.common.unittest as unittest
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
 from gtep.tests.unit.utils_for_testing import create_model, path_9_bus
 
-from gtep.gtep_model import ExpansionPlanningModel
-from gtep.gtep_data import ExpansionPlanningData
-from gtep.gtep_data_processing import DataProcessing
-from pathlib import Path
-
-curr_dir = Path(__file__).resolve().parent
-input_data_source = (
-    curr_dir / ".." / ".." / ".." / "data" / "9_bus_GTEP_dir"
-).resolve()
-
-bus_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "Bus_data_gen_weights_mappings.csv"
-).resolve()
-cost_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-).resolve()
-ng_data_path = (
-    curr_dir
-    / ".."
-    / ".."
-    / ".."
-    / "data"
-    / "costs"
-    / "Total_Energy_Supply_Disposition_and_Price_Summary.csv"
-).resolve()
-
-
-def get_block(model, layer):
-    current_block = model
-    for component_name in [
-        "investmentStage",
-        "representativePeriod",
-        "commitmentPeriod",
-        "dispatchPeriod",
-    ]:
-        block = current_block.component(component_name)
-        first_idx = block.index_set().at(1)
-        current_block = block[first_idx]
-        if layer == component_name:
-            break
-
-    return current_block
-
 
 class TestInvestment(unittest.TestCase):
 
@@ -93,11 +38,13 @@ class TestInvestment(unittest.TestCase):
             name="maxThermalInvestment",
             units=u.MW,
             obj_type=pyo.Param,
+            index=self.m.regions,
         )
         self.check_helper.add_object(
             name="maxRenewableInvestment",
             units=u.MW,
             obj_type=pyo.Param,
+            index=self.m.regions,
         )
         self.check_helper.add_object(
             name="quotaDeficit",
@@ -109,11 +56,6 @@ class TestInvestment(unittest.TestCase):
             units=u.USD,
             obj_type=pyo.Var,
         )
-        self.check_helper.add_object(
-            name="storageCostInvestment",
-            units=u.USD,
-            obj_type=pyo.Var,
-        )
 
     def create_testing_obj(self, config):
         """Creates a model and runs tests for a given set of config options."""
@@ -121,18 +63,24 @@ class TestInvestment(unittest.TestCase):
         self.m = create_model(input_data_path=path_9_bus, config=config).model
         self.b = self.m.investmentStage[self.investment_stage]
 
-    # def test_add_investment_param_and_var(self):
-    #     self.create_testing_obj(config={})
-    #     self.check_helper = PyomoCheckHelper(self, self.b)
-    #     self._make_param_and_var_objects()
-    #     self.check_helper.check_all_objects()
-    #     self.assertEqual(self.b.maxThermalInvestment._default_val, 1000)
-    #     self.assertEqual(self.b.maxRenewableInvestment._default_val, 1000)
-    #     self.assertEqual(self.b.quotaDeficit.value, 0)
-    #     self.assertEqual(self.b.expansionCost.value, 0)
-    #     self.assertEqual(self.b.quotaDeficit.domain.name, "NonNegativeReals")
-    #     self.assertEqual(self.b.expansionCost.domain.name, "NonNegativeReals")
+    ## ADD INVESTMENT PARAM AND VAR ###
+    def test_add_investment_param_and_var(self):
+        self.create_testing_obj(config={})
 
+        # create helper before function call
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._make_param_and_var_objects()
+
+        with patch(
+            "gtep.model_library.investment.commit.add_investment_commitment_variables"
+        ) as mock_comm:
+            add_investment_params_and_variables(self.b, self.investment_stage)
+
+            mock_comm.assert_called_once_with(self.b)
+
+        self.check_helper.check_all_objects()
+
+    ### ADD INVESTMENT DISJUNCTS ###
     def test_add_investment_disjuncts_all_true(self):
         self.create_testing_obj(config={"storage": True, "transmission": True})
 
