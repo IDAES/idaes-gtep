@@ -808,8 +808,9 @@ def add_storage_logical_constraints(m):
         if m.md.data["elements"]["storage"][stor]["in_service"] == False:
             m.investmentStage[1].storOperational[stor].indicator_var.fix(False)
             m.investmentStage[1].storExtended[stor].indicator_var.fix(False)
+            m.investmentStage[1].storRetired[stor].indicator_var.fix(False)
         else:
-            m.investmentStage[1].storOperational[stor].indicator_var.fix(True)
+            m.investmentStage[1].storDisabled[stor].indicator_var.fix(False)
 
     @m.LogicalConstraint(
         m.stages,

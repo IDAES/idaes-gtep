@@ -350,7 +350,7 @@ def add_dispatch_constraints(b, disp_per):
                 + b.renewableCurtailment[renewableGen]
                 == 0 * u.MW
             )
-            
+
         expected_mw = pyo.value(
             pyo.units.convert(
                 c_p.renewableCapacityExpected[renewableGen],
@@ -359,8 +359,7 @@ def add_dispatch_constraints(b, disp_per):
         )
 
         return (
-            b.renewableGeneration[renewableGen]
-            + b.renewableCurtailment[renewableGen]
+            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
             <= expected_mw
         )
 

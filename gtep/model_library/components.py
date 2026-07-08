@@ -332,7 +332,7 @@ def add_model_parameters(m):
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
-    m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
+    m.deficitPenalty = pyo.Param(m.stages, default=0, units=u.USD / u.MW)
 
     # Initialize fuel cost. This is multiplied by the heat_rate
     m.fuelCost = pyo.Param(

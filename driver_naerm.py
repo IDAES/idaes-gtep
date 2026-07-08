@@ -10,8 +10,7 @@
 # All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
 # for full copyright and license information.
 #################################################################################
-import os
-import csv
+
 import pyomo.environ as pyo
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
@@ -22,108 +21,6 @@ from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
 import xpress
-
-import os
-
-
-def _sanitize_path_part(name):
-    return (
-        str(name).replace("[", "_").replace("]", "").replace(",", "_").replace(" ", "_")
-    )
-
-
-def _block_path_components(block, root_block=None):
-    """
-    Convert a block name into hierarchical path components.
-
-    Example:
-        model.plant.unit[3].heater
-    becomes:
-        ["plant", "unit_3", "heater"]
-
-    If root_block is provided and the block name starts with root_block.name,
-    that prefix is removed.
-    """
-    full_name = block.name if block.name is not None else "anonymous_block"
-    parts = full_name.split(".")
-
-    if root_block is not None and root_block.name is not None:
-        root_parts = root_block.name.split(".")
-        if parts[: len(root_parts)] == root_parts:
-            parts = parts[len(root_parts) :]
-
-    if not parts:
-        parts = ["root"]
-
-    return [_sanitize_path_part(p) for p in parts]
-
-
-def export_block_constraints_hierarchical(
-    root_block,
-    output_folder="constraint_dump",
-    individual_entries=False,
-    recurse=True,
-    active=True,
-):
-    """
-    Export constraints from Pyomo blocks into a folder hierarchy matching
-    the full block path.
-
-    Parameters
-    ----------
-    root_block : pyo.Block
-        Root Pyomo block/model.
-    output_folder : str
-        Top-level output folder.
-    individual_entries : bool
-        If False, use pprint() for each Constraint component.
-        If True, write each indexed constraint entry separately.
-    recurse : bool
-        If True, include all sub-blocks.
-    active : bool
-        If True, only include active blocks/constraints.
-    """
-    os.makedirs(output_folder, exist_ok=True)
-
-    if recurse:
-        blocks = list(root_block.block_data_objects(active=active, descend_into=True))
-    else:
-        blocks = [root_block]
-
-    for block in blocks:
-        rel_parts = _block_path_components(block, root_block=root_block)
-        block_dir = os.path.join(output_folder, *rel_parts)
-        os.makedirs(block_dir, exist_ok=True)
-
-        filename = os.path.join(block_dir, "constraints.txt")
-
-        with open(filename, "w") as f:
-            f.write(f"Block: {block.name}\n")
-            f.write("=" * 80 + "\n\n")
-
-            found_any = False
-
-            for constr in block.component_objects(
-                pyo.Constraint, active=active, descend_into=False
-            ):
-                found_any = True
-
-                if not individual_entries:
-                    constr.pprint(ostream=f)
-                    f.write("\n")
-                else:
-                    f.write(f"Constraint component: {constr.name}\n")
-                    f.write("-" * 80 + "\n")
-                    if constr.is_indexed():
-                        for index in constr:
-                            f.write(f"{constr.name}[{index}] : {constr[index].expr}\n")
-                    else:
-                        f.write(f"{constr.name} : {constr.expr}\n")
-                    f.write("\n")
-
-            if not found_any:
-                f.write("No constraints found on this block.\n")
-
 
 # Add data
 rep_days = [
@@ -145,11 +42,7 @@ rep_days = [
 ]
 rep_weights = [27, 32, 32, 37, 21, 29, 13, 25, 21, 21, 23, 26, 17, 23, 18]
 
-# Add data paths and create directory to save results
-data_date = "7-08-2026"
-dir_name = f"NAERM_initial_testing_{data_date}"
-os.makedirs(dir_name, exist_ok=True)
-print(f"\n Creating the directory '{dir_name}' to save the results. Working on it ...")
+data_date = "6-18-2026"
 data_path = f"./gtep/data/WECC_ADS_PNNL_{data_date}"
 data_object = ExpansionPlanningData(
     stages=1,
@@ -209,39 +102,8 @@ mod_object.config["storage"] = True
 mod_object.config["flow_model"] = "transport"
 mod_object.config["advanced_hydro"] = True
 
-# Save all the config details
-config_csv_path = f"{dir_name}/model_config.csv"
-with open(config_csv_path, mode="w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["config_key", "config_value", "value_type"])
-    for key, value in sorted(mod_object.config.items()):
-        writer.writerow([key, repr(value), type(value).__name__])
-print(f">>>Saved model configuration to: {config_csv_path}")
-
 mod_object.create_model()
 print("model is created!")
-
-# print(data_object.md.data["elements"]["generator"].keys())
-# mod_object.model.renewableGenerators.pprint()
-# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
-#     1
-# ].dispatchPeriod[1].renewableGeneratorCost.pprint()
-# mod_object.model.varCost.pprint()
-# mod_object.model.generatorInvestmentCost.pprint()
-# mod_object.model.investmentStage[1].representativePeriod[1].commitmentPeriod[
-#     1
-# ].dispatchPeriod[1].operational_renewables_only.pprint()
-
-# raise SystemExit
-# mod_object.model.renewableQuota.pprint()
-# mod_object.model.investmentStage[1].renewableCurtailmentInvestment.pprint()
-
-# export_block_constraints_hierarchical(
-#     mod_object.model,
-#     output_folder="naerm_nonsense_no_investment",
-#     individual_entries=True,
-#     recurse=True,
-# )
 
 # # print(mod_object.model.md.data['elements']['generator']['AESO_cc_gas'])
 # from pyomo.core.expr.numvalue import as_numeric, is_numeric_data
@@ -270,10 +132,9 @@ print("model is created!")
 # mod_object.model.investmentStage[1].genInstalled['AESO_cc_gas'].pprint()
 
 pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
-# pyo.TransformationFactory("gdp.chull").apply_to(mod_object.model)
 print("model is transformed!")
 
-solver = "gurobi"
+solver = "xpress"
 opt = pyo.SolverFactory(solver)
 xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
 if solver == "xpress":
@@ -295,7 +156,20 @@ if solver == "xpress":
     mod_object.results = opt.solve(
         mod_object.model,
         tee=True,
+        # logfile=log_folder + "/" + solver + ".log",
     )
+else:
+    options_dict = {"MIPGap": 0.05}
+    mod_object.results = opt.solve(
+        mod_object.model,
+        tee=True,
+        options=options_dict,
+        # logfile=log_folder + "/" + solver + ".log",
+    )
+# mod_object.model.operatingCostTotal.display()
+# mod_object.model.expansionCostTotal.display()
+# mod_object.model.penaltyCostTotal.display()
+# print(pyo.value(mod_object.model.total_cost_objective_rule))
 
 # Save the results in .json files using the solution class
 dir_name = f"NAERM_initial_testing_{data_date}"
@@ -318,7 +192,7 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
-day_hour_list = [("2034-07-12 00:00", 18), ("2034-10-01 00:00", 4)]
+day_hour_list = [("2034-07-12 00:00", 18), ("2034-07-13 00:00", 4)]
 sol_object.create_stackgraph_and_metrics(dir_name, rep_days, day_hour_list)
 
 # # Create report

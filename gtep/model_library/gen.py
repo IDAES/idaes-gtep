@@ -119,6 +119,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
         if investment_stage == 1:
             if in_service:
                 b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+                b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
             else:
                 b.renewableOperational[gen].fix(0)
                 b.renewableExtended[gen].fix(0)
@@ -347,10 +348,8 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 return pyo.Constraint.Skip
 
         # NOTE: maxSpinningReserve is a percentage of thermalCapacity
-        @disj.Constraint(
-            b.dispatchPeriods, doc="Maximum spinning reserve"
-        )
-        def max_spinning_reserve(disj, dispatchPeriod):
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum spinning reserve")
+        def max_spinning_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
                 <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
