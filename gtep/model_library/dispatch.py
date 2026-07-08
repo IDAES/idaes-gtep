@@ -321,23 +321,48 @@ def add_dispatch_constraints(b, disp_per):
     # NOTE: In comparison to reference [1], this is "per renewable
     # generator". [TODO: Should we include charging costs from
     # non-colocated plants?]
+    # @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
+    # def capacity_factor(b, renewableGen):
+    #     is_candidate = str(renewableGen).endswith("-c")
+
+    #     # If investment is disabled, candidate renewable generators
+    #     # should not generate or curtail.
+    #     if not m.config["include_investment"] and is_candidate:
+    #         return (
+    #             b.renewableGeneration[renewableGen]
+    #             + b.renewableCurtailment[renewableGen]
+    #             == 0 * u.MW
+    #         )
+    #     else:
+    #         return (
+    #             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
+    #             == c_p.renewableCapacityExpected[renewableGen]
+    #         )
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
         is_candidate = str(renewableGen).endswith("-c")
 
-        # If investment is disabled, candidate renewable generators
-        # should not generate or curtail.
+        # If investment is disabled, keep the original equation for
+        # existing renewables and force candidate renewables to zero.
         if not m.config["include_investment"] and is_candidate:
             return (
                 b.renewableGeneration[renewableGen]
                 + b.renewableCurtailment[renewableGen]
                 == 0 * u.MW
             )
-        else:
-            return (
-                b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-                == c_p.renewableCapacityExpected[renewableGen]
+            
+        expected_mw = pyo.value(
+            pyo.units.convert(
+                c_p.renewableCapacityExpected[renewableGen],
+                to_units=u.MW,
             )
+        )
+
+        return (
+            b.renewableGeneration[renewableGen]
+            + b.renewableCurtailment[renewableGen]
+            <= expected_mw
+        )
 
     # [TODO: Add renewableExtended to this and anywhere else.]
     @b.Constraint(m.renewableGenerators)
