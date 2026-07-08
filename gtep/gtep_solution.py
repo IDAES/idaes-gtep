@@ -1144,23 +1144,6 @@ class ExpansionPlanningSolution:
                 "ES4-c",
             ]
 
-            total_gen_by_type = defaultdict(float)
-            file_path = os.path.join(folder_name, "generation.json")
-            if not os.path.exists(file_path):
-                print(f"[WARNING] File not found: {file_path}")
-                return {}
-
-            with open(file_path, "r") as f:
-                data = json.load(f)
-
-                for key, value in data.items():
-                    # The generator type is always at the end after the last '.'
-                    gen_name = key.split(".")[-1]
-                    for gen_type in gen_types:
-                        if gen_name.endswith(gen_type):
-                            total_gen_by_type[gen_type] += value
-                            break
-
             def mw_to_gwh(total_mw, hours_per_period=1):
                 """
                 Converts total MW (sum over all periods) to GWh.
@@ -1172,32 +1155,191 @@ class ExpansionPlanningSolution:
                 total_gwh = total_mwh / 1000
                 return total_gwh
 
-            total_gen_all_types = sum(total_gen_by_type.values())
-            total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
-            messages.append(f"Total generation (GWh): {total_gen_gwh}")
+            def add_generation_metrics():
+                """Add total generation and generation by generator
+                type.
 
-            messages.append("Total generation by generator type:")
-            for gen_type, total in total_gen_by_type.items():
-                total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
-                messages.append(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+                Battery discharge is read from discharging.json and
+                added to total generation. Battery charging is read
+                from charging.json and reported separately, but it is
+                not subtracted from total generation.
 
-            # Read charging.json and discharging.json, sums all _battery keys
-            for file_type in ["charging", "discharging"]:
-                file_path = os.path.join(folder_name, f"{file_type}.json")
+                """
+                total_gen_by_type = defaultdict(float)
+                file_path = os.path.join(folder_name, "generation.json")
+
                 if not os.path.exists(file_path):
                     print(f"[WARNING] File not found: {file_path}")
-                    continue
+                    return
 
                 with open(file_path, "r") as f:
                     data = json.load(f)
 
-                total_battery = sum(
-                    value
-                    for key, value in data.items()
-                    if key.endswith("_battery") or key.endswith("_ps")
+                for key, value in data.items():
+                    # The generator type is always at the end after
+                    # the last '.'
+                    gen_name = key.split(".")[-1]
+                    for gen_type in gen_types:
+                        if gen_name.endswith(gen_type):
+                            total_gen_by_type[gen_type] += value
+                            break
+
+                # Add battery discharging to total generation. Battery
+                # discharge is stored separately from generation in
+                # discharging.json.
+                total_battery_discharging = 0
+                discharging_file_path = os.path.join(folder_name, "discharging.json")
+
+                if os.path.exists(discharging_file_path):
+                    with open(discharging_file_path, "r") as f:
+                        discharging_data = json.load(f)
+
+                    total_battery_discharging = sum(
+                        value
+                        for key, value in discharging_data.items()
+                        if key.endswith("_battery") or key.endswith("_ps")
+                    )
+
+                    total_gen_by_type["battery_discharge"] += total_battery_discharging
+                else:
+                    print(f"[WARNING] File not found: {discharging_file_path}")
+
+                # Report battery charging separately. It is not included in
+                # total generation.
+                total_battery_charging = 0
+                charging_file_path = os.path.join(folder_name, "charging.json")
+                
+                if os.path.exists(charging_file_path):
+                    with open(charging_file_path, "r") as f:
+                        charging_data = json.load(f)
+
+                    total_battery_charging = sum(
+                        value
+                        for key, value in charging_data.items()
+                        if key.endswith("_battery") or key.endswith("_ps")
+                    )
+                else:
+                    print(f"[WARNING] File not found: {charging_file_path}")
+
+                # Total generation, including discharging (charging
+                # not included)
+                total_gen_all_types = sum(total_gen_by_type.values())
+                total_gen_gwh = mw_to_gwh(total_gen_all_types, hours_per_period=1)
+
+                messages.append(f"Total generation (GWh): {total_gen_gwh}")
+                messages.append("Total generation by generator type:")
+
+                for gen_type, total in total_gen_by_type.items():
+                    total_per_type_gwh = mw_to_gwh(total, hours_per_period=1)
+                    messages.append(f"  {gen_type}_(GWh): {total_per_type_gwh}")
+
+                total_battery_discharging_gwh = mw_to_gwh(
+                    total_battery_discharging, hours_per_period=1
                 )
-                total_battery_gwh = mw_to_gwh(total_battery, hours_per_period=1)
-                messages.append(f"Total battery {file_type} (GWh): {total_battery_gwh}")
+                total_battery_charging_gwh = mw_to_gwh(
+                    total_battery_charging, hours_per_period=1
+                )
+                messages.append(
+                    f"Total battery discharging (GWh): {total_battery_discharging_gwh}"
+                )
+                messages.append(f"Total battery charging (GWh): {total_battery_charging_gwh}")
+
+            def add_curtailment_metrics():
+                """Add total curtailment.
+                
+                """
+                for curt_file in ["curtailment.json"]:
+                    file_path = os.path.join(folder_name, curt_file)
+
+                    if not os.path.exists(file_path):
+                        continue
+
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+
+                    total_curtailment = sum(float(value) for value in data.values())
+                    total_curtailment_gwh = mw_to_gwh(total_curtailment, hours_per_period=1)
+
+                    messages.append(f"Total curtailment (GWh): {total_curtailment_gwh}")
+                    return
+
+                print("[WARNING] No curtailment file found.")
+
+            def add_generator_investment_metrics():
+                """Add total number of newly installed generators and
+                installed generators by type.
+
+                """
+                installed_gens = set()
+                installed_gens_by_type = defaultdict(int)
+
+                investment_files = [
+                    "renewable_investments.json",
+                    "dispatchable_investments.json",
+                ]
+                
+                for investment_file in investment_files:
+                    file_path = os.path.join(folder_name, investment_file)
+
+                    if not os.path.exists(file_path):
+                        print(f"[WARNING] File not found: {file_path}")
+                        continue
+
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+
+                    for key, value in data.items():
+                        is_gen_installed = (
+                            "renewableInstalled" in key or "genInstalled" in key
+                        )
+
+                        if not is_gen_installed or float(value) < 0.001:
+                            continue
+
+                        gen_name = key.split(".")[-1]
+
+                        if gen_name in installed_gens:
+                            continue
+
+                        installed_gens.add(gen_name)
+                
+                        for gen_type in gen_types:
+                            if gen_name.endswith(gen_type):
+                                installed_gens_by_type[gen_type] += 1
+                                break
+
+                messages.append(f"Number of installed generators: {len(installed_gens)}")
+                messages.append("Number of installed generators by type:")
+
+                for gen_type, count in installed_gens_by_type.items():
+                    messages.append(f"  installed_{gen_type}: {count}")
+
+            def add_branch_investment_metrics():
+                """Add total number of newly installed branches.
+
+                """
+                installed_branches = set()
+                file_path = os.path.join(folder_name, "dispatchable_investments.json")
+
+                if not os.path.exists(file_path):
+                    print(f"[WARNING] File not found: {file_path}")
+                    messages.append("Number of installed branches: 0")
+                    return
+
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+
+                for key, value in data.items():
+                    if "branchInstalled" in key and float(value) >= 0.001:
+                        branch_name = key.split(".")[-1]
+                        installed_branches.add(branch_name)
+
+                messages.append(f"Number of installed branches: {len(installed_branches)}")
+
+            add_generation_metrics()
+            add_curtailment_metrics()
+            add_generator_investment_metrics()
+            add_branch_investment_metrics()
 
             return messages
 
