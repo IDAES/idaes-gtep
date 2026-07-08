@@ -81,7 +81,7 @@ def _get_model_config():
     CONFIG.declare(
         "time_period_dict",
         ConfigDict(
-            description="Time period dict, specified as \{(investment period #, length): \{(representative period #, length): \{(commitment period #, length): \{dispatch period #: length\}\}\}"
+            description="Time period dict, specified as {(investment period #, length): {(representative period #, length): {(commitment period #, length): {dispatch period #: length}}}"
         ),
     )
 
@@ -150,6 +150,15 @@ def _add_investment_configs(CONFIG):
             default=False,
             domain=Bool,
             description="Allow transmission switching during dispatch",
+        ),
+    )
+
+    CONFIG.declare(
+        "advanced_hydro",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description="Include daily average hydro requirements",
         ),
     )
 
