@@ -808,8 +808,9 @@ def add_storage_logical_constraints(m):
         if m.md.data["elements"]["storage"][stor]["in_service"] == False:
             m.investmentStage[1].storOperational[stor].indicator_var.fix(False)
             m.investmentStage[1].storExtended[stor].indicator_var.fix(False)
+            m.investmentStage[1].storRetired[stor].indicator_var.fix(False)
         else:
-            m.investmentStage[1].storOperational[stor].indicator_var.fix(True)
+            m.investmentStage[1].storDisabled[stor].indicator_var.fix(False)
 
     @m.LogicalConstraint(
         m.stages,
@@ -1046,11 +1047,3 @@ def add_commitment_storage_constraints(b):
             b.dispatchPeriod[disp_per].storageCostDispatch
             for disp_per in b.dispatchPeriods
         )
-
-
-def add_representative_period_storage_constraints(b):
-
-    @b.Constraint(m.storage, doc="Cyclic state of charge constraint")
-    def cyclic_state_of_charge(b):
-        disp_per = b.dispatchPeriod
-        commitment_period = c_p.commitmentPeriod

@@ -273,7 +273,7 @@ pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 # pyo.TransformationFactory("gdp.chull").apply_to(mod_object.model)
 print("model is transformed!")
 
-solver = "xpress"
+solver = "gurobi"
 opt = pyo.SolverFactory(solver)
 xpress.init("/Users/jkskolf/naerm_xpauth.xpr")
 if solver == "xpress":

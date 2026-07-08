@@ -223,6 +223,30 @@ def add_representative_period_logical_constraints(b, rep_per):
             else pyo.LogicalConstraint.Skip
         )
 
+    if m.config["storage"]:
+
+        @b.Constraint(
+            m.batteryStorageSystems,
+            doc="Enforces that we have identical storage level at the beginning and end of representative period",
+        )
+        def consistent_battery_charge_level_commitment(b, bat):
+            return (
+                b.commitmentPeriod[b.commitmentPeriods.first()]
+                .dispatchPeriod[
+                    b.commitmentPeriod[
+                        b.commitmentPeriods.first()
+                    ].dispatchPeriods.first()
+                ]
+                .batteryChargeLevel[bat]
+                == b.commitmentPeriod[b.commitmentPeriods.last()]
+                .dispatchPeriod[
+                    b.commitmentPeriod[
+                        b.commitmentPeriods.last()
+                    ].dispatchPeriods.last()
+                ]
+                .batteryChargeLevel[bat]
+            )
+
     # Add legacy equation. Check with team if we need to keep this
     # equation.
     """
