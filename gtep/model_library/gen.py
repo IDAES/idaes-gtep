@@ -325,9 +325,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 return pyo.Constraint.Skip
 
         # NOTE: maxSpinningReserve is a percentage of thermalCapacity
-        @disj.Constraint(
-            b.dispatchPeriods, doc="Maximum spinning reserve"
-        )
+        @disj.Constraint(b.dispatchPeriods, doc="Maximum spinning reserve")
         def max_spinning_reserve(disj, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
