@@ -23,8 +23,14 @@ from gtep.gtep_data_processing import DataProcessing
 logger = logging.getLogger("gtep.driver_esr")
 logger.setLevel(logging.INFO)
 
-# Add data
+# Add data path
 data_path = "./data/5bus"
+
+# Create directory to save results using the GTEP solution class.
+sol_object = ExpansionPlanningSolution(data_path)
+dir_name = sol_object.create_results_directory("results")
+
+# Create data modeling object
 data_object = ExpansionPlanningData(
     stages=2,
     num_reps=2,
@@ -73,6 +79,10 @@ mod_object.config["storage"] = False
 mod_object.config["flow_model"] = "DC"
 mod_object.config["advanced_hydro"] = False
 
+# Save config to a .csv file
+sol_object.save_model_config_to_csv(mod_object, dir_name)
+
+# Create model
 mod_object.create_model()
 
 # Apply transformations to logical terms
@@ -91,36 +101,5 @@ print(mod_object.results)
 # mod_object.model.investmentStage.display()
 # mod_object.report_model()
 
-quit()
-
-sol_object = ExpansionPlanningSolution()
-sol_object.load_from_model(mod_object)
-sol_object.dump_json("./gtep_solution.json")
-sol_object.import_data_object(data_object)
-
-# sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
-# sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
-# sol_object.read_json("./gtep_solution.json")
-# sol_object.read_json("./updated_gtep_solution_test.json")
-# sol_object.read_json("./gtep_wiggles.json")
-sol_object.plot_levels(save_dir="./plots/")
-
-# save_numerical_results = False
-# if save_numerical_results:
-
-#     sol_object = ExpansionPlanningSolution()
-
-#     sol_object.load_from_model(mod_object)
-#     sol_object.dump_json()
-# load_numerical_results = False
-
-# if load_numerical_results:
-#     # sol_object.read_json("./gtep_solution.json")
-#     sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
-# plot_results = False
-
-# if plot_results:
-#     sol_object.plot_levels(save_dir="./plots/")
-
-
-pass
+# Save results in .json files
+sol_object.save_results_in_json_files(mod_object, dir_name)
