@@ -246,3 +246,38 @@ class TestObjective(unittest.TestCase):
                 self.b.parent_block().parent_block(),
                 self.commit_period,
             )
+
+    ### ADD COMMITMENT CONSTRAINTS ###
+
+    def test_add_commitment_constraints_all_true(self):
+        self._create_testing_obj(
+            config={
+                "advanced_hydro": True,
+                "include_commitment": True,
+                "storage": True,
+            },
+            data_path=path_9_bus,
+        )  # 9 bus used for storage data
+
+    ### ADD INVESTMENT COMMITMENT VARIABLES ###
+    def _make_investment_commitment_var_objects(self):
+        self.check_helper.add_object(
+            name="operatingCostInvestment",
+            units=u.USD,
+            obj_type=pyo.Var,
+        )
+        self.check_helper.add_object(
+            name="renewableCurtailmentInvestment",
+            units=u.USD,
+            obj_type=pyo.Var,
+        )
+
+    def test_add_investment_commitment_variables(self):
+        self._create_testing_obj(config={}, data_path=input_data_path)
+
+        self.check_helper = PyomoCheckHelper(self, self.b)
+        self._make_investment_commitment_var_objects()
+
+        add_investment_commitment_variables(self.b)
+
+        self.check_helper.check_all_objects()
