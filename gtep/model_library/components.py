@@ -209,28 +209,28 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         units=u.MW,
         doc="Maximum output of each thermal generator",
     )
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        m.thermalReactiveMax = pyo.Param(
+            m.thermalGenerators,
+            initialize={
+                thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
+                for thermalGen in m.thermalGenerators
+            },
+            mutable=True,
+            units=u.MVAR,
+            doc="Maximum reactive output of each thermal generator",
+        )
 
-    m.thermalReactiveMax = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
-            for thermalGen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.MVAR,
-        doc="Maximum reactive output of each thermal generator",
-    )
-
-    m.thermalReactiveMin = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
-            for thermalGen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.MVAR,
-        doc="Minimum reactive output of each thermal generator",
-    )
+        m.thermalReactiveMin = pyo.Param(
+            m.thermalGenerators,
+            initialize={
+                thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
+                for thermalGen in m.thermalGenerators
+            },
+            mutable=True,
+            units=u.MVAR,
+            doc="Minimum reactive output of each thermal generator",
+        )
 
     if m.config["advanced_hydro"]:
         m.hydroCapacity = pyo.Param(
