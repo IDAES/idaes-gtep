@@ -60,7 +60,7 @@ class TestObjective(unittest.TestCase):
             obj_type=pyo.Param,
         )
 
-    def test_add_commitment_params_basic(self):
+    def test_add_commitment_params_no_hydro(self):
         self._create_testing_obj(
             config={"advanced_hydro": False}, data_path=input_data_path
         )
@@ -101,18 +101,18 @@ class TestObjective(unittest.TestCase):
             assert g in self.b.renewableCapacityExpected
 
     def test_add_commitment_params_advanced_hydro(self):
-        self._create_testing_obj(config={"advanced_hydro": True})
+        self._create_testing_obj(
+            config={"advanced_hydro": True}, data_path=input_data_path
+        )
 
         self.check_helper = PyomoCheckHelper(self, self.b)
         self._make_commitment_param_objects()
 
         with (
             patch(
-                "gtep.model_library.investment.hydro.fix_hydropower_limits"
+                "gtep.model_library.hydropower_generation.fix_hydropower_limits"
             ) as mock_hydro,
-            patch(
-                "gtep.model_library.investment.scaling.add_load_scaling"
-            ) as mock_scaling,
+            patch("gtep.model_library.scaling.add_load_scaling") as mock_scaling,
         ):
             add_commitment_parameters(self.b, self.commit_period, self.investment_stage)
 
