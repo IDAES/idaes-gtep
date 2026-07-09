@@ -48,6 +48,7 @@ class TestObjective(unittest.TestCase):
             .commitmentPeriod[self.commit_period]
         )
 
+    ### ADD COMMITMENT PARAMETERS ###
     def _make_commitment_param_objects(self):
         self.check_helper.add_object(
             name="commitmentPeriodLength",
@@ -126,3 +127,122 @@ class TestObjective(unittest.TestCase):
             )
 
         self.check_helper.check_all_objects()
+
+    ### ADD COMMITMENT DISJUNCTS ###
+    def test_add_commitment_disjuncts_commitment_and_storage_true(self):
+        self._create_testing_obj(
+            config={"include_commitment": True, "storage": True}, data_path=path_9_bus
+        )  # 9 bus used for storage data
+
+        with (
+            patch(
+                "gtep.model_library.commitment.gens.add_generators_state_disjuncts"
+            ) as mock_gens,
+            patch(
+                "gtep.model_library.commitment.stor.add_storage_state_disjuncts"
+            ) as mock_stor,
+            patch(
+                "gtep.model_library.commitment.gens.generators_status_always_on"
+            ) as mock_always_on,
+        ):
+            add_commitment_disjuncts(self.b, self.commit_period)
+            # check func calls based on config
+            mock_gens.assert_called_once_with(
+                self.b.model(),
+                self.b,
+                self.b.parent_block(),
+                self.b.parent_block().parent_block(),
+                self.commit_period,
+            )
+            mock_stor.assert_called_once_with(
+                self.b.model(), self.b, self.commit_period
+            )
+            mock_always_on.assert_not_called()
+
+    def test_add_commitment_disjuncts_no_commitment_and_storage_true(self):
+        self._create_testing_obj(
+            config={"include_commitment": False, "storage": True}, data_path=path_9_bus
+        )  # 9 bus used for storage data
+
+        with (
+            patch(
+                "gtep.model_library.commitment.gens.add_generators_state_disjuncts"
+            ) as mock_gens,
+            patch(
+                "gtep.model_library.commitment.stor.add_storage_state_disjuncts"
+            ) as mock_stor,
+            patch(
+                "gtep.model_library.commitment.gens.generators_status_always_on"
+            ) as mock_always_on,
+        ):
+            add_commitment_disjuncts(self.b, self.commit_period)
+            # check func calls based on config
+            mock_gens.assert_not_called()
+            mock_stor.assert_called_once_with(
+                self.b.model(), self.b, self.commit_period
+            )
+            mock_always_on.assert_called_once_with(
+                self.b.model(),
+                self.b,
+                self.b.parent_block(),
+                self.b.parent_block().parent_block(),
+                self.commit_period,
+            )
+
+    def test_add_commitment_disjuncts_commitment_true_no_storage(self):
+        self._create_testing_obj(
+            config={"include_commitment": True, "storage": False},
+            data_path=input_data_path,
+        )
+
+        with (
+            patch(
+                "gtep.model_library.commitment.gens.add_generators_state_disjuncts"
+            ) as mock_gens,
+            patch(
+                "gtep.model_library.commitment.stor.add_storage_state_disjuncts"
+            ) as mock_stor,
+            patch(
+                "gtep.model_library.commitment.gens.generators_status_always_on"
+            ) as mock_always_on,
+        ):
+            add_commitment_disjuncts(self.b, self.commit_period)
+            # check func calls based on config
+            mock_gens.assert_called_once_with(
+                self.b.model(),
+                self.b,
+                self.b.parent_block(),
+                self.b.parent_block().parent_block(),
+                self.commit_period,
+            )
+            mock_stor.assert_not_called()
+            mock_always_on.assert_not_called()
+
+    def test_add_commitment_disjuncts_no_commitment_no_storage(self):
+        self._create_testing_obj(
+            config={"include_commitment": False, "storage": False},
+            data_path=input_data_path,
+        )
+
+        with (
+            patch(
+                "gtep.model_library.commitment.gens.add_generators_state_disjuncts"
+            ) as mock_gens,
+            patch(
+                "gtep.model_library.commitment.stor.add_storage_state_disjuncts"
+            ) as mock_stor,
+            patch(
+                "gtep.model_library.commitment.gens.generators_status_always_on"
+            ) as mock_always_on,
+        ):
+            add_commitment_disjuncts(self.b, self.commit_period)
+            # check func calls based on config
+            mock_gens.assert_not_called()
+            mock_stor.assert_not_called()
+            mock_always_on.assert_called_once_with(
+                self.b.model(),
+                self.b,
+                self.b.parent_block(),
+                self.b.parent_block().parent_block(),
+                self.commit_period,
+            )
