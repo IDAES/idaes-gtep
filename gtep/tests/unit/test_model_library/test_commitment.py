@@ -248,7 +248,6 @@ class TestObjective(unittest.TestCase):
             )
 
     ### ADD COMMITMENT CONSTRAINTS ###
-
     def test_add_commitment_constraints_all_true(self):
         self._create_testing_obj(
             config={
@@ -258,6 +257,250 @@ class TestObjective(unittest.TestCase):
             },
             data_path=path_9_bus,
         )  # 9 bus used for storage data
+
+        # check function call for storage config option
+        with patch(
+            "gtep.model_library.commitment.stor.add_commitment_storage_constraints"
+        ) as mock_stor:
+            add_commitment_constraints(self.b, self.commit_period)
+
+            mock_stor.assert_called_once_with(self.b)
+
+        # check expressions exist
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        # check expression strings
+        surplus_str = str(self.b.renewableSurplusCommitment.expr)
+        curtail_str = str(self.b.renewableCurtailmentCommitment.expr)
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+
+        # check what is included in the expressions
+        assert "renewableSurplusDispatch" in surplus_str
+        assert "renewableCurtailmentDispatch" in curtail_str
+        assert "operatingCostDispatch" in op_cost_str
+        assert "genOn" in op_cost_str
+        assert "genShutdown" in op_cost_str
+        assert "genStartup" in op_cost_str
+
+        # if storage true
+        assert "storagefixedCost" in op_cost_str
+        assert "storageCapacity" in op_cost_str
+
+        # if advanced hydro true
+        assert "hydroCapacity" in op_cost_str
+
+    def test_add_commitment_constraints_all_false(self):
+        self._create_testing_obj(
+            config={
+                "storage": False,
+                "include_commitment": False,
+                "advanced_hydro": False,
+            },
+            data_path=input_data_path,
+        )
+
+        add_commitment_constraints(self.b, self.commit_period)
+
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+        assert "genShutdown" not in op_cost_str
+        assert "genStartup" not in op_cost_str
+        assert "storagefixedCost" not in op_cost_str
+
+    def test_add_commitment_constraints_commitment_false(self):
+        self._create_testing_obj(
+            config={
+                "advanced_hydro": True,
+                "include_commitment": False,
+                "storage": True,
+            },
+            data_path=path_9_bus,
+        )  # 9 bus used for storage data
+
+        # check function call for storage config option
+        with patch(
+            "gtep.model_library.commitment.stor.add_commitment_storage_constraints"
+        ) as mock_stor:
+            add_commitment_constraints(self.b, self.commit_period)
+
+            mock_stor.assert_called_once_with(self.b)
+
+        # check expression creation
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        # check expression config changes
+        surplus_str = str(self.b.renewableSurplusCommitment.expr)
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+        curtail_str = str(self.b.renewableCurtailmentCommitment.expr)
+
+        assert "renewableSurplusDispatch" in surplus_str
+        assert "renewableCurtailmentDispatch" in curtail_str
+
+        # include_commitment=False -> no startup/shutdown terms
+        assert "genShutdown" not in op_cost_str
+        assert "genStartup" not in op_cost_str
+
+        # advanced_hydro=True -> hydro term should be included
+        assert "hydroCapacity" in op_cost_str
+
+        # storage=True -> storage term should be included
+        assert "storagefixedCost" in op_cost_str
+        assert "storageCapacity" in op_cost_str
+
+    def test_add_commitment_constraints_no_storage(self):
+        self._create_testing_obj(
+            config={
+                "advanced_hydro": True,
+                "include_commitment": True,
+                "storage": False,
+            },
+            data_path=input_data_path,
+        )  # 9 bus used for storage data
+
+        # check function call for storage config option
+        with patch(
+            "gtep.model_library.commitment.stor.add_commitment_storage_constraints"
+        ) as mock_stor:
+            add_commitment_constraints(self.b, self.commit_period)
+
+            mock_stor.assert_not_called()
+
+        # check expressions exist
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        # check expression strings
+        surplus_str = str(self.b.renewableSurplusCommitment.expr)
+        curtail_str = str(self.b.renewableCurtailmentCommitment.expr)
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+
+        # check what is included in the expressions
+        assert "renewableSurplusDispatch" in surplus_str
+        assert "renewableCurtailmentDispatch" in curtail_str
+        assert "genShutdown" in op_cost_str
+        assert "genStartup" in op_cost_str
+
+        # no storage
+        assert "storagefixedCost" not in op_cost_str
+        assert "storageCapacity" not in op_cost_str
+
+        # if advanced hydro true
+        assert "hydroCapacity" in op_cost_str
+
+    def test_add_commitment_constraints_no_hydro(self):
+        self._create_testing_obj(
+            config={
+                "advanced_hydro": False,
+                "include_commitment": True,
+                "storage": True,
+            },
+            data_path=path_9_bus,
+        )  # 9 bus used for storage data
+
+        # check function call for storage config option
+        with patch(
+            "gtep.model_library.commitment.stor.add_commitment_storage_constraints"
+        ) as mock_stor:
+            add_commitment_constraints(self.b, self.commit_period)
+
+            mock_stor.assert_called_once_with(self.b)
+
+        # check expressions exist
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        # check expression strings
+        surplus_str = str(self.b.renewableSurplusCommitment.expr)
+        curtail_str = str(self.b.renewableCurtailmentCommitment.expr)
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+
+        # check what is included in the expressions
+        assert "renewableSurplusDispatch" in surplus_str
+        assert "renewableCurtailmentDispatch" in curtail_str
+        assert "genShutdown" in op_cost_str
+        assert "genStartup" in op_cost_str
+
+        # if storage true
+        assert "storagefixedCost" in op_cost_str
+        assert "storageCapacity" in op_cost_str
+
+        # no advanced hydro
+        assert "hydroCapacity" not in op_cost_str
+
+    def test_add_commitment_constraints_no_hydro_no_storage(self):
+        self._create_testing_obj(
+            config={
+                "advanced_hydro": False,
+                "include_commitment": True,
+                "storage": False,
+            },
+            data_path=path_9_bus,
+        )  # 9 bus used for storage data
+
+        # check function call for storage config option
+        with patch(
+            "gtep.model_library.commitment.stor.add_commitment_storage_constraints"
+        ) as mock_stor:
+            add_commitment_constraints(self.b, self.commit_period)
+
+            mock_stor.assert_not_called()
+
+        # check expressions exist
+        assert hasattr(self.b, "renewableSurplusCommitment")
+        assert hasattr(self.b, "operatingCostCommitment")
+        assert hasattr(self.b, "renewableCurtailmentCommitment")
+
+        assert isinstance(self.b.renewableSurplusCommitment, pyo.Expression)
+        assert isinstance(self.b.operatingCostCommitment, pyo.Expression)
+        assert isinstance(self.b.renewableCurtailmentCommitment, pyo.Expression)
+
+        # check expression strings
+        surplus_str = str(self.b.renewableSurplusCommitment.expr)
+        curtail_str = str(self.b.renewableCurtailmentCommitment.expr)
+        op_cost_str = str(self.b.operatingCostCommitment.expr)
+
+        # check what is included in the expressions
+        assert "renewableSurplusDispatch" in surplus_str
+        assert "renewableCurtailmentDispatch" in curtail_str
+        assert "genOn" in op_cost_str
+        assert "genShutdown" in op_cost_str
+        assert "genStartup" in op_cost_str
+
+        # no storage
+        assert "storagefixedCost" not in op_cost_str
+        assert "storageCapacity" not in op_cost_str
+
+        # no advanced hydro
+        assert "hydroCapacity" not in op_cost_str
 
     ### ADD INVESTMENT COMMITMENT VARIABLES ###
     def _make_investment_commitment_var_objects(self):
