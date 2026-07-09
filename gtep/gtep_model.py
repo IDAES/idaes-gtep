@@ -320,6 +320,11 @@ def create_stages(m, stages):
                         disp.add_dispatch_variables(b_comm.dispatchPeriod[period])
                         disp.add_dispatch_constraints(b_comm.dispatchPeriod[period])
 
+            if m.config["include_redispatch"]:
+                rep_period.add_time_links(b_rep)
+
+                for commitment_period in b_rep.commitmentPeriods:
+                    b_comm = b_rep.commitmentPeriod[commitment_period]
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
                     # [TODO: If commitment is neglected but dispatch
@@ -333,6 +338,7 @@ def create_stages(m, stages):
                     # NOTE: If commitment is not included, generator state
                     # is fixed to 'on'; storage operational logic remains
                     # unchanged.
+
                     commit.add_commitment_disjuncts(b_comm, commitment_period)
 
                     # Adds cost-related commitment constraints

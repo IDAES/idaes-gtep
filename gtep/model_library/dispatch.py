@@ -82,7 +82,7 @@ def add_dispatch_variables(b):
     if m.config["storage"]:
         # Add storage variables and constraints. It also includes its
         # operational costs variables.
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
+        stor.add_dispatch_storage_variables_and_constraints(b)
 
     if m.config["advanced_hydro"]:
 
