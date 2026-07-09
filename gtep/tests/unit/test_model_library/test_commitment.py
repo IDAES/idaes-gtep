@@ -29,23 +29,23 @@ from gtep.model_library.commitment import (
 )
 import pyomo.environ as pyo
 from pyomo.environ import units as u
-from gtep.tests.unit.utils_for_testing import create_model, path_9_bus
+from gtep.tests.unit.utils_for_testing import create_model, path_9_bus, input_data_path
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
 from unittest.mock import patch
 
 
 class TestObjective(unittest.TestCase):
-    def _create_testing_obj(self, config):
+    def _create_testing_obj(self, config, data_path):
 
         self.investment_stage = 1
         self.repr_period = 1
         self.commit_period = 1
 
-        self.m = create_model(input_data_path=path_9_bus, config=config).model
+        self.m = create_model(input_data_path=data_path, config=config).model
         self.b = (
             self.m.investmentStage[self.investment_stage]
             .representativePeriod[self.repr_period]
-            .commitmentPeriods[self.commit_period]
+            .commitmentPeriod[self.commit_period]
         )
 
     def _make_commitment_param_objects(self):
@@ -56,11 +56,14 @@ class TestObjective(unittest.TestCase):
         )
         self.check_helper.add_object(
             name="carbonTax",
+            units=u.dimensionless,
             obj_type=pyo.Param,
         )
 
     def test_add_commitment_params_basic(self):
-        self._create_testing_obj(config={"advanced_hydro": False})
+        self._create_testing_obj(
+            config={"advanced_hydro": False}, data_path=input_data_path
+        )
 
         # Set up helper before function call
         self.check_helper = PyomoCheckHelper(self, self.b)
