@@ -169,17 +169,10 @@ def add_dispatch_variables(b):
     def curtailmentCostDispatch(b):
         return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
 
-    # Add storage variables and constraints. It also includes its
-    # operational costs variables.
-    if m.config["storage"]:
-        stor.add_dispatch_storage_variables_and_constraints(m, b)
-        storage_term = b.storageCostDispatch
-    else:
-        storage_term = 0 * u.USD
-    if m.config["advanced_hydro"]:
-        hydro_term = b.hydroGenerationCostDispatch
-    else:
-        hydro_term = 0 * u.USD
+    storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
+    hydro_term = (
+        b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
+    )
 
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
