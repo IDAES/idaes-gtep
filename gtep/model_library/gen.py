@@ -588,9 +588,9 @@ def add_generators_logical_constraints(m):
                 m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
                 .genOperational[gen]
                 .indicator_var
-                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genInstalled[
-                    gen
-                ].indicator_var
+                | m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
+                .genInstalled[gen]
+                .indicator_var
             ).implies(
                 m.investmentStage[stage].genRetired[gen].indicator_var
                 | m.investmentStage[stage].genExtended[gen].indicator_var
