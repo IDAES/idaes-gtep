@@ -49,16 +49,6 @@ def add_dispatch_variables(b):
             b.renewableGeneration[renewableGen] - b.renewableCurtailment[renewableGen]
         )
 
-    @b.Expression(m.renewableGenerators, doc="Curtailment cost per generator in $")
-    def renewableCurtailmentCost(b, renewableGen):
-        m = b.model()
-
-        return (
-            b.renewableCurtailment[renewableGen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
-            * m.curtailmentCost
-        )
-
     @b.Expression(m.thermalGenerators, doc="Cost per thermal generator in $")
     def thermalGeneratorCost(b, gen):
         m = b.model()
@@ -165,15 +155,10 @@ def add_dispatch_variables(b):
     def loadShedCostDispatch(b):
         return sum(b.loadShedCost[bus] for bus in m.buses)
 
-    @b.Expression(doc="Total renewable curtailment cost in $")
-    def curtailmentCostDispatch(b):
-        return sum(b.renewableCurtailmentCost[gen] for gen in m.renewableGenerators)
-
     storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
     hydro_term = (
         b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
     )
-
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
         return (
@@ -181,7 +166,6 @@ def add_dispatch_variables(b):
             + b.reactiveGenerationCostDispatch
             + b.renewableGenerationCostDispatch
             + b.loadShedCostDispatch
-            + b.curtailmentCostDispatch
             + storage_term
             + hydro_term
         )
