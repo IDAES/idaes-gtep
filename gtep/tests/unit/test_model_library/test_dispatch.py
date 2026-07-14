@@ -109,12 +109,6 @@ class TestDispatch(unittest.TestCase):
             index=self.m.renewableGenerators,
         )
         self.check_helper.add_object(
-            name="renewableCurtailmentCost",
-            units=u.USD,
-            obj_type=pyo.Expression,
-            index=self.m.renewableGenerators,
-        )
-        self.check_helper.add_object(
             name="thermalGeneratorCost",
             units=u.USD,
             obj_type=pyo.Expression,
@@ -184,18 +178,8 @@ class TestDispatch(unittest.TestCase):
             obj_type=pyo.Expression,
         )
         self.check_helper.add_object(
-            name="curtailmentCostDispatch",
-            units=u.USD,
-            obj_type=pyo.Expression,
-        )
-        self.check_helper.add_object(
             name="operatingCostDispatch",
             units=u.USD,
-            obj_type=pyo.Expression,
-        )
-        self.check_helper.add_object(
-            name="renewableCurtailmentDispatch",
-            units=u.MW,
             obj_type=pyo.Expression,
         )
         self.check_helper.add_object(
