@@ -181,7 +181,7 @@ class TestGTEP(unittest.TestCase):
             .representativePeriod[1]
             .commitmentPeriod[1]
             .genOn["4_STEAM"]
-            .max_spinning_reserve[1, "4_STEAM"]
+            .max_spinning_reserve[1]
             .expr,
             u.MW,
         )
