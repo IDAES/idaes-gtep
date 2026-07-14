@@ -159,7 +159,7 @@ def add_dispatch_variables(b):
     hydro_term = (
         b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
     )
-    
+
     @b.Expression(doc="Total cost for dispatch in $")
     def operatingCostDispatch(b):
         return (
