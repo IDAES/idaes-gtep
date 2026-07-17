@@ -158,6 +158,29 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         },
     )
 
+def _append_pmax_values(candidate_values, p_max):
+    """Append numeric p_max values to candidate_values.
+
+    p_max may be:
+        - None,
+        - a scalar numeric value,
+        - a dictionary with a "values" list.
+    """
+    if p_max is None:
+        return
+
+    if isinstance(p_max, (int, float)):
+        candidate_values.append(float(p_max))
+        return
+
+    if isinstance(p_max, dict):
+        values = p_max.get("values", [])
+        for value in values:
+            if value is not None:
+                candidate_values.append(float(value))
+        return
+
+    raise TypeError(f"Unsupported p_max data type: {type(p_max)}")
 
 def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """Creates and labels all the parameters in the GTEP model. This
@@ -267,26 +290,71 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         doc="Minimum output of each thermal generator",
     )
 
+    def renewable_capacity_nameplate_init(m, renewableGen):
+        """Return scenario-invariant renewable nameplate capacity.
+
+        The renewable nameplate capacity must be at least as large as both:
+
+            1. the static PMax value from gen.csv, and
+            2. the largest renewable p_max value in the loaded time series.
+
+        Some input datasets have time-series renewable p_max values that exceed
+        the static PMax in gen.csv. In those cases, using only the gen.csv value
+        can make the dispatch model infeasible because operational renewable
+        availability exceeds the model's nameplate bound.
+
+        For PH scenario models, do not infer nameplate capacity from only the
+        selected representative day. Use the full source ModelData when
+        available.
+        """
+        candidate_values = []
+
+        source_model_data = getattr(m.data, "full_md", None)
+        if source_model_data is None:
+            source_model_data = m.md
+
+        source_gen_data = source_model_data.data["elements"]["generator"][renewableGen]
+
+        # Static PMax from gen.csv, if available.
+        for static_key in ("nameplate_capacity", "static_p_max"):
+            static_value = source_gen_data.get(static_key, None)
+            if static_value is not None:
+                candidate_values.append(float(static_value))
+
+        # p_max from the full source ModelData.
+        _append_pmax_values(candidate_values, source_gen_data.get("p_max", None))
+
+        # p_max from full representative-period data, if available.
+        # This is useful when the full source p_max is not available in the same
+        # form as representative-period clones.
+        model_data_list = getattr(m.data, "full_representative_data", None)
+
+        if model_data_list is None:
+            model_data_list = m.data_list if m.data_list is not None else [m.md]
+
+        for model_data in model_data_list:
+            gen_data = model_data.data["elements"]["generator"][renewableGen]
+
+            for static_key in ("nameplate_capacity", "static_p_max"):
+                static_value = gen_data.get(static_key, None)
+                if static_value is not None:
+                    candidate_values.append(float(static_value))
+
+            _append_pmax_values(candidate_values, gen_data.get("p_max", None))
+
+        if not candidate_values:
+            raise ValueError(
+                "Could not determine renewableCapacityNameplate for renewable "
+                f"generator {renewableGen}. No static PMax or numeric p_max "
+                "time-series values were found in the full source data or "
+                "representative-period data."
+            )
+
+        return max(candidate_values)
+
     m.renewableCapacityNameplate = pyo.Param(
         m.renewableGenerators,
-        initialize={
-            renewableGen: (
-                m.md.data["elements"]["generator"][renewableGen]["p_max"]
-                if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
-                == float
-                else max(
-                    [
-                        max(
-                            m.data_list[i].data["elements"]["generator"][renewableGen][
-                                "p_max"
-                            ]["values"]
-                        )
-                        for i in range(len(m.data_list))
-                    ]
-                )
-            )
-            for renewableGen in m.renewableGenerators
-        },
+        initialize=renewable_capacity_nameplate_init,
         mutable=True,
         units=u.MW,
         doc="Maximum output of each renewable generator",
@@ -428,7 +496,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     # should come from.]
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
     m.reserveMargin = pyo.Param(m.stages, default=0, units=u.MW)
-    m.renewableQuota = pyo.Param(m.stages, default=0, units=u.MW)
 
     # Map each representative period to its corresponding date, then
     # use that date to retrieve the appropriate representative
@@ -458,7 +525,6 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     m.investmentFactor = pyo.Param(
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
-    m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
 
     # Calculate fuel costs for thermal generators using fuel price and
     # heat rate. Define the MMBTU unit explicitly because it is not
