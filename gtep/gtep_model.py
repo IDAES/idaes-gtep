@@ -321,14 +321,8 @@ def create_stages(m, stages):
                             # units=u.minutes,
                         )
 
-                        disp.add_dispatch_variables(
-                            b_comm.dispatchPeriod[period],
-                            period,
-                            m.dispatchPeriodLength,
-                        )
-                        disp.add_dispatch_constraints(
-                            b_comm.dispatchPeriod[period], period
-                        )
+                        disp.add_dispatch_variables(b_comm.dispatchPeriod[period])
+                        disp.add_dispatch_constraints(b_comm.dispatchPeriod[period])
 
             if m.config["include_redispatch"]:
                 rep_period.add_time_links(b_rep)
