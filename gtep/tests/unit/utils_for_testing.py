@@ -105,14 +105,15 @@ def create_model(
             save_csv=False,
         )
         mod_object = ExpansionPlanningModel(
+            config=config,
             data=data_object,
             cost_data=data_processing_object,
         )
     else:
-        mod_object = ExpansionPlanningModel(data=data_object)
+        mod_object = ExpansionPlanningModel(
+            config=config, data=data_object
+        )
 
-    for config_option, config_val in config.items():
-        mod_object.config[config_option] = config_val
     mod_object.create_model()
 
     return mod_object
