@@ -232,7 +232,7 @@ def create_stages(m, stages):
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
         b_inv.year = m.years[investment_stage - 1]
-        print(f"{b_inv}.year = {b_inv.year}")
+        # print(f"{b_inv}.year = {b_inv.year}")
 
         # Declare cost parameters for each stage because they depend
         # on the investment year. IMPORTANT NOTE: This function
