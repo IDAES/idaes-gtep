@@ -110,9 +110,7 @@ def create_model(
             cost_data=data_processing_object,
         )
     else:
-        mod_object = ExpansionPlanningModel(
-            config=config, data=data_object
-        )
+        mod_object = ExpansionPlanningModel(config=config, data=data_object)
 
     mod_object.create_model()
 
