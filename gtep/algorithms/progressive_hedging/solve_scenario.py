@@ -188,17 +188,18 @@ def solve_scenario_from_files(
             nonant_var_map=nonant_var_map,
         )
 
-        debug_model_path = (
-            cfg.run.output_dir
-            / "debug_models"
-            / f"iter_{iteration:03d}_scenario_{scenario_id:03d}.lp"
-        )
-        debug_model_path.parent.mkdir(parents=True, exist_ok=True)
-        model.write(
-            str(debug_model_path),
-            io_options={"symbolic_solver_labels": True},
-        )
-        logger.info("Wrote debug LP model to %s", debug_model_path)
+        if cfg.output.save_debug_model:
+            debug_model_path = (
+                cfg.run.output_dir
+                / "debug_models"
+                / f"iter_{iteration:03d}_scenario_{scenario_id:03d}.lp"
+            )
+            debug_model_path.parent.mkdir(parents=True, exist_ok=True)
+            model.write(
+                str(debug_model_path),
+                io_options={"symbolic_solver_labels": True},
+            )
+            logger.info("Wrote debug LP model to %s", debug_model_path)
 
         log_file = _resolve_solver_log_file(cfg, iteration, scenario_id)
         solve_outcome = solve_model(

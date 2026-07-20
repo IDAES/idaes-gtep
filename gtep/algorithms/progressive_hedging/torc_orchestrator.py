@@ -75,6 +75,7 @@ from gtep.algorithms.progressive_hedging.scenario_data import (
 )
 from gtep.algorithms.progressive_hedging.solution_io import (
     append_convergence_history,
+    export_durable_results,
     make_iteration_summary,
     read_scenario_results,
     scenario_values_from_results,
@@ -355,6 +356,23 @@ def _process_existing_iteration_results(
             "PH reached max_iterations=%s without convergence.",
             cfg.progressive_hedging.max_iterations,
         )
+
+        if cfg.output.save_final_solution:
+            write_final_solution(
+                final_solution_dir(cfg),
+                final_state=next_state,
+                scenario_results=scenario_results,
+                summary=summary,
+                output_config=cfg.output,
+            )
+
+        if cfg.output.durable_output_dir is not None:
+            durable_paths = export_durable_results(
+                run_output_dir=cfg.run.output_dir,
+                durable_output_dir=cfg.output.durable_output_dir,
+            )
+            logger.info("Exported durable PH results: %s", durable_paths)
+
         orch.converge(
             state={
                 "converged": False,

@@ -69,6 +69,7 @@ from gtep.algorithms.progressive_hedging.scenario_data import (
 )
 from gtep.algorithms.progressive_hedging.solution_io import (
     append_convergence_history,
+    export_durable_results,
     make_iteration_summary,
     read_scenario_results,
     scenario_values_from_results,
@@ -266,6 +267,13 @@ def run_ph_local(
                     summary=summary,
                     output_config=cfg.output,
                 )
+
+            if cfg.output.durable_output_dir is not None:
+                    durable_paths = export_durable_results(
+                        run_output_dir=cfg.run.output_dir,
+                        durable_output_dir=cfg.output.durable_output_dir,
+                    )
+                    logger.info("Exported durable PH results: %s", durable_paths)
 
             return
 

@@ -32,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+import shutil
 
 import csv
 import json
@@ -729,3 +730,88 @@ def _json_sanitize(value: Any) -> Any:
         return value
 
     return value
+
+def export_durable_results(
+    *,
+    run_output_dir: str | Path,
+    durable_output_dir: str | Path,
+    include_iteration_summaries: bool = True,
+    include_state: bool = True,
+) -> dict[str, Path]:
+    """Copy final PH results from scratch to durable storage.
+
+    Parameters
+    ----------
+    run_output_dir:
+        Scratch/run output directory.
+    durable_output_dir:
+        Persistent destination directory, e.g. under /projects or /home.
+    include_iteration_summaries:
+        Whether to copy iteration summary JSON files.
+    include_state:
+        Whether to copy PH state JSON files.
+
+    Returns
+    -------
+    dict[str, pathlib.Path]
+        Paths copied/created in durable storage.
+    """
+    source_root = Path(run_output_dir)
+    dest_root = Path(durable_output_dir)
+    dest_root.mkdir(parents=True, exist_ok=True)
+
+    copied: dict[str, Path] = {}
+
+    # Always copy effective config if present.
+    config_source = source_root / "config_effective.yaml"
+    if config_source.exists():
+        config_dest = dest_root / "config_effective.yaml"
+        shutil.copy2(config_source, config_dest)
+        copied["config_effective"] = config_dest
+
+    # Copy final directory.
+    final_source = source_root / "final"
+    if final_source.exists():
+        final_dest = dest_root / "final"
+        if final_dest.exists():
+            shutil.rmtree(final_dest)
+        shutil.copytree(final_source, final_dest)
+        copied["final"] = final_dest
+
+    # Copy convergence history.
+    convergence_source = source_root / "convergence"
+    if convergence_source.exists():
+        convergence_dest = dest_root / "convergence"
+        if convergence_dest.exists():
+            shutil.rmtree(convergence_dest)
+        shutil.copytree(convergence_source, convergence_dest)
+        copied["convergence"] = convergence_dest
+
+    # Copy iteration summaries only, not full scenario outputs/logs.
+    if include_iteration_summaries:
+        summaries_dest = dest_root / "iteration_summaries"
+        if summaries_dest.exists():
+            shutil.rmtree(summaries_dest)
+        summaries_dest.mkdir(parents=True, exist_ok=True)
+
+        iterations_source = source_root / "iterations"
+        if iterations_source.exists():
+            for summary_path in iterations_source.glob("iter_*/summary.json"):
+                iter_dest = summaries_dest / summary_path.parent.name
+                iter_dest.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(summary_path, iter_dest / "summary.json")
+
+        copied["iteration_summaries"] = summaries_dest
+
+    # Copy state files if requested. These are usually small and useful for
+    # restart/debugging.
+    if include_state:
+        state_source = source_root / "state"
+        if state_source.exists():
+            state_dest = dest_root / "state"
+            if state_dest.exists():
+                shutil.rmtree(state_dest)
+            shutil.copytree(state_source, state_dest)
+            copied["state"] = state_dest
+
+    return copied

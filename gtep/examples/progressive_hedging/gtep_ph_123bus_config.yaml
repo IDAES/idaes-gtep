@@ -98,6 +98,7 @@ torc:
   cancel_on_scenario_failure: false
 
 output:
+  save_debug_model: false
   save_iteration_solutions: true
   save_final_solution: true
   save_nonanticipative_metadata: false
