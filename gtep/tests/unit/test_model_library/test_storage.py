@@ -244,7 +244,13 @@ class TestObjective(TestCase):
         self._add_storage_state_disjuncts()
         self.check_helper.check_all_objects()
 
-    def test_(self):
+    def test_one_commitment_one_dispatch(self):
+        self._coordinate_tests(
+            planning_data_args={"num_commit": 2, "num_dispatch": 2},
+            config={"storage": True},
+        )
+
+    def test_multiple_commitment_multiple_dispatch(self):
         self._coordinate_tests(
             planning_data_args={"num_commit": 2, "num_dispatch": 2},
             config={"storage": True},
