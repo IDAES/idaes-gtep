@@ -158,6 +158,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         },
     )
 
+
 def _append_pmax_values(candidate_values, p_max):
     """Append numeric p_max values to candidate_values.
 
@@ -181,6 +182,7 @@ def _append_pmax_values(candidate_values, p_max):
         return
 
     raise TypeError(f"Unsupported p_max data type: {type(p_max)}")
+
 
 def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
     """Creates and labels all the parameters in the GTEP model. This

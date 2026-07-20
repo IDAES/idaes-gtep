@@ -269,11 +269,11 @@ def run_ph_local(
                 )
 
             if cfg.output.durable_output_dir is not None:
-                    durable_paths = export_durable_results(
-                        run_output_dir=cfg.run.output_dir,
-                        durable_output_dir=cfg.output.durable_output_dir,
-                    )
-                    logger.info("Exported durable PH results: %s", durable_paths)
+                durable_paths = export_durable_results(
+                    run_output_dir=cfg.run.output_dir,
+                    durable_output_dir=cfg.output.durable_output_dir,
+                )
+                logger.info("Exported durable PH results: %s", durable_paths)
 
             return
 

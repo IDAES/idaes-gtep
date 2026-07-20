@@ -53,7 +53,9 @@ def main():
     print(f"Final iteration:              {summary.get('final_iteration')}")
     print(f"State iteration:              {summary.get('state_iteration')}")
     print(f"Number of scenarios:          {summary.get('num_scenarios')}")
-    print(f"Nonanticipative variables:    {summary.get('num_nonanticipative_variables')}")
+    print(
+        f"Nonanticipative variables:    {summary.get('num_nonanticipative_variables')}"
+    )
     print(f"Expected objective:           {summary.get('expected_objective')}")
     print()
 
@@ -103,7 +105,8 @@ def main():
 
     nonant_records = final_nonants.get("nonanticipative_values", [])
     nonzero = [
-        rec for rec in nonant_records
+        rec
+        for rec in nonant_records
         if abs(float(rec.get("final_value", rec.get("xbar", 0.0)))) > 1.0e-8
     ]
 
