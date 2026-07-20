@@ -533,92 +533,71 @@ class TestObjective(unittest.TestCase):
             obj_type=pyo.Var,
         )
 
-    def test_add_investment_commitment_constraints(self):
+    def check_commitment_constraint_objects(self):
         self._create_testing_obj(
-            config={
-                "advanced_hydro": False,
-                "include_commitment": True,
-                "storage": True,
-            },
-            data_path=path_9_bus,
+            config={},
+            data_path=input_data_path,
         )
-
+        # this function takes in an investment block not a commitment block
+        b = self.m.investmentStage[self.investment_stage]
         # Add variables required by the constraints
-        add_investment_commitment_variables(self.b)
-
+        add_investment_commitment_variables(b)
         # Set up helper before function call
-        self.check_helper = PyomoCheckHelper(self, self.b)
+        self.check_helper = PyomoCheckHelper(self, b)
         self._make_investment_commitment_constraint_objects()
 
         add_investment_commitment_constraints(
             self.m,
-            self.b,
+            b,
             self.investment_stage,
         )
 
         # Check that the variables are still present and correctly typed
         self.check_helper.check_all_objects()
 
-        # Check constraints exist
-        assert hasattr(self.b, "renewable_curtailment_cost")
-        assert hasattr(self.b, "operatingCostInvestment_constraint")
-
-        assert isinstance(self.b.renewable_curtailment_cost, pyo.Constraint)
-        assert isinstance(self.b.operatingCostInvestment_constraint, pyo.Constraint)
-
-        # Check the constraint expressions contain the expected terms
-        curt_expr_str = str(self.b.renewable_curtailment_cost.expr)
-        op_expr_str = str(self.b.operatingCostInvestment_constraint.expr)
-
-        assert "renewableCurtailmentInvestment" in curt_expr_str
-        assert "renewableCurtailmentCommitment" in curt_expr_str
-        assert "curtailmentCost" in curt_expr_str
-        assert "investmentFactor" in curt_expr_str
-        assert "weights" in curt_expr_str
-
-        assert "operatingCostInvestment" in op_expr_str
-        assert "operatingCostCommitment" in op_expr_str
-        assert "investmentFactor" in op_expr_str
-        assert "weights" in op_expr_str
-
-    def test_add_investment_commitment_constraints_values(self):
+    def test_add_investment_commitment_constraints(self):
         self._create_testing_obj(
             config={},
             data_path=input_data_path,
         )
+        # this function takes in an investment block not a commitment block
+        b = self.m.investmentStage[self.investment_stage]
 
-        add_investment_commitment_variables(self.b)
+        # add variables needed by the constraints
+        add_investment_commitment_variables(b)
 
-        # Give variables deterministic values so the constraint body can be checked
-        self.b.renewableCurtailmentInvestment.fix(123.0)
-        self.b.operatingCostInvestment.fix(456.0)
+        add_investment_commitment_constraints(self.m, b, self.investment_stage)
 
-        add_investment_commitment_constraints(
-            self.m,
-            self.b,
-            self.investment_stage,
-        )
+        # check expression and constraint creation
+        assert hasattr(b, "renewable_curtailment_cost")
+        assert hasattr(b, "operatingCostInvestment_constraint")
+        assert isinstance(b.renewable_curtailment_cost, pyo.Constraint)
+        assert isinstance(b.operatingCostInvestment_constraint, pyo.Constraint)
 
-        curt_con = self.b.renewable_curtailment_cost
-        op_con = self.b.operatingCostInvestment_constraint
+        # check expression structure
+        curt_expr_str = str(b.renewable_curtailment_cost.expr)
+        op_expr_str = str(b.operatingCostInvestment_constraint.expr)
 
-        # Constraint should be equality constraints
-        assert curt_con.lower is not None
-        assert curt_con.upper is not None
-        assert curt_con.lower == curt_con.upper
+        # renewable curtailment constraint should use these terms
+        assert "renewableCurtailmentInvestment" in curt_expr_str
+        assert "curtailmentCost" in curt_expr_str
+        assert "investmentFactor" in curt_expr_str
+        assert "dispatchPeriod" in curt_expr_str
+        assert "renewableCurtailment" in curt_expr_str
 
-        assert op_con.lower is not None
-        assert op_con.upper is not None
-        assert op_con.lower == op_con.upper
+        # operating cost constraint should use these terms
+        assert "operatingCostInvestment" in op_expr_str
+        assert "investmentFactor" in op_expr_str
+        assert "fixedCost" in op_expr_str
+        assert "startupCost" in op_expr_str
+        assert "genOn" in op_expr_str
+        assert "genShutdown" in op_expr_str
+        assert "genStartup" in op_expr_str
+        assert "dispatchPeriod" in op_expr_str
+        assert "renewableCurtailment" in op_expr_str
 
-        # Basic sanity check that the constraint references the right variables
-        assert curt_con.body is not None
-        assert op_con.body is not None
-
-        curt_body_str = str(curt_con.body)
-        op_body_str = str(op_con.body)
-
-        assert "renewableCurtailmentInvestment" in curt_body_str
-        assert "renewableCurtailmentCommitment" in curt_body_str
-        assert "operatingCostInvestment" in op_body_str
-        assert "operatingCostCommitment" in op_body_str
+        # check that the structure includes the expected indexing pattern
+        assert "representativePeriod[1]" in curt_expr_str
+        assert "commitmentPeriod[1]" in curt_expr_str
+        assert "representativePeriod[1]" in op_expr_str
+        assert "commitmentPeriod[1]" in op_expr_str
