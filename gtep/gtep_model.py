@@ -117,6 +117,10 @@ class ExpansionPlanningModel:
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
 
+        if config:
+            for config_option, config_val in config.items():
+                self.config[config_option] = config_val
+
     def create_model(self):
         """Create concrete Pyomo model object associated with the
         ExpansionPlanningModel class
