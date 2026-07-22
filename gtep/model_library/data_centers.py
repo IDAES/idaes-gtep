@@ -19,24 +19,37 @@ Expansion Planning (GTEP) Model
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
+
 def add_data_center_parameters(m):
     """This method defines parameters related to data centers in the main
     model.
 
     """
 
-    m.dataCenterOwners = pyo.Set(initialize=(m.md.data["elements"]["data_center"][dc]["owner"] for dc in m.md.data["elements"]["data_center"]), doc="Data center owners")
+    m.dataCenterOwners = pyo.Set(
+        initialize=(
+            m.md.data["elements"]["data_center"][dc]["owner"]
+            for dc in m.md.data["elements"]["data_center"]
+        ),
+        doc="Data center owners",
+    )
 
     m.dataCenterCapacity = pyo.Param(
         m.dataCenters, default=0, units=u.MW, doc="Data center capacity"
     )
 
     m.dataCenterGenerationCapacity = pyo.Param(
-        m.dataCenters, default=0, units=u.MW, doc="Data center co-located generation capacity"
+        m.dataCenters,
+        default=0,
+        units=u.MW,
+        doc="Data center co-located generation capacity",
     )
 
     m.dataCenterOperationalCost = pyo.Param(
-        m.dataCenters, default=0, units=u.USD / u.MWh, doc="Data center operational cost"
+        m.dataCenters,
+        default=0,
+        units=u.USD / u.MWh,
+        doc="Data center operational cost",
     )
 
     m.dataCenterGenerationCost = pyo.Param(
@@ -151,12 +164,14 @@ def add_investment_data_centers_constraints(m, b, investment_stage):
             )
         )
 
-def add_representative_period_data_centers_constraints(m, b, rep_per, i_p, commitment_period):
 
-    @b.Constraint(m.dataCenters, doc = "Data center something.")
+def add_representative_period_data_centers_constraints(
+    m, b, rep_per, i_p, commitment_period
+):
+
+    @b.Constraint(m.dataCenters, doc="Data center something.")
     def data_center_something_constraint(b, dc):
-        return 
-
+        return
 
 
 def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
@@ -169,6 +184,7 @@ def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
     dataCenterOff:     Data center is offline and not consuming power.
 
     """
+
     @b.Disjunct(m.dataCenters)
     def dataCenterTraining(disj, dc):
         b = disj.parent_block()
@@ -177,23 +193,24 @@ def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
         def data_center_training_load_constraint(d, dispatchPeriod):
             return b.dataCenterLoad[dc] == m.dataCenterCapacity[dc]
 
-    
     @b.Disjunct(m.dataCenters)
     def dataCenterInference(disj, dc):
         b = disj.parent_block()
 
-        @disj.Constraint(doc = "Data center load is between 50\% and 100\% of capacity while running inference.")
+        @disj.Constraint(
+            doc="Data center load is between 50\% and 100\% of capacity while running inference."
+        )
         def data_center_inference_load_constraint(d, dispatchPeriod):
             return b.dataCenterLoad[dc] >= 0.5 * m.dataCenterCapacity[dc]
-    
+
     @b.Disjunct(m.dataCenters)
     def dataCenterOff(disj, dc):
         b = disj.parent_block()
 
-        @disj.Constraint(doc = "Data center load is zero when offline.")
+        @disj.Constraint(doc="Data center load is zero when offline.")
         def data_center_off_load_constraint(d, dispatchPeriod):
             return b.dataCenterLoad[dc] == 0
-    
+
     @b.Disjunction(m.dataCenters)
     def dataCenterOperationalStatus(disj, dc):
         return [

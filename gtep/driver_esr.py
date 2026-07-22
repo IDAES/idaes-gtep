@@ -35,9 +35,12 @@ data_object = ExpansionPlanningData(
 data_object.load_prescient(
     data_path,
     representative_dates=[
-        '2019-01-28 00:00', '2019-04-23 00:00', '2019-07-05 00:00', '2019-10-14 00:00'
+        "2019-01-28 00:00",
+        "2019-04-23 00:00",
+        "2019-07-05 00:00",
+        "2019-10-14 00:00",
     ],
-    representative_weights=[1, 1, 1, 1]
+    representative_weights=[1, 1, 1, 1],
 )
 
 # [ESR WIP: Add bus and cost data files to be used on the

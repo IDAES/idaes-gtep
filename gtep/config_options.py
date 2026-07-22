@@ -29,7 +29,7 @@ _supported_flows = {
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
     "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
-    "transport": ("gtep.transport", "transport")
+    "transport": ("gtep.transport", "transport"),
 }
 
 
@@ -94,6 +94,14 @@ def _get_model_config():
             description="Introduces random dispatch information rather than having fixed values per commitment period.",
         ),
     )
+
+    CONFIG.declare(
+        "data_centers",
+        ConfigValue(
+            default=False, domain=Bool, description="Include data centers in the model."
+        ),
+    )
+
     return CONFIG
 
 
