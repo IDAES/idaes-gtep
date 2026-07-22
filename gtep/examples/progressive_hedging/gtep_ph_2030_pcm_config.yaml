@@ -4,7 +4,7 @@ run:
   clean_output_dir: true
 
 data:
-  data_path: /jkskolf/2030_pcm_case/base_case_pcm_2030
+  data_path: /home/jkskolf/2030_pcm_case/base_case_pcm_2030
 
   stages: 1
 
