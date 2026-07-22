@@ -86,6 +86,7 @@ class ExpansionPlanningData:
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
+                "start_date": "2019-01-01",
             }
 
         else:
@@ -213,6 +214,7 @@ class ExpansionPlanningData:
             missing_dates = [
                 date for date in representative_dates if date not in time_keys
             ]
+
             if missing_dates:
                 raise ValueError(
                     "The following representative_dates are not valid timestamps in the "
