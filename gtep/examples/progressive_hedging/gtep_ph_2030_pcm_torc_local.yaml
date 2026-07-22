@@ -28,10 +28,18 @@ resource_requirements:
 jobs:
   - name: ph_orch_gtep_ph_2030_pcm_g00
     command: >-
-      bash -lc 'cd ~/soraya_gtep/gtep &&
+      bash -c "cd /home/jkskolf/soraya_gtep/gtep &&
+      mkdir -p /scratch/jkskolf/torc_output/ph_debug &&
+      echo START_SEED_ORCH > /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout &&
+      echo PYTHON=$(which python) >> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout &&
+      python -c 'import sys; print(sys.executable)' >> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout 2>&1 &&
+      env | sort | grep '^TORC_' >> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout 2>&1 || true &&
+      python -c 'from torc import Orchestrator, SpawnJobModel; print(\"torc-client OK\")' >> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout 2>&1 &&
       python -m gtep.algorithms.progressive_hedging.torc_orchestrator
       --config examples/progressive_hedging/gtep_ph_2030_pcm_config.yaml
       --lineage gtep_ph_2030_pcm
-      --log-level INFO'
+      --log-level DEBUG
+      >> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stdout
+      2>> /scratch/jkskolf/torc_output/ph_debug/seed_2030_pcm.stderr"
     resource_requirements: ph_orch_rr
     priority: 5
