@@ -473,4 +473,48 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_data_centers(self):
-        pass
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+                    planning_data_args={
+                        "stages": 2,
+                        "num_reps": 2,
+                        "len_reps": 1,
+                        "num_commit": 6,
+                        "num_dispatch": 4,
+                        "duration_dispatch": 15,
+                    },
+                    config={
+                        "include_investment": True,
+                        "include_commitment": True,
+                        "include_redispatch": True,
+                        "scale_loads": True,
+                        "transmission": True,
+                        "storage": False,
+                        "flow_model": "DC",
+                        "advanced_hydro": True,
+                        "data_centers": True,
+                    },
+                    include_cost_data=True,
+                )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
