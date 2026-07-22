@@ -9,7 +9,7 @@ dynamic_jobs:
 resource_requirements:
   - name: ph_orch_rr
     num_cpus: 1
-    memory: 4g
+    memory: 9600g
     runtime: PT30M
 
   - name: ph_scenario_rr
