@@ -221,6 +221,10 @@ class OutputConfig:
     save_iteration_solutions: bool = True
     save_final_solution: bool = True
 
+    # Optional debug model export. This can create very large LP files and
+    # should remain false for production-size runs.
+    save_debug_model: bool = False
+
     save_nonanticipative_metadata: bool = False
 
     # Richer scenario output is explicitly optional and not required initially.
