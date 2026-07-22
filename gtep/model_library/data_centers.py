@@ -121,23 +121,13 @@ def add_investment_data_centers_constraints(m, b, investment_stage):
             and investment_stage == 1
         ):
             b.dataCenterOperational[dc].indicator_var.fix(False)
+            b.dataCenterExtended[dc].indicator_var.fix(False)
         elif (
             m.md.data["elements"]["data_center"][dc]["in_service"] == True
             and investment_stage == 1
         ):
             b.dataCenterOperational[dc].indicator_var.fix(True)
 
-    for dc in m.dataCenters:
-        if (
-            m.md.data["elements"]["data_center"][dc]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.dataCenterOperational[dc].fix(0)
-        elif (
-            m.md.data["elements"]["data_center"][dc]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.dataCenterOperational[dc].fix(m.dataCenterCapacity[dc])
 
     @b.Expression(doc="Data center investment costs in $")
     def data_centers_investment_cost(b):

@@ -22,6 +22,7 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 import gtep.model_library.storage as stor
+import gtep.model_library.data_centers as dc
 
 logger = logging.getLogger("gtep.model_library.components")
 
@@ -689,6 +690,9 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
 
     if m.config["storage"] == True:
         stor.add_storage_params(m)
+
+    if m.config["data_centers"]:
+        dc.add_data_center_parameters(m)
 
     # Add legacy parameters.These parameters are commented in the
     # original model. Keep here to check if we should include them in

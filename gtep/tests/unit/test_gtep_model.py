@@ -471,3 +471,6 @@ class TestGTEP(unittest.TestCase):
             value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_with_data_centers(self):
+        pass
