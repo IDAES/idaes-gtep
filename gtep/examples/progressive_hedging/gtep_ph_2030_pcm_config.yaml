@@ -1,0 +1,119 @@
+run:
+  name: gtep_ph_2030_pcm
+  output_dir: /scratch/jkskolf/gtep_ph_runs/gtep_ph_2030_pcm
+  clean_output_dir: true
+
+data:
+  data_path: /jkskolf/2030_pcm_case/base_case_pcm_2030
+
+  stages: 1
+
+  # TODO: Set this equal to the number of representative dates below.
+  num_reps: 4
+
+  len_reps: 24
+  num_commit: 24
+  num_dispatch: 1
+  duration_dispatch: 60
+
+  # TODO: Replace these with the desired representative-day timestamps
+  # from the 2030 PCM dataset.
+  representative_dates:
+    - "2030-01-01 00:00"
+    - "2030-04-01 00:00"
+    - "2030-07-01 00:00"
+    - "2030-10-01 00:00"
+
+  # TODO: Replace with weights corresponding to the representative days.
+  # These should have the same length as representative_dates.
+  representative_weights:
+    - 90
+    - 90
+    - 95
+    - 90
+
+  prescient_options:
+    data_path: /home/jkskolf/2030_pcm_case/base_case_pcm_2030
+    num_days: 365
+    ruc_horizon: 36
+    start_date: "2030-01-01"
+
+cost_data:
+  enabled: false
+
+  bus_data_path: null
+  cost_data_path: null
+  ng_cost_path: null
+
+  candidate_gens: []
+
+model:
+  include_investment: false
+  include_commitment: false
+  include_redispatch: true
+  scale_loads: false
+  transmission: true
+  storage: false
+  flow_model: transport
+  advanced_hydro: false
+  gdp_transformation: gdp.bigm
+
+progressive_hedging:
+  max_iterations: 25
+  min_iterations: 1
+  convergence_tolerance: 1.0e-4
+  rho: 100.0
+  regularization: l1
+  normalize_scenario_probabilities: true
+
+  nonanticipativity:
+    include_renewable_investment_variables: true
+    include_thermal_status_binaries: true
+    include_transmission_status_binaries: true
+    include_storage_status_binaries: false
+
+solver:
+  name: xpress
+  tee: true
+  mip_gap: 0.01
+  time_limit: 14400
+  threads: 120
+
+  license_file: ~/naerm_xpauth.xpr
+  license_env_var: XPAUTH_PATH
+
+  environment:
+    TMPDIR: /scratch/jkskolf/gtep_tmp
+    TMP: /scratch/jkskolf/gtep_tmp
+    TEMP: /scratch/jkskolf/gtep_tmp
+
+  log_file: null
+
+  acceptable_termination_conditions:
+    - optimal
+    - feasible
+    - maxTimeLimit
+
+torc:
+  enabled: true
+
+  resource_requirements:
+    orchestrator: ph_orch_rr
+    scenario: ph_scenario_rr
+
+  scenario_priority: 10
+  orchestrator_priority: 0
+  cancel_on_scenario_failure: false
+
+output:
+  save_debug_model: false
+  save_iteration_solutions: true
+  save_final_solution: true
+  save_nonanticipative_metadata: false
+  save_full_scenario_solution: false
+  save_operational_variables: false
+  binary_rounding_tolerance: 1.0e-5
+
+  convergence_history_formats:
+    - json
+    - csv
