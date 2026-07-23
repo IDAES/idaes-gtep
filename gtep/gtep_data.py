@@ -29,6 +29,299 @@ from prescient.data.providers import gmlc_data_provider
 logger = logging.getLogger("gtep.gtep_data")
 
 
+def _timestamp_from_key(time_key):
+    """Convert a Prescient/Egret time key to a pandas Timestamp."""
+    return pd.Timestamp(time_key)
+
+
+def _build_time_key_lookup(time_keys):
+    """Build a Timestamp -> original time key lookup.
+
+    The original time key is returned so downstream code continues using the
+    exact key representation present in the loaded ModelData.
+    """
+    return {_timestamp_from_key(time_key): time_key for time_key in time_keys}
+
+
+def _get_data_years_from_time_keys(time_keys):
+    """Return sorted unique years present in loaded time keys."""
+    return sorted({_timestamp_from_key(time_key).year for time_key in time_keys})
+
+
+def _coerce_year_value(value):
+    """Try to coerce a CSV value to a plausible calendar year."""
+    if value in (None, "", "NA", "N/A"):
+        return None
+
+    try:
+        year = int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+    if 1900 <= year <= 2100:
+        return year
+
+    return None
+
+
+def _infer_data_years_from_csv_files(data_path):
+    """Infer calendar years present in input data files.
+
+    This scans time-series CSV files for a column named ``Year``. If no
+    dedicated time-series directory exists, it falls back to scanning CSV files
+    under ``data_path``.
+
+    Returns
+    -------
+    list[int]
+        Sorted unique inferred years. Empty if no years can be inferred.
+    """
+    data_path = Path(data_path)
+
+    candidate_root = data_path / "timeseries_data_files"
+    if not candidate_root.exists():
+        candidate_root = data_path
+
+    years = set()
+
+    for csv_path in candidate_root.rglob("*.csv"):
+        try:
+            with csv_path.open(newline="") as csvfile:
+                reader = csv.DictReader(csvfile)
+
+                if not reader.fieldnames:
+                    continue
+
+                year_columns = [
+                    column
+                    for column in reader.fieldnames
+                    if column.strip().lower() == "year"
+                ]
+
+                if not year_columns:
+                    continue
+
+                year_column = year_columns[0]
+
+                for row in reader:
+                    year = _coerce_year_value(row.get(year_column))
+                    if year is not None:
+                        years.add(year)
+
+        except UnicodeDecodeError:
+            logger.debug(
+                "Skipping non-text or non-UTF8 CSV while inferring data years: %s",
+                csv_path,
+            )
+        except OSError as err:
+            logger.debug(
+                "Skipping CSV while inferring data years due to OS error: %s (%s)",
+                csv_path,
+                err,
+            )
+
+    return sorted(years)
+
+
+def _replace_year(timestamp, year):
+    """Return timestamp with replaced year, with a useful leap-day error."""
+    try:
+        return timestamp.replace(year=year)
+    except ValueError as err:
+        raise ValueError(
+            f"Could not replace year in representative date {timestamp} with "
+            f"data year {year}. This can happen for dates such as February 29 "
+            "when the target data year is not a leap year."
+        ) from err
+
+
+def _format_start_date_for_prescient(timestamp):
+    """Format a timestamp as a Prescient-compatible start_date string."""
+    if (
+        timestamp.hour == 0
+        and timestamp.minute == 0
+        and timestamp.second == 0
+        and timestamp.microsecond == 0
+    ):
+        return timestamp.strftime("%Y-%m-%d")
+
+    return timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _resolve_prescient_start_date_year(data_path, options_dict):
+    """Resolve Prescient start_date year before data are loaded.
+
+    Resolution policy:
+        1. If the requested start_date year is present in the data, keep it.
+        2. If it is not present and the input data contain exactly one year,
+           auto-correct start_date to that year and warn.
+        3. If it is not present and the input data contain multiple years, fail.
+        4. If no data years can be inferred, leave start_date unchanged.
+    """
+    if options_dict is None or "start_date" not in options_dict:
+        return options_dict
+
+    data_years = _infer_data_years_from_csv_files(data_path)
+
+    if not data_years:
+        logger.warning(
+            "Could not infer input data year(s) from CSV files under %s. "
+            "Leaving Prescient start_date unchanged: %s",
+            data_path,
+            options_dict["start_date"],
+        )
+        return options_dict
+
+    requested_start_timestamp = pd.Timestamp(options_dict["start_date"])
+    requested_year = requested_start_timestamp.year
+
+    if requested_year in data_years:
+        return options_dict
+
+    if len(data_years) == 1:
+        data_year = data_years[0]
+        corrected_timestamp = _replace_year(requested_start_timestamp, data_year)
+        corrected_start_date = _format_start_date_for_prescient(corrected_timestamp)
+
+        logger.warning(
+            "Prescient start_date year %s is not present in the input data years "
+            "%s. The input data contain a single year (%s), so start_date was "
+            "auto-corrected from %r to %r.",
+            requested_year,
+            data_years,
+            data_year,
+            options_dict["start_date"],
+            corrected_start_date,
+        )
+
+        options_dict["start_date"] = corrected_start_date
+        return options_dict
+
+    raise ValueError(
+        f"Prescient start_date year {requested_year} is not present in the "
+        f"input data years {data_years}. The input data contain multiple years, "
+        "so the start_date year cannot be safely auto-corrected. Please provide "
+        "a start_date whose year exists in the input data."
+    )
+
+
+def _validate_representative_date_windows(
+    representative_dates,
+    time_keys,
+    period_per_step,
+):
+    """Validate that each representative date can start a full period window."""
+    for date in representative_dates:
+        if date not in time_keys:
+            raise ValueError(
+                f"Representative date {date!r} is not present in loaded time keys."
+            )
+
+        key_idx = time_keys.index(date)
+        if key_idx + period_per_step > len(time_keys):
+            raise ValueError(
+                f"Representative date {date!r} does not have enough following "
+                f"time points to form a full representative period of length "
+                f"{period_per_step}. Date index is {key_idx}; total number of "
+                f"time keys is {len(time_keys)}."
+            )
+
+
+def _resolve_user_representative_dates(
+    representative_dates,
+    time_keys,
+    num_reps,
+    period_per_step,
+):
+    """Resolve and validate user-provided representative dates.
+
+    Resolution policy:
+        1. Use exact user-specified timestamps if all are present.
+        2. If some are missing and the loaded data contains exactly one year,
+           auto-correct the year while preserving month/day/time.
+        3. Otherwise fail with a clear error.
+    """
+    if len(representative_dates) != num_reps:
+        raise ValueError(
+            f"The number of provided representative_dates must match num_reps. "
+            f"Received len(representative_dates)={len(representative_dates)}, "
+            f"but num_reps={num_reps}."
+        )
+
+    representative_dates = list(representative_dates)
+
+    missing_dates = [date for date in representative_dates if date not in time_keys]
+
+    if not missing_dates:
+        _validate_representative_date_windows(
+            representative_dates,
+            time_keys,
+            period_per_step,
+        )
+        return representative_dates
+
+    data_years = _get_data_years_from_time_keys(time_keys)
+
+    if len(data_years) != 1:
+        raise ValueError(
+            "The following representative_dates are not valid timestamps in the "
+            f"loaded input data: {missing_dates}. The loaded data contains "
+            f"multiple years {data_years}, so the representative-date year "
+            "cannot be safely auto-corrected. Please provide timestamps that "
+            "exist in the loaded data."
+        )
+
+    data_year = data_years[0]
+    time_key_lookup = _build_time_key_lookup(time_keys)
+
+    corrected_dates = []
+    corrections = []
+
+    for date in representative_dates:
+        if date in time_keys:
+            corrected_dates.append(date)
+            continue
+
+        requested_timestamp = _timestamp_from_key(date)
+        corrected_timestamp = _replace_year(requested_timestamp, data_year)
+
+        if corrected_timestamp not in time_key_lookup:
+            raise ValueError(
+                f"Representative date {date!r} is not present in the loaded "
+                f"data, and auto-correcting its year to {data_year} produced "
+                f"{str(corrected_timestamp)!r}, which is also not present. "
+                "Please provide a representative date that exists in the "
+                "loaded data."
+            )
+
+        corrected_key = time_key_lookup[corrected_timestamp]
+        corrected_dates.append(corrected_key)
+        corrections.append((date, corrected_key))
+
+    if len(set(corrected_dates)) != len(corrected_dates):
+        raise ValueError(
+            "Representative-date year auto-correction produced duplicate "
+            f"representative dates: {corrected_dates}. Please provide distinct "
+            "representative dates."
+        )
+
+    _validate_representative_date_windows(
+        corrected_dates,
+        time_keys,
+        period_per_step,
+    )
+
+    logger.warning(
+        "Some representative_dates were not present in the loaded data, but the "
+        "loaded data contains a single year (%s). Auto-corrected representative "
+        "date years while preserving month/day/time: %s",
+        data_year,
+        corrections,
+    )
+
+    return corrected_dates
+
+
 class ExpansionPlanningData:
     """Standard data storage class for the IDAES GTEP model."""
 
@@ -86,11 +379,18 @@ class ExpansionPlanningData:
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
+                "start_date": "2019-01-01",
             }
 
         else:
             # ensure data path is included in options dictionary
             options_dict["data_path"] = data_path
+
+        # Resolve the Prescient start_date year before loading data. If the
+        # configured year is not present in the input data, but the data contain
+        # a single year, auto-correct to that year with a warning. If multiple
+        # years are present, fail with a clear error.
+        options_dict = _resolve_prescient_start_date_year(data_path, options_dict)
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
@@ -199,25 +499,12 @@ class ExpansionPlanningData:
                     key=lambda date: time_keys.index(date),
                 )
         else:
-            # Validate that the user-provided representative_dates
-            # match the requested number of representative periods.
-            if len(representative_dates) != self.num_reps:
-                raise ValueError(
-                    f"The number of provided representative_dates must match num_reps. "
-                    f"Received len(representative_dates)={len(representative_dates)}, "
-                    f"but num_reps={self.num_reps}."
-                )
-
-            # Validate that all user-provided representative dates
-            # exist in the loaded day-ahead timestamps.
-            missing_dates = [
-                date for date in representative_dates if date not in time_keys
-            ]
-            if missing_dates:
-                raise ValueError(
-                    "The following representative_dates are not valid timestamps in the "
-                    f"loaded day-ahead input data: {missing_dates}"
-                )
+            representative_dates = _resolve_user_representative_dates(
+                representative_dates,
+                time_keys,
+                self.num_reps,
+                period_per_step,
+            )
 
         self.representative_dates = representative_dates
 
@@ -262,6 +549,19 @@ class ExpansionPlanningData:
         # should be in MMBTU/MWh.
         gen_csv_file = os.path.join(data_path, "gen.csv")
         heat_rate_dict = {}
+        static_pmax_dict = {}
+
+        static_pmax_columns = [
+            "PMax MW",
+            "Pmax MW",
+            "P_MAX MW",
+            "P_MAX",
+            "PMax",
+            "p_max",
+            "PMax_MW",
+            "PMAX",
+        ]
+
         with open(gen_csv_file, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
@@ -276,6 +576,22 @@ class ExpansionPlanningData:
                 if gen_uid and heat_rate is not None:
                     heat_rate_dict[gen_uid] = heat_rate
 
+                if gen_uid:
+                    for column in static_pmax_columns:
+                        pmax_str = row.get(column)
+                        if pmax_str not in (None, "", "NA"):
+                            try:
+                                static_pmax_dict[gen_uid] = float(pmax_str)
+                            except ValueError:
+                                logger.warning(
+                                    "Could not parse static p_max value %r from "
+                                    "column %s for generator %s.",
+                                    pmax_str,
+                                    column,
+                                    gen_uid,
+                                )
+                            break
+
         for gen in self.md.data["elements"]["generator"]:
             if gen in heat_rate_dict:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = (
@@ -283,6 +599,14 @@ class ExpansionPlanningData:
                 )
             else:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
+
+            if gen in static_pmax_dict:
+                # Preserve static physical nameplate capacity from gen.csv.
+                # This is scenario-invariant and should not be inferred from a
+                # selected representative day's renewable availability profile.
+                self.md.data["elements"]["generator"][gen]["nameplate_capacity"] = (
+                    static_pmax_dict[gen]
+                )
 
         thermal_heat_rates = [
             self.md.data["elements"]["generator"][gen].get("heat_rate", 0)

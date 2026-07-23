@@ -1,0 +1,34 @@
+name: gtep_ph_123bus_torc_large
+description: Torc workflow for 123-bus GTEP representative-period PH on large shared-memory machine
+
+dynamic_jobs:
+  max_iterations: 30
+
+resource_requirements:
+  - name: ph_orch_rr
+    num_cpus: 1
+    memory: 4g
+    runtime: PT30M
+
+  - name: ph_scenario_rr
+    # 960 total cores; cap total scenario CPU use at half machine = 480.
+    # With 4 representative-period scenarios, use 120 CPUs per scenario.
+    num_cpus: 120
+
+    # 14 TB total RAM. Use 3.2 TB per scenario:
+    #   4 * 3200g = 12800g
+    # leaving >1 TB headroom.
+    memory: 3200g
+
+    runtime: PT6H
+
+jobs:
+  - name: ph_orch_gtep_ph_123bus_g00
+    command: >-
+      bash -lc 'cd ~/soraya_gtep/gtep &&
+      python -m gtep.algorithms.progressive_hedging.torc_orchestrator
+      --config examples/progressive_hedging/gtep_ph_123bus_config.yaml
+      --lineage gtep_ph_123bus
+      --log-level INFO'
+    resource_requirements: ph_orch_rr
+    priority: 5

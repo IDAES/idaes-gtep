@@ -1,0 +1,111 @@
+run:
+  name: gtep_ph_123bus_4rep
+  output_dir: ./ph_runs/gtep_ph_123bus_4rep
+  clean_output_dir: true
+
+data:
+  data_path: ./data/123_Bus_Resil_Week
+
+  stages: 2
+  num_reps: 4
+  len_reps: 24
+  num_commit: 24
+  num_dispatch: 1
+  duration_dispatch: 60
+
+  representative_dates:
+    - "2019-01-28 00:00"
+    - "2019-04-23 00:00"
+    - "2019-07-05 00:00"
+    - "2019-10-14 00:00"
+
+  representative_weights:
+    - 30
+    - 100
+    - 200
+    - 35
+
+  prescient_options:
+    data_path: ./data/123_Bus_Resil_Week
+    num_days: 365
+    ruc_horizon: 36
+    start_date: "2019-01-01"
+
+cost_data:
+  enabled: true
+
+  bus_data_path: ./data/costs/Bus_data_gen_weights_mappings.csv
+  cost_data_path: ./data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx
+  ng_cost_path: ./data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv
+
+  candidate_gens:
+    - Natural Gas_CT
+    - Natural Gas_FE
+    - Solar - Utility PV
+
+model:
+  include_investment: true
+  include_commitment: true
+  include_redispatch: true
+  scale_loads: false
+  transmission: true
+  storage: false
+  flow_model: transport
+  advanced_hydro: false
+  gdp_transformation: gdp.bigm
+
+progressive_hedging:
+  max_iterations: 5
+  min_iterations: 1
+  convergence_tolerance: 1.0e-4
+  rho: 100.0
+  regularization: l1
+  normalize_scenario_probabilities: true
+
+  nonanticipativity:
+    include_renewable_investment_variables: true
+    include_thermal_status_binaries: true
+    include_transmission_status_binaries: true
+    include_storage_status_binaries: false
+
+solver:
+  name: xpress
+  tee: true
+  mip_gap: 0.001
+  time_limit: 14400
+  threads: 120
+
+  license_file: ~/xpauth.xpr
+  license_env_var: XPAUTH_PATH
+  environment: {}
+
+  log_file: null
+
+  acceptable_termination_conditions:
+    - optimal
+    - feasible
+    - maxTimeLimit
+
+torc:
+  enabled: true
+
+  resource_requirements:
+    orchestrator: ph_orch_rr
+    scenario: ph_scenario_rr
+
+  scenario_priority: 10
+  orchestrator_priority: 0
+  cancel_on_scenario_failure: false
+
+output:
+  save_debug_model: false
+  save_iteration_solutions: true
+  save_final_solution: true
+  save_nonanticipative_metadata: false
+  save_full_scenario_solution: false
+  save_operational_variables: false
+  binary_rounding_tolerance: 1.0e-5
+
+  convergence_history_formats:
+    - json
+    - csv

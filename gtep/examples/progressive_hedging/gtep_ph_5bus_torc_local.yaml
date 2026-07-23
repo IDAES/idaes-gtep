@@ -1,0 +1,42 @@
+# Local Torc workflow for GTEP Progressive Hedging 5-bus smoke test.
+#
+# Run from the repository root:
+#
+#   torc run examples/progressive_hedging/gtep_ph_5bus_torc_local.yaml
+#
+# This Torc workflow launches one seed PH orchestrator. The PH orchestrator
+# dynamically spawns scenario solves and continuation orchestrators.
+#
+# The PH algorithm configuration is in:
+#
+#   examples/progressive_hedging/gtep_ph_5bus_config.yaml
+
+name: gtep_ph_5bus_torc_local
+description: Local Torc workflow for GTEP representative-period Progressive Hedging
+
+dynamic_jobs:
+  # Torc dynamic-job safety cap. This is separate from PH max_iterations.
+  # With PH min_iterations=1 and max_iterations=3, 20 is ample.
+  max_iterations: 20
+
+resource_requirements:
+  - name: ph_orch_rr
+    num_cpus: 1
+    memory: 256m
+    runtime: PT10M
+
+  - name: ph_scenario_rr
+    # Match solver.threads in the PH config if possible.
+    num_cpus: 4
+    memory: 4g
+    runtime: PT30M
+
+jobs:
+  - name: ph_orch_gtep_ph_5bus_g00
+    command: >-
+      python3 -m gtep.algorithms.progressive_hedging.torc_orchestrator
+      --config examples/progressive_hedging/gtep_ph_5bus_config.yaml
+      --lineage gtep_ph_5bus
+      --log-level INFO
+    resource_requirements: ph_orch_rr
+    priority: 5

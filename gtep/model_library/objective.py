@@ -16,15 +16,12 @@ Transmission Expansion Planning (GTEP) Model
 
 """
 
-from pyomo.environ import units as u
-
 
 def create_objective_function(m):
     """This method defines the objective function for the GTEP model
     as the minimization of the total cost. The total cost is
     calculated as the sum of operating costs, expansion costs, and
-    penalty costs (which account for generation deficits, renewable
-    quota deficits, and curtailment).
+    renewable curtailment costs.
 
     :param m: Pyomo GTEP model.
 
@@ -48,16 +45,21 @@ def create_objective_function(m):
     def expansionCostTotal(m):
         return sum(m.investmentStage[stage].investment_cost for stage in m.stages)
 
+    # renewableCurtailmentCostTotal includes curtailment costs from
+    # the representative-period operational model. These costs are
+    # weighted by representative-period weights through
+    # renewableCurtailmentInvestment.
     @m.Expression()
-    def penaltyCostTotal(m):
+    def renewableCurtailmentCostTotal(m):
         return sum(
-            m.deficitPenalty[stage]
-            * m.investmentFactor[stage]
-            * m.investmentStage[stage].quotaDeficit
-            + m.investmentStage[stage].renewableCurtailmentInvestment
+            m.investmentStage[stage].renewableCurtailmentInvestment
             for stage in m.stages
         )
 
     @m.Objective()
     def total_cost_objective_rule(m):
-        return m.operatingCostTotal + m.expansionCostTotal + m.penaltyCostTotal
+        return (
+            m.operatingCostTotal
+            + m.expansionCostTotal
+            + m.renewableCurtailmentCostTotal
+        )
