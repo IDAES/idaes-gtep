@@ -2,7 +2,10 @@
 
 Data
 ====
-
+To run this click: 
+.. image:: https://mybinder.org/badge_logo.svg
+ :target: https://mybinder.org/v2/gh/gsclaros/idaes-gtep.git/HEAD?urlpath=%2Fdoc%2Ftree%2Fdocs%2Fsource%2Fdata.rst
+ 
 The :class:`ExpansionPlanningData<gtep.gtep_data.ExpansionPlanningData>` class stores data for the
 IDAES-GTEP model. It includes a function to load data
 structured using the Prescient data loader.
