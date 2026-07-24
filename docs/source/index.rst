@@ -12,7 +12,7 @@ Welcome to idaes-gtep's documentation!
 
    installation
    modeling
-   data
+   data.rst
    solving
    tutorial
 
