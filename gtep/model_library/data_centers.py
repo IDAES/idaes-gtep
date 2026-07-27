@@ -57,13 +57,12 @@ def add_data_center_parameters(m):
         ],
     )
 
+    total_owner_load_required = {owner: sum(m.dataCenterLoadByOwner[dc] for dc in m.dataCenterByOwner[owner])
+                / len(m.dataCenterByOwner[owner]) if len(m.dataCenterByOwner[owner]) > 0 else 0 for owner in m.dataCenterOwners}
+
     m.dataCenterOwnerLoad = pyo.Param(
-        m.dataCentersOwners,
-        initialize=(
-            sum(m.dataCenterLoadByOwner[dc] for dc in m.dataCenterByOwner[owner])
-            / len(m.dataCenterByOwner[owner])
-            for owner in m.dataCenterOwners
-        ),
+        m.dataCenterOwners,
+        initialize=total_owner_load_required,
         units=u.MW,
         doc="Data center load required by owner",
     )
@@ -144,7 +143,7 @@ def add_data_center_status_disjuncts(b, data_centers_set):
         ]
 
 
-def add_investment_data_centers_constraints(m, b, investment_stage):
+def add_investment_data_center_constraints(m, b, investment_stage):
 
     # These constraints take the "in_service" data and fix the
     # indicator variables of the status disjuncts to define the
@@ -163,7 +162,7 @@ def add_investment_data_centers_constraints(m, b, investment_stage):
             b.dataCenterOperational[dc].indicator_var.fix(True)
 
     @b.Expression(doc="Data center investment costs in $")
-    def data_centers_investment_cost(b):
+    def data_center_investment_cost(b):
         return (
             sum(
                 m.dataCenterInvestmentCost[dc]
@@ -192,19 +191,17 @@ def add_representative_period_data_centers_constraints(
     m, b, rep_per, i_p, commitment_period
 ):
 
-    @b.Constraint(m.dataCenters, doc="Data center total load constraint.")
-    def data_center_total_load_constraint(b, dc):
-        return (
-            sum(
-                b.commitmentPeriod[c_p].dispatchPeriod[d_p].dataCenterLoad[dc]
-                for c_p in b.commitmentPeriods
-                for d_p in b.commitmentPeriod[c_p].dispatchPeriods
-            )
-            >= 0.85 * m.dataCenterCapacity[dc]
-        )
+    @b.Constraint(m.dataCenterOwners, doc="Data center total load required by owner.")
+    def data_center_total_load_constraint(b, owner):
+        return sum(
+            b.commitmentPeriod[c_p].dispatchPeriod[d_p].dataCenterLoad[dc]
+            for c_p in b.commitmentPeriods
+            for d_p in b.commitmentPeriod[c_p].dispatchPeriods
+            for dc in m.dataCenterByOwner[owner]
+        ) >= m.dataCenterOwnerLoad[owner]
 
 
-def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
+def add_data_center_state_disjuncts(m, b, r_p, i_p, commitment_period):
     """This method defines a Disjunction with disjuncts representing
     the alternatives for data center state operation. The alternatives
     are:
@@ -250,12 +247,14 @@ def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
         ]
 
 
-def add_commitment_data_centers_constraints(m, b, r_p, i_p, comm_per):
+def add_commitment_data_center_constraints(m, b, r_p, i_p, comm_per):
     pass
 
 
-def add_dispatch_data_centers_variables(m, b):
+def add_dispatch_data_center_variables(b, paramPeriodLength):
     """Add data center variables to the dispatch block."""
+
+    m = b.model()
 
     def data_center_load_limits(b, dc, doc="Bounds on data center load"):
         return (0, m.dataCenterCapacity[dc])
@@ -293,15 +292,6 @@ def add_dispatch_data_centers_variables(m, b):
         doc="Data center curtailment",
     )
 
-    @b.Constraint(m.dataCenterOwners, doc="Data center total load required by owner.")
-    def data_center_total_load_constraint(b, owner):
-        return sum(
-            b.commitmentPeriod[c_p].dispatchPeriod[d_p].dataCenterLoad[dc]
-            for c_p in b.commitmentPeriods
-            for d_p in b.commitmentPeriod[c_p].dispatchPeriods
-            for dc in m.dataCenterByOwner[owner]
-        ) >= sum(m.dataCenterOwnerLoad[dc] for dc in m.dataCenterByOwner[owner])
-
     @b.Constraint(m.dataCenters, doc="Data center curtailment balance.")
     def data_center_curtailment_balance(b, dc):
         return (
@@ -313,7 +303,7 @@ def add_dispatch_data_centers_variables(m, b):
     def dataCenterLoadCost(b, dc):
         return (
             b.dataCenterLoad[dc]
-            * pyo.units.convert(b.periodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.dataCenterOperationalCost[dc]
         )
 
@@ -321,10 +311,14 @@ def add_dispatch_data_centers_variables(m, b):
     def dataCenterGenerationCost(b, dc):
         return (
             b.dataCenterGeneration[dc]
-            * pyo.units.convert(b.periodLength, to_units=u.hr)
+            * pyo.units.convert(paramPeriodLength, to_units=u.hr)
             * m.dataCenterGenerationCost[dc]
         )
 
-    @b.Expression(m.dataCenters, doc="Data center total dispatch cost in $")
-    def dataCenterCostDispatch(b, dc):
-        return b.dataCenterLoadCost[dc] + b.dataCenterGenerationCost[dc]
+    @b.Expression(doc="Data center total dispatch cost in $")
+    def dataCenterCostDispatch(b):
+        return sum(
+            b.dataCenterLoadCost[dc] + b.dataCenterGenerationCost[dc]
+            for dc in m.dataCenters
+        )
+        
