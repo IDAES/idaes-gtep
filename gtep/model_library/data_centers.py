@@ -39,6 +39,35 @@ def add_data_center_parameters(m):
         doc="Data center owners",
     )
 
+    m.dataCenterLoadByOwner = pyo.Param(
+        m.dataCenters,
+        initialize=lambda m, dc: m.md.data["elements"]["data_center"][dc][
+            "total_owner_load_required"
+        ],
+        units=u.MW,
+        doc="Data center load required by owner",
+    )
+
+    m.dataCenterByOwner = pyo.Set(
+        m.dataCenterOwners,
+        initialize=lambda owner: [
+            dc
+            for dc in m.dataCenters
+            if m.md.data["elements"]["data_center"][dc]["owner"] == owner
+        ],
+    )
+
+    m.dataCenterOwnerLoad = pyo.Param(
+        m.dataCentersOwners,
+        initialize=(
+            sum(m.dataCenterLoadByOwner[dc] for dc in m.dataCenterByOwner[owner])
+            / len(m.dataCenterByOwner[owner])
+            for owner in m.dataCenterOwners
+        ),
+        units=u.MW,
+        doc="Data center load required by owner",
+    )
+
     m.dataCenterCapacity = pyo.Param(
         m.dataCenters, default=0, units=u.MW, doc="Data center capacity"
     )
@@ -165,7 +194,14 @@ def add_representative_period_data_centers_constraints(
 
     @b.Constraint(m.dataCenters, doc="Data center total load constraint.")
     def data_center_total_load_constraint(b, dc):
-        return sum()
+        return (
+            sum(
+                b.commitmentPeriod[c_p].dispatchPeriod[d_p].dataCenterLoad[dc]
+                for c_p in b.commitmentPeriods
+                for d_p in b.commitmentPeriod[c_p].dispatchPeriods
+            )
+            >= 0.85 * m.dataCenterCapacity[dc]
+        )
 
 
 def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
@@ -256,6 +292,15 @@ def add_dispatch_data_centers_variables(m, b):
         units=u.MW,
         doc="Data center curtailment",
     )
+
+    @b.Constraint(m.dataCenterOwners, doc="Data center total load required by owner.")
+    def data_center_total_load_constraint(b, owner):
+        return sum(
+            b.commitmentPeriod[c_p].dispatchPeriod[d_p].dataCenterLoad[dc]
+            for c_p in b.commitmentPeriods
+            for d_p in b.commitmentPeriod[c_p].dispatchPeriods
+            for dc in m.dataCenterByOwner[owner]
+        ) >= sum(m.dataCenterOwnerLoad[dc] for dc in m.dataCenterByOwner[owner])
 
     @b.Constraint(m.dataCenters, doc="Data center curtailment balance.")
     def data_center_curtailment_balance(b, dc):

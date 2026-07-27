@@ -1,2 +1,4 @@
-﻿name,bus,owner
-jeff1,1,aws
+﻿name,bus,owner,capacity,generation_capacity,var_op_cost,gen_cost,inv_cost,total_owner_load_required,preferred_operation
+jeff1,1,aws,1000,200,50,20,20000,1700,inference
+jeff2,3,aws,1000,200,60,10,20000,1700,inference
+gregothy,4,goog,1000,200,50,20,20000,1000,training
