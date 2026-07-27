@@ -29,7 +29,7 @@ def add_data_center_parameters(m):
     m.dataCenters = pyo.Set(
         initialize=m.md.data["elements"]["data_center"].keys(),
         doc="Data centers",
-    )   
+    )
 
     m.dataCenterOwners = pyo.Set(
         initialize=(
@@ -133,7 +133,6 @@ def add_investment_data_centers_constraints(m, b, investment_stage):
         ):
             b.dataCenterOperational[dc].indicator_var.fix(True)
 
-
     @b.Expression(doc="Data center investment costs in $")
     def data_centers_investment_cost(b):
         return (
@@ -164,9 +163,9 @@ def add_representative_period_data_centers_constraints(
     m, b, rep_per, i_p, commitment_period
 ):
 
-    @b.Constraint(m.dataCenters, doc="Data center something.")
-    def data_center_something_constraint(b, dc):
-        return
+    @b.Constraint(m.dataCenters, doc="Data center total load constraint.")
+    def data_center_total_load_constraint(b, dc):
+        return sum()
 
 
 def add_data_centers_state_disjuncts(m, b, r_p, i_p, commitment_period):
@@ -261,13 +260,12 @@ def add_dispatch_data_centers_variables(m, b):
     @b.Constraint(m.dataCenters, doc="Data center curtailment balance.")
     def data_center_curtailment_balance(b, dc):
         return (
-            b.dataCenterLoad[dc]
-            + b.dataCenterCurtailment[dc]
+            b.dataCenterLoad[dc] + b.dataCenterCurtailment[dc]
             == m.dataCenterCapacity[dc]
         )
 
     @b.Expression(m.dataCenters, doc="Data center operational cost in $")
-    def dataCenterCost(b, dc):
+    def dataCenterLoadCost(b, dc):
         return (
             b.dataCenterLoad[dc]
             * pyo.units.convert(b.periodLength, to_units=u.hr)
@@ -281,3 +279,7 @@ def add_dispatch_data_centers_variables(m, b):
             * pyo.units.convert(b.periodLength, to_units=u.hr)
             * m.dataCenterGenerationCost[dc]
         )
+
+    @b.Expression(m.dataCenters, doc="Data center total dispatch cost in $")
+    def dataCenterCostDispatch(b, dc):
+        return b.dataCenterLoadCost[dc] + b.dataCenterGenerationCost[dc]

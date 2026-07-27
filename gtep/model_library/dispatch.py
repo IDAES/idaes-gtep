@@ -156,6 +156,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         else:
             hydro_term = 0
 
+        if m.config["data_centers"]:
+            dc_term = b.dataCenterCostDispatch
+        else:
+            dc_term = 0
+
         return (
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
@@ -163,6 +168,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
             + b.loadShedCostDispatch
             + storage_term
             + hydro_term
+            + dc_term
         )
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")

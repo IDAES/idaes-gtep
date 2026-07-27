@@ -479,30 +479,30 @@ class TestGTEP(unittest.TestCase):
         # and validates the resulting objective value against an
         # expected benchmark.
         modObject = create_model(
-                    planning_data_args={
-                        "stages": 2,
-                        "num_reps": 2,
-                        "len_reps": 1,
-                        "num_commit": 6,
-                        "num_dispatch": 4,
-                        "duration_dispatch": 15,
-                    },
-                    config={
-                        "include_investment": True,
-                        "include_commitment": True,
-                        "include_redispatch": True,
-                        "scale_loads": False,
-                        "transmission": True,
-                        "storage": False,
-                        "flow_model": "DC",
-                        "advanced_hydro": False,
-                        "data_centers": True,
-                    },
-                    prescient_data_args={
-                        "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
-                    },
-                    include_cost_data=True,
-                )
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "len_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_dispatch": 15,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+                "data_centers": True,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
+            },
+            include_cost_data=True,
+        )
 
         print(modObject.model.md.data["elements"]["data_center"])
 
