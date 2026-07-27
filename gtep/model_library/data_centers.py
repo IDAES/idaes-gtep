@@ -26,6 +26,11 @@ def add_data_center_parameters(m):
 
     """
 
+    m.dataCenters = pyo.Set(
+        initialize=m.md.data["elements"]["data_center"].keys(),
+        doc="Data centers",
+    )   
+
     m.dataCenterOwners = pyo.Set(
         initialize=(
             m.md.data["elements"]["data_center"][dc]["owner"]
@@ -252,6 +257,14 @@ def add_dispatch_data_centers_variables(m, b):
         units=u.MW,
         doc="Data center curtailment",
     )
+
+    @b.Constraint(m.dataCenters, doc="Data center curtailment balance.")
+    def data_center_curtailment_balance(b, dc):
+        return (
+            b.dataCenterLoad[dc]
+            + b.dataCenterCurtailment[dc]
+            == m.dataCenterCapacity[dc]
+        )
 
     @b.Expression(m.dataCenters, doc="Data center operational cost in $")
     def dataCenterCost(b, dc):
