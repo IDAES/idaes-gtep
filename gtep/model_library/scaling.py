@@ -41,7 +41,7 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
         initialize={bus: 0.0 for bus in m.buses},
         mutable=True,
         units=u.MW,
-        within=pyo.NonNegativeReals,
+        within=pyo.Reals,
         doc="Demand at each bus",
     )
 
@@ -72,7 +72,7 @@ def add_load_scaling(m, b, commitment_period, investment_stage, scaling_value):
         load_bus = _get_load_bus(m, load_n)
 
         current_load = pyo.value(b.loads[load_bus], exception=False)
-        if current_load is None:
+        if current_load is None or current_load <= 0.0:
             current_load = 0.0
 
         b.loads[load_bus] = float(current_load) + float(scaled_load)
