@@ -173,3 +173,6 @@ cython_debug/
 # ignore "data"
 *.csv
 *.xlsx
+
+# ignore html files
+*.html

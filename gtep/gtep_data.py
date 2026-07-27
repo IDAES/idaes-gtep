@@ -43,12 +43,18 @@ class ExpansionPlanningData:
     ):
         """Initialize generation & expansion planning data object.
 
-        :param stages: integer number of investment periods
-        :param num_reps: integer number of representative periods per investment period
-        :param len_reps: (for now integer) length of each representative period (in hours)
-        :param num_commit: integer number of commitment periods per representative period
-        :param num_dispatch: integer number of dispatch periods per commitment period
-        :param duration_dispatch: (for now integer) duration of each dispatch period (in minutes)
+        :param stages:              Number of investment periods
+        :param num_reps:            Number of representative periods per investment period
+        :param len_reps:            Length of each representative period (in hours)
+        :param num_commit:          Number of commitment periods per representative period
+        :param num_dispatch:        Number of dispatch periods per commitment period
+        :param duration_dispatch:   Duration of each dispatch period (in minutes)
+        :type stages:               int
+        :type num_reps:             int
+        :type len_reps:             int (for now)
+        :type num_commit:           int
+        :type num_dispatch:         int
+        :type duration_dispatch:    int (for now)
         """
         self.stages = stages
         self.num_reps = num_reps
@@ -59,18 +65,41 @@ class ExpansionPlanningData:
 
     def load_prescient(
         self,
-        data_path,
-        representative_dates=None,
-        representative_weights={},
-        options_dict=None,
+        data_path: Path | str,
+        representative_dates: list[str]|None=None,
+        representative_weights: dict|None=None,
+        options_dict: dict={"num_days": 365, "ruc_horizon": 36},
     ):
-        """Loads data structured via Prescient data loader.
+        """
+        Loads data structured via Prescient data loader.
 
-        :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
-        :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
-        :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
-
+        :param data_path:               Folder containing the data to be loaded.
+        :param representative_dates:    List of representative dates to include, each in the
+                                            format `"YYYY-MM-DD mm-ss"`. The number of
+                                            dates must match `len_reps` provided in the
+                                            constructor, and each date must have
+                                            available day-ahead data (i.e., must be in
+                                            `self.md.data["system"]["time_keys"]`).
+                                            Defaults to `None`, in
+                                            which case dates are automatically chosen.
+                                            
+                                            Note:
+                                            Change the last date for whatever
+                                            extreme day is needed based on
+                                            the given run(s).
+        :param representative_weights:  Weight for each representative date. Must be of the
+                                            same length (and in the same order) as the
+                                            representative dates.
+                                            Defaults to `None`, in which case all
+                                            representative dates are given equal weight.
+        :param options_dict:            Arguments to be passed to the Prescient data
+                                            loader. Defaults to
+                                            `{"num_days": 365, "ruc_horizon": 36}`.
+                                            are selected:
+        :type data_path:                Path | str
+        :type representative_dates:     list | None, optional
+        :type representative_weights:   list | None, optional
+        :type options_dict:             dict, optional
         """
         self.data_type = "prescient"
         # create prescient config object with defaults
@@ -80,17 +109,7 @@ class ExpansionPlanningData:
         if isinstance(data_path, Path):
             data_path = str(data_path)
 
-        if options_dict is None:
-            # set basic configurations that do not match prescient defaults
-            options_dict = {
-                "data_path": data_path,
-                "num_days": 365,
-                "ruc_horizon": 36,
-            }
-
-        else:
-            # ensure data path is included in options dictionary
-            options_dict["data_path"] = data_path
+        options_dict["data_path"] = data_path
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
@@ -221,7 +240,7 @@ class ExpansionPlanningData:
 
         self.representative_dates = representative_dates
 
-        if representative_weights:
+        if representative_weights is not None:
 
             if len(representative_dates) != len(representative_weights):
                 raise ValueError(
