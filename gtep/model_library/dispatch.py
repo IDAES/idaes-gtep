@@ -24,6 +24,7 @@ from pyomo.environ import units as u
 import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
+import gtep.model_library.data_centers as dcs
 
 
 def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
@@ -73,6 +74,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         # Add storage variables and constraints. It also includes its
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(b)
+
+    if m.config["data_centers"]:
+        # Add data center variables and constraints. It also includes its
+        # operational costs variables.
+        dcs.add_dispatch_data_center_variables(b, paramPeriodLength)
 
     if m.config["advanced_hydro"]:
 
@@ -156,6 +162,11 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
         else:
             hydro_term = 0
 
+        if m.config["data_centers"]:
+            dc_term = b.dataCenterCostDispatch
+        else:
+            dc_term = 0
+
         return (
             b.thermalGenerationCostDispatch
             + b.reactiveGenerationCostDispatch
@@ -163,6 +174,7 @@ def add_dispatch_variables(b, dispatch_period, paramPeriodLength):
             + b.loadShedCostDispatch
             + storage_term
             + hydro_term
+            + dc_term
         )
 
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")

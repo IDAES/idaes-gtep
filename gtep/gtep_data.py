@@ -86,6 +86,7 @@ class ExpansionPlanningData:
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
+                "start_date": "2020-01-01",
             }
 
         else:
@@ -132,6 +133,7 @@ class ExpansionPlanningData:
         self.load_default_data_settings()
 
         self.load_storage_csv(data_path)
+        self.load_data_centers_csv(data_path)
 
         for gen in self.md.data["elements"]["generator"]:
             if "-c" in gen:  # key/Gen UID in csv file; -c = candidate?
@@ -213,6 +215,7 @@ class ExpansionPlanningData:
             missing_dates = [
                 date for date in representative_dates if date not in time_keys
             ]
+
             if missing_dates:
                 raise ValueError(
                     "The following representative_dates are not valid timestamps in the "
@@ -502,6 +505,27 @@ class ExpansionPlanningData:
                 f"Warning: The file '{storage_path}' does not exist. Skipping loading storage data."
             )
             self.md.data["elements"]["storage"] = {}
+
+    def load_data_centers_csv(self, data_path):
+        """Imports data center data.
+
+        :param data_path: filepath for data center data csv file
+        """
+        try:
+            data_centers_path = data_path + "/data_centers.csv"
+            data_centers_df = pd.read_csv(data_centers_path)
+
+            data_centers_data = {}
+            for _, row in data_centers_df.iterrows():
+                name = row["name"]
+                data_centers_data[name] = row.drop("name").to_dict()
+
+            self.md.data["elements"]["data_center"] = data_centers_data
+        except FileNotFoundError:
+            print(
+                f"Warning: The file '{data_centers_path}' does not exist. Skipping loading data center data."
+            )
+            self.md.data["elements"]["data_center"] = {}
 
     def texas_case_study_updates(self, data_path):
         """Imports generator data for texas case study.
