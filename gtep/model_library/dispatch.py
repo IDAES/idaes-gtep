@@ -259,8 +259,9 @@ def add_dispatch_constraints(b, disp_per):
                 )
 
             # Add battery storage to constraint
-            balance += sum(b.storageDischarged[bt] for bt in batts)
-            balance -= sum(b.storageCharged[bt] for bt in batts)
+            if m.config["storage"]:
+                balance += sum(b.storageDischarged[bt] for bt in batts)
+                balance -= sum(b.storageCharged[bt] for bt in batts)
 
             # Add the loads as a parameter (already includes units).
             balance -= sum(b.loads[l] for l in loads)
@@ -299,8 +300,9 @@ def add_dispatch_constraints(b, disp_per):
                 )
 
             # Add battery storage to constraint
-            balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])
-            balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
+            if m.config["storage"]:
+                balance += sum(b.storageDischarged[bt] for bt in m.storageByBus[bus])
+                balance -= sum(b.storageCharged[bt] for bt in m.storageByBus[bus])
 
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]

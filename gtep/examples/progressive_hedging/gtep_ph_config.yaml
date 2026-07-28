@@ -1,0 +1,164 @@
+# Example Progressive Hedging configuration for GTEP.
+#
+# Representative periods are treated as PH scenarios.
+#
+# This example mirrors the data/model choices from driver_esr.py:
+#   data_path:  ./gtep/data/123_Bus_Resil_Week
+#   stages:     2
+#   num_reps:   4
+#   len_reps:   24
+#   commitment: 24 hourly commitment periods
+#   dispatch:   1 dispatch period per commitment period
+#
+# User-facing configuration is YAML. Internal PH state/results are JSON.
+#
+# Initial implementation assumptions:
+#   - XPRESS through Pyomo SolverFactory
+#   - no warm starts
+#   - no persistent solver
+#   - no serialized Pyomo model reuse
+#   - gdp.bigm applied to each small one-representative-period scenario model
+#   - MILP-compatible PH regularization
+
+run:
+  name: gtep_ph_123_bus_resil_week
+  output_dir: ./ph_runs/gtep_ph_123_bus_resil_week
+  clean_output_dir: false
+
+data:
+  data_path: ./gtep/data/123_Bus_Resil_Week
+
+  stages: 2
+  num_reps: 4
+  len_reps: 24
+  num_commit: 24
+  num_dispatch: 1
+  duration_dispatch: 60
+
+  representative_dates:
+    - "2019-01-28 00:00"
+    - "2019-04-23 00:00"
+    - "2019-07-05 00:00"
+    - "2019-10-14 00:00"
+
+  representative_weights:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+
+  # Optional Prescient loader options. If omitted/null, the defaults in
+  # ExpansionPlanningData.load_prescient() are used.
+  prescient_options: null
+
+cost_data:
+  enabled: true
+
+  bus_data_path: ./gtep/data/costs/Bus_data_gen_weights_mappings.csv
+  cost_data_path: ./gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx
+  ng_cost_path: ./gtep/data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv
+
+  candidate_gens:
+    - Natural Gas_CT
+    - Natural Gas_FE
+    - Solar - Utility PV
+
+model:
+  include_investment: true
+  include_commitment: true
+  include_redispatch: true
+  scale_loads: true
+  transmission: true
+  storage: false
+  flow_model: transport
+  advanced_hydro: false
+
+  # Initial supported transformation.
+  gdp_transformation: gdp.bigm
+
+progressive_hedging:
+  max_iterations: 50
+  convergence_tolerance: 1.0e-4
+
+  # Scalar rho. Future versions may support variable-specific rho through
+  # generated state files, but the user-facing first-pass config uses a scalar.
+  rho: 100.0
+
+  # Initial supported regularization.
+  # Binary variables use a linearized binary quadratic PH term.
+  # Non-binary variables use L1 absolute-deviation regularization.
+  regularization: l1
+
+  # Use normalized representative-period weights as PH scenario probabilities:
+  #   pi_s = W_s / sum_j W_j
+  normalize_scenario_probabilities: true
+
+  nonanticipativity:
+    include_renewable_investment_variables: true
+    include_thermal_status_binaries: true
+    include_transmission_status_binaries: true
+    include_storage_status_binaries: true
+
+solver:
+  # Standard Pyomo SolverFactory name.
+  name: xpress
+
+  tee: true
+
+  # XPRESS option mapping in solver.py:
+  #   mip_gap    -> miprelstop
+  #   time_limit -> maxtime
+  #   threads    -> threads
+  mip_gap: 0.001
+  time_limit: 3600
+  threads: 8
+
+  # If null, the PH scenario solve will write per-scenario logs under:
+  #   <output_dir>/logs/iter_XXX_scenario_YYY.log
+  #
+  # You may also provide a format string using {iteration} and {scenario_id}.
+  # Example:
+  #   log_file: ./ph_runs/logs/xpress_i{iteration}_s{scenario_id}.log
+  log_file: null
+
+  # String values are compared to Pyomo termination-condition strings.
+  # These are the initially accepted PH conditions for XPRESS.
+  acceptable_termination_conditions:
+    - optimal
+    - feasible
+    - maxTimeLimit
+
+torc:
+  enabled: true
+
+  resource_requirements:
+    orchestrator: ph_orch_rr
+    scenario: ph_scenario_rr
+
+  scenario_priority: 10
+  orchestrator_priority: 0
+
+  # If false, a continuation orchestrator can still run after a scenario job
+  # failure and inspect/write failure information.
+  cancel_on_scenario_failure: false
+
+output:
+  save_iteration_solutions: true
+  save_final_solution: true
+
+  # Optional debug metadata for each nonanticipative variable.
+  save_nonanticipative_metadata: false
+
+  # Richer scenario output is optional and not required in the first
+  # implementation.
+  save_full_scenario_solution: false
+  save_operational_variables: false
+
+  # Final output convenience: values within tolerance of 0 or 1 are rounded in
+  # the final nonanticipative_values.json output record. This does not affect PH
+  # calculations.
+  binary_rounding_tolerance: 1.0e-5
+
+  convergence_history_formats:
+    - json
+    - csv

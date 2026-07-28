@@ -41,8 +41,7 @@ def add_investment_params_and_variables(b, investment_stage):
     b.maxThermalInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
     b.maxRenewableInvestment = pyo.Param(m.regions, default=1000, units=u.MW)
 
-    # Add variables to track and accumulate costs and penalties
-    b.quotaDeficit = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.MW)
+    # Add variables to track and accumulate costs.
     b.expansionCost = pyo.Var(within=pyo.NonNegativeReals, initialize=0, units=u.USD)
 
     # if m.config["include_commitment"]:
@@ -93,9 +92,6 @@ def add_investment_constraints(
     if m.config["storage"]:
         stor.add_investment_storage_constraints(m, b, investment_stage)
 
-    # NOTE: The following constraints can be split into rep_per and
-    # invest_stage components if desired.
-
     # [TODO: The definition of the investment cost needs to be
     # revisited AND possibly depends on data format. NOTE: It is
     # _rare_ for these values to be defined at all, let alone
@@ -120,29 +116,3 @@ def add_investment_constraints(
 
     # if m.config["include_commitment"]:
     commit.add_investment_commitment_constraints(m, b, investment_stage)
-
-    # [ESR Question: Do we need to add the flag for investment when
-    # inside investment? Is this supposed to be commitment and not
-    # investment, based on the name?]
-    if m.config["include_investment"]:
-
-        # NOTE: This is constraint (13) in reference [1]
-        @b.Constraint(
-            doc="Minimum per-stage renewable generation requirement",
-        )
-        def renewable_generation_requirement(b):
-            renewableSurplusRepresentative = 0
-            # [TODO: preprocess loads for the appropriate sum here.]
-            ed = 0
-            for rep_per in b.representativePeriods:
-                for com_per in b.representativePeriod[rep_per].commitmentPeriods:
-                    renewableSurplusRepresentative += (
-                        m.weights[rep_per]
-                        * b.representativePeriod[rep_per]
-                        .commitmentPeriod[com_per]
-                        .renewableSurplusCommitment
-                    )
-            return (
-                renewableSurplusRepresentative + b.quotaDeficit
-                >= m.renewableQuota[investment_stage] * ed
-            )

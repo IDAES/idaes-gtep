@@ -37,17 +37,48 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
     # Capacity needs to be in the commitment block "b", not in main
     # model "m"
     def renewable_capacity_expected_init(b, renewableGen):
-        p_max = m.md.data["elements"]["generator"][renewableGen]["p_max"]
+        """Expected renewable availability for this commitment period.
 
-        if type(p_max) == float:
-            return 0
-        else:
-            return p_max["values"][commitment_period - 1]
+        Renewable p_max data may be either a scalar value or a time-series
+        dictionary with a "values" list. For operational availability, missing
+        values are treated as 0 MW. This is distinct from nameplate capacity.
+        """
+        p_max = m.md.data["elements"]["generator"][renewableGen].get("p_max", None)
+
+        if p_max is None:
+            return 0.0
+
+        if isinstance(p_max, (int, float)):
+            return float(p_max)
+
+        if isinstance(p_max, dict):
+            values = p_max.get("values", [])
+
+            idx = commitment_period - 1
+            if idx >= len(values):
+                raise IndexError(
+                    f"Renewable generator {renewableGen} has only {len(values)} "
+                    f"p_max time-series values, but commitment_period="
+                    f"{commitment_period} was requested."
+                )
+
+            value = values[idx]
+
+            if value is None:
+                return 0.0
+
+            return float(value)
+
+        raise TypeError(
+            f"Unsupported p_max data type for renewable generator "
+            f"{renewableGen}: {type(p_max)}"
+        )
 
     b.renewableCapacityExpected = pyo.Param(
         m.renewableGenerators,
         initialize=renewable_capacity_expected_init,
         mutable=True,
+        within=pyo.NonNegativeReals,
         units=u.MW,
         doc="Expected renewable capacity for each renewable generator in this commitment period",
     )
@@ -57,12 +88,17 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
+    if m.config["scale_loads"]:
+        scaling_value = 10
+    else:
+        scaling_value = 1
+
     scaling.add_load_scaling(
         m,
         b,
         commitment_period,
         investmentStage,
-        scaling_value=10,
+        scaling_value=scaling_value,
     )
 
 
