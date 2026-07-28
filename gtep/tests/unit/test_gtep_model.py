@@ -368,27 +368,44 @@ class TestGTEP(unittest.TestCase):
 
     def test_with_cost_data_and_weights(self):
 
-        # Typically, representative weights should reflect how many
-        # actual days each representative day represents. For example,
-        # with 2 representative days in a 365-day year, the weights
-        # would be approximately [182, 183].  For now, we use
-        # simplified test values because the model becomes infeasible
-        # with HiGHS when using the full representative-day weights.
-        # These values are intended only to verify that the model
-        # reads and applies representative weights correctly.
-        weights = [10, 12]
         modObject = create_model(
             planning_data_args={
                 "stages": 2,
-                "num_reps": 2,
+                "num_reps": 12,
                 "len_reps": 1,
                 "num_commit": 6,
                 "num_dispatch": 4,
                 "duration_dispatch": 15,
             },
             prescient_data_args={
-                "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
-                "representative_weights": weights,
+                "representative_dates": [
+                    "2020-01-01 00:00",
+                    "2020-02-01 00:00",
+                    "2020-03-01 00:00",
+                    "2020-04-01 00:00",
+                    "2020-05-01 00:00",
+                    "2020-06-01 00:00",
+                    "2020-07-01 00:00",
+                    "2020-08-01 00:00",
+                    "2020-09-01 00:00",
+                    "2020-10-01 00:00",
+                    "2020-11-01 00:00",
+                    "2020-12-01 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-01 00:00": 31,
+                    "2020-02-01 00:00": 28,  # leap year...?
+                    "2020-03-01 00:00": 31,
+                    "2020-04-01 00:00": 30,
+                    "2020-05-01 00:00": 31,
+                    "2020-06-01 00:00": 30,
+                    "2020-07-01 00:00": 31,
+                    "2020-08-01 00:00": 31,
+                    "2020-09-01 00:00": 30,
+                    "2020-10-01 00:00": 31,
+                    "2020-11-01 00:00": 30,
+                    "2020-12-01 00:00": 31,
+                },
             },
             config={
                 "include_investment": True,
