@@ -94,7 +94,7 @@ class ExpansionPlanningData:
                                             representative dates are given equal weight.
         :param options_dict:            Arguments to be passed to the Prescient data
                                             loader. Defaults to
-                                            `{"num_days": 365, "ruc_horizon": 36}`.
+                                            `{"num_days": 365, "ruc_horizon": 36}`
                                             are selected:
         :type data_path:                Path | str
         :type representative_dates:     list | None, optional
@@ -250,6 +250,7 @@ class ExpansionPlanningData:
                 print(
                     "INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object..."
                 )
+            # make sure weights sum to 364
 
             # Store as a dictionary
             self.representative_weights_dict = dict(
