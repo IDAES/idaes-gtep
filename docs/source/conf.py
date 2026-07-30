@@ -39,17 +39,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_collections",
     "nbsphinx",
-    "myst_parser",
-    "pyomo",
-    "numpy",
-    "gridx-egret==0.5.5",
-    "gridx-prescient==2.2.2",
-    "anyio",
-    "pint",
-    "pandas<3",
-    "matplotlib",
-    "ipython",
-    "openpyxl"
+    "myst_parser"
 ]
 
 templates_path = ["_templates"]
