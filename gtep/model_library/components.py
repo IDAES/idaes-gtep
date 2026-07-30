@@ -82,6 +82,10 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         },
     )
 
+    m.branchByToBus = pyo.Set(m.buses, initialize = {bus: [branch for branch in m.lines if m.md.data["elements"]["branch"][branch]["to_bus"] == bus] for bus in m.buses})
+    
+    m.branchByFromBus = pyo.Set(m.buses, initialize = {bus: [branch for branch in m.lines if m.md.data["elements"]["branch"][branch]["from_bus"] == bus] for bus in m.buses})
+
     m.thermalGenerators = pyo.Set(
         within=m.generators,
         initialize=(

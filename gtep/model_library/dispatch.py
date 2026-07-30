@@ -275,8 +275,8 @@ def add_dispatch_constraints(b, disp_per):
         def flow_balance(b, bus):
             balance = 0
             # Add power flow to constraint
-            end_points = [line for line in m.lines if m.from_bus[line] == bus]
-            start_points = [line for line in m.lines if m.to_bus[line] == bus]
+            end_points = m.branchByToBus[bus]
+            start_points = m.branchByFromBus[bus]
             gens = [
                 gen
                 for gen in m.generators
