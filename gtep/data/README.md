@@ -21,7 +21,9 @@ or conditionally required. These files are used to build the model data
 object and initialize the GTEP model. They define the network topology,
 generators, buses, storage resources, load and renewable time series,
 reserve data, simulation settings, and supporting Prescient/GTEP
-mappings. Bewlo find some brief information about these files:
+mappings. 
+
+Below find a brief summary of the main input files:
 
 | File | Brief Description |
 |---|---|
@@ -61,5 +63,3 @@ The data dictionary includes the following columns:
 The data dictionary is intended to support future unit-consistency
 checks and automated tests that verify input data against expected
 model units.
-
-
