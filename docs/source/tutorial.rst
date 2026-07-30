@@ -2,4 +2,4 @@ IDAES-GTEP Tutorial Notebook
 ============================
 
 .. toctree::
-    notebooks/tutorial
+    docs/notebooks/tutorial
