@@ -34,21 +34,23 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
     )
     b.carbonTax = pyo.Param(default=0)
 
-    # [ESR: Corrected to be in the commitment block "b", not in main
-    # model "m".]
-    b.renewableCapacityExpected = {}
+    # Capacity needs to be in the commitment block "b", not in main
+    # model "m"
+    def renewable_capacity_expected_init(b, renewableGen):
+        p_max = m.md.data["elements"]["generator"][renewableGen]["p_max"]
 
-    units_renewable_capacity = u.MW
-    for renewableGen in m.renewableGenerators:
-        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float:
-            b.renewableCapacityExpected[renewableGen] = 0 * units_renewable_capacity
+        if type(p_max) == float:
+            return 0
         else:
-            b.renewableCapacityExpected[renewableGen] = (
-                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
-                    commitment_period - 1
-                ]
-                * units_renewable_capacity
-            )
+            return p_max["values"][commitment_period - 1]
+
+    b.renewableCapacityExpected = pyo.Param(
+        m.renewableGenerators,
+        initialize=renewable_capacity_expected_init,
+        mutable=True,
+        units=u.MW,
+        doc="Expected renewable capacity for each renewable generator in this commitment period",
+    )
 
     if m.config["advanced_hydro"]:
         hydro.fix_hydropower_limits(b, commitment_period)
