@@ -29,6 +29,8 @@ from pyomo.environ import units as u
 from pyomo.core.base.param import IndexedParam
 from pyomo.core.base.expression import ScalarExpression, IndexedExpression
 
+from gtep.gtep_model import ExpansionPlanningModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,166 @@ class ExpansionPlanningSolution:
             gen_type: self.gen_df[self.gen_df["Unit Type"] == gen_type]["PMax MW"].sum()
             for gen_type in set(self.gen_df["Unit Type"])
         }
+
+    def load_from_model(self, gtep_model):
+        """This function loads the results from the solved model
+        and the metadata into the solution object.
+
+        This method stores solver results, model dimensions, input
+        data, and selected commitment/investment expression values
+        from a solved ExpansionPlanningModel.
+
+        """
+        # Check that the input is a GTEP model object.
+        if type(gtep_model) is not ExpansionPlanningModel:
+            logger.warning(
+                f"Solutions must be loaded from ExpansionPlanningModel objects, not %s"
+                % type(gtep_model)
+            )
+            raise ValueError
+
+        # Check that the model has solver results.
+        if gtep_model.results is None:
+            raise ValueError(
+                "ExpansionPlanningSolution objects loaded from model must have a results component."
+            )
+
+        # Store solver results.
+        self.results = gtep_model.results
+
+        # Store model dimensions and formulation metadata.
+        self.stages = gtep_model.stages
+        self.formulation = gtep_model.formulation
+        self.data = gtep_model.data
+        self.num_reps = gtep_model.num_reps
+        self.len_reps = gtep_model.len_reps
+        self.num_commit = gtep_model.num_commit
+        self.num_dispatch = gtep_model.num_dispatch
+
+        # Store selected expression values for validation/reporting.
+        self.expressions = {
+            expr.name: pyo.value(expr)
+            for expr in gtep_model.model.component_data_objects(pyo.Expression)
+            if ("Commitment" in expr.name) or ("Investment" in expr.name)
+        }
+
+    def _to_dict(self) -> dict:
+        """This function converts solution results into a
+        JSON-friendly dictionary.
+
+        This method stores solver summary information, primal variable
+        values, selected expression values, and nested result trees
+        for downstream validation, reporting, or serialization.
+
+        """
+
+        # Store top-level solver results and expression values.
+        results_dict = {
+            "solution_loader": self.results.solution_loader,
+            "termination_condition": self.results.termination_condition,
+            "best_feasible_objective": self.results.best_feasible_objective,
+            "best_objective_bound": self.results.best_objective_bound,
+            "wallclock_time": self.results.wallclock_time,
+            "expressions": self.expressions,
+        }
+
+        # Convert termination condition to a JSON-friendly dictionary.
+        results_dict["termination_condition"] = {
+            "value": self.results.termination_condition.value,
+            "name": self.results.termination_condition.name,
+        }
+
+        # Store flat primal variable values.
+        results_dict["solution_loader"] = {"primals": {}}
+        for key, val in self.results.solution_loader.get_primals()._dict.items():
+            tmp_key = key
+
+            results_dict["solution_loader"]["primals"][tmp_key] = {
+                "name": val[0].name,
+                "value": val[0].value,
+                "bounds": val[0].bounds,
+            }
+
+            # Add binary flag when applicable.
+            if val[0].is_binary():
+                results_dict["solution_loader"]["primals"][tmp_key]["is_binary"] = val[
+                    0
+                ].is_binary()
+
+            # Add units when available.
+            if val[0].get_units() is not None:
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = (
+                    val[0].get_units().name
+                )
+            else:
+                results_dict["solution_loader"]["primals"][tmp_key]["units"] = val[
+                    0
+                ].get_units()
+
+        # Initialize nested result trees.
+        results_dict["primals_tree"] = {}
+        results_dict["expressions_tree"] = {}
+        for key, val in self.results.solution_loader.get_primals()._dict.items():
+            # Split variable name to define nesting depth.
+            split_name = val[0].name.split(".")
+
+            tmp_dict = {
+                "name": val[0].name,
+                "value": val[0].value,
+                "bounds": val[0].bounds,
+            }
+
+            # Add binary flag when applicable.
+            if val[0].is_binary():
+                tmp_dict["is_binary"] = val[0].is_binary()
+
+            # Add units when available.
+            if val[0].get_units() is not None:
+                tmp_dict["units"] = val[0].get_units().name
+            else:
+                tmp_dict["units"] = val[0].get_units()
+
+            # Add primal variable to nested dictionary.
+            def nested_set(this_dict, key, val):
+                if len(key) > 1:
+                    if key[1] == "binary_indicator_var":
+                        this_dict[key[0]] = val
+                    else:
+                        this_dict.setdefault(key[0], {})
+                        nested_set(this_dict[key[0]], key[1:], val)
+                else:
+                    this_dict[key[0]] = val
+
+            nested_set(results_dict["primals_tree"], split_name, tmp_dict)
+
+        for key, val in self.expressions.items():
+            # Split expression name to define nesting depth.
+            split_name = key.split(".")
+
+            tmp_dict = {"value": val}
+
+            # Add expression to nested dictionary.
+            def nested_set(this_dict, key, val):
+                if len(key) > 1:
+                    this_dict.setdefault(key[0], {})
+                    nested_set(this_dict[key[0]], key[1:], val)
+                else:
+                    this_dict[key[0]] = val
+
+            nested_set(results_dict["expressions_tree"], split_name, tmp_dict)
+
+        # Store nested expression and primal trees on the solution
+        # object.
+        self.expressions_tree = results_dict["expressions_tree"]
+        self.primals_tree = results_dict["primals_tree"]
+
+        # Build final output dictionary.
+        out_dict = {
+            "data": self.data.representative_data[0].data,
+            "results": results_dict,
+        }
+
+        return out_dict
 
     def create_results_directory(self, dir_name="results"):
         """This function creates a directory to save model results.
