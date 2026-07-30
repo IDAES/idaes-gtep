@@ -238,16 +238,23 @@ class ExpansionPlanningSolution:
         print(f">>>Saved model configuration to: {config_csv_path}")
 
     def save_results_in_json_files(self, gtep_model, dir_name, value_threshold=1e-3):
-        """This functions saves model results to JSON files.
+        """This function saves the model results to JSON files.
 
         Outputs include investments, load shed, costs, flows,
         generation, curtailment, loads, reserves, and storage
         charge/discharge. Creates the results directory if needed.
 
+        Only variable values greater than or equal to the argument
+        `value_threshold` are saved to avoid writing near-zero
+        numerical values. The default threshold is 1e-3.
+
         :param gtep_model: Solved expansion planning model object.
         :param dir_name: Directory where JSON files are written.
+        :param value_threshold: Minimum variable value to save in the
+                                JSON outputs. Defaults to ``1e-3``.
 
         """
+
         folder_name = dir_name
         m = gtep_model.model
 
