@@ -237,7 +237,7 @@ class ExpansionPlanningSolution:
 
         print(f">>>Saved model configuration to: {config_csv_path}")
 
-    def save_results_in_json_files(self, gtep_model, dir_name):
+    def save_results_in_json_files(self, gtep_model, dir_name, value_threshold=1e-3):
         """This functions saves model results to JSON files.
 
         Outputs include investments, load shed, costs, flows,
@@ -263,30 +263,33 @@ class ExpansionPlanningSolution:
         discharging = {}
         for var in m.component_objects(pyo.Var, descend_into=True):
             for index in var:
+                # Save only values above value_threshold to avoid
+                # writing near-zero numerical values. The threshold is
+                # configurable with a default value of 1e-3.
                 if "Shed" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         load_shed[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Reserve" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         reserves[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Flow" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         power_flow[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Generation" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         generation[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Curtailment" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         curtailment[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "storageCharged" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         charging[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "storageDischarge" in var.name:
-                    if pyo.value(var[index]) >= 0.001:
+                    if pyo.value(var[index]) >= value_threshold:
                         discharging[var.name + "." + str(index)] = pyo.value(var[index])
                 for name in valid_names:
                     if name in var.name:
-                        if pyo.value(var[index]) >= 0.001:
+                        if pyo.value(var[index]) >= value_threshold:
                             renewable_investments[var.name + "." + str(index)] = (
                                 pyo.value(var[index])
                             )
@@ -308,6 +311,10 @@ class ExpansionPlanningSolution:
                 for e in exp:
                     costs[exp[e].name] = pyo.value(exp[e])
 
+        # Loads are currently read through Prescient, which maps them
+        # to buses and stores them as indexed parameters. If a future
+        # workflow loads non-Prescient scalar load parameters, this
+        # logic may need to be updated.
         loads = {}
         for param in m.component_objects(pyo.Param, descend_into=True):
             if "commitment" in param.name and "loads" in param.name:
