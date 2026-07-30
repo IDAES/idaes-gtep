@@ -23,12 +23,13 @@ from gtep.gtep_data_processing import DataProcessing
 logger = logging.getLogger("gtep.driver_esr")
 logger.setLevel(logging.INFO)
 
-# Add data path
-data_path = "./data/5bus"
+# Add case name and case data path
+case_name = "5bus"
+data_path = f"./data/{case_name}"
 
 # Create directory to save results using the GTEP solution class.
 sol_object = ExpansionPlanningSolution(data_path)
-dir_name = sol_object.create_results_directory("results")
+dir_name = sol_object.create_results_directory(f"results_{case_name}")
 
 # Create data modeling object
 data_object = ExpansionPlanningData(
@@ -101,5 +102,16 @@ print(mod_object.results)
 # mod_object.model.investmentStage.display()
 # mod_object.report_model()
 
-# Save results in .json files
+# Save results in JSON files using the ExpansionPlanningSolution class.
 sol_object.save_results_in_json_files(mod_object, dir_name)
+
+# Create generation-mix plots from the saved investment JSON files.
+# Set case_json to "dispatchables" or "renewables" to plot each group
+# separately, or use "combined" to merge both groups in the same
+# plots. Set plot_type to "piechart", "treemap", or "all"; "all"
+# generates both pie chart and treemap plots.
+plot_type = "all"
+case_json = "combined"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "renewables"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
