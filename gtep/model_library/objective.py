@@ -16,6 +16,8 @@ Transmission Expansion Planning (GTEP) Model
 
 """
 
+from pyomo.environ import units as u
+
 
 def create_objective_function(m):
     """This method defines the objective function for the GTEP model
@@ -28,21 +30,27 @@ def create_objective_function(m):
 
     """
 
-    # NOTE: We add battery storage cost only when "storage" is set to
-    # True in the configuration input, otherwise its cost value is 0.
-    if len(m.stages) > 1:
-        m.operatingCost = sum(
+    # operatingCostTotal includes generator operating costs from the
+    # commitment stage, calculated using fixed and variable cost
+    # terms. NOTE: the operatingCostInvestment is weighted by the
+    # representative period weights.
+    @m.Expression()
+    def operatingCostTotal(m):
+        return sum(
             m.investmentStage[stage].operatingCostInvestment for stage in m.stages
         )
-        m.storageCost = (
-            sum(m.investmentStage[stage].storageCostInvestment for stage in m.stages)
-            if m.config["storage"] == True
-            else 0
-        )
-        m.expansionCost = sum(
-            m.investmentStage[stage].investment_cost for stage in m.stages
-        )
-        m.penaltyCost = sum(
+
+    # expansionCostTotal includes capital investment costs for
+    # generators, storage (if enabled), and transmission (if
+    # enabled). Generator investment costs include both thermal and
+    # renewable resources.
+    @m.Expression()
+    def expansionCostTotal(m):
+        return sum(m.investmentStage[stage].investment_cost for stage in m.stages)
+
+    @m.Expression()
+    def penaltyCostTotal(m):
+        return sum(
             m.deficitPenalty[stage]
             * m.investmentFactor[stage]
             * m.investmentStage[stage].quotaDeficit
@@ -52,16 +60,4 @@ def create_objective_function(m):
 
     @m.Objective()
     def total_cost_objective_rule(m):
-        if len(m.stages) > 1:
-            return m.operatingCost + m.expansionCost + m.penaltyCost + m.storageCost
-        else:
-            return (
-                m.investmentStage[1].operatingCostInvestment
-                + m.investmentStage[1].storageCostInvestment
-                + m.investmentStage[1].expansionCost
-                + m.deficitPenalty[1]
-                * m.investmentFactor[1]
-                * m.investmentStage[1].quotaDeficit
-                + m.investmentStage[1].renewableCurtailmentInvestment
-                # + m.investmentStage[1].storageCostInvestment  # this term is already included above
-            )
+        return m.operatingCostTotal + m.expansionCostTotal + m.penaltyCostTotal
