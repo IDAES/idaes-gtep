@@ -13,3 +13,4 @@ pandas<3
 matplotlib
 ipython
 openpyxl
+pyxlsb
