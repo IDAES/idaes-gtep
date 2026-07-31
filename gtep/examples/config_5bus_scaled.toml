@@ -1,0 +1,40 @@
+[logging]
+level = "INFO"
+
+[data]
+data_path = "../gtep/data/5bus"
+stages = 3
+num_reps = 1
+len_reps = 1
+num_commit = 24
+num_dispatch = 2
+duration_dispatch = 30
+
+# This case imports load scaling from the 123_Bus_Coal data directory.
+load_scaling_path = "../gtep/data/123_Bus_Coal/ERCOT-Adjusted-Forecast.xlsb"
+
+[cost_data]
+enabled = false
+
+[model]
+include_investment = true
+include_commitment = true
+include_redispatch = true
+scale_loads = true
+scale_texas_loads = true
+transmission = true
+storage = false
+flow_model = "DC"
+advanced_hydro = false
+
+[transformations]
+bound_pretransformation = true
+bigm = true
+
+[solver]
+name = "gurobi"
+tee = false
+
+[results]
+dir_name = "results"
+value_threshold = 1e-3
