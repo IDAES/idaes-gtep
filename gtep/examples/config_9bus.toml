@@ -1,0 +1,53 @@
+[logging]
+level = "INFO"
+
+[data]
+data_path = "../gtep/data/9_bus_GTEP_dir"
+stages = 2
+num_reps = 2
+len_reps = 1
+num_commit = 6
+num_dispatch = 4
+duration_dispatch = 15
+
+[cost_data]
+enabled = true
+bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+ng_cost_path = "data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+
+candidate_gens = [
+    "Natural Gas_CT",
+    "Natural Gas_FE",
+    "Solar - Utility PV",
+    "Land-Based Wind",
+]
+
+save_csv = true
+
+[model]
+include_investment = true
+include_commitment = true
+include_redispatch = true
+scale_loads = true
+transmission = true
+storage = false
+flow_model = "DC"
+advanced_hydro = false
+
+[transformations]
+bound_pretransformation = false
+bigm = true
+
+[solver]
+name = "highs"
+tee = true
+
+[results]
+dir_name = "results"
+value_threshold = 1e-3
+
+[plots]
+enabled = false
+case_json = "combined"
+plot_type = "all"
