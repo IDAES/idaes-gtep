@@ -33,8 +33,8 @@ dir_name = sol_object.create_results_directory(f"results_{case_name}")
 
 # Create data modeling object
 data_object = ExpansionPlanningData(
-    stages=2,
-    num_reps=2,
+    stages=1,
+    num_reps=4,
     len_reps=1,
     num_commit=6,
     num_dispatch=4,
@@ -42,10 +42,13 @@ data_object = ExpansionPlanningData(
 )
 data_object.load_prescient(
     data_path,
-    # representative_dates=[
-    #     '2020-01-28 00:00', '2020-04-23 00:00', '2020-07-05 00:00', '2020-10-14 00:00'
-    # ],
-    # representative_weights=[1, 1, 1, 1]
+    representative_dates=[
+        "2020-01-28 00:00",
+        "2020-04-23 00:00",
+        "2020-07-05 00:00",
+        "2020-10-14 00:00",
+    ],
+    representative_weights=[182, 25, 35, 122],
 )
 
 # [ESR WIP: Add bus and cost data files to be used on the
@@ -102,6 +105,7 @@ print(mod_object.results)
 # mod_object.model.investmentStage.display()
 # mod_object.report_model()
 
+
 # Save results in JSON files using the ExpansionPlanningSolution class.
 sol_object.save_results_in_json_files(mod_object, dir_name)
 
@@ -115,3 +119,10 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 case_json = "renewables"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+
+# Create stackgraph
+rep_days = [
+    pyo.value(mod_object.model.representativeDate[rep])
+    for rep in mod_object.model.representativeDate
+]
+sol_object.create_stackgraph(dir_name, rep_days)
