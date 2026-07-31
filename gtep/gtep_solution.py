@@ -27,7 +27,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 import plotly.graph_objects as go
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from pathlib import Path
 
 import pyomo.environ as pyo
@@ -52,6 +52,70 @@ class ExpansionPlanningSolution:
         self.storage_csv_path = os.path.join(data_path, "storage.csv")
         if os.path.exists(self.storage_csv_path):
             self.storage_df = pd.read_csv(self.storage_csv_path)
+
+    def _get_generation_types(self):
+        """This method returns generation type labels and colors used
+        in plots and stackgraphs.
+
+        """
+
+        GenerationType = namedtuple("GenerationType", ["label", "color"])
+        tab20 = plt.get_cmap("tab20")
+
+        def darken_color(hex_color, percent=0.2):
+            hex_color = hex_color.lstrip("#")
+            rgb = [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
+            darker_rgb = [max(0, int(c * (1 - percent))) for c in rgb]
+            return "#" + "".join(f"{c:02x}" for c in darker_rgb)
+
+        gas_cc = mcolors.to_hex(tab20(1))
+        gas_ct = mcolors.to_hex(tab20(3))
+        coal = mcolors.to_hex(tab20(5))
+        nuclear = mcolors.to_hex(tab20(2))
+        solar = mcolors.to_hex(tab20(9))
+        rt_solar = mcolors.to_hex(tab20(8))
+        wind = mcolors.to_hex(tab20(11))
+        thermal = mcolors.to_hex(tab20(13))
+        steam = mcolors.to_hex(tab20(14))
+        hydro = mcolors.to_hex(tab20(19))
+        storage = mcolors.to_hex(tab20(15))
+
+        return {
+            # Unit-type names used by create_plots()
+            "CC": GenerationType("Gas CC", gas_cc),
+            "CT": GenerationType("Gas CT", gas_ct),
+            "COAL": GenerationType("Coal", coal),
+            "NUC": GenerationType("Nuclear", nuclear),
+            "PV": GenerationType("Solar", solar),
+            "RTPV": GenerationType("RT Solar", rt_solar),
+            "WIND": GenerationType("Wind", wind),
+            "THERMAL": GenerationType("Thermal", thermal),
+            "STEAM": GenerationType("Steam", steam),
+            "HYDRO": GenerationType("Hydro", hydro),
+            "BATTERY": GenerationType("Storage", storage),
+            # Generator-name suffixes used by stackgraph/metrics
+            "cc_gas": GenerationType("Gas CC", gas_cc),
+            "ct_gas": GenerationType("Gas CT", gas_ct),
+            "coal": GenerationType("Coal", coal),
+            "nuclear": GenerationType("Nuclear", nuclear),
+            "solar": GenerationType("Solar", solar),
+            "wind": GenerationType("Wind", wind),
+            "hydro": GenerationType("Hydro", hydro),
+            "thermal_other": GenerationType("Thermal", thermal),
+            "steam": GenerationType("Steam", steam),
+            "battery_charge": GenerationType("Battery Charging", storage),
+            "battery_discharge": GenerationType("Battery Discharging", storage),
+            "ps": GenerationType("PS", hydro),
+            # Candidate suffixes
+            "gas_cc-c": GenerationType("Gas CC Candidate", darken_color(gas_cc)),
+            "gas_ct-c": GenerationType("Gas CT Candidate", darken_color(gas_ct)),
+            "steam-c": GenerationType("Steam Candidate", darken_color(steam)),
+            "pv-c": GenerationType("Solar Candidate", darken_color(solar)),
+            "wind-c": GenerationType("Wind Candidate", darken_color(wind)),
+            "hydro-c": GenerationType("Hydro Candidate", darken_color(hydro)),
+            "battery-c": GenerationType("Storage Candidate", darken_color(storage)),
+            "ps-c": GenerationType("PS Candidate", darken_color(hydro)),
+        }
 
     def load_from_model(self, gtep_model):
         """This method loads the results from the solved model
@@ -427,21 +491,8 @@ class ExpansionPlanningSolution:
             os.makedirs(plots_dir)
             print(f"\nCreated the subdirectory '{plots_dir}' to save the plots.")
 
-        GenerationType = namedtuple("GenerationType", ["label", "color"])
-        tab20 = plt.get_cmap("tab20")
-        gen_types = {
-            "CC": GenerationType("Gas CC", mcolors.to_hex(tab20(1))),
-            "CT": GenerationType("Gas CT", mcolors.to_hex(tab20(3))),
-            "COAL": GenerationType("Coal", mcolors.to_hex(tab20(5))),
-            "NUC": GenerationType("Nuclear", mcolors.to_hex(tab20(2))),
-            "PV": GenerationType("Solar", mcolors.to_hex(tab20(9))),
-            "RTPV": GenerationType("RT Solar", mcolors.to_hex(tab20(8))),
-            "WIND": GenerationType("Wind", mcolors.to_hex(tab20(11))),
-            "THERMAL": GenerationType("Thermal", mcolors.to_hex(tab20(13))),
-            "STEAM": GenerationType("Steam", mcolors.to_hex(tab20(14))),
-            "HYDRO": GenerationType("Hydro", mcolors.to_hex(tab20(19))),
-            "BATTERY": GenerationType("Storage", mcolors.to_hex(tab20(15))),
-        }
+        # Get colors for each generation type.
+        gen_types = self._get_generation_types()
 
         def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
             """This method builds generation-mix dictionaries used by
@@ -766,3 +817,430 @@ class ExpansionPlanningSolution:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. Please choose between 'treemap' or 'piechart'."
             )
+
+    def create_stackgraph(self, results_path, rep_days):
+        """This method creates an interactive stackgraph of dispatch
+        results.
+
+        This method reads saved JSON result files, organizes
+        generation, storage charge/discharge if enabled, load, and
+        load-shed values by stage, representative period, commitment
+        period, and dispatch period, and creates a Plotly stacked bar
+        chart with total load.
+
+        :param results_path: Directory containing saved JSON result
+                             files and where the plot will be saved.
+        :param rep_days: List of representative day labels used for
+                         formatting the x-axis.
+
+        """
+
+        try:
+            import ujson as json
+        except ImportError:
+            import json
+
+        with open(f"{results_path}/generation.json", "r") as F:
+            gen_data = json.load(F)
+
+        with open(f"{results_path}/loads.json", "r") as f:
+            loads_data = json.load(f)
+
+        with open(f"{results_path}/load_shed.json", "r") as f:
+            load_shed_data = json.load(f)
+
+        with open(f"{results_path}/reserves.json", "r") as f:
+            reserves_data = json.load(f)
+
+        with open(f"{results_path}/charging.json", "r") as f:
+            charging_data = json.load(f)
+
+        with open(f"{results_path}/discharging.json", "r") as f:
+            discharging_data = json.load(f)
+
+        # Use the generation-type mapping for stackgraph colors,
+        # labels, and candidate hatch patterns.
+        gen_types = self._get_generation_types()
+        GEN_TYPES = {key: val.color for key, val in gen_types.items()}
+        GEN_TYPE_ALIASES = {key: val.label for key, val in gen_types.items()}
+        GEN_TYPE_HATCHES = {
+            key: "/" if str(key).endswith("-c") else "" for key in GEN_TYPES
+        }
+
+        generation = {}
+        for g, val in gen_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in generation:
+                generation[stage] = {}
+            stage_dict = generation[stage]
+
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
+            _, (dispatch,) = c.pop(0)
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
+            gen_name = c[-1][0]
+            _type = None
+            for gt in GEN_TYPES:
+                if gen_name.endswith(gt):
+                    _type = gt
+                    break
+            if _type is None:
+                raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
+            dispatch_dict[_type] += val
+
+        # Add battery charging data to generation structure
+        for g, val in charging_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in generation:
+                generation[stage] = {}
+            stage_dict = generation[stage]
+
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
+            _, (dispatch,) = c.pop(0)
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
+            dispatch_dict["battery_charge"] -= val
+
+        # Add battery discharging data to generation structure
+        # Per request, plot discharge as negative (below x-axis)
+        for g, val in discharging_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in generation:
+                generation[stage] = {}
+            stage_dict = generation[stage]
+
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = {}
+            commitment_dict = period_dict[commitment]
+
+            _, (dispatch,) = c.pop(0)
+            if dispatch not in commitment_dict:
+                commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
+            dispatch_dict = commitment_dict[dispatch]
+
+            dispatch_dict["battery_discharge"] += val
+
+        total_charging = sum(charging_data.values())
+        total_discharging = sum(discharging_data.values())
+
+        charging_by_suffix = defaultdict(float)
+        for g, val in charging_data.items():
+            name = g.split(".")[-1]
+            if name.endswith("_battery"):
+                charging_by_suffix["battery"] += val
+            elif name.endswith("_ps"):
+                charging_by_suffix["ps"] += val
+            else:
+                charging_by_suffix["other"] += val
+
+        discharging_by_suffix = defaultdict(float)
+        for g, val in discharging_data.items():
+            name = g.split(".")[-1]
+            if name.endswith("_battery"):
+                discharging_by_suffix["battery"] += val
+            elif name.endswith("_ps"):
+                discharging_by_suffix["ps"] += val
+            else:
+                discharging_by_suffix["other"] += val
+
+        time_periods = [
+            (s, p, c, d)
+            for s in generation
+            for p in generation[s]
+            for c in generation[s][p]
+            for d in generation[s][p][c]
+        ]
+        times = list(range(len(time_periods)))
+
+        loads = {}
+        for g, val in loads_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in loads:
+                loads[stage] = {}
+            stage_dict = loads[stage]
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = 0
+            period_dict[commitment] += val  # Sum all buses for this time period
+
+        loads_trace = []
+        for s, p, c, d in time_periods:
+            try:
+                total_load = loads[s][p][c]
+            except KeyError:
+                total_load = 0
+            loads_trace.append(total_load)
+
+        # Build load_shed dict: sum all buses for each (stage, period,
+        # commitment)
+        load_shed = {}
+        for g, val in load_shed_data.items():
+            c = list(pyo.ComponentUID(g)._cids)
+            _, (stage,) = c.pop(0)
+            if stage not in load_shed:
+                load_shed[stage] = {}
+            stage_dict = load_shed[stage]
+            _, (period,) = c.pop(0)
+            if period not in stage_dict:
+                stage_dict[period] = {}
+            period_dict = stage_dict[period]
+            _, (commitment,) = c.pop(0)
+            if commitment not in period_dict:
+                period_dict[commitment] = 0
+            period_dict[commitment] += val  # Sum all buses for this time period
+
+        # Build load_shed_trace to match time_periods (repeat for each
+        # dispatch)
+        load_shed_trace = []
+        for s, p, c, d in time_periods:
+            try:
+                total_shed = load_shed[s][p][c]
+            except KeyError:
+                total_shed = 0
+            load_shed_trace.append(total_shed)
+
+        def plotly_stackgraph(
+            times,
+            time_periods,
+            generation,
+            GEN_TYPES,
+            GEN_TYPE_ALIASES,
+            GEN_TYPE_HATCHES,
+            results_path,
+            rep_days,
+        ):
+            """This method creates and saves the Plotly stackgraph.
+
+            Each bar represents one dispatch period. Generation is
+            stacked by unit type, candidate units are shown with a
+            pattern, load shed is included as a bar, and total load is
+            overlaid as a dashed line.
+
+            :param times: Sequential x-axis positions.
+            :param time_periods: List of time index tuples
+                                 ``(stage, period, commitment, dispatch)``.
+            :param generation: Nested generation dictionary by time and
+                               generation type.
+            :param GEN_TYPES: Mapping of generation types to colors.
+            :param GEN_TYPE_ALIASES: Mapping of generation types to
+                                     display labels.
+            :param GEN_TYPE_HATCHES: Mapping of generation types to
+                                     Plotly pattern shapes.
+            :param results_path: Directory where the plot is saved.
+            :param rep_days: List of representative day labels used for
+                             x-axis formatting.
+
+            """
+
+            n_hours_per_day = 24
+            n_rep_days = len(rep_days)
+            n_points = n_hours_per_day * n_rep_days
+
+            # Convert the rep_days strings to pandas Timestamps for
+            # formatting
+            rep_days_dt = [pd.to_datetime(d) for d in rep_days]
+
+            # Build x-axis labels and tick positions: For each hour
+            # in each representative day, create a label.  Only show
+            # the label for hour 0 and hour 12 of each day, leave
+            # others blank for clarity.
+            x_labels = []
+            tickvals = []
+            ticktext = []
+            for i, day in enumerate(rep_days_dt):
+                for h in range(n_hours_per_day):
+                    idx = i * n_hours_per_day + h  # Position in the x-axis
+                    if h == 0:
+                        label = day.strftime("%b-%d 00:00")
+                        x_labels.append(label)
+                        tickvals.append(idx)
+                        ticktext.append(label)
+                    elif h == 12:
+                        label = day.strftime("%b-%d 12:00")
+                        x_labels.append(label)
+                        tickvals.append(idx)
+                        ticktext.append(label)
+                    else:
+                        x_labels.append("")
+
+            # The x-axis for the bars is just integer positions (0 to
+            # n_points-1)
+            times = list(range(n_points))
+
+            # Prepare traces for each generator type
+            traces = []
+            for name, color in GEN_TYPES.items():
+                label = GEN_TYPE_ALIASES.get(name, name)
+                # One value per hour, for all representative days
+                values = np.array(
+                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                )
+                pattern_shape = GEN_TYPE_HATCHES.get(name, "")
+                # Use lower opacity for candidate types (those with a
+                # hatch)
+                opacity = 0.7 if pattern_shape else 1.0
+
+                traces.append(
+                    go.Bar(
+                        x=times,  # integer positions for each hour
+                        y=values,
+                        name=label,
+                        marker_color=color,
+                        marker_pattern_shape=pattern_shape,
+                        opacity=opacity,
+                        marker_line_width=0,  # remove white line
+                    )
+                )
+            # Add load shed as a stacked bar
+            tab20 = plt.get_cmap("tab20")
+            traces.append(
+                go.Bar(
+                    x=times,
+                    y=load_shed_trace,
+                    name="Load Shed",
+                    marker_color=mcolors.to_hex(tab20(7)),
+                    opacity=0.7,
+                    marker_line_width=0,
+                )
+            )
+            fig = go.Figure(data=traces)
+            fig.add_trace(
+                go.Scatter(
+                    x=times,
+                    y=loads_trace,
+                    mode="lines+markers",
+                    name="Total Load",
+                    line=dict(color="black", width=3, dash="dash"),
+                    marker=dict(size=4, color="black"),
+                    showlegend=True,
+                )
+            )
+            fig.update_layout(
+                barmode="relative",
+                bargap=0,  # remove white spacing between bars
+                title="Generation Mix (Representative Days)",
+                xaxis=dict(
+                    title="Representative Days (labeled every 12 hours)",
+                    tickvals=tickvals,  # show ticks at hour 0 and 12 of each rep day
+                    ticktext=ticktext,  # show corresponding label
+                    showgrid=True,
+                    gridcolor="gray",
+                    gridwidth=0.7,
+                    linecolor="black",
+                    mirror=True,
+                ),
+                yaxis=dict(
+                    title="Nameplate Capacity [MW]",
+                    showgrid=True,
+                    gridcolor="gray",
+                    gridwidth=0.7,
+                    linecolor="black",
+                    mirror=True,
+                ),
+                legend=dict(
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
+                    font=dict(size=14),
+                    title="Generation Type",
+                ),
+                width=1200,
+                height=600,
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+            )
+
+            # Add vertical lines to visually separate each
+            # representative day
+            for i in range(1, n_rep_days):
+                fig.add_vline(
+                    x=i * n_hours_per_day,
+                    line=dict(color="gray", width=1, dash="dot"),
+                    opacity=0.5,
+                )
+
+            # Add a little space above the tallest bar
+            all_series = {
+                name: np.array(
+                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+                )
+                for name in GEN_TYPES
+            }
+
+            positive_stack = np.sum(
+                [np.clip(vals, 0, None) for vals in all_series.values()],
+                axis=0,
+            )
+            negative_stack = np.sum(
+                [np.clip(vals, None, 0) for vals in all_series.values()],
+                axis=0,
+            )
+
+            ymin = negative_stack.min() if len(negative_stack) else 0
+            ymax = positive_stack.max() if len(positive_stack) else 0
+
+            if loads_trace:
+                ymax = max(ymax, max(loads_trace))
+
+            lower = ymin * 1.25 if ymin < 0 else -1
+            upper = ymax * 1.25 if ymax > 0 else 1
+
+            fig.update_yaxes(
+                range=[lower, upper],
+                zeroline=True,
+                zerolinewidth=2,
+                zerolinecolor="black",
+            )
+
+            # Save as interactive HTML
+            plot_path = f"{results_path}/plots/stackgraph_generators.html"
+            fig.write_html(f"{plot_path}")
+            print(f" -> Saved interactive stackgraph to {plot_path}")
+
+        plotly_stackgraph(
+            times,
+            time_periods,
+            generation,
+            GEN_TYPES,
+            GEN_TYPE_ALIASES,
+            GEN_TYPE_HATCHES,
+            results_path,
+            rep_days,
+        )
