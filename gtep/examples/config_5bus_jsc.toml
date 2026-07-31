@@ -1,0 +1,36 @@
+[logging]
+level = "INFO"
+
+[data]
+data_path = "./data/5bus_jsc"
+stages = 2
+num_reps = 2
+len_reps = 1
+num_commit = 6
+num_dispatch = 2
+duration_dispatch = 60
+
+[cost_data]
+enabled = false
+
+[model]
+include_investment = true
+include_commitment = true
+include_redispatch = true
+scale_loads = true
+transmission = true
+storage = false
+flow_model = "DC"
+advanced_hydro = false
+
+[transformations]
+bound_pretransformation = true
+bigm = true
+
+[solver]
+name = "gurobi"
+tee = false
+
+[results]
+dir_name = "results"
+value_threshold = 1e-3
