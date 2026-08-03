@@ -210,12 +210,12 @@ def run_profiled(
             with timer.phase("construct_model_create_model"):
                 model_object.create_model()
 
-        with timer.phase("write_model_size_pre_gdp"):
-            write_model_size_artifacts(
-                model_object.model,
-                run_dir,
-                prefix="pre_gdp",
-            )
+        # with timer.phase("write_model_size_pre_gdp"):
+        #     write_model_size_artifacts(
+        #         model_object.model,
+        #         run_dir,
+        #         prefix="pre_gdp",
+        #     )
 
         if not args.skip_gdp:
             with timer.phase("gdp_transformation"):
@@ -227,12 +227,12 @@ def run_profiled(
                     )
                 transformation.apply_to(model_object.model)
 
-            with timer.phase("write_model_size_post_gdp"):
-                write_model_size_artifacts(
-                    model_object.model,
-                    run_dir,
-                    prefix="post_gdp",
-                )
+            # with timer.phase("write_model_size_post_gdp"):
+            #     write_model_size_artifacts(
+            #         model_object.model,
+            #         run_dir,
+            #         prefix="post_gdp",
+            #     )
 
     if args.skip_solve:
         logger.info("Skipping solve because --skip-solve was provided.")
