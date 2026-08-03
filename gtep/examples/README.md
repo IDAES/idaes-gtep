@@ -50,4 +50,4 @@ for reference.
 | `driver_matt.py` | `config_9bus` | Add `ng_cost_path` to avoid errors. Solves to optimal solution. |
 | `driver_resil_week.py` | `config_123bus_resil_week` | Throws `ramp_q` error. |
 | `RA_driver.py` | `config_5bus_no_commitment` | Throws a `b.loads` error. |
-| `JsonPlotter.py` | No | it is only a sanity test. |
+| `JsonPlotter.py` | No | It is only a sanity test. |
