@@ -78,9 +78,10 @@ def add_dispatch_variables(b):
 
         @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
         def hydroGeneratorCost(b, hydroGen):
+            m = b.model()
             return (
                 b.hydroGeneration[hydroGen]
-                * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
                 * m.varCost[hydroGen]
             )
 
@@ -104,6 +105,7 @@ def add_dispatch_variables(b):
 
     @b.Expression(m.buses, doc="Load shed cost per bus in $")
     def loadShedCost(b, bus):
+        m = b.model()
         return (
             b.loadShed[bus]
             * u.convert(m.dispatchPeriodLength, to_units=u.hr)
@@ -135,6 +137,7 @@ def add_dispatch_variables(b):
 
         @b.Expression(m.thermalGenerators, doc="Reactive power cost per generator")
         def reactiveGeneratorCost(b, gen):
+            m = b.model()
             return (
                 b.thermalReactiveGeneration[gen]
                 * u.convert(m.dispatchPeriodLength, to_units=u.hr)
