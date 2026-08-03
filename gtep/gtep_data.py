@@ -63,13 +63,25 @@ class ExpansionPlanningData:
         representative_dates=None,
         representative_weights={},
         options_dict=None,
+        start_date=None,
     ):
         """Loads data structured via Prescient data loader.
 
         :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
-        :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
-        :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
+        :param representative_dates: List of time points to
+                                     include. Note: Change the last
+                                     date for whatever extreme day is
+                                     needed based on the given run(s)
+
+        :param representative_weights: dictionary of weights for each
+                                       representative date, defaults
+                                       to empty Dict
+        :param options_dict: Options dictionary to pass to the
+                             Prescient data loader, defaults to None
+        :param start_date: Optional simulation start date. If not
+                           provided, this is read from
+                           simulation_objects.csv using the Date_From
+                           row and DAY_AHEAD column, if available.
 
         """
         self.data_type = "prescient"
@@ -80,12 +92,78 @@ class ExpansionPlanningData:
         if isinstance(data_path, Path):
             data_path = str(data_path)
 
+        def get_start_date_from_simulation_objects(data_path):
+            """This method reads the start date from the
+            simulation_objects.csv.
+
+            """
+
+            simulation_objects_file = os.path.join(data_path, "simulation_objects.csv")
+
+            if not os.path.exists(simulation_objects_file):
+                return None
+
+            simulation_objects_df = pd.read_csv(simulation_objects_file)
+
+            date_from_row = simulation_objects_df[
+                simulation_objects_df["Simulation_Parameters"] == "Date_From"
+            ]
+
+            if date_from_row.empty:
+                return None
+
+            return str(date_from_row["DAY_AHEAD"].iloc[0]).split()[0]
+
+        def assert_start_date_matches_day_ahead_files(data_path, start_date):
+            """This method checks that the year in start_date matches
+            DAY_AHEAD time-series files.
+
+            """
+
+            if start_date is None:
+                return
+
+            start_year = pd.to_datetime(start_date).year
+
+            day_ahead_files = [
+                "DAY_AHEAD_load.csv",
+                "DAY_AHEAD_renewables.csv",
+            ]
+
+            for filename in day_ahead_files:
+                file_path = os.path.join(data_path, filename)
+
+                if not os.path.exists(file_path):
+                    continue
+
+                df = pd.read_csv(file_path, usecols=["Year"])
+                file_year = int(df["Year"].dropna().iloc[0])
+
+                # Handle possible two-digit years, example 19 to
+                # convert to 2019
+                if file_year < 100:
+                    file_year += 2000
+
+                assert file_year == start_year, (
+                    f"Start date year ({start_year}) does not match the "
+                    f"first year in {filename} ({file_year}). Please check "
+                    "simulation_objects.csv and DAY_AHEAD time-series files."
+                )
+
+        # If start_date is not provided, read it from
+        # simulation_objects.csv using Date_From and DAY_AHEAD.
+        if start_date is None:
+            start_date = get_start_date_from_simulation_objects(data_path)
+
+        assert_start_date_matches_day_ahead_files(data_path, start_date)
+
         if options_dict is None:
             # set basic configurations that do not match prescient defaults
             options_dict = {
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
+                "start_date": start_date,
             }
 
         else:
@@ -95,20 +173,24 @@ class ExpansionPlanningData:
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
 
-        # Use prescient data provider to load in sequential data for representative periods
+        # Use prescient data provider to load in sequential data for
+        # representative periods
         data_list = []
 
         data_provider = gmlc_data_provider.GmlcDataProvider(options=prescient_options)
 
-        # grab details from simulation objects file (data provider above throws error if no simulation_objects.csv exists)
+        # grab details from simulation objects file (data provider
+        # above throws error if no simulation_objects.csv exists)
         metadata_path = os.path.join(data_path, "simulation_objects.csv")
         metadata_df = pd.read_csv(metadata_path, index_col=0)
 
         # save to variable for easy calling
         sced_freq_min = prescient_options.sced_frequency_minutes
 
-        # This step is grabbing DAY_AHEAD information for now
-        # (in the future we may want to update to grab the "REAL_TIME" data if the data has reliable data since the actuals model is looking for real time data info)
+        # This step is grabbing DAY_AHEAD information for now (in the
+        # future we may want to update to grab the "REAL_TIME" data if
+        # the data has reliable data since the actuals model is
+        # looking for real time data info)
         period_per_step = int(metadata_df.loc["Periods_per_Step"]["DAY_AHEAD"])
         total_num_steps = prescient_options.num_days * period_per_step
 
