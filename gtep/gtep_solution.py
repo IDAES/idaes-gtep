@@ -819,8 +819,8 @@ class ExpansionPlanningSolution:
             )
 
     def create_stackgraph(self, results_path, rep_days):
-        """This method creates an interactive stackgraph of dispatch
-        results.
+        """This method creates and saves an interactive stackgraph of
+        dispatch results.
 
         This method reads saved JSON result files, organizes
         generation, storage charge/discharge if enabled, load, and
@@ -834,11 +834,6 @@ class ExpansionPlanningSolution:
                          formatting the x-axis.
 
         """
-
-        try:
-            import ujson as json
-        except ImportError:
-            import json
 
         with open(f"{results_path}/generation.json", "r") as F:
             gen_data = json.load(F)
