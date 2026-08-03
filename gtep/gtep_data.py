@@ -659,7 +659,7 @@ class ExpansionPlanningData:
         self,
         data_path,
         target_file,
-        requirements_file="data/required_data_files.csv",
+        requirements_file=None,
     ):
         """This method validates the required columns and required row
         values before Prescient parsing.
@@ -671,12 +671,17 @@ class ExpansionPlanningData:
 
         """
 
-        data_file = os.path.join(data_path, target_file)
+        data_path = Path(data_path)
+        data_file = data_path / target_file
+        if requirements_file is None:
+            requirements_file = data_path.parent / "required_data_files.csv"
+        else:
+            requirements_file = Path(requirements_file)
 
-        if not os.path.exists(data_file):
+        if not data_file.exists():
             raise FileNotFoundError(f"Required file not found: {data_file}")
 
-        if not os.path.exists(requirements_file):
+        if not requirements_file.exists():
             raise FileNotFoundError(
                 f"Required data-file specification not found: {requirements_file}"
             )
