@@ -85,7 +85,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     m.branchByToBus = pyo.Set(m.buses, initialize = {bus: [branch for branch in m.lines if m.md.data["elements"]["branch"][branch]["to_bus"] == bus] for bus in m.buses})
 
     m.branchByFromBus = pyo.Set(m.buses, initialize = {bus: [branch for branch in m.lines if m.md.data["elements"]["branch"][branch]["from_bus"] == bus] for bus in m.buses})
-
+    
     m.thermalGenerators = pyo.Set(
         within=m.generators,
         initialize=(
@@ -95,6 +95,8 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         ),
         doc="Thermal generators; subset of all generators",
     )
+
+    m.thermalGeneratorsByBus = m.generatorsByBus & m.thermalGenerators
 
     if m.config["advanced_hydro"]:
 
@@ -107,6 +109,8 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             ),
             doc="Hydropower generators; subset of all generators",
         )
+
+        m.hydroGeneratorsByBus = m.generatorsByBus & m.hydroGenerators
 
         m.renewableGenerators = pyo.Set(
             within=m.generators,
@@ -134,6 +138,8 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             ),
             doc="Renewable generators; subset of all generators",
         )
+
+    m.renewableGeneratorsByBus = m.generatorsByBus & m.renewableGenerators
 
     m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
 
