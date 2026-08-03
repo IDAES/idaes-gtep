@@ -1035,212 +1035,169 @@ class ExpansionPlanningSolution:
                 total_shed = 0
             load_shed_trace.append(total_shed)
 
-        def plotly_stackgraph(
-            times,
-            time_periods,
-            generation,
-            GEN_TYPES,
-            GEN_TYPE_ALIASES,
-            GEN_TYPE_HATCHES,
-            results_path,
-            rep_days,
-        ):
-            """This method creates and saves the Plotly stackgraph.
+        # Create and save the Plotly stackgraph.
+        n_hours_per_day = 24
+        n_rep_days = len(rep_days)
+        n_points = n_hours_per_day * n_rep_days
 
-            Each bar represents one dispatch period. Generation is
-            stacked by unit type, candidate units are shown with a
-            pattern, load shed is included as a bar, and total load is
-            overlaid as a dashed line.
+        # Convert the rep_days strings to pandas Timestamps for
+        # formatting
+        rep_days_dt = [pd.to_datetime(d) for d in rep_days]
 
-            :param times: Sequential x-axis positions.
-            :param time_periods: List of time index tuples
-                                 ``(stage, period, commitment, dispatch)``.
-            :param generation: Nested generation dictionary by time and
-                               generation type.
-            :param GEN_TYPES: Mapping of generation types to colors.
-            :param GEN_TYPE_ALIASES: Mapping of generation types to
-                                     display labels.
-            :param GEN_TYPE_HATCHES: Mapping of generation types to
-                                     Plotly pattern shapes.
-            :param results_path: Directory where the plot is saved.
-            :param rep_days: List of representative day labels used for
-                             x-axis formatting.
+        # Build x-axis labels and tick positions: For each hour
+        # in each representative day, create a label.  Only show
+        # the label for hour 0 and hour 12 of each day, leave
+        # others blank for clarity.
+        x_labels = []
+        tickvals = []
+        ticktext = []
+        for i, day in enumerate(rep_days_dt):
+            for h in range(n_hours_per_day):
+                idx = i * n_hours_per_day + h  # Position in the x-axis
+                if h == 0:
+                    label = day.strftime("%b-%d 00:00")
+                    x_labels.append(label)
+                    tickvals.append(idx)
+                    ticktext.append(label)
+                elif h == 12:
+                    label = day.strftime("%b-%d 12:00")
+                    x_labels.append(label)
+                    tickvals.append(idx)
+                    ticktext.append(label)
+                else:
+                    x_labels.append("")
 
-            """
+        # The x-axis for the bars is just integer positions (0 to
+        # n_points-1)
+        times = list(range(n_points))
 
-            n_hours_per_day = 24
-            n_rep_days = len(rep_days)
-            n_points = n_hours_per_day * n_rep_days
+        # Prepare traces for each generator type
+        traces = []
+        for name, color in GEN_TYPES.items():
+            label = GEN_TYPE_ALIASES.get(name, name)
+            # One value per hour, for all representative days
+            values = np.array(
+                [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+            )
+            pattern_shape = GEN_TYPE_HATCHES.get(name, "")
+            # Use lower opacity for candidate types (those with a
+            # hatch)
+            opacity = 0.7 if pattern_shape else 1.0
 
-            # Convert the rep_days strings to pandas Timestamps for
-            # formatting
-            rep_days_dt = [pd.to_datetime(d) for d in rep_days]
-
-            # Build x-axis labels and tick positions: For each hour
-            # in each representative day, create a label.  Only show
-            # the label for hour 0 and hour 12 of each day, leave
-            # others blank for clarity.
-            x_labels = []
-            tickvals = []
-            ticktext = []
-            for i, day in enumerate(rep_days_dt):
-                for h in range(n_hours_per_day):
-                    idx = i * n_hours_per_day + h  # Position in the x-axis
-                    if h == 0:
-                        label = day.strftime("%b-%d 00:00")
-                        x_labels.append(label)
-                        tickvals.append(idx)
-                        ticktext.append(label)
-                    elif h == 12:
-                        label = day.strftime("%b-%d 12:00")
-                        x_labels.append(label)
-                        tickvals.append(idx)
-                        ticktext.append(label)
-                    else:
-                        x_labels.append("")
-
-            # The x-axis for the bars is just integer positions (0 to
-            # n_points-1)
-            times = list(range(n_points))
-
-            # Prepare traces for each generator type
-            traces = []
-            for name, color in GEN_TYPES.items():
-                label = GEN_TYPE_ALIASES.get(name, name)
-                # One value per hour, for all representative days
-                values = np.array(
-                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
-                )
-                pattern_shape = GEN_TYPE_HATCHES.get(name, "")
-                # Use lower opacity for candidate types (those with a
-                # hatch)
-                opacity = 0.7 if pattern_shape else 1.0
-
-                traces.append(
-                    go.Bar(
-                        x=times,  # integer positions for each hour
-                        y=values,
-                        name=label,
-                        marker_color=color,
-                        marker_pattern_shape=pattern_shape,
-                        opacity=opacity,
-                        marker_line_width=0,  # remove white line
-                    )
-                )
-            # Add load shed as a stacked bar
-            tab20 = plt.get_cmap("tab20")
             traces.append(
                 go.Bar(
-                    x=times,
-                    y=load_shed_trace,
-                    name="Load Shed",
-                    marker_color=mcolors.to_hex(tab20(7)),
-                    opacity=0.7,
-                    marker_line_width=0,
+                    x=times,  # integer positions for each hour
+                    y=values,
+                    name=label,
+                    marker_color=color,
+                    marker_pattern_shape=pattern_shape,
+                    opacity=opacity,
+                    marker_line_width=0,  # remove white line
                 )
             )
-            fig = go.Figure(data=traces)
-            fig.add_trace(
-                go.Scatter(
-                    x=times,
-                    y=loads_trace,
-                    mode="lines+markers",
-                    name="Total Load",
-                    line=dict(color="black", width=3, dash="dash"),
-                    marker=dict(size=4, color="black"),
-                    showlegend=True,
-                )
+        # Add load shed as a stacked bar
+        tab20 = plt.get_cmap("tab20")
+        traces.append(
+            go.Bar(
+                x=times,
+                y=load_shed_trace,
+                name="Load Shed",
+                marker_color=mcolors.to_hex(tab20(7)),
+                opacity=0.7,
+                marker_line_width=0,
             )
-            fig.update_layout(
-                barmode="relative",
-                bargap=0,  # remove white spacing between bars
-                title="Generation Mix (Representative Days)",
-                xaxis=dict(
-                    title="Representative Days (labeled every 12 hours)",
-                    tickvals=tickvals,  # show ticks at hour 0 and 12 of each rep day
-                    ticktext=ticktext,  # show corresponding label
-                    showgrid=True,
-                    gridcolor="gray",
-                    gridwidth=0.7,
-                    linecolor="black",
-                    mirror=True,
-                ),
-                yaxis=dict(
-                    title="Nameplate Capacity [MW]",
-                    showgrid=True,
-                    gridcolor="gray",
-                    gridwidth=0.7,
-                    linecolor="black",
-                    mirror=True,
-                ),
-                legend=dict(
-                    yanchor="middle",
-                    y=0.5,
-                    xanchor="left",
-                    x=1.02,
-                    font=dict(size=14),
-                    title="Generation Type",
-                ),
-                width=1200,
-                height=600,
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-            )
-
-            # Add vertical lines to visually separate each
-            # representative day
-            for i in range(1, n_rep_days):
-                fig.add_vline(
-                    x=i * n_hours_per_day,
-                    line=dict(color="gray", width=1, dash="dot"),
-                    opacity=0.5,
-                )
-
-            # Add a little space above the tallest bar
-            all_series = {
-                name: np.array(
-                    [generation[s][p][c][d][name] for s, p, c, d in time_periods]
-                )
-                for name in GEN_TYPES
-            }
-
-            positive_stack = np.sum(
-                [np.clip(vals, 0, None) for vals in all_series.values()],
-                axis=0,
-            )
-            negative_stack = np.sum(
-                [np.clip(vals, None, 0) for vals in all_series.values()],
-                axis=0,
-            )
-
-            ymin = negative_stack.min() if len(negative_stack) else 0
-            ymax = positive_stack.max() if len(positive_stack) else 0
-
-            if loads_trace:
-                ymax = max(ymax, max(loads_trace))
-
-            lower = ymin * 1.25 if ymin < 0 else -1
-            upper = ymax * 1.25 if ymax > 0 else 1
-
-            fig.update_yaxes(
-                range=[lower, upper],
-                zeroline=True,
-                zerolinewidth=2,
-                zerolinecolor="black",
-            )
-
-            # Save as interactive HTML
-            plot_path = f"{results_path}/plots/stackgraph_generators.html"
-            fig.write_html(f"{plot_path}")
-            print(f" -> Saved interactive stackgraph to {plot_path}")
-
-        plotly_stackgraph(
-            times,
-            time_periods,
-            generation,
-            GEN_TYPES,
-            GEN_TYPE_ALIASES,
-            GEN_TYPE_HATCHES,
-            results_path,
-            rep_days,
         )
+        fig = go.Figure(data=traces)
+        fig.add_trace(
+            go.Scatter(
+                x=times,
+                y=loads_trace,
+                mode="lines+markers",
+                name="Total Load",
+                line=dict(color="black", width=3, dash="dash"),
+                marker=dict(size=4, color="black"),
+                showlegend=True,
+            )
+        )
+        fig.update_layout(
+            barmode="relative",
+            bargap=0,  # remove white spacing between bars
+            title="Generation Mix (Representative Days)",
+            xaxis=dict(
+                title="Representative Days (labeled every 12 hours)",
+                tickvals=tickvals,  # show ticks at hour 0 and 12 of each rep day
+                ticktext=ticktext,  # show corresponding label
+                showgrid=True,
+                gridcolor="gray",
+                gridwidth=0.7,
+                linecolor="black",
+                mirror=True,
+            ),
+            yaxis=dict(
+                title="Nameplate Capacity [MW]",
+                showgrid=True,
+                gridcolor="gray",
+                gridwidth=0.7,
+                linecolor="black",
+                mirror=True,
+            ),
+            legend=dict(
+                yanchor="middle",
+                y=0.5,
+                xanchor="left",
+                x=1.02,
+                font=dict(size=14),
+                title="Generation Type",
+            ),
+            width=1200,
+            height=600,
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+        )
+
+        # Add vertical lines to visually separate each
+        # representative day
+        for i in range(1, n_rep_days):
+            fig.add_vline(
+                x=i * n_hours_per_day,
+                line=dict(color="gray", width=1, dash="dot"),
+                opacity=0.5,
+            )
+
+        # Add a little space above the tallest bar
+        all_series = {
+            name: np.array(
+                [generation[s][p][c][d][name] for s, p, c, d in time_periods]
+            )
+            for name in GEN_TYPES
+        }
+
+        positive_stack = np.sum(
+            [np.clip(vals, 0, None) for vals in all_series.values()],
+            axis=0,
+        )
+        negative_stack = np.sum(
+            [np.clip(vals, None, 0) for vals in all_series.values()],
+            axis=0,
+        )
+
+        ymin = negative_stack.min() if len(negative_stack) else 0
+        ymax = positive_stack.max() if len(positive_stack) else 0
+
+        if loads_trace:
+            ymax = max(ymax, max(loads_trace))
+
+        lower = ymin * 1.25 if ymin < 0 else -1
+        upper = ymax * 1.25 if ymax > 0 else 1
+
+        fig.update_yaxes(
+            range=[lower, upper],
+            zeroline=True,
+            zerolinewidth=2,
+            zerolinecolor="black",
+        )
+
+        # Save as interactive HTML
+        plot_path = f"{results_path}/plots/stackgraph_generators.html"
+        fig.write_html(f"{plot_path}")
+        print(f" -> Saved interactive stackgraph to {plot_path}")
