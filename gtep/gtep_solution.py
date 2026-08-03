@@ -79,6 +79,7 @@ class ExpansionPlanningSolution:
         steam = mcolors.to_hex(tab20(14))
         hydro = mcolors.to_hex(tab20(19))
         storage = mcolors.to_hex(tab20(15))
+        other = mcolors.to_hex(tab20(0))
 
         return {
             # Unit-type names used by create_plots()
@@ -93,6 +94,8 @@ class ExpansionPlanningSolution:
             "STEAM": GenerationType("Steam", steam),
             "HYDRO": GenerationType("Hydro", hydro),
             "BATTERY": GenerationType("Storage", storage),
+            "PS": GenerationType("Pumped Storage", storage),
+            "OTHER": GenerationType("Other", other),
             # Generator-name suffixes used by stackgraph/metrics
             "cc_gas": GenerationType("Gas CC", gas_cc),
             "ct_gas": GenerationType("Gas CT", gas_ct),
@@ -105,7 +108,8 @@ class ExpansionPlanningSolution:
             "steam": GenerationType("Steam", steam),
             "battery_charge": GenerationType("Battery Charging", storage),
             "battery_discharge": GenerationType("Battery Discharging", storage),
-            "ps": GenerationType("PS", hydro),
+            "ps": GenerationType("PS", storage),
+            "other": GenerationType("Other", other),
             # Candidate suffixes
             "gas_cc-c": GenerationType("Gas CC Candidate", darken_color(gas_cc)),
             "gas_ct-c": GenerationType("Gas CT Candidate", darken_color(gas_ct)),
@@ -114,7 +118,8 @@ class ExpansionPlanningSolution:
             "wind-c": GenerationType("Wind Candidate", darken_color(wind)),
             "hydro-c": GenerationType("Hydro Candidate", darken_color(hydro)),
             "battery-c": GenerationType("Storage Candidate", darken_color(storage)),
-            "ps-c": GenerationType("PS Candidate", darken_color(hydro)),
+            "ps-c": GenerationType("PS Candidate", darken_color(storage)),
+            "other-c": GenerationType("Other Candidate", darken_color(other)),
         }
 
     def load_from_model(self, gtep_model):
