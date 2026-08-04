@@ -1041,7 +1041,7 @@ class ExpansionPlanningSolution:
                 total_shed = 0
             load_shed_trace.append(total_shed)
 
-        #--------------------------------------------------------------
+        # --------------------------------------------------------------
         # Build and save an interactive Plotly stackgraph of
         # generation results. The plot stacks generation by technology
         # over all representative-day hours, marks candidate resources
