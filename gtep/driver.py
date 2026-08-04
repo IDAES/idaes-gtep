@@ -165,8 +165,7 @@ elif solver_name == "highs":
     opt = pyo.SolverFactory("highs")
 else:
     raise ValueError(
-        f"Unsupported solver '{solver_name}'. Choose from "
-        "'gurobi' or 'highs'."
+        f"Unsupported solver '{solver_name}'. Choose from " "'gurobi' or 'highs'."
     )
 
 mod_object.results = opt.solve(mod_object.model, tee=tee)
