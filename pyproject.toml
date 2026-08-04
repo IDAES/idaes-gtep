@@ -53,6 +53,7 @@ dependencies = [
     "matplotlib",
     "ipython",
     "openpyxl",
+    "tomli; python_version < '3.11'",
 ]
 
 [project.urls]
