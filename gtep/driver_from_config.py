@@ -38,7 +38,7 @@ logging, data inputs, cost data inputs, model options, model
 transformations, solver settings, and results directory.
 
 Example on how to run it:
-    python main_driver.py --config examples/config_5bus.toml
+    python driver_from_config.py --config examples/config_5bus.toml
 
 """
 

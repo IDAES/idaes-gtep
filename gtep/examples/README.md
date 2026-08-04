@@ -11,7 +11,7 @@ the driver directly.
 Example usage:
 
 ```bash
-python main_driver.py --config examples/config_5bus.toml
+python driver_from_config.py --config examples/config_5bus.toml
 ```
 
 ## Configuration File Structure
