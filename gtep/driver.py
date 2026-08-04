@@ -39,13 +39,14 @@ logger.setLevel(logging.INFO)
 # ---------------------------------------------------------------------
 # Add data path
 
-data_path = "./data/5bus"
+case_name = "5bus"
+data_path = f"./data/{case_name}"
 
 # ---------------------------------------------------------------------
 # Create directory to save results using the GTEP solution class
 
 sol_object = ExpansionPlanningSolution(data_path)
-dir_name = sol_object.create_results_directory("results")
+dir_name = sol_object.create_results_directory(f"results_{case_name}")
 
 # ---------------------------------------------------------------------
 # Create data modeling object
