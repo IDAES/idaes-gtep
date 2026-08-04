@@ -500,8 +500,8 @@ class ExpansionPlanningSolution:
         gen_types = self._get_generation_types()
 
         def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
-            """This method builds generation-mix dictionaries used by
-            plotting functions.
+            """This function builds generation-mix dictionaries used
+            by plotting functions.
 
             It reads generator and optional storage data, loads the
             selected investment JSON file, maps assets to generation
@@ -555,16 +555,18 @@ class ExpansionPlanningSolution:
             else:
                 logger.info("Case not debugged")
 
+            # Collect all generator/storage keys that appear in the
+            # investment results. For this, we loop over investment
+            # stages/time keys, over investment-state dictionaries,
+            # and at the end collect each generator/storage ID. Use
+            # set() to remove duplicates.
             dict_in = self.to_nested_dict(self.read_json(json_file))
             time_keys = list(dict_in.keys())
-
-            # Collect all generator keys
-            states_set = set()
             keys_set = set()
-            for this_time_key in time_keys:
-                states_set.update(dict_in[this_time_key].keys())
-                for this_state in dict_in[this_time_key].keys():
-                    keys_set.update(dict_in[this_time_key][this_state].keys())
+            for time_key in time_keys:
+                for state_dict in dict_in[time_key].values():
+                    for asset in state_dict:
+                        keys_set.add(asset)
 
             # Map generator keys to unit types and PMax MW
             gens_keys_to_type = {}
