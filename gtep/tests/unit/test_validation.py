@@ -51,7 +51,8 @@ def get_solution_object():
     opt = Highs()
     mod_object.results = opt.solve(mod_object.model)
 
-    sol_object = ExpansionPlanningSolution()
+    data_path = (Path(__file__).resolve().parents[2] / "data" / "5bus").resolve()
+    sol_object = ExpansionPlanningSolution(data_path)
     sol_object.load_from_model(mod_object)
     return sol_object
 
