@@ -27,11 +27,12 @@ Example on how to run it:
 import argparse
 import logging
 from pathlib import Path
+
 try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib
-    
+
 import pyomo.environ as pyo
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
