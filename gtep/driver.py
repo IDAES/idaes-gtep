@@ -156,7 +156,7 @@ if apply_bigm:
 # ---------------------------------------------------------------------
 # Add solver
 
-solver_name = "gurobi"
+solver_name = "highs"
 tee = True
 
 if solver_name == "gurobi":
