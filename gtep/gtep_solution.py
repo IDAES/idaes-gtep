@@ -869,6 +869,10 @@ class ExpansionPlanningSolution:
             key: "/" if str(key).endswith("-c") else "" for key in GEN_TYPES
         }
 
+        # Create dictionary with generation by time index and
+        # generator type for plotting. For this, parse each generation
+        # variable name to recover its stage, representative period,
+        # commitment period, dispatch period, and generator name.
         generation = {}
         for g, val in gen_data.items():
             c = list(pyo.ComponentUID(g)._cids)
@@ -1037,13 +1041,16 @@ class ExpansionPlanningSolution:
                 total_shed = 0
             load_shed_trace.append(total_shed)
 
-        # Create and save the Plotly stackgraph.
+        #--------------------------------------------------------------
+        # Build and save an interactive Plotly stackgraph of
+        # generation results. The plot stacks generation by technology
+        # over all representative-day hours, marks candidate resources
+        # with a pattern and includes load shed and total load as a
+        # dashed line. The x-axis is labeled at hour 0 and hour 12 for
+        # each representative day.
         n_hours_per_day = 24
         n_rep_days = len(rep_days)
         n_points = n_hours_per_day * n_rep_days
-
-        # Convert the rep_days strings to pandas Timestamps for
-        # formatting
         rep_days_dt = [pd.to_datetime(d) for d in rep_days]
 
         # Build x-axis labels and tick positions: For each hour
