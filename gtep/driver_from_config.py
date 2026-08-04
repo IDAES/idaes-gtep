@@ -11,6 +11,19 @@
 # for full copyright and license information.
 #################################################################################
 
+"""This script runs the GTEP model from a TOML configuration file.
+
+This driver builds and solves a Generation and Transmission Expansion
+Planning (GTEP) model using options specified in a TOML configuration
+file located in the `examples/` directory. The config file defines the
+logging, data inputs, cost data inputs, model options, model
+transformations, solver settings, and results directory.
+
+Example on how to run it:
+    python driver_from_config.py --config examples/config_5bus.toml
+
+"""
+
 import argparse
 import logging
 import tomllib
@@ -25,26 +38,12 @@ from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
-logger = logging.getLogger("gtep.driver_config")
+logger = logging.getLogger("gtep.driver_from_config")
 logger.setLevel(logging.INFO)
-
-"""This script includes the main driver to run the GTEP model from a
-TOML configuration file.
-
-This driver builds and solves a Generation and Transmission Expansion
-Planning (GTEP) model using options specified in a TOML configuration
-file located in the `examples/` directory. The config file defines the
-logging, data inputs, cost data inputs, model options, model
-transformations, solver settings, and results directory.
-
-Example on how to run it:
-    python driver_from_config.py --config examples/config_5bus.toml
-
-"""
 
 
 def load_config(config_path):
-    """Load a TOML configuration file."""
+    """This function loads a TOML configuration file."""
     config_path = Path(config_path).resolve()
 
     with open(config_path, "rb") as f:
@@ -54,7 +53,12 @@ def load_config(config_path):
 
 
 def main(config_path):
+    """This function runs the GTEP model using options from a TOML
+    config file.
 
+    """
+
+    # -------------------------------------------------------------------
     # Load configuration file.
     config = load_config(config_path)
 
@@ -66,6 +70,7 @@ def main(config_path):
         format="%(levelname)s:%(name)s:%(message)s",
     )
 
+    # -------------------------------------------------------------------
     # Add data path from configuration file.
     data_config = config["data"]
     data_path = data_config["data_path"]
@@ -106,6 +111,9 @@ def main(config_path):
             "representative_weights"
         ]
 
+    if "start_date" in data_config:
+        load_prescient_kwargs["start_date"] = data_config["start_date"]
+
     data_object.load_prescient(data_path, **load_prescient_kwargs)
 
     # -------------------------------------------------------------------
@@ -139,29 +147,39 @@ def main(config_path):
     # provided, use the default value shown below.
     model_config = config.get("model", {})
 
-    mod_object.config["include_investment"] = model_config.get(
-        "include_investment", True
-    )
-    mod_object.config["include_commitment"] = model_config.get(
-        "include_commitment", True
-    )
-    mod_object.config["include_redispatch"] = model_config.get(
-        "include_redispatch", True
-    )
-    mod_object.config["scale_loads"] = model_config.get("scale_loads", True)
-    mod_object.config["transmission"] = model_config.get("transmission", True)
-    mod_object.config["storage"] = model_config.get("storage", False)
-    mod_object.config["flow_model"] = model_config.get("flow_model", "DC")
-    mod_object.config["advanced_hydro"] = model_config.get("advanced_hydro", False)
+    model_defaults = {
+        # Core model options
+        "include_investment": True,
+        "include_commitment": True,
+        "include_redispatch": True,
+        "flow_model": "DC",
+        # Time-period options
+        "time_period_subsets": [],
+        "time_period_dict": {},
+        "dispatch_randomization": False,
+        # Common options
+        "scale_loads": True,
+        "scale_texas_loads": False,
+        # Investment options
+        "thermal_generation": False,
+        "renewable_generation": False,
+        "storage": False,
+        "transmission": False,
+        "transmission_switching": False,
+        "advanced_hydro": False,
+    }
+    for key, default_value in model_defaults.items():
+        mod_object.config[key] = model_config.get(key, default_value)
 
     # Save the model configuration settings to a CSV file.
     sol_object.save_model_config_to_csv(mod_object, dir_name)
 
-    # Create model.
+    # -------------------------------------------------------------------
+    # Create model and apply transformations to logical terms and
+    # solve the model.
+
     mod_object.create_model()
 
-    # -------------------------------------------------------------------
-    # Apply transformations to logical terms and solve the model.
     transformation_config = config.get("transformations", {})
 
     if transformation_config.get("bound_pretransformation", False):
@@ -172,7 +190,7 @@ def main(config_path):
     if transformation_config.get("bigm", True):
         pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
-    # Add solver. Solver options include "gurobi" and "highs". Default
+    # Solver options include "gurobi" and "highs". Default
     # is "gurobi", if none is provided.
     solver_config = config.get("solver", {})
     solver_name = solver_config.get("name", "gurobi")
@@ -181,6 +199,7 @@ def main(config_path):
     opt = pyo.SolverFactory(solver_name)
     mod_object.results = opt.solve(mod_object.model, tee=tee)
 
+    # Print solver results stats
     print(mod_object.results)
 
     # -------------------------------------------------------------------
@@ -191,6 +210,8 @@ def main(config_path):
         dir_name,
         value_threshold=value_threshold,
     )
+
+    logger.info("GTEP run complete.")
 
 
 if __name__ == "__main__":
