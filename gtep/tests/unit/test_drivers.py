@@ -20,11 +20,10 @@ import pyomo.environ as pyo
 
 from pyomo.common.tempfiles import TempfileManager
 
+
 @pytest.fixture
 def gtep_dir():
-    """This function returns the main gtep package directory.
-
-    """
+    """This function returns the main gtep package directory."""
     return Path(__file__).resolve().parents[2]
 
 
@@ -51,6 +50,7 @@ def run_driver_command(command, cwd, timeout=300):
         f"Return code: {result.returncode}\n"
     )
     return result
+
 
 def test_explicit_driver_runs(gtep_dir):
     # Test that the explicit Python driver runs successfully.
@@ -83,7 +83,8 @@ def test_explicit_driver_runs(gtep_dir):
         run_driver_command(
             [sys.executable, str(explicit_driver)],
             cwd=temp_dir,
-        )       
+        )
+
 
 def test_config_driver_runs(gtep_dir):
     # Test that the TOML configuration driver runs on the 5-bus case.
@@ -112,7 +113,7 @@ def test_config_driver_runs(gtep_dir):
             gtep_dir,
             target_is_directory=True,
         )
-        
+
         # Run the config driver as a separate Python process.
         run_driver_command(
             [
