@@ -520,8 +520,7 @@ class ExpansionPlanningSolution:
 
             """
 
-            # Read gen CSV file for GEN UID to map for Unit Type and
-            # PMax MW
+            # Map generators IDs to Unit Type and PMax
             gen_uid_to_type = {
                 row["GEN UID"]: row["Unit Type"].upper()
                 for _, row in self.gen_df.iterrows()
@@ -531,7 +530,10 @@ class ExpansionPlanningSolution:
                 for _, row in self.gen_df.iterrows()
             }
 
-            # Read storage.csv for storage units, if available.
+            # If storage.csv is available, map storage IDs to storage
+            # type and energy capacity.
+            storage_uid_to_type = {}
+            storage_uid_to_pmax = {}
             if os.path.exists(self.storage_csv_path):
                 storage_uid_to_type = {
                     row["name"]: row["storage_type"].upper()
@@ -541,26 +543,29 @@ class ExpansionPlanningSolution:
                     row["name"]: float(row.get("energy_capacity", 0))
                     for _, row in self.storage_df.iterrows()
                 }
-            else:
-                storage_uid_to_type = {}
-                storage_uid_to_pmax = {}
 
-            # Read and process saved JSON files. The names
-            # `renewables` and `dispatchables` are based on the names
-            # in the saved JSON files.
-            if gen_case_json == "renewables":
-                json_file = f"{results_path}/renewable_investments.json"
-            elif gen_case_json == "dispatchables":
-                json_file = f"{results_path}/dispatchable_investments.json"
-            else:
-                logger.info("Case not debugged")
+            # Read and process saved JSON files for renewables and
+            # dispatchables units.
+            json_files = {
+                "renewables": os.path.join(results_path, "renewable_investments.json"),
+                "dispatchables": os.path.join(
+                    results_path, "dispatchable_investments.json"
+                ),
+            }
+
+            if gen_case_json not in json_files:
+                raise ValueError(
+                    f"Unsupported gen_case_json '{gen_case_json}'. "
+                    "Choose 'renewables' or 'dispatchables'."
+                )
+
+            dict_in = self.to_nested_dict(self.read_json(json_files[gen_case_json]))
 
             # Collect all generator/storage keys that appear in the
             # investment results. For this, we loop over investment
             # stages/time keys, over investment-state dictionaries,
             # and at the end collect each generator/storage ID. Use
             # set() to remove duplicates.
-            dict_in = self.to_nested_dict(self.read_json(json_file))
             time_keys = list(dict_in.keys())
             keys_set = set()
             for time_key in time_keys:
@@ -599,14 +604,14 @@ class ExpansionPlanningSolution:
             unique_types = set(gens_keys_to_type.values())
             gen_types_sorted = sorted(unique_types)  # Alphabetical order
 
-            # Read the DAY_AHEAD .csv file with the year column and get
-            # unique years in order of appearance
+            # Get the modeled year(s) (in order of appearance) from
+            # the DAY_AHEAD_renewables.csv time-series.
             time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
             time_periods = (
                 time_periods_df["Year"].drop_duplicates().astype(str).tolist()
             )
 
-            # Build gen_mix using PMax MW and solution values
+            # Build generation mix by time period and generation type
             gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
             for tp in time_periods:
                 for k, val in dict_in.items():
@@ -622,8 +627,10 @@ class ExpansionPlanningSolution:
                                     gen_mix[tp][unit_type] += value
 
             gen_mix_arrays = {
-                k: np.array([gen_mix[stage].get(k, 0.0) for stage in gen_mix.keys()])
-                for k in gen_types_sorted
+                gen_type: np.array(
+                    [gen_mix[tp].get(gen_type, 0.0) for tp in time_periods]
+                )
+                for gen_type in gen_types_sorted
             }
 
             return gen_mix, gen_mix_arrays, time_periods
