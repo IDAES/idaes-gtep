@@ -642,8 +642,8 @@ class ExpansionPlanningSolution:
         def plotly_treemap_gen_mix(
             gen_mix, gen_types, results_path, case_json, small_pct_threshold=5
         ):
-            """This method creates interactive Plotly treemap plots of
-            generation mix.
+            """This function creates interactive Plotly treemap plots
+            of generation mix.
 
             One HTML treemap is created and shows the share of
             generation capacity by the unit type defined in case_json.
@@ -708,7 +708,7 @@ class ExpansionPlanningSolution:
                 print(f" -> Saved interactive treemap for {tp} to {plot_path}")
 
         def plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json):
-            """This method creates interactive Plotly pie charts of
+            """This function creates interactive Plotly pie charts of
             generation mix.
 
             One HTML pie chart is created for each unit type and shows
@@ -849,23 +849,16 @@ class ExpansionPlanningSolution:
 
         """
 
-        with open(f"{results_path}/generation.json", "r") as F:
-            gen_data = json.load(F)
+        def load_json(name):
+            with open(f"{results_path}/{name}.json", "r") as f:
+                return json.load(f)
 
-        with open(f"{results_path}/loads.json", "r") as f:
-            loads_data = json.load(f)
-
-        with open(f"{results_path}/load_shed.json", "r") as f:
-            load_shed_data = json.load(f)
-
-        with open(f"{results_path}/reserves.json", "r") as f:
-            reserves_data = json.load(f)
-
-        with open(f"{results_path}/charging.json", "r") as f:
-            charging_data = json.load(f)
-
-        with open(f"{results_path}/discharging.json", "r") as f:
-            discharging_data = json.load(f)
+        gen_data = load_json("generation")
+        loads_data = load_json("loads")
+        load_shed_data = load_json("load_shed")
+        reserves_data = load_json("reserves")
+        charging_data = load_json("charging")
+        discharging_data = load_json("discharging")
 
         # Use the generation-type mapping for stackgraph colors,
         # labels, and candidate hatch patterns.
