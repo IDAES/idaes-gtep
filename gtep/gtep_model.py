@@ -232,7 +232,7 @@ def create_stages(m, stages):
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
         b_inv.year = m.years[investment_stage - 1]
-        print(f"{b_inv}.year = {b_inv.year}")
+        # print(f"{b_inv}.year = {b_inv.year}")
 
         # Declare cost parameters for each stage because they depend
         # on the investment year. IMPORTANT NOTE: This function
@@ -321,14 +321,8 @@ def create_stages(m, stages):
                             # units=u.minutes,
                         )
 
-                        disp.add_dispatch_variables(
-                            b_comm.dispatchPeriod[period],
-                            period,
-                            m.dispatchPeriodLength,
-                        )
-                        disp.add_dispatch_constraints(
-                            b_comm.dispatchPeriod[period], period
-                        )
+                        disp.add_dispatch_variables(b_comm.dispatchPeriod[period])
+                        disp.add_dispatch_constraints(b_comm.dispatchPeriod[period])
 
             if m.config["include_redispatch"]:
                 rep_period.add_time_links(b_rep)
