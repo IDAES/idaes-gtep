@@ -243,57 +243,59 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(system["min_operating_reserve"], 0.1)
         self.assertEqual(system["min_spinning_reserve"], 0.1)
 
-    # ### LOAD_STORAGE_CSV ###
-    # @pytest.mark.skipif(
-    #     not os.path.exists(storage_file),
-    #     reason=f"Data file {storage_file} not found",
-    # )
-    # def test_load_storage_csv_success(self):
-    #     testObject = ExpansionPlanningData()
-    #     testObject.load_prescient(data_path=input_data_source)
-    #     testObject.load_storage_csv(storage_file)
+    # Load storage CSV
+    @pytest.mark.skipif(
+        not os.path.exists(storage_file),
+        reason=f"Data file {storage_file} not found",
+    )
+    def test_load_storage_csv_success(self):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=input_data_source)
+        testObject.load_storage_csv(storage_file)
 
-    #     # Check that storage data was loaded into md.data["elements"]["storage"]
-    #     storage = testObject.md.data["elements"].get("storage", None)
-    #     self.assertIsNotNone(storage)
-    #     self.assertIsInstance(storage, dict)
+        # Check that storage data was loaded into
+        # md.data["elements"]["storage"]
+        storage = testObject.md.data["elements"].get("storage", None)
+        self.assertIsNotNone(storage)
+        self.assertIsInstance(storage, dict)
 
-    #     # Check some expected keys in storage data
-    #     expected_keys = {
-    #         "bus",
-    #         "generator",
-    #         "storage_type",
-    #         "energy_capacity",
-    #         "initial_state_of_charge",
-    #         "investment_cost",
-    #         "investment_cost_kwh",
-    #     }
-    #     for key in expected_keys:
-    #         self.assertin(key ,storage["100MW_400MWh_1"].keys())
+        # Check some expected keys in storage data
+        expected_keys = {
+            "bus",
+            "generator",
+            "storage_type",
+            "energy_capacity",
+            "initial_state_of_charge",
+            "investment_cost",
+            "investment_cost_kwh",
+        }
+        for key in expected_keys:
+            self.assertIn(key, storage["100MW_400MWh_1"].keys())
 
-    # @pytest.mark.skipif(
-    #     not os.path.exists(storage_file),
-    #     reason=f"Data file {storage_file} not found",
-    # )
-    # def test_load_storage_string_path(self):
-    #     testObject = ExpansionPlanningData()
-    #     testObject.load_prescient(data_path=input_data_source)
-    #     testObject.load_storage_csv(str(storage_file))  # should not throw an error
-    #     self.assertin('storage' ,testObject.md.data["elements"].keys())
-    #     #check that the storage data is not an empty dict
-    #     self.assertTrue(testObject.md.data["elements"]['storage'])
+    @pytest.mark.skipif(
+        not os.path.exists(storage_file),
+        reason=f"Data file {storage_file} not found",
+    )
+    def test_load_storage_string_path(self):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=input_data_source)
+        testObject.load_storage_csv(str(storage_file))  # should not throw an error
+        self.assertIn("storage", testObject.md.data["elements"].keys())
 
-    # def test_load_storage_csv_file_not_found(self):
-    #     testObject = ExpansionPlanningData()
-    #     testObject.load_prescient(input_data_source)
-    #     testObject.load_storage_csv(input_data_source)
+        # Check that the storage data is not an empty dict
+        self.assertTrue(testObject.md.data["elements"]["storage"])
 
-    #     # Storage should be set to empty dict
-    #     storage = testObject.md.data["elements"].get("storage", None)
-    #     self.assertIsInstance(storage, dict)
-    #     self.assertEqual(storage, {})
+    def test_load_storage_csv_file_not_found(self):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(input_data_source)
+        testObject.load_storage_csv(input_data_source)
 
-    # ### TEXAS_CASE_STUDY_UPDATES ###
+        # Storage should be set to empty dict
+        storage = testObject.md.data["elements"].get("storage", None)
+        self.assertIsInstance(storage, dict)
+        self.assertEqual(storage, {})
+
+    # # Test TEXAS_CASE_STUDY
     # @pytest.mark.skipif(
     #     not os.path.exists(texas_data_path),
     #     reason=f"Data file {texas_data_path} not found",
