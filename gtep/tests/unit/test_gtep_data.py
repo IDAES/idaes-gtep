@@ -232,16 +232,16 @@ class TestExpansionPlanningData(unittest.TestCase):
             self.assertEqual(gen["start_fuel"], 1)
             self.assertEqual(gen["investment_cost"], 1)
 
-    #     # Check branches
-    #     for branch in testObject.md.data["elements"]["branch"].values():
-    #         self.assertEqual(branch["loss_rate"], 0)
-    #         self.assertEqual(branch["distance"], 1)
-    #         self.assertEqual(branch["capital_cost"], 10000000)
+        # Check branches
+        for branch in testObject.md.data["elements"]["branch"].values():
+            self.assertEqual(branch["loss_rate"], 0)
+            self.assertEqual(branch["distance"], 1)
+            self.assertEqual(branch["capital_cost"], 10000000)
 
-    #     # Check system
-    #     system = testObject.md.data["system"]
-    #     self.assertEqual(system["min_operating_reserve"], 0.1)
-    #     self.assertEqual(system["min_spinning_reserve"], 0.1)
+        # Check system
+        system = testObject.md.data["system"]
+        self.assertEqual(system["min_operating_reserve"], 0.1)
+        self.assertEqual(system["min_spinning_reserve"], 0.1)
 
     # ### LOAD_STORAGE_CSV ###
     # @pytest.mark.skipif(
