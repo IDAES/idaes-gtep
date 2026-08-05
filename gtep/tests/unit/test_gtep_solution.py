@@ -50,7 +50,7 @@ def get_solved_model():
     TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
     opt = pyo.SolverFactory("highs")
-    
+
     if not opt.available():
         raise unittest.SkipTest("Solver not available")
 
