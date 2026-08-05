@@ -370,7 +370,7 @@ class ExpansionPlanningData:
 
         adjusted_forecast_by_period = adjusted_forecast[
             adjusted_forecast["year"].isin(forecast_years)
-        ]
+        ].copy()
 
         base_zones = [
             "base_economic_coast",
