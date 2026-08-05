@@ -14,6 +14,23 @@ Example usage:
 python driver_from_config.py --config examples/config_5bus.toml
 ```
 
+## Configuration Template
+
+The file config_template.toml provides a starting point for creating
+new GTEP configuration files. Users can copy this template, rename it
+for a specific case, and update the paths and options as needed. The
+template includes all major configuration sections used by
+driver_from_config.py, including data settings, cost-data inputs,
+model options, GDP transformations, solver settings, results options,
+and optional plotting settings.
+
+Example:
+
+```bash
+cp examples/config_template.toml examples/config_my_case.toml
+python driver_from_config.py --config examples/config_my_case.toml
+```
+
 ## Configuration File Structure
 
 The TOML configuration file is organized into sections. Each section
