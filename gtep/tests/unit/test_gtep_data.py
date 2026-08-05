@@ -137,25 +137,77 @@ class TestExpansionPlanningData(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 testObject.load_prescient(data_path=tmpdirname)
 
-    def test_clone_at_time_keys_called_correctly(self):
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(data_path=input_data_source)
+    def test_load_prescient_creates_expected_representative_data(self):
+        representative_dates = [
+            "2020-01-28 00:00",
+            "2020-04-23 00:00",
+        ]
 
-        model_class = type(testObject.md)
+        testObject = ExpansionPlanningData(
+            num_reps=2,
+            len_reps=24,
+            num_commit=24,
+            num_dispatch=1,
+        )
 
-        # Patch clone_at_time_keys on the existing model instance.
-        with unittest.mock.patch.object(
-            model_class, "clone_at_time_keys", wraps=testObject.md.clone_at_time_keys
-        ) as mock_clone:
+        testObject.load_prescient(
+            data_path=input_data_source,
+            representative_dates=representative_dates,
+        )
 
-            # Call load_prescient again to trigger cloning with
-            # patched method.
-            testObject.load_prescient(data_path=input_data_source)
+        # Check that one representative ModelData object was created
+        # for each requested representative date.
+        self.assertEqual(
+            len(testObject.representative_data),
+            len(representative_dates),
+        )
 
-            # Check that clone_at_time_keys was called once per
+        # Check that the representative dates were stored.
+        self.assertEqual(
+            len(testObject.representative_dates),
+            len(representative_dates),
+        )
+
+        for rep_md, rep_date in zip(
+            testObject.representative_data,
+            representative_dates,
+        ):
+            # Each representative data object should be a
+            # cloned/sliced ModelData object, not the full base model
+            # data object.
+            self.assertIsNot(rep_md, testObject.md)
+
+            time_keys = rep_md.data["system"]["time_keys"]
+
+            # Each representative data object should contain one day
+            # of hourly time keys.
+            self.assertEqual(len(time_keys), testObject.num_commit)
+
+            # The first time key should correspond to the requested
             # representative date.
-            expected_calls = len(testObject.representative_dates)
-            self.assertEqual(mock_clone.call_count, expected_calls)
+            self.assertEqual(
+                time_keys[0],
+                pd.to_datetime(rep_date).strftime("%Y-%m-%d %H:%M"),
+            )
+
+            # Check that load time series were sliced to the
+            # representative period length.
+            for load_data in rep_md.data["elements"]["load"].values():
+                p_load = load_data.get("p_load")
+
+                if (
+                    isinstance(p_load, dict)
+                    and p_load.get("data_type") == "time_series"
+                ):
+                    self.assertEqual(len(p_load["values"]), testObject.len_reps)
+
+            # Check that renewable generator time series were sliced
+            # to the representative period length.
+            for gen_data in rep_md.data["elements"]["generator"].values():
+                p_max = gen_data.get("p_max")
+
+                if isinstance(p_max, dict) and p_max.get("data_type") == "time_series":
+                    self.assertEqual(len(p_max["values"]), testObject.len_reps)
 
     # Import load_scaling
     @pytest.mark.skipif(
