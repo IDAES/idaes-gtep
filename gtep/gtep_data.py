@@ -427,7 +427,9 @@ class ExpansionPlanningData:
         outage_list = pd.read_csv(load_file_name)
         percentile_threshold = 0.9
         threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
-        filtered_outages = outage_list[outage_list["case_4b_prob"] >= threshold_value]
+        filtered_outages = outage_list[
+            outage_list["case_4b_prob"] >= threshold_value
+        ].copy()
 
         filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
             r" (\d+):"
