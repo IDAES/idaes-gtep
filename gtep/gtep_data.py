@@ -418,35 +418,51 @@ class ExpansionPlanningData:
         load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
         self.load_scaling = load_scaling_df
 
-    def import_outage_data(self, load_file_name):
+    def import_outage_data(self, load_file_name, save_right_csv=False):
         """Imports outage data.
 
         :param load_file_name: filepath for adjusted forecast excel file
 
         """
+
+        # Read the outage probability data from the input CSV file.
         outage_list = pd.read_csv(load_file_name)
+
+        # Select the percentile threshold used to identify
+        # high-probability outage events and calculate the outage
+        # probability value at that percentile.
         percentile_threshold = 0.9
         threshold_value = outage_list["case_4b_prob"].quantile(percentile_threshold)
+
+        # Keep outage events with probability greater than or equal to
+        # the threshold and extract the hour from the timestamp
+        # string. Keep only the county FIPS code and extracted hour.
         filtered_outages = outage_list[
             outage_list["case_4b_prob"] >= threshold_value
         ].copy()
-
         filtered_outages["hour"] = filtered_outages["lim_timestamp"].str.extract(
             r" (\d+):"
         )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
 
+        # Use the directory containing the outage file as the base
+        # directory and define paths to the county-to-FIPS and
+        # bus-to-county mapping files.
         base_dir = Path(load_file_name).parent
-
         county_fips_path = base_dir / "county_fips_match.csv"
         bus_to_county_path = base_dir / "Bus_data_gen_weights_mappings.csv"
-
         county_to_fips = pd.read_csv(county_fips_path)
         bus_to_county = pd.read_csv(bus_to_county_path)
 
+        # Keep the columns needed for mapping counties to FIPS codes
+        # and buses to counties. Also, add FIPS codes to the
+        # bus-to-county mapping.
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
         bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
+
+        # Map outage FIPS codes to buses using the FIPS code and
+        # remove outage records that could not be mapped to a bus.
         bus_hours = pd.merge(
             filtered_outages,
             bus_to_county,
@@ -455,8 +471,16 @@ class ExpansionPlanningData:
             how="left",
         )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
-        csv_path = base_dir / "not_right.csv"
-        bus_hours.to_csv(csv_path)
+
+        # Optionally save the mapped outage records to a new CSV file.
+        # ESR NOTE: Save changes in a new file to avoid overwritting
+        # the existent not_right.csv file, as it was done originally.
+        if save_right_csv:
+            csv_path = base_dir / "right.csv"
+            bus_hours.to_csv(csv_path)
+
+        # Store the hour and bus number columns and convert them to
+        # integers.
         self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
