@@ -1,0 +1,123 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
+# GTEP configuration template.
+#
+# Copy this file, rename it for your case, and update the paths and
+# options below.
+#
+# Example:
+#     cp examples/config_template.toml examples/config_my_case.toml
+#
+# Run with:
+#     python driver_from_config.py --config examples/config_my_case.toml
+
+
+[logging]
+# Supported levels: DEBUG, INFO, WARNING, ERROR.
+level = "INFO"
+
+
+[data]
+# Path to the GTEP input data directory. This directory should contain
+# files such as bus.csv, branch.csv, gen.csv, timeseries_pointers.csv,
+# simulation_objects.csv, DAY_AHEAD_load.csv, and
+# DAY_AHEAD_renewables.csv.
+data_path = "../gtep/data/<case_name>"
+
+# Model time-structure settings.
+# stages: number of investment stages.
+# num_reps: number of representative periods.
+# len_reps: length of each representative period.
+# num_commit: number of commitment periods per representative period.
+# num_dispatch: number of dispatch periods per commitment period.
+# duration_dispatch: dispatch period duration in minutes.
+stages = 2
+num_reps = 2
+len_reps = 1
+num_commit = 6
+num_dispatch = 4
+duration_dispatch = 15
+
+# Optional representative-period settings. If omitted, load_prescient
+# uses the default representative-period for year 2020.
+# representative_dates = [
+#     "2020-01-28 00:00",
+#     "2020-04-23 00:00",
+# ]
+# representative_weights = [1, 1]
+
+# Optional start date. If omitted, load_prescient will read from
+# simulation_objects.csv when available.
+# start_date = "01/01/2020"
+
+[cost_data]
+# Set to true to load and preprocess external cost data. This requires
+# setting the paths to cost-data input files. Set to false to skip
+# cost-data preprocessing and no file paths are required.
+enabled = true
+bus_data_path = "../gtep/data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "../gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+ng_cost_path = "../gtep/data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+
+
+[model]
+# Core model options.
+include_investment = true
+include_commitment = true
+include_redispatch = true
+
+# Power flow formulation. Common options: "DC", "CP".
+flow_model = "DC"
+
+# Time-period options.
+time_period_subsets = []
+time_period_dict = {}
+dispatch_randomization = false
+
+# Common options.
+scale_loads = true
+scale_texas_loads = false
+
+# Investment/model component options.
+thermal_generation = false
+renewable_generation = false
+storage = false
+transmission = true
+transmission_switching = false
+advanced_hydro = false
+
+
+[transformations]
+# Apply GDP transformations before solving.
+bound_pretransformation = false
+bigm = true
+
+
+[solver]
+# Supported options in the driver: "gurobi" and "highs".
+name = "highs"
+
+# If true, print solver output to the terminal.
+tee = true
+
+
+[results]
+# Base results directory. The driver appends the case name from
+# data_path. For data_path = "../gtep/data/5bus", this becomes
+# results_5bus.
+dir_name = "results"
+
+# Minimum variable value saved to JSON files. Increase this to reduce
+# output size or decrease it to keep smaller numerical values.
+value_threshold = 1e-3
