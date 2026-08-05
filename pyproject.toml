@@ -53,6 +53,7 @@ dependencies = [
     "matplotlib",
     "ipython",
     "openpyxl",
+    "pyxlsb",
 ]
 
 [project.urls]
