@@ -30,7 +30,7 @@ load_scaling_file = (
 
 storage_file = (curr_dir / ".." / ".." / "data" / "9_bus_GTEP_dir").resolve()
 
-texas_data_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Coal").resolve()
+texas_data_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
 
 outage_data_path = (
     curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week" / "may_20.csv"
@@ -243,6 +243,23 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertEqual(system["min_operating_reserve"], 0.1)
         self.assertEqual(system["min_spinning_reserve"], 0.1)
 
+    # Import outage data
+    @pytest.mark.skipif(
+        not os.path.exists(outage_data_path),
+        reason=f"Data file {outage_data_path} not found",
+    )
+    def test_import_outage_data(self):
+        testObject = ExpansionPlanningData()
+
+        testObject.import_outage_data(outage_data_path)
+
+        df = testObject.bus_hours
+
+        self.assertTrue(hasattr(testObject, "bus_hours"))
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertIn("hour", df.columns)
+        self.assertIn("Bus Number", df.columns)
+
     # Load storage CSV
     @pytest.mark.skipif(
         not os.path.exists(storage_file),
@@ -295,46 +312,24 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertIsInstance(storage, dict)
         self.assertEqual(storage, {})
 
-    # # Test TEXAS_CASE_STUDY
-    # @pytest.mark.skipif(
-    #     not os.path.exists(texas_data_path),
-    #     reason=f"Data file {texas_data_path} not found",
-    # )
-    # def test_texas_case_study(self):
-    #     testObject = ExpansionPlanningData()
-    #     testObject.load_prescient(data_path=texas_data_path)
+    # Test TEXAS_CASE_STUDY
+    @pytest.mark.skipif(
+        not os.path.exists(texas_data_path),
+        reason=f"Data file {texas_data_path} not found",
+    )
+    def test_texas_case_study(self):
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=texas_data_path)
 
-    #     # Call the method under test
-    #     testObject.texas_case_study_updates(texas_data_path)
+        # Call the method under test
+        testObject.texas_case_study_updates(texas_data_path)
 
-    #     generator = testObject.md.data["elements"].get("generator", None)
-    #     self.assertIsNotNone(generator)
+        generator = testObject.md.data["elements"].get("generator", None)
+        self.assertIsNotNone(generator)
 
-    #     expected_columns = [
-    #         "capex1",
-    #         "capex2",
-    #         "capex3",
-    #         "fuel_cost1",
-    #         "fuel_cost2",
-    #         "fuel_cost3",
-    #         "fixed_ops1",
-    #         "fixed_ops2",
-    #         "fixed_ops3",
-    #         "var_ops1",
-    #         "var_ops2",
-    #         "var_ops3",
-    #     ]
+    def test_texas_case_study_invalid_data_path(self):
+        # Test that an error is raised if not a Texas case Study
+        testObject = ExpansionPlanningData()
 
-    #     # Check that each expected column is added to each generator
-    #     for gen_name, gen_data in generator.items():
-    #         for col in expected_columns:
-    #             self.assertIn(
-    #                 col, gen_data, f"Column {col} missing in generator {gen_name}"
-    #             )
-
-    # def test_texas_case_study_invalid_data_path(self):
-    #     # Test that an error is raised if not a Texas case Study
-    #     testObject = ExpansionPlanningData()
-
-    #     with self.assertRaises(ValueError):
-    #         testObject.texas_case_study_updates(input_data_source)
+        with self.assertRaises(ValueError):
+            testObject.texas_case_study_updates(input_data_source)
