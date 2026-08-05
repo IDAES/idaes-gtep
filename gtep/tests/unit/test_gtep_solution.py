@@ -19,7 +19,6 @@ import pyomo.common.unittest as unittest
 import pyomo.environ as pyo
 from pyomo.environ import TransformationFactory
 from pyomo.common.tempfiles import TempfileManager
-from pyomo.contrib.appsi.solvers.highs import Highs
 
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_model import ExpansionPlanningModel
@@ -50,7 +49,8 @@ def get_solved_model():
     TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
     TransformationFactory("gdp.bigm").apply_to(mod_object.model)
 
-    opt = Highs()
+    opt = pyo.SolverFactory("highs")
+    
     if not opt.available():
         raise unittest.SkipTest("Solver not available")
 
