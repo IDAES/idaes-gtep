@@ -473,7 +473,7 @@ class ExpansionPlanningData:
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
 
         # Optionally save the mapped outage records to a new CSV file.
-        # ESR NOTE: Save changes in a new file to avoid overwritting
+        # ESR NOTE: Save changes in a new file to avoid overwriting
         # the existent not_right.csv file, as it was done originally.
         if save_right_csv:
             csv_path = base_dir / "right.csv"
