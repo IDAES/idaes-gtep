@@ -34,8 +34,6 @@ except ModuleNotFoundError:
     import tomli as tomllib
 
 import pyomo.environ as pyo
-from pyomo.contrib.appsi.solvers.highs import Highs
-from pyomo.contrib.appsi.solvers.gurobi import Gurobi
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
