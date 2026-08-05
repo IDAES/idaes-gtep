@@ -89,11 +89,6 @@ class ExpansionPlanningData:
         # Create prescient config object with defaults
         prescient_options = PrescientConfig()
 
-        # Work around for Prescient throwing an error with Path
-        # objects
-        if isinstance(data_path, Path):
-            data_path = str(data_path)
-
         # If start_date is not provided, read it from
         # simulation_objects.csv using Date_From and DAY_AHEAD. Also,
         # verify that the start date year matches the DAY_AHEAD
@@ -106,7 +101,9 @@ class ExpansionPlanningData:
             # Set basic configurations that do not match prescient
             # defaults
             options_dict = {
-                "data_path": data_path,
+                "data_path": str(
+                    data_path
+                ),  # work around for prescient (error with Path objects)
                 "num_days": 365,
                 "ruc_horizon": 36,
                 "start_date": start_date,
@@ -114,7 +111,7 @@ class ExpansionPlanningData:
 
         else:
             # Ensure data path is included in options dictionary
-            options_dict["data_path"] = data_path
+            options_dict["data_path"] = str(data_path)
 
         # Update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
