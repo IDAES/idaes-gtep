@@ -436,12 +436,15 @@ class ExpansionPlanningData:
             r" (\d+):"
         )
         filtered_outages = filtered_outages[["fips_code", "hour"]]
-        county_to_fips = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/county_fips_match.csv"
-        )
-        bus_to_county = pd.read_csv(
-            "./gtep/data/123_Bus_Resil_Week/Bus_data_gen_weights_mappings.csv"
-        )
+
+        base_dir = Path(load_file_name).parent
+
+        county_fips_path = base_dir / "county_fips_match.csv"
+        bus_to_county_path = base_dir / "Bus_data_gen_weights_mappings.csv"
+
+        county_to_fips = pd.read_csv(county_fips_path)
+        bus_to_county = pd.read_csv(bus_to_county_path)
+
         county_to_fips = county_to_fips[["County", "FIPS"]]
         bus_to_county = bus_to_county[["Bus Number", "County"]]
         bus_to_county = bus_to_county.merge(county_to_fips, how="inner", on="County")
@@ -453,7 +456,8 @@ class ExpansionPlanningData:
             how="left",
         )
         bus_hours = bus_hours[bus_hours["Bus Number"].notna()]
-        bus_hours.to_csv("./gtep/data/123_Bus_Resil_Week/not_right.csv")
+        csv_path = base_dir / "not_right.csv"
+        bus_hours.to_csv(csv_path)
         self.bus_hours = bus_hours[["hour", "Bus Number"]]
         self.bus_hours = self.bus_hours.astype(int)
 
@@ -532,8 +536,13 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for storage data csv file
         """
+
+        # Enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
         try:
-            storage_path = data_path + "/storage.csv"
+            storage_path = data_path / "storage.csv"
             storage_df = pd.read_csv(storage_path)
 
             storage_data = {}
@@ -553,11 +562,21 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for generator data csv file
         """
-        # check that datapath is coming from a texas case study directory
-        if "Texas" or "Coal" not in data_path:
+
+        # Check that datapath is coming from a texas case study
+        # directory
+        if (
+            ("Texas" not in str(data_path))
+            and ("Coal" not in str(data_path))
+            and ("Resil_Week" not in str(data_path))
+        ):
             raise ValueError("The data path provided is not a Texas case study")
 
-        generator_update_path = data_path + "/gen.csv"
+        # Enforce pathlib object
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
+
+        generator_update_path = data_path / "gen.csv"
         generator_df = pd.read_csv(generator_update_path)
         bonus_feature_list = [
             "capex1",
@@ -577,9 +596,11 @@ class ExpansionPlanningData:
             for col in bonus_feature_list:
                 for gen in data_point.data["elements"]["generator"]:
                     if not data_point.data["elements"]["generator"][gen].get(col):
-                        data_point.data["elements"]["generator"][gen][col] = float(
-                            generator_df[generator_df["GEN UID"] == gen][col]
-                        )
+                        matching_rows = generator_df[generator_df["GEN UID"] == gen]
+                        if not matching_rows.empty:
+                            data_point.data["elements"]["generator"][gen][col] = float(
+                                matching_rows[col].iloc[0]
+                            )
 
     def get_start_date_from_simulation_objects(self, data_path):
         """This method reads the start date from the
