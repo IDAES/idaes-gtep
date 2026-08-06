@@ -207,7 +207,7 @@ class ExpansionPlanningData:
             ]
 
             if self.num_reps <= 4:
-                representative_dates = default_representative_dates[: self.num_reps]
+                representative_dates = default_representative_dates[: self.num_reps + 1]
             else:
                 if len(available_day_starts) < self.num_reps:
                     raise ValueError(
@@ -245,6 +245,7 @@ class ExpansionPlanningData:
             missing_dates = [
                 date for date in representative_dates if date not in time_keys
             ]
+
             if missing_dates:
                 raise ValueError(
                     "The following representative_dates are not valid timestamps in the "
