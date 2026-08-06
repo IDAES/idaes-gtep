@@ -33,12 +33,11 @@ dir_name = sol_object.create_results_directory(f"results_{case_name}")
 
 # Create data modeling object
 data_object = ExpansionPlanningData(
-    stages=1,
+    stages=2,
     num_reps=4,
-    len_reps=1,
-    num_commit=6,
-    num_dispatch=4,
-    duration_dispatch=15,
+    len_reps=24,
+    num_commit=24,
+    num_dispatch=1,
 )
 data_object.load_prescient(
     data_path,
@@ -49,6 +48,13 @@ data_object.load_prescient(
         "2020-10-14 00:00",
     ],
     representative_weights=[182, 25, 35, 122],
+    # representative_dates=[
+    #     "2019-01-28 00:00",
+    #     "2019-04-23 00:00",
+    #     "2019-07-05 00:00",
+    #     "2019-10-14 00:00",
+    # ],
+    # representative_weights=[1, 1, 1, 1],
 )
 
 # [ESR WIP: Add bus and cost data files to be used on the
@@ -58,9 +64,9 @@ data_object.load_prescient(
 # existent generators in the data. The data contains the following
 # types: (a) Natural Gas: Combustion Turbine (CT) and Fuel Efficiency
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
-bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-ng_cost_path = "data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+bus_data_path = "./gtep/data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "./gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+ng_cost_path = "./gtep/data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
 candidate_gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV"]
 
 data_processing_object = DataProcessing()
@@ -80,7 +86,7 @@ mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = True
 mod_object.config["transmission"] = True
 mod_object.config["storage"] = False
-mod_object.config["flow_model"] = "DC"
+mod_object.config["flow_model"] = "transport"
 mod_object.config["advanced_hydro"] = False
 
 # Save config to a .csv file
