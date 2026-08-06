@@ -2,11 +2,11 @@
 
 ## Overview
 
-GTEP can be run using `main_driver.py` with a TOML configuration file.
-The configuration file defines the input data path, model dimensions,
-cost-data inputs, model options, transformations, solver settings, and
-results options. This allows users to reproduce runs without modifying
-the driver directly.
+GTEP can be run using `driver_from_config.py` with a TOML
+configuration file.  The configuration file defines the input data
+path, model dimensions, cost-data inputs, model options,
+transformations, solver settings, and results options. This allows
+users to reproduce runs without modifying the driver directly.
 
 Example usage:
 
