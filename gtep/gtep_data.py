@@ -86,7 +86,6 @@ class ExpansionPlanningData:
                 "data_path": data_path,
                 "num_days": 365,
                 "ruc_horizon": 36,
-                "start_date": "2019-01-01",
             }
 
         else:
@@ -176,7 +175,7 @@ class ExpansionPlanningData:
             ]
 
             if self.num_reps <= 4:
-                representative_dates = default_representative_dates[: self.num_reps]
+                representative_dates = default_representative_dates[: self.num_reps + 1]
             else:
                 if len(available_day_starts) < self.num_reps:
                     raise ValueError(
