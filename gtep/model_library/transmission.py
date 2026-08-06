@@ -233,9 +233,7 @@ def add_transmission_state_disjuncts(m, b, i_p):
 
         # Create bus angle variables for the buses associated with
         # the branch that is in use
-        disj.branch_buses = [
-            bb for bb in m.buses if (m.from_bus[branch] == bb or m.to_bus[branch] == bb)
-        ]
+        disj.branch_buses = [m.from_bus[branch], m.to_bus[branch]]
 
         disj.busAngle = pyo.Var(
             disj.branch_buses,
