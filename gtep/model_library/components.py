@@ -103,7 +103,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     )
 
     m.thermalGeneratorsByBus = pyo.Set(
-        m.buses, initialize={lambda m, b: m.generatorsByBus[b] & m.thermalGenerators}
+        m.buses, initialize=lambda m, b: m.generatorsByBus[b] & m.thermalGenerators
     )
 
     if m.config["advanced_hydro"]:
