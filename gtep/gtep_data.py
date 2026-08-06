@@ -263,7 +263,7 @@ class ExpansionPlanningData:
                 )
 
             total_weight = sum(representative_weights.values())
-            if total_weight != 365:
+            if total_weight != 365:  # leap year...?
                 raise ValueError(
                     "The values of representative_weights must sum to 365,"
                     + f" but got {total_weight}"

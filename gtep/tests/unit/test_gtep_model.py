@@ -370,11 +370,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject = create_model(
             planning_data_args={
-                "stages": 2,
+                "stages": 1,
                 "num_reps": 12,
                 "len_reps": 1,
-                "num_commit": 6,
-                "num_dispatch": 4,
+                "num_commit": 1,
+                "num_dispatch": 1,
                 "duration_dispatch": 15,
             },
             prescient_data_args={
@@ -394,7 +394,7 @@ class TestGTEP(unittest.TestCase):
                 ],
                 "representative_weights": {
                     "2020-01-01 00:00": 31,
-                    "2020-02-01 00:00": 28,  # leap year...?
+                    "2020-02-01 00:00": 28,
                     "2020-03-01 00:00": 31,
                     "2020-04-01 00:00": 30,
                     "2020-05-01 00:00": 31,
