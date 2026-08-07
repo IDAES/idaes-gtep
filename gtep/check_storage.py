@@ -1,10 +1,16 @@
+#####################################
+# This file is intended to illustrate
+# issue #156 and shouldn't be merged
+# into main!!
+######################################
+
+
 from pathlib import Path
 import pandas as pd
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_model import ExpansionPlanningModel
 
 data_dir = Path("gtep/data/9_bus_GTEP_dir")
-
 data_object = ExpansionPlanningData(
     stages=1,
     num_reps=1,
@@ -46,8 +52,8 @@ for gen, gen_data in data_object.md.data["elements"]["generator"].items():
 
 print("-" * 50)
 print("Top of storage csv:")
-print(pd.read_csv((data_dir / "storage.csv").resolve()).iloc[:5,:5])
+print(pd.read_csv((data_dir / "storage.csv").resolve()).iloc[:5, :5])
 
 print("-" * 50)
 print("Compare to top of gen csv:")
-print(pd.read_csv((data_dir / "gen.csv").resolve()).iloc[:5,:5])
+print(pd.read_csv((data_dir / "gen.csv").resolve()).iloc[:5, :5])
