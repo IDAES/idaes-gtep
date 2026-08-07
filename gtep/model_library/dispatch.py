@@ -273,23 +273,22 @@ def add_dispatch_constraints(b):
         def flow_balance(b, bus):
             balance = 0 * u.MW
             # Add power flow to constraint
-            end_points = [line for line in m.lines if m.from_bus[line] == bus]
-            start_points = [line for line in m.lines if m.to_bus[line] == bus]
+            end_points = m.branchByToBus[bus]
+            start_points = m.branchByFromBus[bus]
+            gens = m.generatorsByBus[bus]
+
             balance -= sum(b.powerFlow[i] for i in end_points)
             balance += sum(b.powerFlow[i] for i in start_points)
             # Add generation to constraint
             balance += sum(
-                b.thermalGeneration[g]
-                for g in m.thermalGenerators & m.generatorsByBus[bus]
+                b.thermalGeneration[g] for g in m.thermalGeneratorsByBus[bus]
             )
             balance += sum(
-                b.renewableGeneration[g]
-                for g in m.renewableGenerators & m.generatorsByBus[bus]
+                b.renewableGeneration[g] for g in m.renewableGeneratorsByBus[bus]
             )
             if m.config["advanced_hydro"]:
                 balance += sum(
-                    b.hydroGeneration[g]
-                    for g in m.hydroGenerators & m.generatorsByBus[bus]
+                    b.hydroGeneration[g] for g in m.hydroGeneratorsByBus[bus]
                 )
 
             # Add battery storage to constraint
