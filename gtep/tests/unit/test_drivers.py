@@ -85,6 +85,13 @@ def test_explicit_driver_runs(gtep_dir):
             cwd=temp_dir,
         )
 
+        # Check that the driver created expected result outputs.
+        expected_results_dir = temp_dir / "results_5bus"
+
+        assert expected_results_dir.exists()
+        assert (expected_results_dir / "model_config.csv").exists()
+        assert (expected_results_dir / "generation.json").exists()
+
 
 def test_config_driver_runs(gtep_dir):
     # Test that the TOML configuration driver runs on the 5-bus case.
