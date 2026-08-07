@@ -28,7 +28,7 @@ There are two main ways to run the GTEP model:
 2. Using a TOML configuration file with `driver_from_config.py`.
 
    ```bash
-   python main_driver.py --config examples/config_5bus.toml
+   python driver_from_config.py --config examples/config_5bus.toml
    ```
 
 ## Main Files
@@ -41,7 +41,7 @@ There are two main ways to run the GTEP model:
 | `gtep_solution.py` | Defines the `ExpansionPlanningSolution` class, which saves model results to JSON/CSV files and generates plots. |
 | `config_options.py` | Defines the available GTEP model configuration options. |
 | `driver_from_config.py` | Configuration-driven driver for running GTEP using a TOML configuration file. |
-| `driver_full_options.py` | Explicit Python driver with model settings defined directly in the script. |
+| `driver.py` | Explicit Python driver with model settings defined directly in the script. |
 
 ## Supporting Model Modules
 
