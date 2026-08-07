@@ -46,7 +46,7 @@ bound_pretransformation = false
 bigm = true
 
 [solver]
-name = "gurobi_direct"
+solver_name = "gurobi_direct"
 tee = true
 log_file = "basic_logging.log"
 mip_gap = 0.001

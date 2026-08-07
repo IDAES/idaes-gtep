@@ -195,7 +195,7 @@ def main(config_path):
     # Solver options include "gurobi" and "highs". Default
     # is "highs", if none is provided.
     solver_config = config.get("solver", {})
-    solver_name = solver_config.get("name", "highs")
+    solver_name = solver_config.get("solver_name", "highs")
     tee = solver_config.get("tee", True)
 
     opt = pyo.SolverFactory(solver_name)

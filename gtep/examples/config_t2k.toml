@@ -46,7 +46,7 @@ bound_pretransformation = false
 bigm = true
 
 [solver]
-name = "gurobi"
+solver_name = "gurobi"
 tee = true
 log_file = "t2k_logging.log"
 mip_gap = 0.01

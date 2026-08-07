@@ -106,7 +106,7 @@ bigm = true
 
 [solver]
 # Supported options in the driver: "gurobi" and "highs".
-name = "highs"
+solver_name = "highs"
 
 # If true, print solver output to the terminal.
 tee = true

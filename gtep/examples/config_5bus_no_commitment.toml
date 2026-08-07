@@ -48,7 +48,7 @@ bound_pretransformation = true
 bigm = true
 
 [solver]
-name = "gurobi"
+solver_name = "gurobi"
 tee = false
 
 [results]

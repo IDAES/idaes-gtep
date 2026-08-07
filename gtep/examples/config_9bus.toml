@@ -53,7 +53,7 @@ bound_pretransformation = false
 bigm = true
 
 [solver]
-name = "highs"
+solver_name = "highs"
 tee = true
 
 [results]

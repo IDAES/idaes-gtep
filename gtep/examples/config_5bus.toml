@@ -88,7 +88,7 @@ gdp_transform = "bigm"
 
 [solver]
 # Supported options in the driver: "gurobi" and "highs".
-name = "highs"
+solver_name = "highs"
 tee = true
 
 [results]
