@@ -84,7 +84,7 @@ advanced_hydro = false
 [transformations]
 # Apply GDP transformations before solving.
 bound_pretransformation = false
-bigm = true
+gdp_transform = "bigm"
 
 [solver]
 # Supported options in the driver: "gurobi" and "highs".

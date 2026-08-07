@@ -143,14 +143,14 @@ mod_object.create_model()
 # ---------------------------------------------------------------------
 # Apply GDP transformations
 
+# Options include "bigm", "chull", etc.. "bigm" is set as the default.
 apply_bound_pretransformation = False
-apply_bigm = True
+gdp_transform = "bigm"
 
 if apply_bound_pretransformation:
     pyo.TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
 
-if apply_bigm:
-    pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+pyo.TransformationFactory(f"gdp.{gdp_transform}").apply_to(mod_object.model)
 
 # ---------------------------------------------------------------------
 # Add solver

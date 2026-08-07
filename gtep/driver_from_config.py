@@ -189,13 +189,13 @@ def main(config_path):
             mod_object.model
         )
 
-    if transformation_config.get("bigm", True):
-        pyo.TransformationFactory("gdp.bigm").apply_to(mod_object.model)
+    gdp_transform = transformation_config.get("gdp_transform", "bigm")
+    pyo.TransformationFactory(f"gdp.{gdp_transform}").apply_to(mod_object.model)
 
     # Solver options include "gurobi" and "highs". Default
-    # is "gurobi", if none is provided.
+    # is "highs", if none is provided.
     solver_config = config.get("solver", {})
-    solver_name = solver_config.get("name", "gurobi")
+    solver_name = solver_config.get("name", "highs")
     tee = solver_config.get("tee", True)
 
     opt = pyo.SolverFactory(solver_name)
