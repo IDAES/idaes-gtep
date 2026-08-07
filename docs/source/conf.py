@@ -39,7 +39,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_collections",
     "nbsphinx",
-    "myst_parser"
+    "myst_parser",
 ]
 
 templates_path = ["_templates"]
