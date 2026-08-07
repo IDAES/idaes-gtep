@@ -11,8 +11,8 @@
 # for full copyright and license information.
 #################################################################################
 
-"""This script gives an explicit Python driver for running the GTEP
-model.
+"""This script gives a pure Python driver for running the GTEP model
+without needing a separate configuration file.
 
 This driver uses all the main model configuration options directly in
 one place. It is useful for debugging, development, and small example
@@ -155,18 +155,13 @@ if apply_bigm:
 # ---------------------------------------------------------------------
 # Add solver
 
+# Select Pyomo-compatible MILP solver for the transformed GDP
+# model. highs is the default solver. Other options are gurobi,
+# xpress, etc..
 solver_name = "highs"
 tee = True
 
-if solver_name == "gurobi":
-    opt = pyo.SolverFactory("gurobi")
-elif solver_name == "highs":
-    opt = pyo.SolverFactory("highs")
-else:
-    raise ValueError(
-        f"Unsupported solver '{solver_name}'. Choose from " "'gurobi' or 'highs'."
-    )
-
+opt = pyo.SolverFactory(solver_name)
 mod_object.results = opt.solve(mod_object.model, tee=tee)
 
 print(mod_object.results)
