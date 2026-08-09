@@ -27,7 +27,10 @@ data:
   # TODO: Replace with weights corresponding to the representative days.
   # These should have the same length as representative_dates.
   representative_weights:
-    - 365
+    - 90
+    - 90
+    - 95
+    - 90
 
   prescient_options:
     data_path: /home/jkskolf/2030_pcm_case/base_case_pcm_2030
