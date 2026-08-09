@@ -9,7 +9,7 @@ data:
   stages: 1
 
   # TODO: Set this equal to the number of representative dates below.
-  num_reps: 1
+  num_reps: 4
 
   len_reps: 24
   num_commit: 24
@@ -19,10 +19,10 @@ data:
   # TODO: Replace these with the desired representative-day timestamps
   # from the 2030 PCM dataset.
   representative_dates:
-    # - "2030-01-01 00:00"
-    # - "2030-04-01 00:00"
+    - "2030-01-01 00:00"
+    - "2030-04-01 00:00"
     - "2030-07-01 00:00"
-    # - "2030-10-01 00:00"
+    - "2030-10-01 00:00"
 
   # TODO: Replace with weights corresponding to the representative days.
   # These should have the same length as representative_dates.
