@@ -153,10 +153,6 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    local_gtep_json_dir = Path(args.local_gtep_json_dir).resolve()
-    local_gtep_json_dir.mkdir(parents=True, exist_ok=True)
-    gtep_solution_json_path = local_gtep_json_dir / "gtep_solution.json"
-
     gtep_results_dir_written = None
 
     summary_path = output_dir / "run_summary.json"
