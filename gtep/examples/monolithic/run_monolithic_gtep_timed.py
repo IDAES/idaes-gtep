@@ -98,7 +98,7 @@ class MonolithicRunSummary:
     timings: list[dict[str, Any]]
     solver: dict[str, Any]
     objective: float | None
-    solution_json: str | None
+    gtep_results_dir: str | None
     model_pprint_file: str | None
     large_coefficients_file: str | None
     error: str | None = None
@@ -153,6 +153,12 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    local_gtep_json_dir = Path(args.local_gtep_json_dir).resolve()
+    local_gtep_json_dir.mkdir(parents=True, exist_ok=True)
+    gtep_solution_json_path = local_gtep_json_dir / "gtep_solution.json"
+
+    gtep_results_dir_written = None
+
     summary_path = output_dir / "run_summary.json"
     solution_json_path = output_dir / "gtep_solution.json"
     solver_log_path = output_dir / "solver.log"
@@ -171,6 +177,16 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
         with timer.phase("load_config"):
             cfg = load_ph_config(args.config)
 
+        with timer.phase("create_gtep_results_directory"):
+            if args.skip_gtep_results:
+                sol_object = None
+                gtep_results_dir = None
+            else:
+                sol_object = ExpansionPlanningSolution(str(cfg.data.data_path))
+                gtep_results_dir = Path(args.gtep_results_dir).resolve()
+                dir_name = sol_object.create_results_directory(str(gtep_results_dir))
+                gtep_results_dir_written = str(dir_name)
+
         with timer.phase("prepare_solver_environment"):
             _apply_solver_environment_from_config(cfg.solver)
 
@@ -180,7 +196,7 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
         with timer.phase("load_cost_data"):
             cost_data = build_cost_data(cfg)
 
-        with timer.phase("construct_model"):
+        with timer.phase("instantiate_model_object"):
             model_object = ExpansionPlanningModel(
                 data=data_object,
                 cost_data=cost_data,
@@ -189,6 +205,11 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
             for key, value in cfg.model.as_model_options().items():
                 model_object.config[key] = value
 
+        if sol_object is not None:
+            with timer.phase("write_gtep_model_config_csv"):
+                sol_object.save_model_config_to_csv(model_object, dir_name)
+
+        with timer.phase("construct_model"):
             model_object.create_model()
 
         with timer.phase("gdp_transformation"):
@@ -225,12 +246,14 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
         with timer.phase("extract_objective"):
             objective_value = get_active_objective_value(model_object.model)
 
-        with timer.phase("write_solution"):
-            solution = ExpansionPlanningSolution()
-            solution.load_from_model(model_object)
-            solution.dump_json(str(solution_json_path))
-            solution.import_data_object(data_object)
-            solution_json_written = str(solution_json_path)
+
+        if sol_object is not None:
+            with timer.phase("write_gtep_result_json_files"):
+                sol_object.save_results_in_json_files(
+                    model_object,
+                    dir_name,
+                    value_threshold=args.value_threshold,
+                )
 
         solver_summary = _solver_summary(
             cfg.solver.name,
@@ -246,7 +269,7 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
             timings=timer.to_jsonable(),
             solver=solver_summary,
             objective=objective_value,
-            solution_json=solution_json_written,
+            gtep_results_dir=gtep_results_dir_written,
             model_pprint_file=model_pprint_written,
             large_coefficients_file=large_coefficients_written,
             error=None,
@@ -277,7 +300,7 @@ def run_monolithic(args: argparse.Namespace) -> MonolithicRunSummary:
             timings=timer.to_jsonable(),
             solver=solver_summary,
             objective=objective_value,
-            solution_json=solution_json_written,
+            gtep_results_dir=gtep_results_dir_written,
             model_pprint_file=model_pprint_written,
             large_coefficients_file=large_coefficients_written,
             error=error_text,
@@ -370,12 +393,12 @@ def _print_summary(summary: MonolithicRunSummary) -> None:
     print(f"Success:      {summary.success}")
     print(f"Output dir:   {summary.output_dir}")
     print(f"Objective:    {summary.objective}")
-    print(f"Solution:     {summary.solution_json}")
+    print(f"GTEP results: {summary.gtep_results_dir}")
     print(f"Solver log:   {summary.solver.get('log_file')}")
     print()
     print("Timings:")
     for record in summary.timings:
-        print(f"  {record['name']:30s} {record['elapsed_sec']:12.3f} sec")
+        print(f"  {record['name']:35s} {record['elapsed_sec']:12.3f} sec")
     print("=" * 80)
     print()
 
@@ -421,6 +444,31 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Python logging level.",
+    )
+
+    parser.add_argument(
+        "--gtep-results-dir",
+        default="naerm_one_off_tests",
+        help=(
+            "Local directory where GTEP-format result JSON files will be written "
+            "using ExpansionPlanningSolution. Default: naerm_one_off_tests"
+        ),
+    )
+
+    parser.add_argument(
+        "--value-threshold",
+        type=float,
+        default=1.0e-3,
+        help=(
+            "Minimum variable value to save in GTEP result JSON files. "
+            "Default: 1e-3"
+        ),
+    )
+
+    parser.add_argument(
+        "--skip-gtep-results",
+        action="store_true",
+        help="Skip writing GTEP-format result JSON files.",
     )
 
     return parser.parse_args(argv)
