@@ -92,14 +92,14 @@ class ExpansionPlanningModel:
         self,
         data: ExpansionPlanningData,
         cost_data: DataProcessing | None = None,
-        config: dict = {},
+        config: dict | None = None,
         formulation=None,
     ):
         """Initialize generation & expansion planning model object.
 
         :param data:        Full set of model data.
         :param cost_data:   Full set of cost data for all generators. Defaults to `None`.
-        :param config:      Non-default config options to be set. Defaults to `{}`.
+        :param config:      Non-default config options to be set. Defaults to `None`.
         :param formulation: To be implemented (EGRET stuff).
         :type data:         ExpansionPlanningData
         :type cost_data:    DataProcessing | None, optional
@@ -121,8 +121,9 @@ class ExpansionPlanningModel:
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
 
-        for config_option, config_val in config.items():
-            self.config[config_option] = config_val
+        if config is not None:
+            for config_option, config_val in config.items():
+                self.config[config_option] = config_val
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the

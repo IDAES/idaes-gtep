@@ -62,7 +62,7 @@ class ExpansionPlanningData:
         data_path: Path | str,
         representative_dates: list[str] | None = None,
         representative_weights: dict | None = None,
-        options_dict: dict = {"num_days": 365, "ruc_horizon": 36},
+        options_dict: dict | None = None,
     ):
         """
         Loads data structured via Prescient data loader.
@@ -90,9 +90,9 @@ class ExpansionPlanningData:
                                             in which case all representative dates are
                                             given equal weight.
         :param options_dict:            Arguments to be passed to the Prescient data
-                                            loader. Defaults to
-                                            `{"num_days": 365, "ruc_horizon": 36}`
-                                            are selected:
+                                            loader. Defaults None. If `"num_days"` is not
+                                            provided, it is set to `365`. If `"ruc_horizon"` is
+                                            not provided, it is set to `36`.
         :type data_path:                Path | str
         :type representative_dates:     list | None, optional
         :type representative_weights:   list | None, optional
@@ -106,8 +106,17 @@ class ExpansionPlanningData:
         if isinstance(data_path, Path):
             data_path = str(data_path)
 
-        # ensure data path is included in options dictionary
-        options_dict["data_path"] = data_path
+        # set up options dictionary with default values
+        if options_dict is None:
+            options_dict = {}
+        default_options_dict = {
+            "num_days": 365,
+            "ruc_horizon": 36,
+            "data_path": data_path,
+        }
+        for k, v in default_options_dict.items():
+            if k not in options_dict:
+                options_dict[k] = v
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
