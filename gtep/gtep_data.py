@@ -69,7 +69,7 @@ class ExpansionPlanningData:
 
         :param data_path:               Folder containing the data to be loaded.
         :param representative_dates:    List of representative dates to include, each in the
-                                            format `"YYYY-MM-DD mm-ss"`. The number of
+                                            format `"YYYY-MM-DD"`. The number of
                                             dates must match `len_reps` provided in the
                                             constructor, and each date must have
                                             available day-ahead data (i.e., must be in
