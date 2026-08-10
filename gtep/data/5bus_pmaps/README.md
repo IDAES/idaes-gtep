@@ -1,1 +1,0 @@
-This directory contains the same data as `gtep/data/5bus`, but also includes storage data (`storage.csv`).
