@@ -40,8 +40,6 @@ from gtep.config_options import (
     _add_common_configs,
     _add_investment_configs,
 )
-from gtep.gtep_data import ExpansionPlanningData
-from gtep.gtep_data_processing import DataProcessing
 import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
@@ -90,20 +88,18 @@ class ExpansionPlanningModel:
 
     def __init__(
         self,
-        data: ExpansionPlanningData,
-        cost_data: DataProcessing|None=None,
-        config: dict={},
+        config=None,
         formulation=None,
+        data=None,
+        cost_data=None,
     ):
         """Initialize generation & expansion planning model object.
 
-        :param data:        Full set of model data.
-        :param cost_data:   Full set of cost data for all generators. Defaults to `None`.
-        :param config:      Non-default config options to be set. Defaults to `{}`.
-        :param formulation: To be implemented (EGRET stuff).
-        :type data:         ExpansionPlanningData
-        :type cost_data:    DataProcessing | None, optional
-        :type config:       dict, optional
+        :param formulation: Egret stuff, to be filled
+        :param data: full set of model data
+        :param cost_data: full set of cost data for all generators
+
+        :return: Pyomo model for full GTEP
         """
 
         self.stages = data.stages
@@ -121,8 +117,9 @@ class ExpansionPlanningModel:
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
 
-        for config_option, config_val in config.items():
-            self.config[config_option] = config_val
+        if config:
+            for config_option, config_val in config.items():
+                self.config[config_option] = config_val
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
