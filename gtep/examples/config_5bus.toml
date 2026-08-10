@@ -1,0 +1,102 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
+# Example of full GTEP configuration file for the 5 bus case
+
+# Run with:
+#    python driver_from_config.py --config examples/config_5bus.toml
+
+[logging]
+# Supported levels: DEBUG, INFO, WARNING, ERROR
+level = "INFO"
+
+[data]
+# Path to the GTEP input data directory.
+data_path = "../gtep/data/5bus"
+
+# Model time-structure settings.
+stages = 2
+num_reps = 2
+len_reps = 1
+num_commit = 6
+num_dispatch = 4
+duration_dispatch = 15
+
+# Optional representative-period settings. If omitted, load_prescient
+# uses the default representative-period selection.
+# representative_dates = [
+#     "2020-01-28 00:00",
+#     "2020-04-23 00:00",
+# ]
+# representative_weights = [1, 1]
+
+# Optional start date. If omitted, load_prescient considers a default
+# start dat of 2020-01-01.
+# start_date = "01/01/2020"
+
+[cost_data]
+# When set to true, load cost data, otherwise skip cost-data
+# preprocessing.
+enabled = true
+bus_data_path = "../gtep/data/costs/Bus_data_gen_weights_mappings.csv"
+cost_data_path = "../gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+ng_cost_path = "../gtep/data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+candidate_gens = [
+    "Natural Gas_CT",
+    "Natural Gas_FE",
+    "Solar - Utility PV",
+]
+
+[model]
+# Core model options.
+include_investment = true
+include_commitment = true
+include_redispatch = true
+flow_model = "DC"
+
+# Time-period options.
+time_period_subsets = []
+time_period_dict = {}
+dispatch_randomization = false
+
+# Common options.
+scale_loads = true
+scale_texas_loads = false
+
+# Investment/model component options.
+thermal_generation = false
+renewable_generation = false
+storage = false
+transmission = true
+transmission_switching = false
+advanced_hydro = false
+
+[transformations]
+# Apply GDP transformations before solving.
+bound_pretransformation = false
+gdp_transform = "bigm"
+
+[solver]
+# Supported options in the driver: "gurobi" and "highs".
+solver_name = "highs"
+tee = true
+
+[results]
+# Base results directory. The driver appends the case name from
+# data_path. For data_path = "../gtep/data/5bus", this becomes
+# results_5bus.
+dir_name = "results"
+
+# Minimum variable value saved to JSON files.
+value_threshold = 1e-3
+
