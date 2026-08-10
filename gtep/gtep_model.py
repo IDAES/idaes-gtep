@@ -91,8 +91,8 @@ class ExpansionPlanningModel:
     def __init__(
         self,
         data: ExpansionPlanningData,
-        cost_data: DataProcessing|None=None,
-        config: dict={},
+        cost_data: DataProcessing | None = None,
+        config: dict = {},
         formulation=None,
     ):
         """Initialize generation & expansion planning model object.
