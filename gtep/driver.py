@@ -167,7 +167,8 @@ mod_object.results = opt.solve(mod_object.model, tee=tee)
 print(mod_object.results)
 
 # ---------------------------------------------------------------------
-# Save results in JSON files using the GTEP solution class
+# Save results in JSON files and create plots using the GTEP solution
+# class
 
 sol_object.save_results_in_json_files(
     mod_object,
@@ -182,10 +183,6 @@ sol_object.save_results_in_json_files(
 # generates both pie chart and treemap plots.
 plot_type = "all"
 case_json = "combined"
-sol_object.create_plots(case_json, dir_name, data_path, plot_type)
-case_json = "renewables"
-sol_object.create_plots(case_json, dir_name, data_path, plot_type)
-case_json = "dispatchables"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 # Create stackgraph
