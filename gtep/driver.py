@@ -175,4 +175,24 @@ sol_object.save_results_in_json_files(
     value_threshold=1e-3,
 )
 
+# Create generation-mix plots from the saved investment JSON files.
+# Set case_json to "dispatchables" or "renewables" to plot each group
+# separately, or use "combined" to merge both groups in the same
+# plots. Set plot_type to "piechart", "treemap", or "all"; "all"
+# generates both pie chart and treemap plots.
+plot_type = "all"
+case_json = "combined"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "renewables"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "dispatchables"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+
+# Create stackgraph
+rep_days = [
+    pyo.value(mod_object.model.representativeDate[rep])
+    for rep in mod_object.model.representativeDate
+]
+sol_object.create_stackgraph(dir_name, rep_days)
+
 logger.info("GTEP run complete.")
