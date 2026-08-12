@@ -608,7 +608,7 @@ class ExpansionPlanningData:
         bus_id_to_name = pd.read_csv(bus_path).set_index("Bus ID")["Bus Name"].to_dict()
 
         try:
-            storage_path = data_path / "storage.csv"
+            storage_path = data_path + "/storage.csv"
             storage_df = pd.read_csv(storage_path)
 
             storage_data = {}
