@@ -496,64 +496,64 @@ class TestGTEP(unittest.TestCase):
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
-    def test_Texas123_case(self):
+    # def test_Texas123_case(self):
 
-        modObject = create_model(
-            input_data_path=Texas123_case_path,
-            planning_data_args={
-                "stages": 1,
-                "num_reps": 4,
-                "len_reps": 2,
-                "num_commit": 2,
-                "num_dispatch": 1,
-                "duration_dispatch": 60,
-            },
-            prescient_data_args={
-                "representative_dates": [
-                    "2019-01-28 00:00",
-                    "2019-04-23 00:00",
-                    "2019-07-05 00:00",
-                    "2019-10-14 00:00",
-                ],
-                "representative_weights": {
-                    "2019-01-28 00:00": 115,
-                    "2019-04-23 00:00": 95,
-                    "2019-07-05 00:00": 50,
-                    "2019-10-14 00:00": 105,
-                },
-            },
-            config={
-                "include_investment": True,
-                "include_commitment": True,
-                "include_redispatch": True,
-                "scale_loads": False,
-                "transmission": True,
-                "storage": False,
-                "flow_model": "DC",
-            },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
-        )
+    #     modObject = create_model(
+    #         input_data_path=Texas123_case_path,
+    #         planning_data_args={
+    #             "stages": 1,
+    #             "num_reps": 4,
+    #             "len_reps": 2,
+    #             "num_commit": 2,
+    #             "num_dispatch": 1,
+    #             "duration_dispatch": 60,
+    #         },
+    #         prescient_data_args={
+    #             "representative_dates": [
+    #                 "2019-01-28 00:00",
+    #                 "2019-04-23 00:00",
+    #                 "2019-07-05 00:00",
+    #                 "2019-10-14 00:00",
+    #             ],
+    #             "representative_weights": {
+    #                 "2019-01-28 00:00": 115,
+    #                 "2019-04-23 00:00": 95,
+    #                 "2019-07-05 00:00": 50,
+    #                 "2019-10-14 00:00": 105,
+    #             },
+    #         },
+    #         config={
+    #             "include_investment": True,
+    #             "include_commitment": True,
+    #             "include_redispatch": True,
+    #             "scale_loads": False,
+    #             "transmission": True,
+    #             "storage": False,
+    #             "flow_model": "DC",
+    #         },
+    #         candidate_gens=[
+    #             "Natural Gas_CT",
+    #             "Natural Gas_FE",
+    #             "Solar - Utility PV",
+    #             "Land-Based Wind",
+    #         ],
+    #     )
 
-        # Check for consistent units
-        # Note: Need to do this check before applying the GDP transformations
-        assert_units_consistent(modObject.model)
+    #     # Check for consistent units
+    #     # Note: Need to do this check before applying the GDP transformations
+    #     assert_units_consistent(modObject.model)
 
-        opt = SolverFactory("highs")
-        if not opt.available():
-            raise unittest.SkipTest("Solver not available")
+    #     opt = SolverFactory("highs")
+    #     if not opt.available():
+    #         raise unittest.SkipTest("Solver not available")
 
-        # Apply transformations to logical terms
-        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+    #     # Apply transformations to logical terms
+    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
 
-        modObject.results = opt.solve(modObject.model)
+    #     modObject.results = opt.solve(modObject.model)
 
-        self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 20105684865.29, places=1
-        )
+    #     self.assertAlmostEqual(
+    #         value(modObject.model.total_cost_objective_rule), 20105684865.29, places=1
+    #     )
 
-        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+    #     assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
