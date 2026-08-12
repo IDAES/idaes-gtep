@@ -488,6 +488,9 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for storage data csv file
         """
+        bus_path = data_path + "/bus.csv"
+        bus_id_to_name = pd.read_csv(bus_path).set_index("Bus ID")["Bus Name"].to_dict()
+
         try:
             storage_path = data_path + "/storage.csv"
             storage_df = pd.read_csv(storage_path)
@@ -496,6 +499,9 @@ class ExpansionPlanningData:
             for _, row in storage_df.iterrows():
                 name = row["name"]
                 storage_data[name] = row.drop("name").to_dict()
+                storage_data[name]["bus"] = bus_id_to_name[
+                    storage_data[name]["bus"]
+                ]  # to match egret behavior
 
             self.md.data["elements"]["storage"] = storage_data
         except FileNotFoundError:
