@@ -463,10 +463,15 @@ class ExpansionPlanningData:
         load_scaling_df = load_scaling_df.rename(columns=name_conversion_dict)
         self.load_scaling = load_scaling_df
 
-    def import_outage_data(self, load_file_name, save_right_csv=False):
-        """Imports outage data.
+    def import_outage_data(self, load_file_name, save_mapped_outage_csv=False):
+        """This method imports outage data and maps high-probability
+        outages to buses.
 
-        :param load_file_name: filepath for adjusted forecast excel file
+        :param load_file_name:         Path to the outage data CSV file.
+        :param save_mapped_outage_csv: If True, save the mapped
+                                       outage-to-bus records to a CSV
+                                       file for inspection.  Defaults
+                                       to False.
 
         """
 
@@ -519,10 +524,10 @@ class ExpansionPlanningData:
 
         # Optionally save the mapped outage records to a new CSV file.
         # ESR NOTE: Save changes in a new file to avoid overwriting
-        # the existent not_right.csv file, as it was done originally.
-        if save_right_csv:
-            csv_path = base_dir / "right.csv"
-            bus_hours.to_csv(csv_path)
+        # the existent not_right.csv file, as it was named originally.
+        if save_mapped_outage_csv:
+            csv_path = base_dir / "mapped_outage_bus_hours.csv"
+            bus_hours.to_csv(csv_path, index=False)
 
         # Store the hour and bus number columns and convert them to
         # integers.
