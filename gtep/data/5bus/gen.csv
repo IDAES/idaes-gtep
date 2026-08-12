@@ -7,3 +7,7 @@ GEN UID,Bus ID,Unit Type,Fuel,MW Inj,MVAR Inj,V Setpoint p.u.,PMax MW,PMin MW,QM
 2_RTPV,2,RTPV,S,0,0,1,9.3,0,0,0,,,,,,,,,,0,,,,,,,,,,,
 1_HYDRO,1,HYDRO,H,0,0,1,50,0,16,-10,,,,,,,,,,0,,,,,,,,,,,
 4_WIND,4,WIND,W,0,0,1,120,0,0,0,,,,,,,,,,0,,,,,,,,,,,
+10_PV-c,10,PV,S,0,0,1,25.9,0,0,0
+2_RTPV-c,2,RTPV,S,0,0,1,9.3,0,0,0
+1_HYDRO-c,1,HYDRO,H,0,0,1,50,0,16,-10
+4_WIND-c,4,WIND,W,0,0,1,120,0,0,0
