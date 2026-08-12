@@ -20,7 +20,6 @@ from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
-from pathlib import Path
 
 logger = logging.getLogger("gtep.driver_esr")
 logger.setLevel(logging.INFO)
