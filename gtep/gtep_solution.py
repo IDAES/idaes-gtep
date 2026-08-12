@@ -896,10 +896,11 @@ class ExpansionPlanningSolution:
                 commitment_dict[dispatch] = dict.fromkeys(GEN_TYPES, 0)
             dispatch_dict = commitment_dict[dispatch]
 
-            gen_name = c[-1][0]
+            gen_name = str(c[-1][0])
+            gen_name_upper = gen_name.upper()
             _type = None
             for gt in GEN_TYPES:
-                if gen_name.endswith(gt):
+                if gen_name_upper.endswith(str(gt).upper()):
                     _type = gt
                     break
             if _type is None:
