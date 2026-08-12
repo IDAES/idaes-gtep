@@ -36,6 +36,10 @@ outage_data_path = (
     curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week" / "may_20.csv"
 ).resolve()
 
+requirements_file = (
+    Path(__file__).resolve().parents[2] / "data" / "required_data_files.csv"
+)
+
 
 class TestExpansionPlanningData(unittest.TestCase):
 
@@ -385,3 +389,72 @@ class TestExpansionPlanningData(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             testObject.texas_case_study_updates(input_data_source)
+
+    def test_get_start_date_from_simulation_objects(self):
+        # Create the data object.
+        testObject = ExpansionPlanningData()
+
+        # Read the start date from the simulation_objects.csv in the
+        # 5bus case.
+        start_date = testObject.get_start_date_from_simulation_objects(
+            input_data_source
+        )
+
+        # Check that only the date portion is returned, without the
+        # hour.
+        self.assertEqual(start_date, "01/01/2020")
+
+    def test_assert_start_date_matches_day_ahead_files(self):
+        # Create the data object.
+        testObject = ExpansionPlanningData()
+
+        # Read the start date from the simulation_objects.csv in the
+        # 5bus case.
+        start_date = testObject.get_start_date_from_simulation_objects(
+            input_data_source
+        )
+
+        # Check that the start-date year matches the DAY_AHEAD files.
+        testObject.assert_start_date_matches_day_ahead_files(
+            input_data_source,
+            start_date,
+        )
+
+        # If no AssertionError is raised, the year check passed.
+        self.assertTrue(True)
+
+    def test_get_required_columns_from_file(self):
+        # Create the data object.
+        testObject = ExpansionPlanningData()
+
+        # Check that the required-data specification file exists.
+        self.assertTrue(requirements_file.exists())
+
+        # Read the required columns for gen.csv.
+        required_columns = testObject.get_required_columns_from_file(
+            requirements_file,
+            "gen.csv",
+        )
+
+        # Check that selected required columns from gen.csv are
+        # parsed.
+        self.assertIn("GEN UID", required_columns)
+        self.assertIn("Bus ID", required_columns)
+        self.assertIn("Unit Type", required_columns)
+        self.assertIn("Fuel", required_columns)
+        self.assertIn("PMax MW", required_columns)
+
+    def test_validate_required_columns(self):
+        # Create the data object.
+        testObject = ExpansionPlanningData()
+
+        # Check that the test input files exist.
+        self.assertTrue((input_data_source / "gen.csv").exists())
+
+        # Validate that the existing 5bus gen.csv file has all
+        # required columns and required row values.
+        testObject.validate_required_columns(
+            input_data_source,
+            "gen.csv",
+            requirements_file=requirements_file,
+        )
