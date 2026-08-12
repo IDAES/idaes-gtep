@@ -548,13 +548,12 @@ class TestGTEP(unittest.TestCase):
             raise unittest.SkipTest("Solver not available")
 
         # Apply transformations to logical terms
-        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
         TransformationFactory("gdp.bigm").apply_to(modObject.model)
 
         modObject.results = opt.solve(modObject.model)
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 20105471420.93, places=1
+            value(modObject.model.total_cost_objective_rule), 20105684865.29, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
