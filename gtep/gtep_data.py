@@ -97,7 +97,7 @@ class ExpansionPlanningData:
                                             provided, this is read from
                                             simulation_objects.csv using the Date_From
                                             row and DAY_AHEAD column, if available.
- 
+
         :type data_path:                Path | str
         :type representative_dates:     list | None, optional
         :type representative_weights:   list | None, optional
