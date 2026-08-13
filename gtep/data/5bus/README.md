@@ -29,7 +29,18 @@ the original dataset. Since heat rate values are used in fuel cost
 calculations, retaining values with unclear units could lead to
 incorrect cost estimates.
 
+## Storage data
+
+Storage data has been added (`storage.csv`). This data is taken from `9_bus_GTEP_dir/storage.csv`,
+with a few modifications:
+- The `bus` column was adjusted to reflect valid IDs from this directory's `bus.csv`
+- The `name` column was similarly changed
+- The following columns were scaled down by 100x to better match the scale of
+generation/loads for the 5bus case: `energy_capacity`, `initial_state_of_charge`,
+`end_state_of_charge`, `minimum_state_of_charge`, `max_discharge_rate`, `min_discharge_rate`,
+`max_charge_rate`, `min_charge_rate`, `ramp_up_input_60min`,`ramp_down_input_60min`,
+`ramp_up_output_60min`, `ramp_down_output_60min`, and `investment_cost`
+
 ## References
 
 1. (Pending)
-
