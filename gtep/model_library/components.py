@@ -158,7 +158,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # NOTE: We will want to cover baseline generator types in IDAES
     # This should be updated for battery. @JKS is this using the
     # built-in structure from EGRET or just a placeholder?
-    if m.md.data["elements"].get("storage"):
+    if m.config["storage"]:
         m.storage = pyo.Set(
             initialize=(stor for stor in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
@@ -173,7 +173,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                     for batt in m.storage
                     if m.md.data["elements"]["storage"][batt]["bus"] == bus
                 ]
-                if m.md.data["elements"].get("storage")
+                if m.config["storage"]
                 else []
             )
             for bus in m.buses

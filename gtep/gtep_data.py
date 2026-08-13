@@ -59,18 +59,44 @@ class ExpansionPlanningData:
 
     def load_prescient(
         self,
-        data_path,
-        representative_dates=None,
-        representative_weights={},
-        options_dict=None,
+        data_path: Path | str,
+        representative_dates: list[str] | None = None,
+        representative_weights: dict | None = None,
+        options_dict: dict | None = None,
     ):
-        """Loads data structured via Prescient data loader.
+        """
+        Loads data structured via Prescient data loader.
 
-        :param data_path: Folder containing the data to be loaded
-        :param representative_dates: List of time points to include. Note: Change the last date for whatever extreme day is needed based on the given run(s)
-        :param representative_weights: dictionary of weights for each representative date, defaults to empty Dict
-        :param options_dict: Options dictionary to pass to the Prescient data loader, defaults to None
+        :param data_path:               Folder containing the data to be loaded.
+        :param representative_dates:    List of representative dates to include, each in the
+                                            format `"YYYY-MM-DD"`. The number of
+                                            dates must match `len_reps` provided in the
+                                            constructor, and each date must have
+                                            available day-ahead data (i.e., must be in
+                                            `self.md.data["system"]["time_keys"]`).
+                                            Defaults to `None`, in
+                                            which case dates are automatically chosen.
 
+                                            Note:
+                                            Change the last date for whatever
+                                            extreme day is needed based on
+                                            the given run(s).
+        :param representative_weights:  Weight for each representative date, in the format
+                                            `{date: weight}`. Must be of length `len_reps` provided
+                                            to the constructor,
+                                            and every representative date must be an element
+                                            of `representative_weights.keys()`. Furthermore, the
+                                            weights must sum to 365. Defaults to `None`,
+                                            in which case all representative dates are
+                                            given equal weight.
+        :param options_dict:            Arguments to be passed to the Prescient data
+                                            loader. Defaults None. If `"num_days"` is not
+                                            provided, it is set to `365`. If `"ruc_horizon"` is
+                                            not provided, it is set to `36`.
+        :type data_path:                Path | str
+        :type representative_dates:     list | None, optional
+        :type representative_weights:   list | None, optional
+        :type options_dict:             dict, optional
         """
         self.data_type = "prescient"
         # create prescient config object with defaults
@@ -80,17 +106,17 @@ class ExpansionPlanningData:
         if isinstance(data_path, Path):
             data_path = str(data_path)
 
+        # set up options dictionary with default values
         if options_dict is None:
-            # set basic configurations that do not match prescient defaults
-            options_dict = {
-                "data_path": data_path,
-                "num_days": 365,
-                "ruc_horizon": 36,
-            }
-
-        else:
-            # ensure data path is included in options dictionary
-            options_dict["data_path"] = data_path
+            options_dict = {}
+        default_options_dict = {
+            "num_days": 365,
+            "ruc_horizon": 36,
+            "data_path": data_path,
+        }
+        for k, v in default_options_dict.items():
+            if k not in options_dict:
+                options_dict[k] = v
 
         # update configuration values based on options dictionary
         prescient_options.set_value(options_dict)
@@ -226,17 +252,42 @@ class ExpansionPlanningData:
 
             if len(representative_dates) != len(representative_weights):
                 raise ValueError(
-                    "Length of representative_dates and representative_weights must match."
-                )
-            else:
-                print(
-                    "INFO: representative_dates and representative_weights are aligned. Continue building the data modeling object..."
+                    (
+                        f"Number of representative dates ({len(representative_dates)})"
+                        + f" and representative_weights ({len(representative_weights)})"
+                        + " must match."
+                    )
                 )
 
-            # Store as a dictionary
-            self.representative_weights_dict = dict(
-                zip(representative_dates, representative_weights)
+            missing_dates = [
+                date
+                for date in representative_dates
+                if date not in representative_weights
+            ]
+            if missing_dates:
+                raise ValueError(
+                    (
+                        "Every representative date must be a key in representative_weights,"
+                        f" but {missing_dates} are missing."
+                    )
+                )
+
+            total_weight = sum(representative_weights.values())
+            if total_weight != 365:  # leap year...?
+                raise ValueError(
+                    "The values of representative_weights must sum to 365,"
+                    + f" but got {total_weight}"
+                )
+
+            print(
+                (
+                    "INFO: representative_dates and representative_weights are aligned."
+                    + "Continue building the data modeling object..."
+                )
             )
+
+            # Store as a dictionary
+            self.representative_weights_dict = representative_weights
 
         else:
 
@@ -488,6 +539,9 @@ class ExpansionPlanningData:
 
         :param data_path: filepath for storage data csv file
         """
+        bus_path = data_path + "/bus.csv"
+        bus_id_to_name = pd.read_csv(bus_path).set_index("Bus ID")["Bus Name"].to_dict()
+
         try:
             storage_path = data_path + "/storage.csv"
             storage_df = pd.read_csv(storage_path)
@@ -496,6 +550,9 @@ class ExpansionPlanningData:
             for _, row in storage_df.iterrows():
                 name = row["name"]
                 storage_data[name] = row.drop("name").to_dict()
+                storage_data[name]["bus"] = bus_id_to_name[
+                    storage_data[name]["bus"]
+                ]  # to match egret behavior
 
             self.md.data["elements"]["storage"] = storage_data
         except FileNotFoundError:
