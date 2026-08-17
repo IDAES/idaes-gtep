@@ -178,8 +178,6 @@ class ExpansionPlanningData:
             model=self.md,
         )
 
-        # data_provider.populate_initial_state_data(options=prescient_options,
-        # model=md)
         self.load_default_data_settings()
 
         self.load_storage_csv(data_path)
