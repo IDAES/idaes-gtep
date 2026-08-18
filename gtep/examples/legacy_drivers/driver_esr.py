@@ -26,8 +26,8 @@ logger.setLevel(logging.INFO)
 
 base_dir = Path(__file__).resolve().parent
 
-# Add case name and case data path
-case_name = "5bus"
+# Add data path
+case_name = "123_Bus_Resil_Week"
 data_path = base_dir / "data" / case_name
 
 # Create directory to save results using the GTEP solution class.
@@ -67,7 +67,6 @@ cost_data_path = (
     / "costs"
     / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
 )
-
 ng_cost_path = (
     base_dir
     / "data"
