@@ -2,4 +2,4 @@ IDAES-GTEP Tutorial Notebooks
 =============================
 
 .. toctree::
-    /tutorials/pmaps_5bus/pmaps_tutorial_session_1
+    /tutorials/5bus/tutorial_5bus
