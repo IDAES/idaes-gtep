@@ -20,6 +20,7 @@ import logging
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from collections import defaultdict
 
 import gtep.model_library.storage as stor
 
@@ -65,6 +66,15 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Individual transmission lines",
     )
 
+    _toBranches = defaultdict(list)
+    _fromBranches = defaultdict(list)
+    for branch, data in m.md.data["elements"]["branch"].items():
+        _toBranches[data["to_bus"]].append(branch)
+        _fromBranches[data["from_bus"]].append(branch)
+
+    m.branchByToBus = pyo.Set(m.buses, initialize=_toBranches)
+    m.branchByFromBus = pyo.Set(m.buses, initialize=_fromBranches)
+
     m.generators = pyo.Set(
         initialize=m.md.data["elements"]["generator"].keys(),
         doc="All generators",
@@ -92,6 +102,10 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Thermal generators; subset of all generators",
     )
 
+    m.thermalGeneratorsByBus = pyo.Set(
+        m.buses, initialize=lambda m, b: m.generatorsByBus[b] & m.thermalGenerators
+    )
+
     if m.config["advanced_hydro"]:
 
         m.hydroGenerators = pyo.Set(
@@ -102,6 +116,10 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                 if m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
             ),
             doc="Hydropower generators; subset of all generators",
+        )
+
+        m.hydroGeneratorsByBus = pyo.Set(
+            m.buses, initialize=lambda m, b: m.generatorsByBus[b] & m.hydroGenerators
         )
 
         m.renewableGenerators = pyo.Set(
@@ -131,14 +149,18 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             doc="Renewable generators; subset of all generators",
         )
 
+    m.renewableGeneratorsByBus = pyo.Set(
+        m.buses, initialize=lambda m, b: m.generatorsByBus[b] & m.renewableGenerators
+    )
+
     m.load_buses = pyo.Set(initialize=[i for i in m.md.data["elements"]["load"]])
 
     # NOTE: We will want to cover baseline generator types in IDAES
     # This should be updated for battery. @JKS is this using the
     # built-in structure from EGRET or just a placeholder?
-    if m.md.data["elements"].get("storage"):
+    if m.config["storage"]:
         m.storage = pyo.Set(
-            initialize=(ess for ess in m.md.data["elements"]["storage"]),
+            initialize=(stor for stor in m.md.data["elements"]["storage"]),
             doc="Potential storage units",
         )
 
@@ -151,7 +173,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                     for batt in m.storage
                     if m.md.data["elements"]["storage"][batt]["bus"] == bus
                 ]
-                if m.md.data["elements"].get("storage")
+                if m.config["storage"]
                 else []
             )
             for bus in m.buses
@@ -209,28 +231,28 @@ def add_model_parameters(m, num_commit, num_dispatch, duration_dispatch):
         units=u.MW,
         doc="Maximum output of each thermal generator",
     )
+    if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
+        m.thermalReactiveMax = pyo.Param(
+            m.thermalGenerators,
+            initialize={
+                thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
+                for thermalGen in m.thermalGenerators
+            },
+            mutable=True,
+            units=u.MVAR,
+            doc="Maximum reactive output of each thermal generator",
+        )
 
-    m.thermalReactiveMax = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_max"]
-            for thermalGen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.MVAR,
-        doc="Maximum reactive output of each thermal generator",
-    )
-
-    m.thermalReactiveMin = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
-            for thermalGen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.MVAR,
-        doc="Minimum reactive output of each thermal generator",
-    )
+        m.thermalReactiveMin = pyo.Param(
+            m.thermalGenerators,
+            initialize={
+                thermalGen: m.md.data["elements"]["generator"][thermalGen]["q_min"]
+                for thermalGen in m.thermalGenerators
+            },
+            mutable=True,
+            units=u.MVAR,
+            doc="Minimum reactive output of each thermal generator",
+        )
 
     if m.config["advanced_hydro"]:
         m.hydroCapacity = pyo.Param(

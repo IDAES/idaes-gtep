@@ -22,11 +22,48 @@ from math import ceil
 import gtep.model_library.hydropower_generation as hydro
 
 
-def add_representative_period_variables(b, rep_per):
+def add_time_links(b: pyo.Block):
+    """
+    :param b:           Representative period block
+    """
     m = b.model()
-    i_p = b.parent_block()
 
+    b.commitDispatchPairs = pyo.Set(
+        initialize=[
+            (c, d)
+            for c in b.commitmentPeriods
+            for d in b.commitmentPeriod[c].dispatchPeriods
+        ],
+        ordered=True,
+        dimen=2,
+    )
+    b.commitDispatchPairsNotFirst = pyo.Set(
+        initialize=list(b.commitDispatchPairs)[1:],
+        ordered=True,
+        dimen=2,
+    )
+
+    if m.config["storage"]:
+        b.retainedStorageChargeLevelFromPrev = pyo.Expression(
+            b.commitDispatchPairsNotFirst,
+            m.storage,
+            initialize={
+                ((c, d), bat): (
+                    b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
+                    .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
+                    .storageChargeLevel[bat]
+                    * m.storageRetentionRate[bat]
+                    * u.convert(m.dispatchPeriodLength, u.hr)
+                )
+                for (c, d) in b.commitDispatchPairsNotFirst
+                for bat in m.storage
+            },
+        )
+
+
+def add_representative_period_variables(b, rep_per):
     # [ESR WIP: This variable is never used. Should we remove it?]
+    m = b.model()
     b.renewableSurplusRepresentative = pyo.Var(
         within=pyo.Reals, initialize=0, units=u.USD
     )

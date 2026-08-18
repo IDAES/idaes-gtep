@@ -11,17 +11,46 @@
 # for full copyright and license information.
 #################################################################################
 
-import awkward as ak
-import logging
-import pathlib
+# Example of full GTEP configuration file for the 5 bus case with no
+# commitment
 
-logger = logging.getLogger("time_nest_data")
+# Run with:
+#    python driver_from_config.py --config examples/config_5bus_no_commitment.toml
 
-# build helper wrapper thingy for awkward arrays
-# how to interface with config?
-# one thing it should do is send itself to config, most notably the time dict shenanigans
+[logging]
+level = "INFO"
 
+[data]
+data_path = "../gtep/data/5bus"
+stages = 2
+num_reps = 2
+len_reps = 24
+num_commit = 24
+num_dispatch = 2
+duration_dispatch = 30
 
-class timeNestData(object):
-    def __init__(self):
-        pass
+[cost_data]
+enabled = false
+
+[model]
+include_investment = true
+include_commitment = false
+include_redispatch = true
+scale_loads = false
+scale_texas_loads = false
+transmission = true
+storage = false
+flow_model = "CP"
+advanced_hydro = false
+
+[transformations]
+bound_pretransformation = true
+bigm = true
+
+[solver]
+solver_name = "gurobi"
+tee = false
+
+[results]
+dir_name = "results"
+value_threshold = 1e-3
