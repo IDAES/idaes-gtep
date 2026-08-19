@@ -230,7 +230,7 @@ class TestGTEP(unittest.TestCase):
                 "num_reps": 1,
                 "num_commit": 1,
                 "num_dispatch": 1,
-                "duration_representative_period":1,
+                "duration_representative_period": 1,
             },
             prescient_data_args={
                 "representative_dates": ["2020-01-28 00:00"],
