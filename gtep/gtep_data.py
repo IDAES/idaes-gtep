@@ -36,7 +36,6 @@ class ExpansionPlanningData:
         self,
         stages=2,
         num_reps=4,
-        len_reps=1,
         num_commit=24,
         num_dispatch=1,
         duration_representative_period=24,
@@ -60,7 +59,6 @@ class ExpansionPlanningData:
         """
         self.stages = stages
         self.num_reps = num_reps
-        self.len_reps = len_reps
         self.num_commit = num_commit
         self.num_dispatch = num_dispatch
         self.duration_representative_period = duration_representative_period
@@ -80,21 +78,15 @@ class ExpansionPlanningData:
 
         :param data_path:               Folder containing the data to be loaded.
         :param representative_dates:    List of representative dates to include, each in the
-                                            format `"YYYY-MM-DD"`. The number of
-                                            dates must match `len_reps` provided in the
-                                            constructor, and each date must have
-                                            available day-ahead data (i.e., must be in
-                                            `self.md.data["system"]["time_keys"]`).
-                                            Defaults to `None`, in
+                                            format `"YYYY-MM-DD"`. Defaults to `None`, in
                                             which case dates are automatically chosen.
                                             Note:
                                             Change the last date for whatever
                                             extreme day is needed based on
                                             the given run(s).
         :param representative_weights:  Weight for each representative date, in the format
-                                            `{date: weight}`. Must be of length `len_reps` provided
-                                            to the constructor,
-                                            and every representative date must be an element
+                                            `{date: weight}`. Every representative date must
+                                            be an element
                                             of `representative_weights.keys()`. Furthermore, the
                                             weights must sum to 365. Defaults to `None`,
                                             in which case all representative dates are
