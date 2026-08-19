@@ -59,8 +59,6 @@ from gtep.utils import (
     check_period_structure_consistency,
 )
 
-curr_dir = os.path.dirname(os.path.abspath(__file__))
-
 logger = logging.getLogger("gtep.gtep_model")
 
 # Define what a USD is for pyomo units purposes. This will be set to a
