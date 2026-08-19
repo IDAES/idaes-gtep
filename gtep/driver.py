@@ -52,12 +52,11 @@ dir_name = sol_object.create_results_directory(f"results_{case_name}")
 # Create data modeling object
 
 data_object = ExpansionPlanningData(
-    stages=1,
+    stages=2,
     num_reps=4,
-    len_reps=2,
-    num_commit=2,
-    num_dispatch=1,
-    duration_dispatch=60,
+    num_commit=6,
+    num_dispatch=4,
+    duration_representative_period=6,
 )
 
 data_object.load_prescient(
