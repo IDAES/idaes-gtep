@@ -284,11 +284,15 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    - previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             else:
@@ -307,10 +311,14 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * m.thermalCapacity[generator]  # in MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= m.rampDownRates[generator]  # in MW/min
                     * m.thermalCapacity[generator]  # in MW
@@ -365,11 +373,15 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * u.MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    - previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
                         pyo.value(m.rampUpRates[generator])
@@ -421,10 +433,14 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * u.MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
