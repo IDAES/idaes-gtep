@@ -29,7 +29,7 @@ from pyomo.util.check_units import (
 from pyomo.common.tempfiles import TempfileManager
 
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.tests.unit.utils_for_testing import create_model
+from gtep.tests.unit.utils_for_testing import create_data, create_model
 from egret.data.model_data import ModelData
 
 curr_dir = Path(__file__).resolve().parent
@@ -111,7 +111,7 @@ class TestGTEP(unittest.TestCase):
                 "num_reps": 4,
                 "num_commit": 12,
                 "num_dispatch": 12,
-                "duration_representative_period": 24,
+                "duration_representative_period": 12,
             },
             include_cost_data=False,
         )
@@ -125,31 +125,31 @@ class TestGTEP(unittest.TestCase):
         self.assertEqual(
             modObject.num_dispatch,
             {
-                1: {i: 24 for i in range(1, 13)},
-                2: {i: 24 for i in range(1, 13)},
-                3: {i: 24 for i in range(1, 13)},
-                4: {i: 24 for i in range(1, 13)},
+                1: {i: 12 for i in range(1, 13)},
+                2: {i: 12 for i in range(1, 13)},
+                3: {i: 12 for i in range(1, 13)},
+                4: {i: 12 for i in range(1, 13)},
             },
         )
         self.assertEqual(
-            modObject.duration_representative_period, {1: 24, 2: 24, 3: 24, 4: 24}
+            modObject.duration_representative_period, {1: 12, 2: 12, 3: 12, 4: 12}
         )
         self.assertEqual(
             modObject.duration_commitment,
             {
-                1: {i: 2 for i in range(1, 13)},
-                2: {i: 2 for i in range(1, 13)},
-                3: {i: 2 for i in range(1, 13)},
-                4: {i: 2 for i in range(1, 13)},
+                1: {i: 1 for i in range(1, 13)},
+                2: {i: 1 for i in range(1, 13)},
+                3: {i: 1 for i in range(1, 13)},
+                4: {i: 1 for i in range(1, 13)},
             },
         )
         self.assertEqual(
             modObject.duration_dispatch,
             {
-                1: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
-                2: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
-                3: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
-                4: {com: {disp: 5 for disp in range(1, 25)} for com in range(1, 13)},
+                1: {com: {disp: 5 for disp in range(1, 13)} for com in range(1, 13)},
+                2: {com: {disp: 5 for disp in range(1, 13)} for com in range(1, 13)},
+                3: {com: {disp: 5 for disp in range(1, 13)} for com in range(1, 13)},
+                4: {com: {disp: 5 for disp in range(1, 13)} for com in range(1, 13)},
             },
         )
 
@@ -219,7 +219,7 @@ class TestGTEP(unittest.TestCase):
             u.MW,
         )
         assert_units_equivalent(
-            m_commit.genOn["4_STEAM"].max_spinning_reserve[1, "4_STEAM"].expr,
+            m_commit.genOn["4_STEAM"].max_spinning_reserve[1].expr,
         )
 
     def test_solve_bigm(self):
@@ -251,9 +251,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30
+        # previous successful objective values: 9207.95, 6078.86,
+        # 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30,
+        # 6986122.88
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 6986122.88, places=1
+            value(modObject.model.total_cost_objective_rule), 27944303.09, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
@@ -289,9 +291,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30
+        # previous successful objective values: 531860.15, 531883.43,
+        # 7977055.4, 7977055.4, 7977150.30, 6986122.88
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 6986122.88, places=1
+            value(modObject.model.total_cost_objective_rule), 27944303.09, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -338,7 +341,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91
+        # previous successful objective values: 1524581869.89,
+        # 779334165.7, 779344643.1, 779486340.91
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 776765960.70, places=1
         )
@@ -392,7 +396,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96
+        # previous successful objective values: 1524533561.02,
+        # 926187704.4, 926194856.96
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective_rule), 923474476.75, places=1
         )
@@ -404,10 +409,9 @@ class TestGTEP(unittest.TestCase):
             planning_data_args={
                 "stages": 1,
                 "num_reps": 12,
-                "len_reps": 1,
                 "num_commit": 1,
                 "num_dispatch": 1,
-                "duration_dispatch": 15,
+                "duration_representative_period": 1,
             },
             prescient_data_args={
                 "representative_dates": [
@@ -469,9 +473,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 8584301655.08, 3545283964.22
+        # Previous values: 8584301655.08, 3545283964.22, 3359204716.88
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 3359204716.88, places=1
+            value(modObject.model.total_cost_objective_rule), 13435364152.91, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -479,15 +483,15 @@ class TestGTEP(unittest.TestCase):
     def test_period_structure_from_scalars(self):
         # Test period structure dictionary created using the provided
         # scalars
-        dataObject, dataProcessingObject = prepare_model_and_cost_data(
-            num_reps=2,
-            num_commit=3,
-            num_dispatch=4,
-            duration_representative_period=3,
-        )
-
-        modObject = ExpansionPlanningModel(
-            data=dataObject, cost_data=dataProcessingObject
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 2,
+                "num_commit": 3,
+                "num_dispatch": 4,
+                "duration_representative_period": 3,
+            },
+            include_cost_data=True,
         )
 
         # Assert that all values are as expected
@@ -524,12 +528,11 @@ class TestGTEP(unittest.TestCase):
             # Test that the model correctly reads and assigns the
             # custom period structure values. For this, we instantiate
             # the model using the temp .json file.
-            dataObject, dataProcessingObject = prepare_model_and_cost_data(
-                period_structure_json_file=str(json_path),
-            )
-
-            modObject = ExpansionPlanningModel(
-                data=dataObject, cost_data=dataProcessingObject
+            modObject = create_model(
+                planning_data_args={
+                    "period_structure_json_file": str(json_path),
+                },
+                include_cost_data=True,
             )
 
             # Assert that we have the correct reading of the structure
@@ -587,9 +590,13 @@ class TestGTEP(unittest.TestCase):
             with open(json_path, "w") as f:
                 json.dump(period_dict, f, indent=2)
 
-            # Instantiate the model using the temp .json file.
-            dataObject, dataProcessingObject = prepare_model_and_cost_data(
-                period_structure_json_file=str(json_path),
+            # Create the data object using the temporary period
+            # structure file, but do not instantiate the model.
+            dataObject, dataProcessingObject = create_data(
+                planning_data_args={
+                    "period_structure_json_file": str(json_path),
+                },
+                include_cost_data=True,
             )
 
             # Assert that the sum of commitment durations (20hr) does
@@ -612,10 +619,9 @@ class TestGTEP(unittest.TestCase):
             planning_data_args={
                 "stages": 2,
                 "num_reps": 2,
-                "len_reps": 1,
                 "num_commit": 6,
                 "num_dispatch": 4,
-                "duration_dispatch": 15,
+                "duration_representative_period": 2,
             },
             config={
                 "include_investment": True,
@@ -643,9 +649,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 779418083.72
+        # Previous values: 779418083.72, 767038945.08
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 767038945.08, places=1
+            value(modObject.model.total_cost_objective_rule), 255902949.54, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
@@ -656,10 +662,9 @@ class TestGTEP(unittest.TestCase):
             planning_data_args={
                 "stages": 1,
                 "num_reps": 4,
-                "len_reps": 2,
                 "num_commit": 2,
                 "num_dispatch": 1,
-                "duration_dispatch": 60,
+                "duration_representative_period": 2,
             },
             prescient_data_args={
                 "representative_dates": [
