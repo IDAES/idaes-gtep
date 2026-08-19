@@ -18,7 +18,7 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.common.fileutils import this_file_dir
 
-data_dir = os.path.join(this_file_dir(), 'data')
+data_dir = os.path.join(this_file_dir(), "data")
 
 
 def generate_period_structure_skeleton(
