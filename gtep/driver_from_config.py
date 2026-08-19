@@ -92,10 +92,9 @@ def main(config_path):
     data_object = ExpansionPlanningData(
         stages=data_config.get("stages", 2),
         num_reps=data_config.get("num_reps", 2),
-        len_reps=data_config.get("len_reps", 1),
         num_commit=data_config.get("num_commit", 6),
         num_dispatch=data_config.get("num_dispatch", 4),
-        duration_dispatch=data_config.get("duration_dispatch", 15),
+        duration_representative_period=data_config.get("duration_representative_period", 6),
     )
 
     # Add optional representative-period inputs if they are provided
