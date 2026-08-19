@@ -272,7 +272,7 @@ def add_storage_state_disjuncts(b: BlockData):
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
                 * m.storageDischargingEfficiency[bat]
             ) * u.convert(
-                 b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
+                b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
         return pyo.Constraint.Skip
 

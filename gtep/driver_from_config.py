@@ -94,7 +94,9 @@ def main(config_path):
         num_reps=data_config.get("num_reps", 2),
         num_commit=data_config.get("num_commit", 6),
         num_dispatch=data_config.get("num_dispatch", 4),
-        duration_representative_period=data_config.get("duration_representative_period", 6),
+        duration_representative_period=data_config.get(
+            "duration_representative_period", 6
+        ),
     )
 
     # Add optional representative-period inputs if they are provided

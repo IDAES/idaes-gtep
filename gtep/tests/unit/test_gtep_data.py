@@ -200,7 +200,9 @@ class TestExpansionPlanningData(unittest.TestCase):
                     isinstance(p_load, dict)
                     and p_load.get("data_type") == "time_series"
                 ):
-                    self.assertEqual(len(p_load["values"]), testObject.duration_representative_period)
+                    self.assertEqual(
+                        len(p_load["values"]), testObject.duration_representative_period
+                    )
 
             # Check that renewable generator time series were sliced
             # to the representative period length.
@@ -208,7 +210,9 @@ class TestExpansionPlanningData(unittest.TestCase):
                 p_max = gen_data.get("p_max")
 
                 if isinstance(p_max, dict) and p_max.get("data_type") == "time_series":
-                    self.assertEqual(len(p_max["values"]), testObject.duration_representative_period)
+                    self.assertEqual(
+                        len(p_max["values"]), testObject.duration_representative_period
+                    )
 
     def test_import_load_scaling_normal(self):
         # Test successful passthrough of load scaling function.
