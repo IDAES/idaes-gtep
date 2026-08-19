@@ -198,4 +198,11 @@ case_json = "combined"
 sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
 
+# Create stackgraph
+rep_days = [
+    pyo.value(mod_object.model.representativeDate[rep])
+    for rep in mod_object.model.representativeDate
+]
+sol_object.create_stackgraph(dir_name, rep_days)
+
 logger.info("GTEP run complete.")
