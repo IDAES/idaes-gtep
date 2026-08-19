@@ -10,29 +10,48 @@
 # All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
 # for full copyright and license information.
 #################################################################################
-
+import logging
 import pyomo.environ as pyo
 from pyomo.contrib.appsi.solvers.highs import Highs
 from pyomo.contrib.appsi.solvers.gurobi import Gurobi
+from pathlib import Path
 
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.gtep_data import ExpansionPlanningData
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_data_processing import DataProcessing
 
-# Add data
-data_path = "./data/5bus"
+logger = logging.getLogger("gtep.driver_esr")
+logger.setLevel(logging.INFO)
+
+base_dir = Path(__file__).resolve().parent
+
+# Add data path
+case_name = "123_Bus_Resil_Week"
+data_path = base_dir / "data" / case_name
+
+# Create directory to save results using the GTEP solution class.
+sol_object = ExpansionPlanningSolution(data_path)
+dir_name = sol_object.create_results_directory(f"results_{case_name}")
+
+# Create data modeling object
 data_object = ExpansionPlanningData(
     stages=2,
-    num_reps=2,
-    num_commit=6,
-    num_dispatch=4,
-    duration_representative_period=6,
-    save_period_structure_file=False,
-    period_structure_json_file=None,
-    # period_structure_json_file="period_structure_from_gtep.json",
+    num_reps=4,
+    len_reps=24,
+    num_commit=24,
+    num_dispatch=1,
 )
-data_object.load_prescient(data_path)
+data_object.load_prescient(
+    data_path,
+    representative_dates=[
+        "2020-01-28 00:00",
+        "2020-04-23 00:00",
+        "2020-07-05 00:00",
+        "2020-10-14 00:00",
+    ],
+    representative_weights=[182, 25, 35, 122],
+)
 
 # [ESR WIP: Add bus and cost data files to be used on the
 # DataProcessing class. This class processes data for the following
@@ -41,29 +60,31 @@ data_object.load_prescient(data_path)
 # existent generators in the data. The data contains the following
 # types: (a) Natural Gas: Combustion Turbine (CT) and Fuel Efficiency
 # (FE) and (b) Solar: Utility PV and Concentrated Solar Power (CSP)
-
-bus_data_path = "data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-candidate_gens = [
-    "Natural Gas_CT",
-    "Natural Gas_FE",
-    "Solar - Utility PV",
-    "Land-Based Wind",
-]
+bus_data_path = base_dir / "data" / "costs" / "Bus_data_gen_weights_mappings.csv"
+cost_data_path = (
+    base_dir
+    / "data"
+    / "costs"
+    / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
+)
+ng_cost_path = (
+    base_dir
+    / "data"
+    / "costs"
+    / "Total_Energy_Supply_Disposition_and_Price_Summary.csv"
+)
+candidate_gens = ["Natural Gas_CT", "Natural Gas_FE", "Solar - Utility PV"]
 
 data_processing_object = DataProcessing()
 data_processing_object.load_gen_data(
-    bus_data_path=bus_data_path,
-    cost_data_path=cost_data_path,
-    candidate_gens=candidate_gens,
-    save_csv=True,
+    bus_data_path,
+    cost_data_path,
+    ng_cost_path,
+    candidate_gens,
 )
 
 # Populate and create GTEP model
-mod_object = ExpansionPlanningModel(
-    data=data_object,
-    cost_data=data_processing_object,
-)
+mod_object = ExpansionPlanningModel(data=data_object, cost_data=data_processing_object)
 
 mod_object.config["include_investment"] = True
 mod_object.config["include_commitment"] = True
@@ -71,8 +92,13 @@ mod_object.config["include_redispatch"] = True
 mod_object.config["scale_loads"] = True
 mod_object.config["transmission"] = True
 mod_object.config["storage"] = False
-mod_object.config["flow_model"] = "DC"
+mod_object.config["flow_model"] = "transport"
+mod_object.config["advanced_hydro"] = False
 
+# Save config to a .csv file
+sol_object.save_model_config_to_csv(mod_object, dir_name)
+
+# Create model
 mod_object.create_model()
 
 # Apply transformations to logical terms
@@ -91,36 +117,26 @@ print(mod_object.results)
 # mod_object.model.investmentStage.display()
 # mod_object.report_model()
 
-quit()
 
-sol_object = ExpansionPlanningSolution()
-sol_object.load_from_model(mod_object)
-sol_object.dump_json("./gtep_solution.json")
-sol_object.import_data_object(data_object)
+# Save results in JSON files using the ExpansionPlanningSolution class.
+sol_object.save_results_in_json_files(mod_object, dir_name)
 
-# sol_object.read_json("./gtep_lots_of_buses_solution.json")  # "./gtep/data/WECC_USAEE"
-# sol_object.read_json("./gtep_11bus_solution.json")  # "./gtep/data/WECC_Reduced_USAEE"
-# sol_object.read_json("./gtep_solution.json")
-# sol_object.read_json("./updated_gtep_solution_test.json")
-# sol_object.read_json("./gtep_wiggles.json")
-sol_object.plot_levels(save_dir="./plots/")
+# Create generation-mix plots from the saved investment JSON files.
+# Set case_json to "dispatchables" or "renewables" to plot each group
+# separately, or use "combined" to merge both groups in the same
+# plots. Set plot_type to "piechart", "treemap", or "all"; "all"
+# generates both pie chart and treemap plots.
+plot_type = "all"
+case_json = "combined"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "renewables"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+case_json = "dispatchables"
+sol_object.create_plots(case_json, dir_name, data_path, plot_type)
 
-# save_numerical_results = False
-# if save_numerical_results:
-
-#     sol_object = ExpansionPlanningSolution()
-
-#     sol_object.load_from_model(mod_object)
-#     sol_object.dump_json()
-# load_numerical_results = False
-
-# if load_numerical_results:
-#     # sol_object.read_json("./gtep_solution.json")
-#     sol_object.read_json("./bigger_longer_wigglier_gtep_solution.json")
-# plot_results = False
-
-# if plot_results:
-#     sol_object.plot_levels(save_dir="./plots/")
-
-
-pass
+# Create stackgraph
+rep_days = [
+    pyo.value(mod_object.model.representativeDate[rep])
+    for rep in mod_object.model.representativeDate
+]
+sol_object.create_stackgraph(dir_name, rep_days)

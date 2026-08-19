@@ -51,8 +51,11 @@ dependencies = [
     "pint",
     "pandas<3",
     "matplotlib",
+    "plotly",
     "ipython",
     "openpyxl",
+    "pyxlsb",
+    "tomli; python_version < '3.11'",
 ]
 
 [project.urls]
