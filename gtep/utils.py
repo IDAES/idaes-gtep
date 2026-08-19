@@ -16,8 +16,9 @@ import json
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
+from pyomo.common.fileutils import this_file_dir
 
-curr_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(this_file_dir(), 'data')
 
 
 def generate_period_structure_skeleton(
@@ -137,7 +138,7 @@ def _set_period_structure_dict(
     if period_structure_json_file is not None:
         # Use provided .json file
         json_path = os.path.abspath(
-            os.path.join(curr_dir, "data", period_structure_json_file)
+            os.path.join(data_dir, "data", period_structure_json_file)
         )
         with open(json_path, "r") as f:
             period_dict = json.load(f)
@@ -164,7 +165,7 @@ def _set_period_structure_dict(
         # under the data directory.
         filename = (
             os.path.abspath(
-                os.path.join(curr_dir, "data", "period_structure_from_gtep.json")
+                os.path.join(data_dir, "data", "period_structure_from_gtep.json")
             )
             if save_period_structure_file
             else None
