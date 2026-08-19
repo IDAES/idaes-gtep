@@ -41,7 +41,6 @@ def get_solution_object():
         planning_data_args={
             "stages": 2,
             "num_reps": 2,
-            "len_reps": 1,
             "num_commit": 6,
             "num_dispatch": 4,
             "duration_representative_period": 6,
