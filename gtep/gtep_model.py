@@ -24,9 +24,8 @@ References:
 
 __author__ = "Kyle Skolfield"
 
+import logging
 import json
-import numpy as np
-import re
 import os
 
 import pyomo.environ as pyo
@@ -42,6 +41,8 @@ from gtep.config_options import (
     _add_common_configs,
     _add_investment_configs,
 )
+from gtep.gtep_data import ExpansionPlanningData
+from gtep.gtep_data_processing import DataProcessing
 import gtep.model_library.investment as inv
 import gtep.model_library.dispatch as disp
 import gtep.model_library.commitment as commit
@@ -60,10 +61,14 @@ from gtep.utils import (
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 
+logger = logging.getLogger("gtep.gtep_model")
+
 # Define what a USD is for pyomo units purposes. This will be set to a
 # base year and we will do NPV calculations based on automatic Pyomo
 # unit transformations.
-u.load_definitions_from_strings(["USD = [currency]", "MVAR = [power]"])
+u.load_definitions_from_strings(
+    ["USD = [currency]", "MVAR = [power]", "MMBTU = 1e6 * BTU"]
+)
 
 
 ## TODO: Egret features
@@ -93,18 +98,20 @@ class ExpansionPlanningModel:
 
     def __init__(
         self,
-        config=None,
+        data: ExpansionPlanningData,
+        cost_data: DataProcessing | None = None,
+        config: dict | None = None,
         formulation=None,
-        data=None,
-        cost_data=None,
     ):
         """Initialize generation & expansion planning model object.
 
-        :param formulation: Egret stuff, to be filled
-        :param data: full set of model data
-        :param cost_data: full set of cost data for all generators
-
-        :return: Pyomo model for full GTEP
+        :param data:        Full set of model data.
+        :param cost_data:   Full set of cost data for all generators. Defaults to `None`.
+        :param config:      Non-default config options to be set. Defaults to `None`.
+        :param formulation: To be implemented (EGRET stuff).
+        :type data:         ExpansionPlanningData
+        :type cost_data:    DataProcessing | None, optional
+        :type config:       dict, optional
         """
 
         self.config = _get_model_config()
@@ -168,6 +175,10 @@ class ExpansionPlanningModel:
 
         _add_common_configs(self.config)
         _add_investment_configs(self.config)
+
+        if config is not None:
+            for config_option, config_val in config.items():
+                self.config[config_option] = config_val
 
     def create_model(self):
         """Create concrete Pyomo model object associated with the
@@ -299,11 +310,19 @@ def create_stages(
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
         b_inv.year = m.years[investment_stage - 1]
-        print(f"{b_inv}.year = {b_inv.year}")
+        # print(f"{b_inv}.year = {b_inv.year}")
 
-        # Declare costs parameters for each stage, since they depend
-        # on the investment year.
-        comps.add_model_cost_parameters(m, b_inv.year)
+        # Declare cost parameters for each stage because they depend
+        # on the investment year. IMPORTANT NOTE: This function
+        # repopulates m.fuelCost, m.generatorInvestmentCost,
+        # m.fixedCost, and m.varCost, which were previously
+        # initialized in component.py. To preserve component.py
+        # values, comment out this call or the specific parameter
+        # updates inside the function.
+        logger.warning(
+            f"Re-populating m.fuelCost, m.generatorInvestmentCost, m.fixedCost, and m.varCost for year {b_inv.year}. These initialized parameters are overwritten using preprocessed data from m.mc.gen_data_target."
+        )
+        comps.repopulate_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
@@ -402,6 +421,11 @@ def create_stages(
                         )
                         disp.add_dispatch_constraints(b_disp, dispatch_period)
 
+            if m.config["include_redispatch"]:
+                rep_period.add_time_links(b_rep)
+
+                for commitment_period in b_rep.commitmentPeriods:
+                    b_comm = b_rep.commitmentPeriod[commitment_period]
                     # =.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.=.
 
                     # [TODO: If commitment is neglected but dispatch
@@ -415,6 +439,7 @@ def create_stages(
                     # NOTE: If commitment is not included, generator state
                     # is fixed to 'on'; storage operational logic remains
                     # unchanged.
+
                     commit.add_commitment_disjuncts(b_comm, commitment_period)
 
                     # Adds cost-related commitment constraints

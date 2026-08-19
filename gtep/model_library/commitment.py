@@ -22,6 +22,7 @@ from pyomo.environ import units as u
 import gtep.model_library.gen as gens
 import gtep.model_library.storage as stor
 import gtep.model_library.scaling as scaling
+import gtep.model_library.hydropower_generation as hydro
 
 
 def add_commitment_parameters(b, commitment_period, investmentStage):
@@ -30,32 +31,36 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     b.carbonTax = pyo.Param(default=0)
 
-    # [ESR: Corrected to be in the commitment block "b", not in main
-    # model "m".]
-    b.renewableCapacityExpected = {}
+    # Capacity needs to be in the commitment block "b", not in main
+    # model "m"
+    def renewable_capacity_expected_init(b, renewableGen):
+        p_max = m.md.data["elements"]["generator"][renewableGen]["p_max"]
 
-    units_renewable_capacity = u.MW
-    for renewableGen in m.renewableGenerators:
-        if type(m.md.data["elements"]["generator"][renewableGen]["p_max"]) == float:
-            b.renewableCapacityExpected[renewableGen] = 0 * units_renewable_capacity
+        if type(p_max) == float:
+            return 0
         else:
-            b.renewableCapacityExpected[renewableGen] = (
-                m.md.data["elements"]["generator"][renewableGen]["p_max"]["values"][
-                    commitment_period - 1
-                ]
-                * units_renewable_capacity
-            )
+            return p_max["values"][commitment_period - 1]
+
+    b.renewableCapacityExpected = pyo.Param(
+        m.renewableGenerators,
+        initialize=renewable_capacity_expected_init,
+        mutable=True,
+        units=u.MW,
+        doc="Expected renewable capacity for each renewable generator in this commitment period",
+    )
+
+    if m.config["advanced_hydro"]:
+        hydro.fix_hydropower_limits(b, commitment_period)
 
     # [TODO: Redesign load scaling and allow nature of
     # it as argument.]
-    if m.config["scale_loads"]:
-        scaling.add_load_scaling(
-            m,
-            b,
-            commitment_period,
-            investmentStage,
-            scaling_value=10,
-        )
+    scaling.add_load_scaling(
+        m,
+        b,
+        commitment_period,
+        investmentStage,
+        scaling_value=10,
+    )
 
 
 def add_commitment_disjuncts(b, commitment_period):
@@ -75,10 +80,10 @@ def add_commitment_disjuncts(b, commitment_period):
         gens.add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period)
     else:
 
-        gens.generators_status_always_on(m, b)
+        gens.generators_status_always_on(m, b, r_p, i_p, commitment_period)
 
     if m.config["storage"]:
-        stor.add_storage_state_disjuncts(m, b, commitment_period)
+        stor.add_storage_state_disjuncts(b)
 
 
 def add_commitment_constraints(b, comm_per):
@@ -103,12 +108,23 @@ def add_commitment_constraints(b, comm_per):
     # re-assessed and account for missing data.]
     @b.Expression(doc="Total operating costs for commitment block in $")
     def operatingCostCommitment(b):
+        m = b.model()
+
         # [ESR Note: This term includes the op cost for each
         # 15-min dispatch period.]
         op_cost_dispatch = sum(
             b.dispatchPeriod[disp_per].operatingCostDispatch  # in $
             for disp_per in b.dispatchPeriods
         )
+
+        if m.config["storage"]:
+            op_cost_storage = sum(
+                m.storageFixedCost[stor] * m.storageCapacity[stor]  # in $/MWh * MWh
+                for stor in m.storage
+            )
+        else:
+            op_cost_storage = 0
+
         # [ESR: Assuming we are paying for the full capacity of our
         # generator and should be included to have consistent units.]
         if m.config["include_commitment"]:
@@ -128,8 +144,25 @@ def add_commitment_constraints(b, comm_per):
                 * b.genStartup[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
+            op_cost_gen_state += sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.renewableCapacityNameplate[gen]
+                for gen in m.renewableGenerators
+            )
 
-            return op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup
+            if m.config["advanced_hydro"]:
+                op_cost_gen_state += sum(
+                    m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    for gen in m.hydroGenerators
+                )
+
+            return (
+                op_cost_dispatch
+                + op_cost_gen_state
+                + op_cost_gen_startup
+                + op_cost_storage
+            )
         else:
             op_cost_gen_state = sum(
                 m.fixedCost[gen]
@@ -138,7 +171,20 @@ def add_commitment_constraints(b, comm_per):
                 * b.genOn[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
-            return op_cost_dispatch + op_cost_gen_state  # ESR: Added op_cost_gen_cost
+            op_cost_gen_state += sum(
+                m.fixedCost[gen]
+                * b.commitmentPeriodLength
+                * m.renewableCapacityNameplate[gen]
+                for gen in m.renewableGenerators
+            )
+
+            if m.config["advanced_hydro"]:
+                op_cost_gen_state += sum(
+                    m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    for gen in m.hydroGenerators
+                )
+
+            return op_cost_dispatch + op_cost_gen_state + op_cost_storage
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
     def renewableCurtailmentCommitment(b):

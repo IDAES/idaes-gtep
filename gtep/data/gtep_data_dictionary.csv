@@ -1,0 +1,84 @@
+Data,Units,Stored in Model Data Object as,In GTEP Model,File,Description,Notes
+GEN UID,u.dimensionless,"[""elements""][""generator""][<GEN UID>]",m.generators,gen.csv,Generator unique identifier,Used as the generator key/name.
+Bus ID,u.dimensionless,"[""elements""][""generator""][<GEN UID>][""bus""]",,gen.csv,Generator bus ID,Bus where the generator is connected.
+Unit Type,u.dimensionless,"[""elements""][""generator""][<GEN UID>][""generator_type""]",,gen.csv,Generator unit type,Unit type examples include CT CC STEAM PV HYDRO WIND. GTEP uses generator_type to classify generators as thermal or renewable.
+Fuel,u.dimensionless,"[""elements""][""generator""][<GEN UID>][""fuel""]",,gen.csv,Fuel type,Fuel source used by the generator. Sources include G for natural gas S for solar C for coal H for hydro and W for wind.
+MW Inj,u.MW,"[""elements""][""generator""][<GEN UID>][""pg""]",,gen.csv,Real power injection,
+MVAR Inj,u.MVAR,"[""elements""][""generator""][<GEN UID>][""qg""]",,gen.csv,Reactive power injection,
+V Setpoint p.u.,u.dimensionless,,,gen.csv,Voltage setpoint,
+PMax MW,u.MW,"[""elements""][""generator""][<GEN UID>][""p_max""]",m.thermalCapacity; m.renewableCapacityNameplate,gen.csv,Maximum real power output,
+PMin MW,u.MW,"[""elements""][""generator""][<GEN UID>][""p_min""]",m.thermalMin,gen.csv,Minimum real power output,
+QMax MVAR,u.MVAR,"[""elements""][""generator""][<GEN UID>][""q_max""]",m.thermalReactiveMax,gen.csv,Maximum reactive power output,
+QMin MVAR,u.MVAR,"[""elements""][""generator""][<GEN UID>][""q_min""]",m.thermalReactiveMin,gen.csv,Minimum reactive power output,
+Min Down Time Hr,u.hr,"[""elements""][""generator""][<GEN UID>][""min_down_time""]",,gen.csv,Minimum down time,Thermal generators only. 
+Min Up Time Hr,u.hr,"[""elements""][""generator""][<GEN UID>][""min_up_time""]",,gen.csv,Minimum up time,Thermal generators only.
+Ramp Rate MW/Min,u.MW / u.minute,,,gen.csv,Ramp rate,Thermal generators only. 
+Start Time Cold Hr,u.hr,,,gen.csv,Cold start time,Thermal generators only. 
+Start Time Warm Hr,u.hr,,,gen.csv,Warm start time,Thermal generators only. 
+Start Time Hot Hr,u.hr,,,gen.csv,Hot start time,Thermal generators only. 
+Start Heat Cold MBTU,u.MMBTU,,,gen.csv,Cold start heat requirement,Thermal generators only. Source column uses MBTU notation; verify whether this means MMBTU.
+Start Heat Warm MBTU,u.MMBTU,,,gen.csv,Warm start heat requirement,Thermal generators only. Source column uses MBTU notation; verify whether this means MMBTU.
+Start Heat Hot MBTU,u.MMBTU,,,gen.csv,Hot start heat requirement,Thermal generators only. Source column uses MBTU notation; verify whether this means MMBTU.
+Non Fuel Start Cost $,u.USD,"[""elements""][""generator""][<GEN UID>][""non_fuel_startup_cost""]",m.startupCost,gen.csv,Non-fuel startup cost,Thermal generators only. 
+Fuel Price $/MMBTU,u.USD / u.MMBTU,"[""elements""][""generator""][<GEN UID>][""fuel_cost""]",,gen.csv,Fuel price,Thermal generators only. 
+Output_pct_<N>,u.dimensionless,"[""elements""][""generator""][<GEN UID>][""p_cost""]",,gen.csv,Output block percentage,Thermal generators only. 
+HR_avg_0,u.MMBTU / u.MWh,"[""elements""][""generator""][<GEN UID>][""heat_rate""]",,gen.csv,Average heat rate,Thermal generators only. This is added to the generator dictionary in gtep_data.py.
+HR_incr_<N>,u.MMBTU / u.MWh,"[""elements""][""generator""][<GEN UID>][""p_cost""]",,gen.csv,Incremental heat rate,Thermal generators only. 
+UID,u.dimensionless,"[""elements""][""branch""][<UID>]",m.transmission,branch.csv,Branch unique identifier,
+From Bus,u.dimensionless,"[""elements""][""branch""][<UID>][""from_bus""]",m.from_bus,branch.csv,From bus,Bus ID at one end of the branch.
+To Bus,u.dimensionless,"[""elements""][""branch""][<UID>][""to_bus""]",m.to_bus,branch.csv,To bus,Bus ID at the other end of the branch.
+R,u.dimensionless,"[""elements""][""branch""][<UID>][""resistance""]",,branch.csv,Branch resistance,
+X,u.dimensionless,"[""elements""][""branch""][<UID>][""reactance""]",m.reactance,branch.csv,Branch reactance,
+B,u.dimensionless,"[""elements""][""branch""][<UID>][""charging_susceptance""]",,branch.csv,Branch charging susceptance,
+Cont Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_long_term""]",m.transmissionCapacity,branch.csv,Continuous rating,
+LTE Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_short_term""]",,branch.csv,Long-term emergency rating,
+STE Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_emergency""]",,branch.csv,Short-term emergency rating,
+Tr Ratio,u.dimensionless,,,branch.csv,Transformer tap ratio,Transformer winding ratio. If nonzero the branch is treated as a transformer; if blank or zero the branch is treated as a line.
+Bus ID,u.dimensionless,,,bus.csv,Bus identifier,
+Bus Name,u.dimensionless,"[""elements""][""bus""][<Bus Name>]",m.buses,bus.csv,Bus name,
+BaseKV,u.kV,"[""elements""][""bus""][<Bus Name>][""base_kv""]",,bus.csv,Base voltage,
+Bus Type,u.dimensionless,"[""elements""][""bus""][<Bus Name>][""matpower_bustype""]",,bus.csv,Bus type,Bus classification. Expected values are PQ PV or Ref. Ref is stored in lowercase as ref.
+MW Load,u.MW,"[""elements""][""bus""][<Bus Name>][""p_load""]",,bus.csv,Real power load,
+MVAR Load,u.MVAR,"[""elements""][""bus""][<Bus Name>][""q_load""]",,bus.csv,Reactive power load,
+V Mag,u.dimensionless,"[""elements""][""bus""][<Bus Name>][""vm""]",,bus.csv,Voltage magnitude,
+V Angle,u.degree,"[""elements""][""bus""][<Bus Name>][""va""]",,bus.csv,Voltage angle,Voltage angle setpoint in degrees. If Bus Type is Ref this value must be 0.0.
+Area,u.dimensionless,"[""elements""][""bus""][<Bus Name>][""area""]",,bus.csv,Area,Area assignment for the bus. An area dictionary is also added for each unique area.
+Zone,u.dimensionless,"[""elements""][""bus""][<Bus Name>][""zone""]",,bus.csv,Zone,
+name,u.dimensionless,"[""elements""][""storage""][<storage>]",m.storage,storage.csv,Storage unique identifier,
+bus,u.dimensionless,"[""elements""][""storage""][<storage>][""bus""]",,storage.csv,Storage bus ID,Bus where the storage unit is connected.
+generator,u.dimensionless,"[""elements""][""storage""][<storage>][""generator""]",,storage.csv,Associated generator ID,Generator associated with the storage unit if applicable.
+storage_type,u.dimensionless,"[""elements""][""storage""][<storage>][""storage_type""]",,storage.csv,Storage type,
+energy_capacity,u.MW * u.hr,"[""elements""][""storage""][<storage>][""energy_capacity""]",m.storageCapacity,storage.csv,Energy capacity,Maximum storage energy capacity.
+initial_state_of_charge,u.MW * u.hr,"[""elements""][""storage""][<storage>][""initial_state_of_charge""]",m.initStorageChargeLevel,storage.csv,Initial state of charge,
+end_state_of_charge,u.MW * u.hr,"[""elements""][""storage""][<storage>][""end_state_of_charge""]",,storage.csv,End state of charge,
+minimum_state_of_charge,u.MW * u.hr,"[""elements""][""storage""][<storage>][""minimum_state_of_charge""]",m.minStorageChargeLevel,storage.csv,Minimum state of charge,Minimum allowable storage charge level.
+charge_efficiency,u.dimensionless,"[""elements""][""storage""][<storage>][""charge_efficiency""]",m.storageChargingEfficiency,storage.csv,Charge efficiency,
+discharge_efficiency,u.dimensionless,"[""elements""][""storage""][<storage>][""discharge_efficiency""]",m.storageDischargingEfficiency,storage.csv,Discharge efficiency,
+max_discharge_rate,u.MW,"[""elements""][""storage""][<storage>][""max_discharge_rate""]",m.dischargeMax,storage.csv,Maximum discharge rate,Maximum storage discharge power per dispatch period.
+min_discharge_rate,u.MW,"[""elements""][""storage""][<storage>][""min_discharge_rate""]",m.dischargeMin,storage.csv,Minimum discharge rate,Minimum storage discharge power when discharging.
+max_charge_rate,u.MW,"[""elements""][""storage""][<storage>][""max_charge_rate""]",m.chargeMax,storage.csv,Maximum charge rate,Maximum storage charge power per dispatch period.
+min_charge_rate,u.MW,"[""elements""][""storage""][<storage>][""min_charge_rate""]",m.chargeMin,storage.csv,Minimum charge rate,Minimum storage charge power when charging.
+initial_charge_rate,u.MW,"[""elements""][""storage""][<storage>][""initial_charge_rate""]",,storage.csv,Initial charge rate,Initial storage charging power.
+initial_discharge_rate,u.MW,"[""elements""][""storage""][<storage>][""initial_discharge_rate""]",,storage.csv,Initial discharge rate,Initial storage discharging power.
+charge_cost,u.USD / (u.MW * u.hr),"[""elements""][""storage""][<storage>][""charge_cost""]",m.chargingCost,storage.csv,Charge cost,
+discharge_cost,u.USD / (u.MW * u.hr),"[""elements""][""storage""][<storage>][""discharge_cost""]",m.dischargingCost,storage.csv,Discharge cost,
+retention_rate_60min,u.dimensionless,"[""elements""][""storage""][<storage>][""retention_rate_60min""]",m.storageRetentionRate,storage.csv,Retention rate over 60 minutes,Fraction of stored energy retained between dispatch periods.
+ramp_up_input_60min,u.MW,"[""elements""][""storage""][<storage>][""ramp_up_input_60min""]",m.storageChargingRampUpRates,storage.csv,Charging ramp-up limit over 60 minutes,Maximum increase in storage charging power between dispatch periods.
+ramp_down_input_60min,u.MW,"[""elements""][""storage""][<storage>][""ramp_down_input_60min""]",m.storageChargingRampDownRates,storage.csv,Charging ramp-down limit over 60 minutes,Maximum decrease in storage charging power between dispatch periods.
+ramp_up_output_60min,u.MW,"[""elements""][""storage""][<storage>][""ramp_up_output_60min""]",m.storageDischargingRampUpRates,storage.csv,Discharging ramp-up limit over 60 minutes,Maximum increase in storage discharging power between dispatch periods.
+ramp_down_output_60min,u.MW,"[""elements""][""storage""][<storage>][""ramp_down_output_60min""]",m.storageDischargingRampDownRates,storage.csv,Discharging ramp-down limit over 60 minutes,Maximum decrease in storage discharging power between dispatch periods.
+in_service,u.dimensionless,"[""elements""][""storage""][<storage>][""in_service""]",,storage.csv,In-service flag,Boolean indicator for whether the storage unit is initially in service.
+capital_multiplier,u.dimensionless,"[""elements""][""storage""][<storage>][""capital_multiplier""]",m.storageCapitalMultiplier,storage.csv,Storage capital multiplier,
+extension_multiplier,u.dimensionless,"[""elements""][""storage""][<storage>][""extension_multiplier""]",m.storageExtensionMultiplier,storage.csv,Storage extension multiplier,
+investment_cost,u.USD / u.MW,"[""elements""][""storage""][<storage>][""investment_cost""]",m.storageInvestmentCost,storage.csv,Storage investment cost,
+investment_cost_kwh,u.USD / (u.kW * u.hr),"[""elements""][""storage""][<storage>][""investment_cost_kwh""]",,storage.csv,Storage energy investment cost,
+Year,u.dimensionless,,,DAY_AHEAD_load.csv,Year,
+Month,u.dimensionless,,,DAY_AHEAD_load.csv,Month,
+Day,u.dimensionless,,,DAY_AHEAD_load.csv,Day,
+Period,u.dimensionless,,,DAY_AHEAD_load.csv,Time period,
+<load_name>,u.MW,"[""elements""][""load""][<Load Bus UID>][""p_load""][“values”]",b.loads,DAY_AHEAD_load.csv,Real power for each load(s),Each additional column corresponds to a load name and contains the real power demand time series for that load.
+Year,u.dimensionless,,,DAY_AHEAD_renewables.csv,Year,
+Month,u.dimensionless,,,DAY_AHEAD_renewables.csv,Month,
+Day,u.dimensionless,,,DAY_AHEAD_renewables.csv,Day,
+Period,u.dimensionless,,,DAY_AHEAD_renewables.csv,Time period,
+<renewable_generator_name>,u.MW,"[""elements""][""generator""][<GEN UID>][""p_max""][“values”]",m.renewableCapacityNameplate,DAY_AHEAD_renewables.csv,Real power for renewable generator(s),Each additional column corresponds to a renewable generator name and contains the renewable generation time series for that generator.
