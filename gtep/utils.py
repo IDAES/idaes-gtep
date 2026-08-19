@@ -212,7 +212,9 @@ def check_period_structure_consistency(
         rep_period_hr = duration_representative_period[rep]
         if abs(commitment_sum_hr - rep_period_hr) > 1e-6:
             commitment_errors.append(
-                f"  - Representative period {rep}: sum of commitment durations ({commitment_sum_hr} hr) != representative period duration ({rep_period_hr} hr)"
+                f"  - Representative period {rep}: "
+                f"sum of commitment durations ({commitment_sum_hr} hr) "
+                f"!= representative period duration ({rep_period_hr} hr)"
             )
 
         for com in range(1, num_commit[rep] + 1):
@@ -229,7 +231,10 @@ def check_period_structure_consistency(
             commitment_hr = duration_commitment[rep][com]
             if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
                 dispatch_errors.append(
-                    f"  - Representative period {rep}, commitment period {com}: sum of dispatch durations ({pyo.value(dispatch_sum_hr)} hr) != commitment period duration ({commitment_hr} hr)"
+                    f"  - Representative period {rep}, "
+                    f"commitment period {com}: "
+                    f"sum of dispatch durations ({pyo.value(dispatch_sum_hr)} hr) "
+                    f"!= commitment period duration ({commitment_hr} hr)"
                 )
 
     # Raise an error if any mismatches were found
