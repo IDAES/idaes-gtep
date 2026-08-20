@@ -153,7 +153,6 @@ class ExpansionPlanningSolution:
         self.formulation = gtep_model.formulation
         self.data = gtep_model.data
         self.num_reps = gtep_model.num_reps
-        self.len_reps = gtep_model.len_reps
         self.num_commit = gtep_model.num_commit
         self.num_dispatch = gtep_model.num_dispatch
 
