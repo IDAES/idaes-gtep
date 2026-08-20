@@ -29,7 +29,7 @@ stages = 2
 num_reps = 2
 num_commit = 6
 num_dispatch = 4
-duration_dispatch = 15
+duration_representative_period = 6
 
 # Optional representative-period settings. If omitted, load_prescient
 # uses the default representative-period selection.
