@@ -22,14 +22,27 @@ from pyomo.common.fileutils import this_file_dir
 data_dir = Path(this_file_dir(), "data")
 
 
-def save_period_structure_json(period_structure, filename):
-    """This method saves a period structure dictionary to a .json file
-    file.
+def save_period_structure_json(period_structure):
+    """This function saves a generated period-structure dictionary to
+    a default ``period_structure_from_gtep.json`` file in the GTEP
+    data directory.
+
+    :param period_dict: Generated period-structure dictionary to save.
+    :return: Path to the saved JSON file.
 
     """
+    
+    filename = data_dir / "period_structure_from_gtep.json"
 
     with open(filename, "w") as f:
         json.dump(period_structure, f, indent=2)
+
+    print(
+        f"\nINFO: Period structure dictionary generated from scalar "
+        f"period arguments has been written to '{filename}'.\n"
+    )
+
+    return filename
 
 
 def generate_period_structure_dict(
@@ -39,10 +52,8 @@ def generate_period_structure_dict(
     rep_duration=24,
     com_duration=1,
     disp_duration=15,
-    filename=None,
 ):
-    """This method generates a period structure dictionary and
-    optionally saves it as a .json file for user editing. The
+    """This method generates a period structure dictionary. The
     dictionary is nested as follows:
 
      {
@@ -54,8 +65,7 @@ def generate_period_structure_dict(
         "duration_dispatch": {rep: {com: {disp: <duration of disp in com of rep>}}}
     }
 
-    :return: period structure dictionary; if a filename is provided,
-             also saves it as a .json file.
+    :return: period structure dictionary.
 
     """
 
@@ -81,9 +91,6 @@ def generate_period_structure_dict(
             for rep in range(1, num_reps + 1)
         },
     }
-
-    if filename:
-        save_period_structure_json(period_dict, filename)
 
     return period_dict
 
@@ -152,7 +159,7 @@ def _set_period_structure_dict(
 
     """
 
-    # If a .json file with period structure data is provided, use
+    # If a JSON file with period structure data is provided, use
     # it, otherwise, expand to a dictionary using the provided
     # scalars.
 
@@ -160,18 +167,10 @@ def _set_period_structure_dict(
         period_dict = load_period_structure_from_json(period_structure_json_file)
 
     else:
-        # .json file not provided; expand period structure
-        # dictionary from scalar arguments. Optionally save the
-        # expanded dictionary as a .json file with a default name
-        # under the data directory.
-        filename = (
-            os.path.abspath(
-                os.path.join(data_dir, "data", "period_structure_from_gtep.json")
-            )
-            if save_period_structure_file
-            else None
-        )
-
+        # If JSON file not provided, expand the period structure
+        # dictionary from scalar arguments and optionally save the
+        # expanded dictionary as a JSON file with a default name under
+        # the data directory.
         period_dict = generate_period_structure_dict(
             num_reps,
             num_commit,
@@ -179,12 +178,10 @@ def _set_period_structure_dict(
             duration_representative_period,
             duration_commitment,
             duration_dispatch,
-            filename=filename,
         )
+        
         if save_period_structure_file:
-            print(
-                f"\nINFO: Period structure dictionary generated from scalar period arguments has been written to '{filename}'.\n"
-            )
+            save_period_structure_json(period_dict)
 
     return period_dict
 
