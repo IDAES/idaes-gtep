@@ -13,12 +13,13 @@
 
 import os
 import json
+from pathlib import Path
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.common.fileutils import this_file_dir
 
-data_dir = os.path.join(this_file_dir(), "data")
+data_dir = Path(this_file_dir(), "data")
 
 
 def save_period_structure_json(period_structure, filename):
@@ -87,6 +88,45 @@ def generate_period_structure_dict(
     return period_dict
 
 
+def load_period_structure_from_json(period_structure_json_file):
+    """This function loads a period-structure dictionary from a JSON
+    file.
+
+    If a ``period_structure_json_file`` is provided, it is used
+    directly. Since JSON stores dictionary keys as strings, digit
+    string keys are converted back to integers.
+
+    :param period_structure_json_file: Path or filename for the
+           period-structure JSON file.
+    :return: Period-structure dictionary loaded from JSON.
+
+    """
+
+    def convert_keys_to_int(obj):
+        """Recursively convert digit-string dictionary keys to
+        integers.
+
+        """
+        if isinstance(obj, dict):
+            return {
+                int(k) if isinstance(k, str) and k.isdigit() else k: (
+                    convert_keys_to_int(v)
+                )
+                for k, v in obj.items()
+            }
+
+        return obj
+
+    json_path = Path(period_structure_json_file)
+
+    with open(json_path, "r") as f:
+        period_dict = json.load(f)
+
+    period_dict = convert_keys_to_int(period_dict)
+    
+    return period_dict
+
+
 def _set_period_structure_dict(
     num_reps,
     num_commit,
@@ -117,27 +157,7 @@ def _set_period_structure_dict(
     # scalars.
 
     if period_structure_json_file is not None:
-        # Use provided .json file
-        json_path = os.path.abspath(
-            os.path.join(data_dir, "data", period_structure_json_file)
-        )
-        with open(json_path, "r") as f:
-            period_dict = json.load(f)
-
-        # Helper function to recursively convert string keys to
-        # integers
-        def convert_keys_to_int(obj):
-            if isinstance(obj, dict):
-                return {
-                    (
-                        int(k) if isinstance(k, str) and k.isdigit() else k
-                    ): convert_keys_to_int(v)
-                    for k, v in obj.items()
-                }
-            else:
-                return obj
-
-        period_dict = convert_keys_to_int(period_dict)
+        period_dict = load_period_structure_from_json(period_structure_json_file)
 
     else:
         # .json file not provided; expand period structure
