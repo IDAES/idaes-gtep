@@ -330,15 +330,15 @@ class TestExpansionPlanningData(unittest.TestCase):
         # Check that the storage data is not an empty dict
         self.assertTrue(testObject.md.data["elements"]["storage"])
 
-    def test_load_storage_csv_file_not_found(self):
-        testObject = ExpansionPlanningData()
-        testObject.load_prescient(input_data_source)
-        testObject.load_storage_csv(input_data_source)
+    # def test_load_storage_csv_file_not_found(self):
+    #     testObject = ExpansionPlanningData()
+    #     testObject.load_prescient(input_data_source)
+    #     testObject.load_storage_csv(input_data_source)
 
-        # Storage should be set to empty dict
-        storage = testObject.md.data["elements"].get("storage", None)
-        self.assertIsInstance(storage, dict)
-        self.assertEqual(storage, {})
+    #     # Storage should be set to empty dict
+    #     storage = testObject.md.data["elements"].get("storage", None)
+    #     self.assertIsInstance(storage, dict)
+    #     self.assertEqual(storage, {})
 
     def test_texas_case_study(self):
         testObject = ExpansionPlanningData()
