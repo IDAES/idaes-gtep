@@ -31,7 +31,7 @@ def save_period_structure_json(period_structure):
     :return: Path to the saved JSON file.
 
     """
-    
+
     filename = data_dir / "period_structure_from_gtep.json"
 
     with open(filename, "w") as f:
@@ -130,7 +130,7 @@ def load_period_structure_from_json(period_structure_json_file):
         period_dict = json.load(f)
 
     period_dict = convert_keys_to_int(period_dict)
-    
+
     return period_dict
 
 
@@ -179,7 +179,7 @@ def _set_period_structure_dict(
             duration_commitment,
             duration_dispatch,
         )
-        
+
         if save_period_structure_file:
             save_period_structure_json(period_dict)
 
