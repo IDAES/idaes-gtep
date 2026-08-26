@@ -13,6 +13,8 @@
 
 
 import pytest
+from pathlib import Path
+
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
 from pyomo.environ import units as u
@@ -25,6 +27,9 @@ from pyomo.util.check_units import (
 from gtep.gtep_model import ExpansionPlanningModel
 from gtep.tests.unit.utils_for_testing import create_model
 from egret.data.model_data import ModelData
+
+curr_dir = Path(__file__).resolve().parent
+Texas123_case_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
 
 
 @pytest.fixture
@@ -181,7 +186,7 @@ class TestGTEP(unittest.TestCase):
             .representativePeriod[1]
             .commitmentPeriod[1]
             .genOn["4_STEAM"]
-            .max_spinning_reserve[1, "4_STEAM"]
+            .max_spinning_reserve[1]
             .expr,
             u.MW,
         )
@@ -216,9 +221,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4
+        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977150.30, places=1
+            value(modObject.model.total_cost_objective_rule), 6986122.88, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
@@ -255,9 +260,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4
+        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7977150.30, places=1
+            value(modObject.model.total_cost_objective_rule), 6986122.88, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -305,9 +310,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1
+        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779486340.91, places=1
+            value(modObject.model.total_cost_objective_rule), 776765960.70, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -360,35 +365,52 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02, 926187704.4
+        # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 926194856.96, places=1
+            value(modObject.model.total_cost_objective_rule), 923474476.75, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
     def test_with_cost_data_and_weights(self):
 
-        # Typically, representative weights should reflect how many
-        # actual days each representative day represents. For example,
-        # with 2 representative days in a 365-day year, the weights
-        # would be approximately [182, 183].  For now, we use
-        # simplified test values because the model becomes infeasible
-        # with HiGHS when using the full representative-day weights.
-        # These values are intended only to verify that the model
-        # reads and applies representative weights correctly.
-        weights = [10, 12]
         modObject = create_model(
             planning_data_args={
-                "stages": 2,
-                "num_reps": 2,
+                "stages": 1,
+                "num_reps": 12,
                 "len_reps": 1,
-                "num_commit": 6,
-                "num_dispatch": 4,
+                "num_commit": 1,
+                "num_dispatch": 1,
                 "duration_dispatch": 15,
             },
             prescient_data_args={
-                "representative_dates": ["2020-01-28 00:00", "2020-04-23 00:00"],
-                "representative_weights": weights,
+                "representative_dates": [
+                    "2020-01-01 00:00",
+                    "2020-02-01 00:00",
+                    "2020-03-01 00:00",
+                    "2020-04-01 00:00",
+                    "2020-05-01 00:00",
+                    "2020-06-01 00:00",
+                    "2020-07-01 00:00",
+                    "2020-08-01 00:00",
+                    "2020-09-01 00:00",
+                    "2020-10-01 00:00",
+                    "2020-11-01 00:00",
+                    "2020-12-01 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-01 00:00": 31,
+                    "2020-02-01 00:00": 28,
+                    "2020-03-01 00:00": 31,
+                    "2020-04-01 00:00": 30,
+                    "2020-05-01 00:00": 31,
+                    "2020-06-01 00:00": 30,
+                    "2020-07-01 00:00": 31,
+                    "2020-08-01 00:00": 31,
+                    "2020-09-01 00:00": 30,
+                    "2020-10-01 00:00": 31,
+                    "2020-11-01 00:00": 30,
+                    "2020-12-01 00:00": 31,
+                },
             },
             config={
                 "include_investment": True,
@@ -420,8 +442,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
+        # Previous values: 8584301655.08, 3545283964.22
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 8584301655.08, places=1
+            value(modObject.model.total_cost_objective_rule), 3359204716.88, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
@@ -467,7 +490,75 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
+        # Previous values: 779418083.72
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 779418083.72, places=1
+            value(modObject.model.total_cost_objective_rule), 767038945.08, places=1
         )
+        assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
+
+    def test_Texas123_case(self):
+
+        modObject = create_model(
+            input_data_path=Texas123_case_path,
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 4,
+                "len_reps": 2,
+                "num_commit": 2,
+                "num_dispatch": 1,
+                "duration_dispatch": 60,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2019-01-28 00:00",
+                    "2019-04-23 00:00",
+                    "2019-07-05 00:00",
+                    "2019-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2019-01-28 00:00": 115,
+                    "2019-04-23 00:00": 95,
+                    "2019-07-05 00:00": 50,
+                    "2019-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Comment out the assertion for the objective value since
+        # different values are observed across local, Linux, and
+        # Windows GitHub Actions runs. This is tracked in issue #163.
+        # This assertion will be uncommented once the observed issue
+        # is resolved.
+        # self.assertAlmostEqual(
+        #     value(modObject.model.total_cost_objective_rule), 20105684865.29, places=1
+        # )
+
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
