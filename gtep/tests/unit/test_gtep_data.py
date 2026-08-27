@@ -23,6 +23,7 @@ from gtep.gtep_data import ExpansionPlanningData
 
 curr_dir = Path(__file__).resolve().parent
 input_data_source = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
+data_source_123 = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
 
 load_scaling_file = (
     curr_dir / ".." / ".." / "data" / "Texas_2000" / "ERCOT-Adjusted-Forecast.xlsb"
@@ -332,8 +333,8 @@ class TestExpansionPlanningData(unittest.TestCase):
 
     def test_load_storage_csv_file_not_found(self):
         testObject = ExpansionPlanningData()
-        testObject.load_prescient(input_data_source)
-        testObject.load_storage_csv(input_data_source)
+        testObject.load_prescient(data_source_123)
+        testObject.load_storage_csv(data_source_123)
 
         # Storage should be set to empty dict
         storage = testObject.md.data["elements"].get("storage", None)

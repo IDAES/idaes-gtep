@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 import pytest
-import pyomo.environ as pyo
+import shutil
 
 from pyomo.common.tempfiles import TempfileManager
 
@@ -61,31 +61,17 @@ def test_explicit_driver_runs(gtep_dir):
         pytest.skip(f"Explicit driver not found: {explicit_driver}")
 
     with TempfileManager.new_context() as tempfile:
-        # Create a temporary working directory.
         temp_dir = Path(tempfile.mkdtemp())
 
-        # The explicit driver expects input data at a relative path
-        # such as ./data/5bus. Because the driver is run from
-        # temp_dir, create temp_dir/data as a symlink to the real
-        # gtep/data directory.
-        data_link = temp_dir / "data"
-        real_data_dir = gtep_dir / "data"
+        # Copy input data because Windows symlink creation requires
+        # additional privileges.
+        shutil.copytree(gtep_dir / "data", temp_dir / "data")
 
-        data_link.symlink_to(
-            real_data_dir,
-            target_is_directory=True,
-        )
-
-        # Run the explicit driver as a separate Python process from the
-        # temporary directory. Any results directories created by the
-        # driver will be created under temp_dir and cleaned up by
-        # TempfileManager.
         run_driver_command(
             [sys.executable, str(explicit_driver)],
             cwd=temp_dir,
         )
 
-        # Check that the driver created expected result outputs.
         expected_results_dir = temp_dir / "results_5bus"
 
         assert expected_results_dir.exists()
@@ -108,17 +94,18 @@ def test_config_driver_runs(gtep_dir):
         # Create a temporary parent directory.
         temp_parent = Path(tempfile.mkdtemp())
 
-        # Create a temporary working directory where the driver will
-        # run.
+        # Create a temporary working directory where the driver will run.
         work_dir = temp_parent / "work"
         work_dir.mkdir()
 
-        # The config file uses paths like ../gtep/data/5bus.  Create
-        # temp_parent/gtep as a symlink to the real gtep directory so
-        # those relative paths resolve correctly from work_dir.
-        (temp_parent / "gtep").symlink_to(
-            gtep_dir,
-            target_is_directory=True,
+        # The config file uses paths like ../gtep/data/5bus.
+        # Recreate that directory structure without using a symlink.
+        temp_gtep_dir = temp_parent / "gtep"
+        temp_gtep_dir.mkdir()
+
+        shutil.copytree(
+            gtep_dir / "data",
+            temp_gtep_dir / "data",
         )
 
         # Run the config driver as a separate Python process.
@@ -132,7 +119,6 @@ def test_config_driver_runs(gtep_dir):
             cwd=work_dir,
         )
 
-        # The driver appends the case name to the results base name.
         expected_results_dir = work_dir / "results_5bus"
 
         assert expected_results_dir.exists()
