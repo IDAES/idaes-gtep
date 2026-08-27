@@ -98,7 +98,8 @@ class ExpansionPlanningSolution:
             "OTHER": GenerationType("Other", other),
         }
         gen_types_candidate = {
-            unit + "-c": GenerationType(
+            unit
+            + "-c": GenerationType(
                 gentype.label + " Candidate", darken_color(gentype.color)
             )
             for unit, gentype in self.gen_types.items()
@@ -453,7 +454,9 @@ class ExpansionPlanningSolution:
         for name in output_files:
             print(f" - {folder_name}/{name}.json")
 
-    def create_plots(self, case_json, results_path, data_path, plot_type="all", savefig=True):
+    def create_plots(
+        self, case_json, results_path, data_path, plot_type="all", savefig=True
+    ):
         """This method creates generation-mix plots from saved
         solution JSON files. These plots visualize the total amount
         of generation capacity available based on investment decisions.
@@ -803,16 +806,20 @@ class ExpansionPlanningSolution:
 
         figs, fnames = [], []
         if plot_type in ("treemap", "all"):
-            fig, fname = plotly_treemap_gen_mix(gen_mix, self.gen_types, results_path, case_json)
+            fig, fname = plotly_treemap_gen_mix(
+                gen_mix, self.gen_types, results_path, case_json
+            )
             figs.append(fig), fnames.append(fname)
         elif plot_type in ("piechart", "all"):
-            fig, fname = plotly_pie_gen_mix(gen_mix, self.gen_types, results_path, case_json)
+            fig, fname = plotly_pie_gen_mix(
+                gen_mix, self.gen_types, results_path, case_json
+            )
             figs.append(fig), fnames.append(fname)
         else:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. Please choose between 'treemap' or 'piechart'."
             )
-        
+
         if savefig:
             for fig, fname in zip(figs, fnames):
                 fig.write_html(fname)
@@ -858,9 +865,11 @@ class ExpansionPlanningSolution:
         }
 
         gen_uid_to_type = {
-            row["GEN UID"]: row["Unit Type"].upper() + "-c"
-            if row["GEN UID"].endswith("-c")
-            else row["Unit Type"].upper()
+            row["GEN UID"]: (
+                row["Unit Type"].upper() + "-c"
+                if row["GEN UID"].endswith("-c")
+                else row["Unit Type"].upper()
+            )
             for _, row in self.gen_df.iterrows()
         }
         missing_unit_types = [
