@@ -52,6 +52,7 @@ class ExpansionPlanningSolution:
         self.storage_csv_path = os.path.join(data_path, "storage.csv")
         if os.path.exists(self.storage_csv_path):
             self.storage_df = pd.read_csv(self.storage_csv_path)
+        self._get_generation_types()
 
     def _get_generation_types(self):
         """This method returns generation type labels and colors used
@@ -81,8 +82,7 @@ class ExpansionPlanningSolution:
         storage = mcolors.to_hex(tab20(15))
         other = mcolors.to_hex(tab20(0))
 
-        return {
-            # Unit-type names used by create_plots()
+        self.gen_types = {
             "CC": GenerationType("Gas CC", gas_cc),
             "CT": GenerationType("Gas CT", gas_ct),
             "COAL": GenerationType("Coal", coal),
@@ -96,31 +96,15 @@ class ExpansionPlanningSolution:
             "BATTERY": GenerationType("Storage", storage),
             "PS": GenerationType("Pumped Storage", storage),
             "OTHER": GenerationType("Other", other),
-            # Generator-name suffixes used by stackgraph/metrics
-            "cc_gas": GenerationType("Gas CC", gas_cc),
-            "ct_gas": GenerationType("Gas CT", gas_ct),
-            "coal": GenerationType("Coal", coal),
-            "nuclear": GenerationType("Nuclear", nuclear),
-            "solar": GenerationType("Solar", solar),
-            "wind": GenerationType("Wind", wind),
-            "hydro": GenerationType("Hydro", hydro),
-            "thermal_other": GenerationType("Thermal", thermal),
-            "steam": GenerationType("Steam", steam),
-            "battery_charge": GenerationType("Battery Charging", storage),
-            "battery_discharge": GenerationType("Battery Discharging", storage),
-            "ps": GenerationType("PS", storage),
-            "other": GenerationType("Other", other),
-            # Candidate suffixes
-            "gas_cc-c": GenerationType("Gas CC Candidate", darken_color(gas_cc)),
-            "gas_ct-c": GenerationType("Gas CT Candidate", darken_color(gas_ct)),
-            "steam-c": GenerationType("Steam Candidate", darken_color(steam)),
-            "pv-c": GenerationType("Solar Candidate", darken_color(solar)),
-            "wind-c": GenerationType("Wind Candidate", darken_color(wind)),
-            "hydro-c": GenerationType("Hydro Candidate", darken_color(hydro)),
-            "battery-c": GenerationType("Storage Candidate", darken_color(storage)),
-            "ps-c": GenerationType("PS Candidate", darken_color(storage)),
-            "other-c": GenerationType("Other Candidate", darken_color(other)),
         }
+        gen_types_candidate = {
+            unit + "-c": GenerationType(
+                gentype.label + " Candidate", darken_color(gentype.color)
+            )
+            for unit, gentype in self.gen_types.items()
+        }
+        for k, v in gen_types_candidate.items():
+            self.gen_types[k] = v
 
     def load_from_model(self, gtep_model):
         """This method loads the results from the solved model
@@ -496,9 +480,6 @@ class ExpansionPlanningSolution:
             os.makedirs(plots_dir)
             print(f"\nCreated the subdirectory '{plots_dir}' to save the plots.")
 
-        # Get colors for each generation type.
-        gen_types = self._get_generation_types()
-
         def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
             """This function builds generation-mix dictionaries used
             by plotting functions.
@@ -774,16 +755,16 @@ class ExpansionPlanningSolution:
             # Create gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in separate plots.
             gen_mix, gen_mix_arrays, time_periods = get_gen_arrays(
-                case_json, results_path, data_path, gen_types
+                case_json, results_path, data_path, self.gen_types
             )
         else:
             # Combine gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in the same plot.
             gen_mix_ren, gen_mix_arrays_ren, time_periods_ren = get_gen_arrays(
-                "renewables", results_path, data_path, gen_types
+                "renewables", results_path, data_path, self.gen_types
             )
             gen_mix_disp, gen_mix_arrays_disp, time_periods_disp = get_gen_arrays(
-                "dispatchables", results_path, data_path, gen_types
+                "dispatchables", results_path, data_path, self.gen_types
             )
 
             # Check that time_periods are the same
@@ -821,12 +802,12 @@ class ExpansionPlanningSolution:
             }
 
         if plot_type == "treemap":
-            plotly_treemap_gen_mix(gen_mix, gen_types, results_path, case_json)
+            plotly_treemap_gen_mix(gen_mix, self.gen_types, results_path, case_json)
         elif plot_type == "piechart":
-            plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json)
+            plotly_pie_gen_mix(gen_mix, self.gen_types, results_path, case_json)
         elif plot_type == "all":
-            plotly_treemap_gen_mix(gen_mix, gen_types, results_path, case_json)
-            plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json)
+            plotly_treemap_gen_mix(gen_mix, self.gen_types, results_path, case_json)
+            plotly_pie_gen_mix(gen_mix, self.gen_types, results_path, case_json)
         else:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. Please choose between 'treemap' or 'piechart'."
@@ -862,12 +843,25 @@ class ExpansionPlanningSolution:
 
         # Use the generation-type mapping for stackgraph colors,
         # labels, and candidate hatch patterns.
-        gen_types = self._get_generation_types()
-        GEN_TYPES = {key: val.color for key, val in gen_types.items()}
-        GEN_TYPE_ALIASES = {key: val.label for key, val in gen_types.items()}
+        GEN_TYPES = {key: val.color for key, val in self.gen_types.items()}
+        GEN_TYPE_ALIASES = {key: val.label for key, val in self.gen_types.items()}
         GEN_TYPE_HATCHES = {
             key: "/" if str(key).endswith("-c") else "" for key in GEN_TYPES
         }
+
+        gen_uid_to_type = {
+            row["GEN UID"]: row["Unit Type"].upper() + "-c"
+            if row["GEN UID"].endswith("-c")
+            else row["Unit Type"].upper()
+            for _, row in self.gen_df.iterrows()
+        }
+        missing_unit_types = [
+            unit_type
+            for unit_type in gen_uid_to_type.values()
+            if unit_type not in GEN_TYPES
+        ]
+        if missing_unit_types:
+            raise ValueError(f"Unit type(s) {missing_unit_types} not recognized")
 
         # Create dictionary with generation by time index and
         # generator type for plotting. For this, parse each generation
@@ -897,13 +891,9 @@ class ExpansionPlanningSolution:
             dispatch_dict = commitment_dict[dispatch]
 
             gen_name = str(c[-1][0])
-            gen_name_upper = gen_name.upper()
-            _type = None
-            for gt in GEN_TYPES:
-                if gen_name_upper.endswith(str(gt).upper()):
-                    _type = gt
-                    break
-            if _type is None:
+            try:
+                _type = gen_uid_to_type[gen_name]
+            except KeyError:
                 raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
             dispatch_dict[_type] += val
 
