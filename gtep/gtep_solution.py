@@ -518,20 +518,6 @@ class ExpansionPlanningSolution:
                 for _, row in self.gen_df.iterrows()
             }
 
-            # If storage.csv is available, map storage IDs to storage
-            # type and energy capacity.
-            storage_uid_to_type = {}
-            storage_uid_to_pmax = {}
-            if os.path.exists(self.storage_csv_path):
-                storage_uid_to_type = {
-                    row["name"]: row["storage_type"].upper()
-                    for _, row in self.storage_df.iterrows()
-                }
-                storage_uid_to_pmax = {
-                    row["name"]: float(row.get("energy_capacity", 0))
-                    for _, row in self.storage_df.iterrows()
-                }
-
             # Read and process saved JSON files for renewables and
             # dispatchables units.
             json_files = {
@@ -568,9 +554,6 @@ class ExpansionPlanningSolution:
                 if this_key in gen_uid_to_type:
                     unit_type = gen_uid_to_type.get(this_key)
                     pmax = gen_uid_to_pmax.get(this_key)
-                elif this_key in storage_uid_to_type:
-                    unit_type = storage_uid_to_type[this_key]
-                    pmax = storage_uid_to_pmax[this_key]
                 else:
                     unit_type = None
                     pmax = 0
