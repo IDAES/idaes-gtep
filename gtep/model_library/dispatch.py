@@ -129,7 +129,7 @@ def add_dispatch_variables(b):
 
         @b.Expression()
         def hydroGenerationCostDispatch(b):
-            return 0
+            return 0 * u.USD
 
     @b.Expression()
     def renewableGenerationCostDispatch(b):
@@ -139,7 +139,7 @@ def add_dispatch_variables(b):
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
         b.reactiveGenerationCostDispatch = sum(b.reactiveGeneratorCost.values())
     else:
-        b.reactiveGenerationCostDispatch = 0
+        b.reactiveGenerationCostDispatch = 0 * u.USD
 
     @b.Expression()
     def loadShedCostDispatch(b):
@@ -161,7 +161,7 @@ def add_dispatch_variables(b):
                 b.storageCostDispatch  # includes costs for charge and discharge
             )
         else:
-            storage_term = 0
+            storage_term = 0 * u.USD
 
         return (
             b.thermalGenerationCostDispatch

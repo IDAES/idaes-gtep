@@ -97,29 +97,57 @@ def add_investment_generators_constraints(m, b, investment_stage):
     # indicator variables of the status disjuncts to define the
     # operation of generators.
     for gen in m.thermalGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(False)
-            b.genExtended[gen].indicator_var.fix(False)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(True)
+        is_candidate = str(gen).endswith("-c")
+        in_service = m.md.data["elements"]["generator"][gen]["in_service"]
+
+        if investment_stage == 1:
+            if in_service:
+                b.genOperational[gen].indicator_var.fix(True)
+            else:
+                b.genOperational[gen].indicator_var.fix(False)
+                b.genExtended[gen].indicator_var.fix(False)
+
+            # Candidates should not be retired in the first stage
+            # because they do not exist yet.
+            if is_candidate:
+                b.genRetired[gen].indicator_var.fix(False)
 
     for gen in m.renewableGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(0)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+        is_candidate = str(gen).endswith("-c")
+        in_service = m.md.data["elements"]["generator"][gen]["in_service"]
+
+        if investment_stage == 1:
+            if in_service:
+                b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+            else:
+                b.renewableOperational[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+
+    if not m.config["include_investment"]:
+        for therm_gen in m.thermalGenerators:
+            is_candidate = str(therm_gen).endswith("-c")
+
+            if is_candidate:
+                b.genOperational[therm_gen].indicator_var.fix(False)
+                b.genDisabled[therm_gen].indicator_var.fix(True)
+
+        # Renewable generators currently use continuous capacity
+        # variables instead of investment-status disjuncts.
+        for renew_gen in m.renewableGenerators:
+            is_candidate = str(renew_gen).endswith("-c")
+
+            if is_candidate:
+                b.renewableOperational[renew_gen].fix(0)
+                b.renewableInstalled[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                # print('gen:', renew_gen)
+
+                b.renewableInstalled[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+                b.renewableExtended[gen].fix(0)
+                b.renewableDisabled[gen].fix(0)
 
     @b.Expression(doc="Generators investment costs in $")
     def generators_investment_cost(b):
@@ -274,16 +302,15 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
         @disj.Constraint(
             b.dispatchPeriods,
+            m.thermalGenerators,
             doc="Ramp up limits for fully-on thermal generators",
         )
-        def ramp_up_limits(disj, dispatchPeriod):
+        def ramp_up_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                    <= m.rampUpRates[generator]
-                    * b.dispatchPeriod[dispatchPeriod].periodLength
-                    * m.thermalCapacity[generator]
+                    <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
                 return (
@@ -291,24 +318,22 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     - r_p.commitmentPeriod[commitment_period - 1]
                     .dispatchPeriod[b.dispatchPeriods.last()]
                     .thermalGeneration[generator]
-                    <= m.rampUpRates[generator]
-                    * b.dispatchPeriod[dispatchPeriod].periodLength
-                    * m.thermalCapacity[generator]
+                    <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             else:
                 return pyo.Constraint.Skip
 
         @disj.Constraint(
             b.dispatchPeriods,
+            m.thermalGenerators,
             doc="Ramp down limits for fully-on thermal generators",
         )
-        def ramp_down_limits(disj, dispatchPeriod):
+        def ramp_down_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= m.rampDownRates[generator]  # in MW/min
-                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
                     * m.thermalCapacity[generator]  # in MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
@@ -318,15 +343,16 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     .thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= m.rampDownRates[generator]  # in MW/min
-                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
                     * m.thermalCapacity[generator]  # in MW
                 )
             else:
                 return pyo.Constraint.Skip
 
         # NOTE: maxSpinningReserve is a percentage of thermalCapacity
-        @disj.Constraint(b.dispatchPeriods, doc="Maximum spinning reserve")
-        def max_spinning_reserve(disj, dispatchPeriod):
+        @disj.Constraint(
+            b.dispatchPeriods, m.thermalGenerators, doc="Maximum spinning reserve"
+        )
+        def max_spinning_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
                 <= m.maxSpinningReserve[generator] * m.thermalCapacity[generator]
@@ -356,21 +382,17 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         # [TODO: Define if the max() function is necessary here.]
         @disj.Constraint(
             b.dispatchPeriods,
+            m.thermalGenerators,
             doc="Ramp up constraints for generators starting up",
         )
-        def ramp_up_limits(disj, dispatchPeriod):
+        def ramp_up_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -383,12 +405,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     .thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -422,21 +439,17 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
         @disj.Constraint(
             b.dispatchPeriods,
+            m.thermalGenerators,
             doc="Ramp down constraints for generators shutting down",
         )
-        def ramp_down_limits(disj, dispatchPeriod):
+        def ramp_down_limits(disj, dispatchPeriod, generator):
             if dispatchPeriod != 1 and commitment_period != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -449,12 +462,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -478,9 +486,10 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
         # need to set spinning reserve to 0.]
         @disj.Constraint(
             b.dispatchPeriods,
+            m.thermalGenerators,
             doc="Maximum quickstart reserve constraint",
         )
-        def max_quickstart_reserve(disj, dispatchPeriod):
+        def max_quickstart_reserve(disj, dispatchPeriod, generator):
             return (
                 b.dispatchPeriod[dispatchPeriod].quickstartReserve[generator]
                 <= m.maxQuickstartReserve[generator] * m.thermalCapacity[generator]
@@ -543,23 +552,35 @@ def generators_status_always_on(m, b, r_p, i_p, commitment_period):
                 <= m.thermalCapacity[generator]
             )
 
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that generators cannot be committed unless they are operational or just installed",
-        )
-        def commit_active_gens_only(d, dispatchPeriod):
+    @b.Disjunct(m.thermalGenerators)
+    def genOff(disj, generator):
+        b = disj.parent_block()
+
+        @disj.Constraint(b.dispatchPeriods)
+        def operating_limit(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= i_p.genOperational[generator].binary_indicator_var * u.MW
-                + i_p.genInstalled[generator].binary_indicator_var * u.MW
-                + i_p.genExtended[generator].binary_indicator_var * u.MW
+                == 0 * u.MW
             )
 
     @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
     def genStatus(disj, generator):
-        return [
-            disj.genOn[generator],
-        ]
+        return [disj.genOn[generator], disj.genOff[generator]]
+
+    @b.LogicalConstraint(
+        m.thermalGenerators,
+        doc="Enforces that generators cannot be committed unless they are operational or just installed",
+    )
+    def commit_active_gens_only(b, generator):
+        return pyo.lor(
+            b.genOn[generator].indicator_var,
+        ).implies(
+            pyo.lor(
+                i_p.genOperational[generator].indicator_var,
+                i_p.genInstalled[generator].indicator_var,
+                i_p.genExtended[generator].indicator_var,
+            )
+        )
 
 
 def add_generators_logical_constraints(m):
@@ -576,6 +597,8 @@ def add_generators_logical_constraints(m):
         doc="Thermal generator retirement",
     )
     def thermalgen_retirement(m, stage, gen):
+        # if stage > pyo.value(m.lifetimes[gen]):
+        #     m.investmentStage[stage - pyo.value(m.lifetimes[gen])].genOperational[gen].indicator_var.pprint()
         return (
             (
                 m.investmentStage[stage - pyo.value(m.lifetimes[gen])]
@@ -633,7 +656,6 @@ def add_generators_logical_constraints(m):
             m.investmentStage[stage].renewableOperational[gen]
             + m.investmentStage[stage].renewableInstalled[gen]
             + m.investmentStage[stage].renewableExtended[gen]
-            + m.investmentStage[stage].renewableRetired[gen]
             + m.investmentStage[stage].renewableRetired[gen]
             <= m.renewableCapacityNameplate[gen]
         )
@@ -763,7 +785,7 @@ def add_dispatch_generators_variables(m, b):
         def thermal_reactive_generation_limits(
             b, thermalGen, doc="Bounds on thermal generator reactive generation"
         ):
-            return (m.thermalReactiveMin[thermalGen], m.thermalReactiveMax[thermalGen])
+            return (0, m.thermalReactiveCapacity[thermalGen])
 
         b.thermalReactiveGeneration = pyo.Var(
             m.thermalGenerators,
@@ -772,6 +794,26 @@ def add_dispatch_generators_variables(m, b):
             initialize=0,
             units=u.MVAR,
             doc="Thermal generation",
+        )
+
+    if m.config["advanced_hydro"]:
+        # TODO make consistent with how this is handled for other renewable gens
+        def hydro_generation_limits(b, hydroGen):
+            return (
+                c_p.hydroMinimumExpected[hydroGen],
+                c_p.hydroCapacityExpected[hydroGen],
+            )
+
+        def hydro_generation_init(b, hydroGen):
+            return c_p.hydroMinimumExpected[hydroGen]
+
+        b.hydroGeneration = pyo.Var(
+            m.hydroGenerators,
+            domain=pyo.NonNegativeReals,
+            bounds=hydro_generation_limits,
+            initialize=hydro_generation_init,
+            units=u.MW,
+            doc="Hydropower generation",
         )
 
     # [ESR: Still deciding if this should be Nameplate]
@@ -802,24 +844,3 @@ def add_dispatch_generators_variables(m, b):
         units=u.MW,
         doc="Curtailment of renewable generators",
     )
-
-    if m.config["advanced_hydro"]:
-        # TODO make consistent with how this is handled for other
-        # renewable gens
-        def hydro_generation_limits(b, hydroGen):
-            return (
-                c_p.hydroMinimumExpected[hydroGen],
-                c_p.hydroCapacityExpected[hydroGen],
-            )
-
-        def hydro_generation_init(b, hydroGen):
-            return c_p.hydroMinimumExpected[hydroGen]
-
-        b.hydroGeneration = pyo.Var(
-            m.hydroGenerators,
-            domain=pyo.NonNegativeReals,
-            bounds=hydro_generation_limits,
-            initialize=hydro_generation_init,
-            units=u.MW,
-            doc="Hydropower generation",
-        )

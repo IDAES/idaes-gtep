@@ -102,7 +102,7 @@ def _add_common_configs(CONFIG):
     CONFIG.declare(
         "scale_loads",
         ConfigValue(
-            default=False,
+            default=True,
             domain=Bool,
             description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
         ),
