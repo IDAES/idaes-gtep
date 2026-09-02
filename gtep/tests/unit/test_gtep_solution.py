@@ -68,17 +68,15 @@ class TestExpansionPlanningSolution(unittest.TestCase):
         self.assertIsInstance(sol_object.gen_df, pd.DataFrame)
         self.assertFalse(sol_object.gen_df.empty)
 
-        gen_types = sol_object._get_generation_types()
+        self.assertIn("CC", sol_object.gen_types)
+        self.assertIn("CT", sol_object.gen_types)
+        self.assertIn("PV", sol_object.gen_types)
+        self.assertIn("WIND", sol_object.gen_types)
+        self.assertIn("BATTERY", sol_object.gen_types)
+        self.assertIn("other", sol_object.gen_types)
 
-        self.assertIn("CC", gen_types)
-        self.assertIn("CT", gen_types)
-        self.assertIn("PV", gen_types)
-        self.assertIn("WIND", gen_types)
-        self.assertIn("BATTERY", gen_types)
-        self.assertIn("other", gen_types)
-
-        self.assertTrue(hasattr(gen_types["CC"], "label"))
-        self.assertTrue(hasattr(gen_types["CC"], "color"))
+        self.assertTrue(hasattr(sol_object.gen_types["CC"], "label"))
+        self.assertTrue(hasattr(sol_object.gen_types["CC"], "color"))
 
     def test_create_results_directory_and_save_model_config(self):
         # Test the creation of the results directory and the model
