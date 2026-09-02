@@ -34,8 +34,8 @@ def add_investment_transmission_constraints(m, b, investment_stage):
     # Soraya's version
     for branch in m.lines:
         if not m.config["include_investment"] and str(branch).endswith("-c"):
-            b.branchDisabled[branch].indicator_var.fix(True)  
-            b.branchOperational[branch].indicator_var.fix(False) # do we need both?
+            b.branchDisabled[branch].indicator_var.fix(True)
+            b.branchOperational[branch].indicator_var.fix(False)  # do we need both?
         elif investment_stage == m.stages.first():
             b.branchOperational[branch].indicator_var.fix(
                 m.md.data["elements"]["branch"][branch]["in_service"]
