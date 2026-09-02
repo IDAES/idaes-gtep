@@ -23,17 +23,23 @@ from pyomo.environ import units as u
 
 
 def add_investment_transmission_constraints(m, b, investment_stage):
+
+    # my version
     for branch in m.lines:
-        if (
-            m.md.data["elements"]["branch"][branch]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.branchOperational[branch].indicator_var.fix(False)
-        elif (
-            m.md.data["elements"]["branch"][branch]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.branchOperational[branch].indicator_var.fix(True)
+        if not m.config["include_investment"] and str(branch).endswith("-c"):
+            b.branchDisabled[branch].indicator_var.fix(True)
+        elif investment_stage == m.stages.first():
+            b.branchOperational[branch].indicator_var.fix()
+
+    # Soraya's version
+    for branch in m.lines:
+        if not m.config["include_investment"] and str(branch).endswith("-c"):
+            b.branchDisabled[branch].indicator_var.fix(True)  
+            b.branchOperational[branch].indicator_var.fix(False) # do we need both?
+        elif investment_stage == m.stages.first():
+            b.branchOperational[branch].indicator_var.fix(
+                m.md.data["elements"]["branch"][branch]["in_service"]
+            )
 
     @b.Expression(doc="Transmission investment costs in $")
     def transmission_investment_cost(b):

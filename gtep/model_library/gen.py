@@ -97,6 +97,17 @@ def add_investment_generators_constraints(m, b, investment_stage):
     # indicator variables of the status disjuncts to define the
     # operation of generators.
     for gen in m.thermalGenerators:
+        if investment_stage == m.stages.first():
+            if m.md.data["elements"]["generator"][gen]["in_service"]:
+                b.genOperational[gen].indicator_var.fix(True)
+            else:
+                b.genOperational[gen].indicator_var.fix(False)
+                b.genExtended[gen].indicator_var.fix(False)
+
+            if str(gen).endswith("-c"):
+                b.genRetired[gen].indicator_var.fix(False)
+
+    for gen in m.thermalGenerators:
         if (
             m.md.data["elements"]["generator"][gen]["in_service"] == False
             and investment_stage == 1
