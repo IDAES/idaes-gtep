@@ -73,7 +73,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
         self.assertIn("PV", sol_object.gen_types)
         self.assertIn("WIND", sol_object.gen_types)
         self.assertIn("BATTERY", sol_object.gen_types)
-        self.assertIn("other", sol_object.gen_types)
+        self.assertIn("OTHER", sol_object.gen_types)
 
         self.assertTrue(hasattr(sol_object.gen_types["CC"], "label"))
         self.assertTrue(hasattr(sol_object.gen_types["CC"], "color"))
