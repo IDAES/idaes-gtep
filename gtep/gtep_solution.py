@@ -469,15 +469,17 @@ class ExpansionPlanningSolution:
         for name in output_files:
             print(f" - {folder_name}/{name}.json")
 
-    def create_plots(self, case_json, results_path, data_path, plot_type="all"):
+    def create_plots(self, case_json, results_path, data_path, plot_type="all", savefig=True):
         """This method creates generation-mix plots from saved
-        solution JSON files.
+        solution JSON files. These plots visualize the total amount
+        of generation capacity available based on investment decisions.
 
         It reads investment results for renewable, dispatchable, or
         combined generation and maps generator/storage IDs to unit
         types using `gen.csv` and, when available, `storage.csv`. It
-        creates interactive Plotly treemap and/or pie chart HTML files
-        in the results `plots` directory.
+        creates interactive Plotly treemap and/or pie chart HTML.
+        The figure(s) are returned and also saved to HTML
+        file(s) in the results `plots` directory if `savefig=True`.
 
         :param case_json: Results group to plot. Options are
                           "renewables", "dispatchables", or
@@ -488,13 +490,15 @@ class ExpansionPlanningSolution:
         :param plot_type: Plot type to generate. Options are
                           "treemap", "piechart", or "all".
                           Defaults to "all".
+        :param savefig:   Whether to write the figure(s) to file
 
         """
 
-        plots_dir = os.path.join(results_path, "plots")
-        if not os.path.exists(plots_dir):
-            os.makedirs(plots_dir)
-            print(f"\nCreated the subdirectory '{plots_dir}' to save the plots.")
+        if savefig:
+            plots_dir = os.path.join(results_path, "plots")
+            if not os.path.exists(plots_dir):
+                os.makedirs(plots_dir)
+                print(f"\nCreated the subdirectory '{plots_dir}' to save the plots.")
 
         # Get colors for each generation type.
         gen_types = self._get_generation_types()
@@ -640,7 +644,7 @@ class ExpansionPlanningSolution:
         # can select which one to use by setting up the plot_type
         # option.
         def plotly_treemap_gen_mix(
-            gen_mix, gen_types, results_path, case_json, small_pct_threshold=5
+            gen_mix, gen_types, results_path, case_json, small_pct_threshold=5,
         ):
             """This function creates interactive Plotly treemap plots
             of generation mix.
@@ -659,7 +663,6 @@ class ExpansionPlanningSolution:
             :param small_pct_threshold: Minimum percentage used for
                                         displaying labels. Defaults to
                                         5.
-
             """
 
             for tp, mix in gen_mix.items():
@@ -703,9 +706,8 @@ class ExpansionPlanningSolution:
                 )
 
                 # Save as an interactive HTML
-                plot_path = f"{results_path}/plots/treemap_{case_json}_{tp}.html"
-                fig.write_html(f"{plot_path}")
-                print(f" -> Saved interactive treemap for {tp} to {plot_path}")
+                fname = f"{results_path}/plots/treemap_{case_json}_{tp}.html"
+                return fig, fname
 
         def plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json):
             """This function creates interactive Plotly pie charts of
@@ -762,9 +764,8 @@ class ExpansionPlanningSolution:
                 )
 
                 # Save as an interactive HTML
-                plot_path = f"{results_path}/plots/piechart_{case_json}_{tp}.html"
-                fig.write_html(f"{plot_path}")
-                print(f" -> Saved interactive pie chart for {tp} to {plot_path}")
+                fname = f"{results_path}/plots/piechart_{case_json}_{tp}.html"
+                return fig, fname
 
         # ------------------------------------------------------------
         # The creation of plots under create_plots starts here, after
@@ -820,19 +821,24 @@ class ExpansionPlanningSolution:
                 for gt in all_types
             }
 
-        if plot_type == "treemap":
-            plotly_treemap_gen_mix(gen_mix, gen_types, results_path, case_json)
-        elif plot_type == "piechart":
-            plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json)
-        elif plot_type == "all":
-            plotly_treemap_gen_mix(gen_mix, gen_types, results_path, case_json)
-            plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json)
+        figs, fnames = [], []
+        if plot_type in ("treemap", "all"):
+            fig, fname = plotly_treemap_gen_mix(gen_mix, gen_types, results_path, case_json)
+            figs.append(fig), fnames.append(fname)
+        elif plot_type in ("piechart", "all"):
+            fig, fname = plotly_pie_gen_mix(gen_mix, gen_types, results_path, case_json)
+            figs.append(fig), fnames.append(fname)
         else:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. Please choose between 'treemap' or 'piechart'."
             )
+        if savefig:
+            for fig, fname in zip(figs, fnames):
+                fig.write_html(fname)
+                print(f" -> Saved to {fname}")
+        return figs[0] if len(figs) == 1 else figs
 
-    def create_stackgraph(self, results_path, rep_days):
+    def create_stackgraph(self, results_path, rep_days, savefig=True):
         """This method creates and saves an interactive stackgraph of
         dispatch results.
 
@@ -846,6 +852,8 @@ class ExpansionPlanningSolution:
                              files and where the plot will be saved.
         :param rep_days: List of representative day labels used for
                          formatting the x-axis.
+        :param savefig: Whether to save the figure to file. Defaults
+                            to `True`.
 
         """
 
@@ -1208,6 +1216,8 @@ class ExpansionPlanningSolution:
         )
 
         # Save as interactive HTML
-        plot_path = f"{results_path}/plots/stackgraph_generators.html"
-        fig.write_html(f"{plot_path}")
-        print(f" -> Saved interactive stackgraph to {plot_path}")
+        if savefig:
+            plot_path = f"{results_path}/plots/stackgraph_generators.html"
+            fig.write_html(f"{plot_path}")
+            print(f" -> Saved interactive stackgraph to {plot_path}")
+        return fig
