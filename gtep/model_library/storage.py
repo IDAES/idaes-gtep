@@ -355,7 +355,7 @@ def add_investment_storage_constraints(m, b, investment_stage):
     for stor in m.storage:
         in_service = m.md.data["elements"]["storage"][stor]["in_service"]
 
-        if investment_stage == 1:
+        if investment_stage == m.stages.first():
             b.storOperational[stor].indicator_var.fix(in_service)
 
     @b.Expression(doc="Storage investment costs in $")
