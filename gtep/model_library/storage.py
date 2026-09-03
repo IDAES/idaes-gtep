@@ -352,11 +352,11 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on
     # input. [TODO: Initialize storage level (state of charge)]
-    for bat in m.storage:
-        if investment_stage == m.stages.first():
-            b.storOperational[bat].indicator_var.fix(
-                m.md.data["elements"]["storage"][bat]["in_service"]
-            )
+    for stor in m.storage:
+        in_service = m.md.data["elements"]["storage"][stor]["in_service"]
+
+        if investment_stage == 1:
+            b.storOperational[stor].indicator_var.fix(in_service)
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
