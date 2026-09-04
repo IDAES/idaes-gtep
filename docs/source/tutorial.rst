@@ -2,4 +2,4 @@ IDAES-GTEP Tutorial Notebook
 ============================
 
 .. toctree::
-    _collections/notebooks/tutorial
+    /tutorials/123bus/tutorial_123bus
