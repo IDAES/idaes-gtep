@@ -53,7 +53,12 @@ def add_time_links(b: pyo.Block):
                     .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
                     .storageChargeLevel[bat]
                     * m.storageRetentionRate[bat]
-                    * u.convert(m.dispatchPeriodLength, u.hr)
+                    * u.convert(
+                        b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
+                        .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
+                        .dispatchPeriodLength,
+                        u.hr,
+                    )
                 )
                 for (c, d) in b.commitDispatchPairsNotFirst
                 for bat in m.storage

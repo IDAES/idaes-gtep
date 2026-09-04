@@ -272,7 +272,7 @@ def add_storage_state_disjuncts(b: BlockData):
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
                 * m.storageDischargingEfficiency[bat]
             ) * u.convert(
-                m.dispatchPeriodLength, u.hr
+                b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
         return pyo.Constraint.Skip
 
@@ -642,7 +642,7 @@ def add_dispatch_storage_variables_and_constraints(b):
     def storageChargingCost(b, bat):
         return (
             b.storageCharged[bat]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
             * m.chargingCost[bat]  # in $/MWh
         )
 
@@ -650,7 +650,7 @@ def add_dispatch_storage_variables_and_constraints(b):
     def storageDischargingCost(b, bat):
         return (
             b.storageDischarged[bat]
-            * pyo.units.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * pyo.units.convert(b.dispatchPeriodLength, to_units=u.hr)
             * m.dischargingCost[bat]  # in $/MWh
         )
 
