@@ -300,20 +300,11 @@ def add_dispatch_constraints(b):
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
-    # # NOTE: In comparison to reference [1], this is "per renewable
-    # # generator". [TODO: Should we include charging costs from
-    # # non-colocated plants?]
-    # @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
-    # def capacity_factor(b, renewableGen):
-    #     return (
-    #         b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-    #         == c_p.renewableCapacityExpected[renewableGen]
-    #     )
-
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
-        # If investment is disabled, candidate renewable generators
-        # should not generate or curtail.
+
+        # If investment is disabled, keep the original equation for
+        # existing renewables and force candidate renewables to zero.
         if not m.config["include_investment"] and str(renewableGen).endswith("-c"):
             return (
                 b.renewableGeneration[renewableGen]
@@ -321,37 +312,9 @@ def add_dispatch_constraints(b):
                 == 0 * u.MW
             )
 
-        # Avoid division by zero. If nameplate is zero, the renewable
-        # generator has no available capacity in this formulation.
-        if abs(pyo.value(m.renewableCapacityNameplate[renewableGen])) <= 1e-9:
-            if abs(pyo.value(c_p.renewableCapacityExpected[renewableGen])) > 1e-9:
-                raise ValueError(
-                    f"Renewable generator {renewableGen} has zero nameplate "
-                    f"capacity but nonzero expected renewable output "
-                    f"({pyo.value(c_p.renewableCapacityExpected[renewableGen])} "
-                    " MW). Please check input data."
-                )
-
-            return (
-                b.renewableGeneration[renewableGen]
-                + b.renewableCurtailment[renewableGen]
-                == 0 * u.MW
-            )
-
-        availability_factor = (
-            c_p.renewableCapacityExpected[renewableGen]
-            / m.renewableCapacityNameplate[renewableGen]
-        )
-
-        active_capacity = (
-            i_p.renewableOperational[renewableGen]
-            + i_p.renewableInstalled[renewableGen]
-            + i_p.renewableExtended[renewableGen]
-        )
-
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == availability_factor * active_capacity
+            <= c_p.renewableCapacityExpected[renewableGen]
         )
 
     # [TODO: Add renewableExtended to this and anywhere else.]

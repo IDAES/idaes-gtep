@@ -223,7 +223,7 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30, 6986122.88
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 7130508.88, places=1
+            value(modObject.model.total_cost_objective_rule), 7118266.88, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
 
@@ -444,7 +444,7 @@ class TestGTEP(unittest.TestCase):
 
         # Previous values: 8584301655.08, 3545283964.22, 3359204716.88
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective_rule), 3507349322.70, places=1
+            value(modObject.model.total_cost_objective_rule), 3487926967.61, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective_rule.expr, u.USD)
