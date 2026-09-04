@@ -75,14 +75,31 @@ def check_flow_balance(td, c: pyo.Constraint):
 
 
 def check_capacity_factor(td, c: pyo.Constraint):
-    expected = {
-        i: [
-            td.b.renewableGeneration[i],
-            td.b.renewableCurtailment[i],
-            td.b.parent_block().renewableCapacityExpected[i],
-        ]
-        for i in c.index_set()
-    }
+    expected = {}
+    for i in c.index_set():
+        candidate_disallowed = (
+            not td.m.config["include_investment"] and str(i).endswith("-c")
+        )
+        both_zero = (
+            abs(pyo.value(td.m.renewableCapacityNameplate[i])) <= 1e-9
+            and abs(pyo.value(td.b.parent_block().renewableCapacityExpected[i])) <= 1e-9
+        )
+
+        if candidate_disallowed or both_zero:
+            expected[i] = [
+                td.b.renewableGeneration[i],
+                td.b.renewableCurtailment[i],
+            ]
+        else:
+            expected[i] = [
+                td.b.renewableGeneration[i],
+                td.b.renewableCurtailment[i],
+                td.b.parent_block().renewableCapacityExpected[i],
+                td.m.renewableCapacityNameplate[i],
+                td.b.parent_block().parent_block().parent_block().renewableOperational[i],
+                td.b.parent_block().parent_block().parent_block().renewableInstalled[i],
+                td.b.parent_block().parent_block().parent_block().renewableExtended[i],
+            ]
     td.check_helper.check_expr_contains(c, expected)
 
 

@@ -321,28 +321,15 @@ def add_dispatch_constraints(b):
                 == 0 * u.MW
             )
 
-        expected_mw = pyo.value(
-            pyo.units.convert(
-                c_p.renewableCapacityExpected[renewableGen],
-                to_units=u.MW,
-            )
-        )
-
-        nameplate_mw = pyo.value(
-            pyo.units.convert(
-                m.renewableCapacityNameplate[renewableGen],
-                to_units=u.MW,
-            )
-        )
-
         # Avoid division by zero. If nameplate is zero, the renewable
         # generator has no available capacity in this formulation.
-        if abs(nameplate_mw) <= 1e-9:
-            if abs(expected_mw) > 1e-9:
+        if abs(pyo.value(m.renewableCapacityNameplate[renewableGen])) <= 1e-9:
+            if abs(pyo.value(c_p.renewableCapacityExpected[renewableGen])) > 1e-9:
                 raise ValueError(
                     f"Renewable generator {renewableGen} has zero nameplate "
                     f"capacity but nonzero expected renewable output "
-                    f"({expected_mw} MW). Please check input data."
+                    f"({pyo.value(c_p.renewableCapacityExpected[renewableGen])} "
+                    " MW). Please check input data."
                 )
 
             return (
@@ -351,7 +338,9 @@ def add_dispatch_constraints(b):
                 == 0 * u.MW
             )
 
-        availability_factor = expected_mw / nameplate_mw
+        availability_factor = (
+            c_p.renewableCapacityExpected[renewableGen] / m.renewableCapacityNameplate[renewableGen]
+        )
 
         active_capacity = (
             i_p.renewableOperational[renewableGen]
