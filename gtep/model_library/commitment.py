@@ -212,6 +212,7 @@ def add_investment_commitment_constraints(m, b, investment_stage):
 
     @b.Constraint(doc="Curtailment penalties for investment period")
     def renewable_curtailment_cost(b):
+        m = b.model()
         renewableCurtailmentRep = 0
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
@@ -231,11 +232,9 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
-    # [BLN: Convert this to a constraint using operatingCostInvestment
-    # Var. May also need to move it.]
-
     @b.Constraint(doc="Operating costs for investment period")
     def operatingCostInvestment_constraint(b):
+        m = b.model()
         return b.operatingCostInvestment == (
             m.investmentFactor[investment_stage]
             * sum(

@@ -12,8 +12,6 @@
 #################################################################################
 
 import json
-from pathlib import Path
-
 import pytest
 from pathlib import Path
 
