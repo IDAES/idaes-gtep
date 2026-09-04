@@ -26,7 +26,6 @@ __author__ = "Kyle Skolfield"
 
 import logging
 import json
-import os
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -55,7 +54,8 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 from gtep.utils import (
-    _set_period_structure_dict,
+    generate_period_structure_dict,
+    load_period_structure_from_json,
     check_period_structure_consistency,
 )
 
@@ -119,39 +119,30 @@ class ExpansionPlanningModel:
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
-        self.save_period_structure_file = data.save_period_structure_file
-        self.period_structure_json_file = data.period_structure_json_file
-
-        # Calculate commitment and dispatch period durations using
-        # provided scalars for the duration of representative period
-        # and number of commitment and dispatch periods. Note: We are
-        # assuming that all periods within their parent are of equal
-        # length.
-        duration_commitment = data.duration_representative_period / data.num_commit
-        duration_dispatch = pyo.value(
-            pyo.units.convert(
-                (duration_commitment / data.num_dispatch) * u.hours,
-                to_units=u.minutes,
+        
+        if data.period_structure_json_file:
+            period_dict = load_period_structure_from_json(
+                data.period_structure_json_file
             )
-        )
+        else:
+            #  Generate the period structure dictionary from provided
+            # scalars, or load it from a .json file if specified. In
+            # either case, the period structure is returned as a
+            # dictionary.
+            period_dict = generate_period_structure_dict(
+                data.num_reps,
+                data.num_commit,
+                data.num_dispatch,
+                data.duration_representative_period,
+                data.save_period_structure_file,
+            )
 
-        #  Generate the period structure dictionary from provided
-        # scalars, or load it from a .json file if specified. In
-        # either case, the period structure is returned as a
-        # dictionary.
-        period_dict = _set_period_structure_dict(
-            data.num_reps,
-            data.num_commit,
-            data.num_dispatch,
-            data.duration_representative_period,
-            duration_commitment,
-            duration_dispatch,
-            self.save_period_structure_file,
-            self.period_structure_json_file,
-        )
+        # Run a consistency check on commitment and dispatch
+        # durations.
+        check_period_structure_consistency(period_dict)
 
         # Assign period structure attributes from the dictionary
-        self.num_reps = period_dict.get("number_representative", data.num_reps)
+        self.num_reps = period_dict["number_representative"]
         self.num_commit = period_dict["number_commitment"]
         self.num_dispatch = period_dict["number_dispatch"]
         self.duration_representative_period = period_dict[
@@ -159,17 +150,6 @@ class ExpansionPlanningModel:
         ]
         self.duration_commitment = period_dict["duration_commitment"]
         self.duration_dispatch = period_dict["duration_dispatch"]
-
-        # Run a consistency check on commitment and dispatch
-        # durations.
-        check_period_structure_consistency(
-            self.num_reps,
-            self.num_commit,
-            self.num_dispatch,
-            self.duration_representative_period,
-            self.duration_commitment,
-            self.duration_dispatch,
-        )
 
         _add_common_configs(self.config)
         _add_investment_configs(self.config)

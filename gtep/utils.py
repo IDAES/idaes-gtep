@@ -11,7 +11,7 @@
 # for full copyright and license information.
 #################################################################################
 
-import os
+import logging
 import json
 from pathlib import Path
 
@@ -20,6 +20,7 @@ from pyomo.environ import units as u
 from pyomo.common.fileutils import this_file_dir
 
 data_dir = Path(this_file_dir(), "data")
+logger = logging.getLogger("gtep.utils")
 
 
 def save_period_structure_json(period_structure):
@@ -37,9 +38,9 @@ def save_period_structure_json(period_structure):
     with open(filename, "w") as f:
         json.dump(period_structure, f, indent=2)
 
-    print(
-        f"\nINFO: Period structure dictionary generated from scalar "
-        f"period arguments has been written to '{filename}'.\n"
+    logger.info(
+        f"Period structure dictionary generated from scalar "
+        f"period arguments has been written to '{filename}'."
     )
 
     return filename
@@ -50,8 +51,7 @@ def generate_period_structure_dict(
     num_commit,
     num_dispatch,
     rep_duration=24,
-    com_duration=1,
-    disp_duration=15,
+    save_period_structure_file=False,
 ):
     """This method generates a period structure dictionary. The
     dictionary is nested as follows:
@@ -65,9 +65,25 @@ def generate_period_structure_dict(
         "duration_dispatch": {rep: {com: {disp: <duration of disp in com of rep>}}}
     }
 
+    The period structure dictionary can be optionally saved using the
+    ``save_period_structure_file`` flag.
+
     :return: period structure dictionary.
 
     """
+
+    # Calculate commitment and dispatch period durations using
+    # provided scalars for the duration of representative period
+    # and number of commitment and dispatch periods. Note: We are
+    # assuming that all periods within their parent are of equal
+    # length.
+    com_duration = rep_duration / num_commit
+    disp_duration = pyo.value(
+        pyo.units.convert(
+            (com_duration / num_dispatch) * u.hours,
+            to_units=u.minutes,
+        )
+    )
 
     period_dict = {
         "number_representative": num_reps,
@@ -91,6 +107,9 @@ def generate_period_structure_dict(
             for rep in range(1, num_reps + 1)
         },
     }
+
+    if save_period_structure_file:
+        save_period_structure_json(period_dict)
 
     return period_dict
 
@@ -134,72 +153,19 @@ def load_period_structure_from_json(period_structure_json_file):
     return period_dict
 
 
-def _set_period_structure_dict(
-    num_reps,
-    num_commit,
-    num_dispatch,
-    duration_representative_period,
-    duration_commitment,
-    duration_dispatch,
-    save_period_structure_file,
-    period_structure_json_file,
-):
-    """This method returns a period structure dictionary with keys for
-    the number and duration of representative, commitment, and
-    dispatch periods.
-
-    If a JSON file is specified, it loads the period structure from
-    that file.  Otherwise, generates the period structure from the
-    provided scalar arguments. Optionally saves the generated
-    structure to a JSON file.
-
-    Returns:
-
-    :dict: period structure dictionary
-
-    """
-
-    # If a JSON file with period structure data is provided, use
-    # it, otherwise, expand to a dictionary using the provided
-    # scalars.
-
-    if period_structure_json_file is not None:
-        period_dict = load_period_structure_from_json(period_structure_json_file)
-
-    else:
-        # If JSON file not provided, expand the period structure
-        # dictionary from scalar arguments and optionally save the
-        # expanded dictionary as a JSON file with a default name under
-        # the data directory.
-        period_dict = generate_period_structure_dict(
-            num_reps,
-            num_commit,
-            num_dispatch,
-            duration_representative_period,
-            duration_commitment,
-            duration_dispatch,
-        )
-
-        if save_period_structure_file:
-            save_period_structure_json(period_dict)
-
-    return period_dict
-
-
-def check_period_structure_consistency(
-    num_reps,
-    num_commit,
-    num_dispatch,
-    duration_representative_period,
-    duration_commitment,
-    duration_dispatch,
-):
+def check_period_structure_consistency(period_dict):
     """This method checks that the sum of commitment and dispatch
     durations equals the representative and commitment period
     duration. It raises ValueError with details if mismatches are
     found.
-
     """
+
+    num_reps = period_dict["number_representative"]
+    num_commit = period_dict["number_commitment"]
+    num_dispatch = period_dict["number_dispatch"]
+    duration_representative_period = period_dict["duration_representative_period"]
+    duration_commitment = period_dict["duration_commitment"]
+    duration_dispatch = period_dict["duration_dispatch"]
 
     commitment_errors = []
     dispatch_errors = []
