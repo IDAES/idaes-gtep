@@ -169,11 +169,9 @@ def check_period_structure_consistency(period_dict):
 
     commitment_errors = []
     dispatch_errors = []
-    for rep in range(1, num_reps + 1):
+    for rep, dur_com in duration_commitment.items():
         # Consistency check (1): Sum commitment durations (in hours)
-        commitment_sum_hr = sum(
-            duration_commitment[rep][com] for com in range(1, num_commit[rep] + 1)
-        )
+        commitment_sum_hr = sum(dur_com.values())
         rep_period_hr = duration_representative_period[rep]
         if abs(commitment_sum_hr - rep_period_hr) > 1e-6:
             commitment_errors.append(
@@ -182,18 +180,15 @@ def check_period_structure_consistency(period_dict):
                 f"!= representative period duration ({rep_period_hr} hr)"
             )
 
-        for com in range(1, num_commit[rep] + 1):
+        for com, dur_disp in duration_dispatch[rep].items():
             # Consistency check (2): Sum dispatch durations (in
             # minutes) and convert to hours
             dispatch_sum_hr = pyo.units.convert(
-                sum(
-                    duration_dispatch[rep][com][disp]
-                    for disp in range(1, num_dispatch[rep][com] + 1)
-                )
+                sum(dur_disp.values())
                 * u.minutes,
                 to_units=u.hours,
             )
-            commitment_hr = duration_commitment[rep][com]
+            commitment_hr = dur_com[com]
             if abs(pyo.value(dispatch_sum_hr) - commitment_hr) > 1e-6:
                 dispatch_errors.append(
                     f"  - Representative period {rep}, "
