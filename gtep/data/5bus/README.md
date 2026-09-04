@@ -46,7 +46,7 @@ generation/loads for the 5bus case: `energy_capacity`, `initial_state_of_charge`
 A few further changes were made to `branch.csv`:
 - Quotes removed from branch UIDs
 - Columns `Cont Rating`, `LTE Rating`, and `STE Rating` were scaled up by 10x to better match
-the scale of geneation/loads for the 5bus case.
+the scale of generation/loads for the 5bus case.
 
 ## References
 
