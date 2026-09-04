@@ -184,8 +184,7 @@ def check_period_structure_consistency(period_dict):
             # Consistency check (2): Sum dispatch durations (in
             # minutes) and convert to hours
             dispatch_sum_hr = pyo.units.convert(
-                sum(dur_disp.values())
-                * u.minutes,
+                sum(dur_disp.values()) * u.minutes,
                 to_units=u.hours,
             )
             commitment_hr = dur_com[com]
