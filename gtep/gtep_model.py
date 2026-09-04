@@ -120,6 +120,7 @@ class ExpansionPlanningModel:
         self.data = data
         self.cost_data = cost_data
         
+        
         if data.period_structure_json_file:
             period_dict = load_period_structure_from_json(
                 data.period_structure_json_file
