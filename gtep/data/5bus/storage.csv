@@ -1,0 +1,13 @@
+﻿name,bus,generator,storage_type,energy_capacity,initial_state_of_charge,end_state_of_charge,minimum_state_of_charge,charge_efficiency,discharge_efficiency,max_discharge_rate,min_discharge_rate,max_charge_rate,min_charge_rate,initial_charge_rate,initial_discharge_rate,charge_cost,discharge_cost,retention_rate_60min,ramp_up_input_60min,ramp_down_input_60min,ramp_up_output_60min,ramp_down_output_60min,in_service,capital_multiplier,extension_multiplier,investment_cost,investment_cost_kwh
+battery_1a,4,None,battery,4,3.2,3.2,0.8,1,1,1,0.1,4,0.1,0,0,175,0,1,4,4,1,1,FALSE,1,1,14.91,372.7225
+battery_1b,4,None,battery,8,6.4,6.4,1.6,1,1,1,0.1,8,0.1,0,0,175,0,1,8,8,1,1,FALSE,1,1,28.23,352.91375
+battery_1c-c,4,None,battery,20,16,16,4,1,1,10,1,20,0.1,0,0,175,0,1,20,20,10,10,FALSE,1,1,78.75,393.755
+battery_1d-c,4,None,battery,40,32,32,8,1,1,10,1,40,0.1,0,0,175,0,1,40,40,10,10,FALSE,1,1,14.06,351.5275
+battery_10a-c,10,None,battery,4,3.2,3.2,0.8,1,1,1,0.1,4,0.1,0,0,175,0,1,4,4,1,1,FALSE,1,1,14.91,372.7225
+battery_10b-c,10,None,battery,8,6.4,6.4,1.6,1,1,1,0.1,8,0.1,0,0,175,0,1,8,8,1,1,FALSE,1,1,28.23,352.91375
+battery_10c-c,10,None,battery,20,16,16,4,1,1,10,1,20,0.1,0,0,175,0,1,20,20,10,10,FALSE,1,1,78.75,393.755
+battery_10d-c,10,None,battery,40,32,32,8,1,1,10,1,40,0.1,0,0,175,0,1,40,40,10,10,FALSE,1,1,14.06,351.5275
+battery_2a-c,2,None,battery,4,3.2,3.2,0.8,1,1,1,0.1,4,0.1,0,0,175,0,1,4,4,1,1,FALSE,1,1,14.91,372.7225
+battery_2b-c,2,None,battery,8,6.4,6.4,1.6,1,1,1,0.1,8,0.1,0,0,175,0,1,8,8,1,1,FALSE,1,1,28.23,352.91375
+battery_2c-c,2,None,battery,20,16,16,4,1,1,10,1,20,0.1,0,0,175,0,1,20,20,10,10,FALSE,1,1,78.75,393.755
+battery_2d-c,2,None,battery,40,32,32,8,1,1,10,1,40,0.1,0,0,175,0,1,40,40,10,10,FALSE,1,1,14.06,351.5275
