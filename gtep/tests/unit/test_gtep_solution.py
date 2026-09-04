@@ -35,10 +35,9 @@ def get_solved_model():
         planning_data_args={
             "stages": 1,
             "num_reps": 1,
-            "len_reps": 1,
             "num_commit": 1,
             "num_dispatch": 1,
-            "duration_dispatch": 15,
+            "duration_representative_period": 1,
         },
         prescient_data_args={
             "representative_dates": ["2020-01-28 00:00"],
@@ -85,10 +84,9 @@ class TestExpansionPlanningSolution(unittest.TestCase):
             planning_data_args={
                 "stages": 1,
                 "num_reps": 1,
-                "len_reps": 1,
                 "num_commit": 1,
                 "num_dispatch": 1,
-                "duration_dispatch": 15,
+                "duration_representative_period": 1,
             },
             include_cost_data=False,
         )

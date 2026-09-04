@@ -40,6 +40,69 @@ ng_data_path = (
 ).resolve()
 
 
+def create_data(
+    input_data_path: Path = input_data_path,
+    planning_data_args: dict | None = None,
+    prescient_data_args: dict | None = None,
+    candidate_gens: list[str] | None = None,
+    include_cost_data: bool = True,
+):
+    """
+    Create and load the ExpansionPlanningData object and, optionally,
+    create the DataProcessing cost-data object.
+
+    This helper prepares the data objects without constructing an
+    ExpansionPlanningModel.
+
+    :param input_data_path: Path to the input data. Defaults to 5bus model.
+    :param planning_data_args: Keyword arguments passed to ExpansionPlanningData.
+    :param prescient_data_args: Keyword arguments passed to load_prescient.
+    :param candidate_gens: Candidate generators passed to DataProcessing.load_gen_data.
+    :param include_cost_data: Whether to build and return a DataProcessing object.
+    :return: Tuple of data object and cost-data object.
+    """
+    if planning_data_args is None:
+        planning_data_args = {}
+
+    if prescient_data_args is None:
+        prescient_data_args = {}
+
+    if candidate_gens is None:
+        candidate_gens = [
+            "Natural Gas_FE",
+            "Solar - Utility PV",
+            "Land-Based Wind",
+        ]
+
+    default_data_planning_args = dict(
+        stages=1,
+        num_reps=1,
+        num_commit=1,
+        num_dispatch=1,
+    )
+
+    for arg, val in default_data_planning_args.items():
+        if arg not in planning_data_args:
+            planning_data_args[arg] = val
+
+    data_object = ExpansionPlanningData(**planning_data_args)
+    data_object.load_prescient(input_data_path, **prescient_data_args)
+
+    if include_cost_data:
+        data_processing_object = DataProcessing()
+        data_processing_object.load_gen_data(
+            bus_data_path=bus_data_path,
+            cost_data_path=cost_data_path,
+            ng_cost_path=ng_data_path,
+            candidate_gens=candidate_gens,
+            save_csv=False,
+        )
+    else:
+        data_processing_object = None
+
+    return data_object, data_processing_object
+
+
 def create_model(
     input_data_path: Path = input_data_path,
     planning_data_args: dict | None = None,
@@ -64,53 +127,25 @@ def create_model(
     :type include_cost_data:            bool, optional
     """
 
-    if planning_data_args is None:
-        planning_data_args = {}
-
-    if prescient_data_args is None:
-        prescient_data_args = {}
-
     if config is None:
         config = {}
 
-    if candidate_gens is None:
-        candidate_gens = [
-            "Natural Gas_FE",
-            "Solar - Utility PV",
-            "Land-Based Wind",
-        ]
-
-    default_data_planning_args = dict(
-        stages=1,
-        num_reps=1,
-        num_commit=1,
-        num_dispatch=1,
+    data_object, data_processing_object = create_data(
+        input_data_path=input_data_path,
+        planning_data_args=planning_data_args,
+        prescient_data_args=prescient_data_args,
+        candidate_gens=candidate_gens,
+        include_cost_data=include_cost_data,
     )
-    for arg, val in default_data_planning_args.items():
-        if arg not in planning_data_args:
-            planning_data_args[arg] = val
 
-    data_object = ExpansionPlanningData(**planning_data_args)
-    data_object.load_prescient(input_data_path, **prescient_data_args)
     if "storage" in config and config["storage"]:
         data_object.load_storage_csv(str(input_data_path))
 
-    if include_cost_data:
-        data_processing_object = DataProcessing()
-        data_processing_object.load_gen_data(
-            bus_data_path=bus_data_path,
-            cost_data_path=cost_data_path,
-            ng_cost_path=ng_data_path,
-            candidate_gens=candidate_gens,
-            save_csv=False,
-        )
-        mod_object = ExpansionPlanningModel(
-            config=config,
-            data=data_object,
-            cost_data=data_processing_object,
-        )
-    else:
-        mod_object = ExpansionPlanningModel(config=config, data=data_object)
+    mod_object = ExpansionPlanningModel(
+        config=config,
+        data=data_object,
+        cost_data=data_processing_object,
+    )
 
     mod_object.create_model()
 

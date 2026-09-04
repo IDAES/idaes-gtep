@@ -49,30 +49,27 @@ class TestExpansionPlanningData(unittest.TestCase):
         self.assertIsInstance(testObject, ExpansionPlanningData)
         self.assertEqual(testObject.stages, 2)
         self.assertEqual(testObject.num_reps, 4)
-        self.assertEqual(testObject.len_reps, 1)
         self.assertEqual(testObject.num_commit, 24)
         self.assertEqual(testObject.num_dispatch, 1)
-        self.assertEqual(testObject.duration_dispatch, 60)
+        self.assertEqual(testObject.duration_representative_period, 24)
 
         # Test that the ExpansionPlanningData object initializes
         # properly with input values.
         testObject = ExpansionPlanningData(1, 2, 2, 2, 2, 15)
         self.assertEqual(testObject.stages, 1)
         self.assertEqual(testObject.num_reps, 2)
-        self.assertEqual(testObject.len_reps, 2)
         self.assertEqual(testObject.num_commit, 2)
         self.assertEqual(testObject.num_dispatch, 2)
-        self.assertEqual(testObject.duration_dispatch, 15)
+        self.assertEqual(testObject.duration_representative_period, 2)
 
         # Test that the ExpansionPlanningData object initializes
         # properly with partial input values.
-        testObject = ExpansionPlanningData(duration_dispatch=15)
+        testObject = ExpansionPlanningData()
         self.assertEqual(testObject.stages, 2)
         self.assertEqual(testObject.num_reps, 4)
-        self.assertEqual(testObject.len_reps, 1)
         self.assertEqual(testObject.num_commit, 24)
         self.assertEqual(testObject.num_dispatch, 1)
-        self.assertEqual(testObject.duration_dispatch, 15)
+        self.assertEqual(testObject.duration_representative_period, 24)
 
     def test_default_representative_dates(self):
         # Test no representative dates passed in, initializing with
@@ -148,9 +145,9 @@ class TestExpansionPlanningData(unittest.TestCase):
 
         testObject = ExpansionPlanningData(
             num_reps=2,
-            len_reps=24,
             num_commit=24,
             num_dispatch=1,
+            duration_representative_period=24,
         )
 
         testObject.load_prescient(
@@ -202,7 +199,9 @@ class TestExpansionPlanningData(unittest.TestCase):
                     isinstance(p_load, dict)
                     and p_load.get("data_type") == "time_series"
                 ):
-                    self.assertEqual(len(p_load["values"]), testObject.len_reps)
+                    self.assertEqual(
+                        len(p_load["values"]), testObject.duration_representative_period
+                    )
 
             # Check that renewable generator time series were sliced
             # to the representative period length.
@@ -210,7 +209,9 @@ class TestExpansionPlanningData(unittest.TestCase):
                 p_max = gen_data.get("p_max")
 
                 if isinstance(p_max, dict) and p_max.get("data_type") == "time_series":
-                    self.assertEqual(len(p_max["values"]), testObject.len_reps)
+                    self.assertEqual(
+                        len(p_max["values"]), testObject.duration_representative_period
+                    )
 
     def test_import_load_scaling_normal(self):
         # Test successful passthrough of load scaling function.
