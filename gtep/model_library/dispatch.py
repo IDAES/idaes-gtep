@@ -24,7 +24,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b):
+def add_dispatch_variables(b, paramPeriodLength):
     """This method adds dispatch-associated variables to
     dispatch period block.
 
@@ -55,7 +55,7 @@ def add_dispatch_variables(b):
 
         return (
             b.thermalGeneration[gen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * (m.varCost[gen] + m.fuelCost[gen])
         )
 
@@ -65,7 +65,7 @@ def add_dispatch_variables(b):
 
         return (
             b.renewableGeneration[gen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * m.varCost[gen]
         )
 
@@ -81,7 +81,7 @@ def add_dispatch_variables(b):
             m = b.model()
             return (
                 b.hydroGeneration[hydroGen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.varCost[hydroGen]
             )
 
@@ -91,7 +91,7 @@ def add_dispatch_variables(b):
         def reactiveGeneratorCost(b, gen):
             return (
                 b.thermalReactiveGeneration[gen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.fuelCostReactive[gen]
             )
 
@@ -108,7 +108,7 @@ def add_dispatch_variables(b):
         m = b.model()
         return (
             b.loadShed[bus]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
@@ -140,7 +140,7 @@ def add_dispatch_variables(b):
             m = b.model()
             return (
                 b.thermalReactiveGeneration[gen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.fuelCostReactive[gen]
             )
 

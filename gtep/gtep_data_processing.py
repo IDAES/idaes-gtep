@@ -162,16 +162,16 @@ class DataProcessing:
         :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
                                         is a pandas DataFrame.
         """
-        xls = pd.ExcelFile(cost_data_path)
 
-        # check all sheets are available
-        not_a_sheet = [name for name in gens if name not in xls.sheet_names]
-        if not_a_sheet:
-            raise ValueError(
-                f"All elements of gens must be a sheet in {cost_data_path}. The following are not sheets: {not_a_sheet}"
-            )
+        with pd.ExcelFile(cost_data_path) as xls:
+            # check all sheets are available
+            not_a_sheet = [name for name in gens if name not in xls.sheet_names]
+            if not_a_sheet:
+                raise ValueError(
+                    f"All elements of gens must be a sheet in {cost_data_path}. The following are not sheets: {not_a_sheet}"
+                )
 
-        cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
+            cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
 
         # check all years available
         for gen, df in cost_data.items():
