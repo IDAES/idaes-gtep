@@ -77,9 +77,9 @@ def check_flow_balance(td, c: pyo.Constraint):
 def check_capacity_factor(td, c: pyo.Constraint):
     expected = {}
     for i in c.index_set():
-        candidate_disallowed = (
-            not td.m.config["include_investment"] and str(i).endswith("-c")
-        )
+        candidate_disallowed = not td.m.config["include_investment"] and str(
+            i
+        ).endswith("-c")
         both_zero = (
             abs(pyo.value(td.m.renewableCapacityNameplate[i])) <= 1e-9
             and abs(pyo.value(td.b.parent_block().renewableCapacityExpected[i])) <= 1e-9
@@ -91,15 +91,17 @@ def check_capacity_factor(td, c: pyo.Constraint):
                 td.b.renewableCurtailment[i],
             ]
         else:
+            i_p = td.b.parent_block().parent_block().parent_block()
             expected[i] = [
                 td.b.renewableGeneration[i],
                 td.b.renewableCurtailment[i],
                 td.b.parent_block().renewableCapacityExpected[i],
                 td.m.renewableCapacityNameplate[i],
-                td.b.parent_block().parent_block().parent_block().renewableOperational[i],
-                td.b.parent_block().parent_block().parent_block().renewableInstalled[i],
-                td.b.parent_block().parent_block().parent_block().renewableExtended[i],
+                i_p.renewableOperational[i],
+                i_p.renewableInstalled[i],
+                i_p.renewableExtended[i],
             ]
+        # TODO: think about how to check for error raised in dispatch.py here
     td.check_helper.check_expr_contains(c, expected)
 
 
