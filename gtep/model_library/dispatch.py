@@ -339,7 +339,8 @@ def add_dispatch_constraints(b):
             )
 
         availability_factor = (
-            c_p.renewableCapacityExpected[renewableGen] / m.renewableCapacityNameplate[renewableGen]
+            c_p.renewableCapacityExpected[renewableGen]
+            / m.renewableCapacityNameplate[renewableGen]
         )
 
         active_capacity = (
