@@ -92,10 +92,11 @@ def main(config_path):
     data_object = ExpansionPlanningData(
         stages=data_config.get("stages", 2),
         num_reps=data_config.get("num_reps", 2),
-        len_reps=data_config.get("len_reps", 1),
         num_commit=data_config.get("num_commit", 6),
         num_dispatch=data_config.get("num_dispatch", 4),
-        duration_dispatch=data_config.get("duration_dispatch", 15),
+        duration_representative_period=data_config.get(
+            "duration_representative_period", 6
+        ),
     )
 
     # Add optional representative-period inputs if they are provided
@@ -206,12 +207,36 @@ def main(config_path):
 
     # -------------------------------------------------------------------
     # Save results in JSON files using the GTEP solution class.
-    value_threshold = results_config.get("value_threshold", 1e-3)
-    sol_object.save_results_in_json_files(
-        mod_object,
-        dir_name,
-        value_threshold=value_threshold,
-    )
+    if results_config.get("save_json", True):
+        value_threshold = results_config.get("value_threshold", 1e-3)
+
+        sol_object.save_results_in_json_files(
+            mod_object,
+            dir_name,
+            value_threshold=value_threshold,
+        )
+
+    # Create generation-mix plots and/or stackgraph if requested.
+    plot_config = config.get("plots", {})
+
+    if plot_config.get("enabled", False):
+        plot_type = plot_config.get("plot_type", "all")
+        case_json = plot_config.get("case_json", "combined")
+
+        sol_object.create_plots(
+            case_json,
+            dir_name,
+            data_path,
+            plot_type,
+        )
+
+    if plot_config.get("stackgraph", False):
+        rep_days = [
+            pyo.value(mod_object.model.representativeDate[rep])
+            for rep in mod_object.model.representativeDate
+        ]
+
+        sol_object.create_stackgraph(dir_name, rep_days)
 
     logger.info("GTEP run complete.")
 
