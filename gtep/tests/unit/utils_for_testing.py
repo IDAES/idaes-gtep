@@ -141,17 +141,11 @@ def create_model(
     if "storage" in config and config["storage"]:
         data_object.load_storage_csv(str(input_data_path))
 
-    if include_cost_data:
-        mod_object = ExpansionPlanningModel(
-            config=config,
-            data=data_object,
-            cost_data=data_processing_object,
-        )
-    else:
-        mod_object = ExpansionPlanningModel(
-            config=config,
-            data=data_object,
-        )
+    mod_object = ExpansionPlanningModel(
+        config=config,
+        data=data_object,
+        cost_data=data_processing_object,
+    )
 
     mod_object.create_model()
 
