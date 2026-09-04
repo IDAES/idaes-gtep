@@ -314,7 +314,7 @@ def add_dispatch_constraints(b):
 
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == c_p.renewableCapacityExpected[renewableGen]
+            <= c_p.renewableCapacityExpected[renewableGen]
         )
 
     # [TODO: Add renewableExtended to this and anywhere else.]
