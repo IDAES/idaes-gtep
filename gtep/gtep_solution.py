@@ -311,7 +311,7 @@ class ExpansionPlanningSolution:
 
         """
         os.makedirs(dir_name, exist_ok=True)
-        print(f"\nCreating the directory '{dir_name}' to save the results. ")
+        logger.info(f"\nCreating the directory '{dir_name}' to save the results. ")
 
         return dir_name
 
@@ -330,7 +330,7 @@ class ExpansionPlanningSolution:
             for key, value in sorted(gtep_model.config.items()):
                 writer.writerow([key, repr(value), type(value).__name__])
 
-        print(f">>>Saved model configuration to: {config_csv_path}")
+        logger.info(f">>>Saved model configuration to: {config_csv_path}")
 
     def save_results_in_json_files(self, gtep_model, dir_name, value_threshold=1e-3):
         """This method saves the model results to JSON files.
@@ -447,11 +447,11 @@ class ExpansionPlanningSolution:
             with open(filename, "w") as fil:
                 json.dump(data, fil)
 
-        print(
+        logger.info(
             f"The following files have been created in the directory '{folder_name}':"
         )
         for name in output_files:
-            print(f" - {folder_name}/{name}.json")
+            logger.info(f" - {folder_name}/{name}.json")
 
     def create_plots(
         self, case_json, results_path, data_path, plot_type="all", savefig=True
@@ -479,12 +479,19 @@ class ExpansionPlanningSolution:
         :param savefig:   Whether to write the figure(s) to file
 
         """
+        if plot_type not in ["treemap", "piechart", "all"]:
+            raise ValueError(
+                f"Plot type '{plot_type}' is not supported. "
+                "Please choose between 'treemap', 'piechart', or 'all."
+            )
 
         if savefig:
             plots_dir = os.path.join(results_path, "plots")
             if not os.path.exists(plots_dir):
                 os.makedirs(plots_dir)
-                print(f"\nCreated the subdirectory '{plots_dir}' to save the plots.")
+                logger.info(
+                    f"\nCreated the subdirectory '{plots_dir}' to save the plots."
+                )
 
         def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
             """This function builds generation-mix dictionaries used
@@ -792,20 +799,17 @@ class ExpansionPlanningSolution:
                 gen_mix, self.gen_types, results_path, case_json
             )
             figs.append(fig), fnames.append(fname)
-        elif plot_type in ("piechart", "all"):
+        if plot_type in ("piechart", "all"):
             fig, fname = plotly_pie_gen_mix(
                 gen_mix, self.gen_types, results_path, case_json
             )
             figs.append(fig), fnames.append(fname)
-        else:
-            raise ValueError(
-                f"Plot type '{plot_type}' is not supported. Please choose between 'treemap' or 'piechart'."
-            )
 
         if savefig:
             for fig, fname in zip(figs, fnames):
                 fig.write_html(fname)
-                print(f" -> Saved to {fname}")
+                logger.info(f" -> Saved to {fname}")
+
         return figs[0] if len(figs) == 1 else figs
 
     def create_stackgraph(self, results_path, rep_days, savefig=True):
@@ -1199,5 +1203,5 @@ class ExpansionPlanningSolution:
         if savefig:
             plot_path = f"{results_path}/plots/stackgraph_generators.html"
             fig.write_html(f"{plot_path}")
-            print(f" -> Saved interactive stackgraph to {plot_path}")
+            logger.info(f" -> Saved interactive stackgraph to {plot_path}")
         return fig
