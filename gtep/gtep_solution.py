@@ -978,6 +978,9 @@ class ExpansionPlanningSolution:
             else:
                 discharging_by_suffix["other"] += val
 
+        # Build and sort plotted time periods so bars appear in
+        # stage, representative-period, commitment-period, dispatch
+        # order.
         time_periods = [
             (s, p, c, d)
             for s in generation
@@ -985,6 +988,10 @@ class ExpansionPlanningSolution:
             for c in generation[s][p]
             for d in generation[s][p][c]
         ]
+        time_periods = sorted(
+            time_periods,
+            key=lambda item: (item[0], item[1], item[2], item[3]),
+        )
         times = list(range(len(time_periods)))
 
         loads = {}
@@ -1042,41 +1049,71 @@ class ExpansionPlanningSolution:
         # --------------------------------------------------------------
         # Build and save an interactive Plotly stackgraph of
         # generation results. The plot stacks generation by technology
-        # over all representative-day hours, marks candidate resources
-        # with a pattern and includes load shed and total load as a
-        # dashed line. The x-axis is labeled at hour 0 and hour 12 for
-        # each representative day.
-        n_hours_per_day = 24
+        # over all representative periods, marks candidate resources
+        # with a pattern, and includes load shed and total load as a
+        # dashed line.
         n_rep_days = len(rep_days)
-        n_points = n_hours_per_day * n_rep_days
         rep_days_dt = [pd.to_datetime(d) for d in rep_days]
 
-        # Build x-axis labels and tick positions: For each hour
-        # in each representative day, create a label.  Only show
-        # the label for hour 0 and hour 12 of each day, leave
-        # others blank for clarity.
-        x_labels = []
+        # Identify stages present in the plotted results. For multiple
+        # stages, the stackgraph is ordered as Stage 1 reps, then Stage
+        # 2 reps, etc.
+        stages = sorted({s for s, p, c, d in time_periods})
+        n_stages = len(stages)
+        n_stage_rep_blocks = n_stages * n_rep_days
+
+        # Infer the number of plotted points in each
+        # stage/representative-period block from the model results.
+        if len(time_periods) % n_stage_rep_blocks != 0:
+            raise ValueError(
+                "The number of plotted time periods is not divisible by "
+                "the number of stage/representative-period blocks. "
+                "Check time_periods, rep_days, and stages."
+            )
+
+        n_points_per_rep_period = len(time_periods) // n_stage_rep_blocks
+
+        # Label the start of each representative period. If each
+        # representative-period block has 24 plotted points, also label
+        # the midpoint as 12:00.
         tickvals = []
         ticktext = []
-        for i, day in enumerate(rep_days_dt):
-            for h in range(n_hours_per_day):
-                idx = i * n_hours_per_day + h  # Position in the x-axis
-                if h == 0:
-                    label = day.strftime("%b-%d 00:00")
-                    x_labels.append(label)
-                    tickvals.append(idx)
-                    ticktext.append(label)
-                elif h == 12:
-                    label = day.strftime("%b-%d 12:00")
-                    x_labels.append(label)
-                    tickvals.append(idx)
-                    ticktext.append(label)
-                else:
-                    x_labels.append("")
+        rep_period_start_indices = []
+        stage_start_indices = []
 
-        # The x-axis for the bars is just integer positions (0 to
-        # n_points-1)
-        times = list(range(n_points))
+        multiple_stages = n_stages > 1
+
+        for stage_idx, stage in enumerate(stages):
+            stage_start_idx = stage_idx * n_rep_days * n_points_per_rep_period
+            stage_start_indices.append(stage_start_idx)
+
+            for rep_idx, day in enumerate(rep_days_dt):
+                start_idx = (
+                    stage_idx * n_rep_days * n_points_per_rep_period
+                    + rep_idx * n_points_per_rep_period
+                )
+
+                rep_period_start_indices.append(start_idx)
+
+                label = day.strftime("%b-%d 00:00")
+                if multiple_stages:
+                    label = f"Stage {stage} {label}"
+
+                tickvals.append(start_idx)
+                ticktext.append(label)
+
+                if n_points_per_rep_period == 24:
+                    noon_idx = start_idx + 12
+                    noon_label = day.strftime("%b-%d 12:00")
+                    if multiple_stages:
+                        noon_label = f"Stage {stage} {noon_label}"
+
+                    tickvals.append(noon_idx)
+                    ticktext.append(noon_label)
+
+        # The x-axis for the bars is integer positions matching the
+        # actual number of plotted time periods.
+        times = list(range(len(time_periods)))
 
         # Prepare traces for each generator type
         traces = []
@@ -1131,9 +1168,13 @@ class ExpansionPlanningSolution:
             bargap=0,  # remove white spacing between bars
             title="Generation Mix (Representative Days)",
             xaxis=dict(
-                title="Representative Days (labeled every 12 hours)",
-                tickvals=tickvals,  # show ticks at hour 0 and 12 of each rep day
-                ticktext=ticktext,  # show corresponding label
+                title="Representative Periods by Investment Stage",
+                tickmode="array",
+                tickvals=tickvals,
+                ticktext=ticktext,
+                tickangle=45,
+                automargin=True,
+                range=[-0.5, len(time_periods) - 0.5],
                 showgrid=True,
                 gridcolor="gray",
                 gridwidth=0.7,
@@ -1162,14 +1203,23 @@ class ExpansionPlanningSolution:
             paper_bgcolor="white",
         )
 
-        # Add vertical lines to visually separate each
-        # representative day
-        for i in range(1, n_rep_days):
+        # Add vertical lines to visually separate representative
+        # periods.
+        for x in rep_period_start_indices[1:]:
             fig.add_vline(
-                x=i * n_hours_per_day,
+                x=x,
                 line=dict(color="gray", width=1, dash="dot"),
                 opacity=0.5,
             )
+
+        # Add stronger vertical lines to separate investment stages.
+        if multiple_stages:
+            for x in stage_start_indices[1:]:
+                fig.add_vline(
+                    x=x,
+                    line=dict(color="black", width=2, dash="dash"),
+                    opacity=0.8,
+                )
 
         # Add a little space above the tallest bar
         all_series = {
