@@ -1,0 +1,16 @@
+config_key,config_value,value_type
+advanced_hydro,False,bool
+dispatch_randomization,True,bool
+flow_model,'DC',str
+include_commitment,True,bool
+include_investment,True,bool
+include_redispatch,True,bool
+renewable_generation,False,bool
+scale_loads,False,bool
+scale_texas_loads,False,bool
+storage,False,bool
+thermal_generation,False,bool
+time_period_dict,<pyomo.common.config.ConfigDict object at 0x7fa38fa47e20>,ConfigDict
+time_period_subsets,<pyomo.common.config.ConfigList object at 0x7fa39f172ac0>,ConfigList
+transmission,True,bool
+transmission_switching,False,bool
