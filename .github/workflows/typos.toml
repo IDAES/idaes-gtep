@@ -31,5 +31,5 @@ extend-ignore-re = [
     # cell outputs and causing spell check to fail. Ignore binary data:
     '''\\"bdata\\":\\"[^"]*\\\"''',
     # Plotly/Jupyter serialized data
-    '''\\"data\\":\{.*?\}''',
+    '''\\"data\\":\\"[^"]*\\\"''',
 ]
