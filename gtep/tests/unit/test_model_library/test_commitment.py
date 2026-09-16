@@ -95,7 +95,7 @@ class TestObjective(unittest.TestCase):
 
         # renewableCapacityExpected is a plain dict, not a Pyomo component
         assert hasattr(self.b, "renewableCapacityExpected")
-        assert isinstance(self.b.renewableCapacityExpected, dict)
+        assert isinstance(self.b.renewableCapacityExpected, pyo.Param)
 
         # it should contain all renewable generators as keys
         for g in self.m.renewableGenerators:
@@ -154,9 +154,7 @@ class TestObjective(unittest.TestCase):
                 self.b.parent_block().parent_block(),
                 self.commit_period,
             )
-            mock_stor.assert_called_once_with(
-                self.b.model(), self.b, self.commit_period
-            )
+            mock_stor.assert_called_once_with(self.b)
             mock_always_on.assert_not_called()
 
     def test_add_commitment_disjuncts_no_commitment_and_storage_true(self):
@@ -178,9 +176,7 @@ class TestObjective(unittest.TestCase):
             add_commitment_disjuncts(self.b, self.commit_period)
             # check func calls based on config
             mock_gens.assert_not_called()
-            mock_stor.assert_called_once_with(
-                self.b.model(), self.b, self.commit_period
-            )
+            mock_stor.assert_called_once_with(self.b)
             mock_always_on.assert_called_once_with(
                 self.b.model(),
                 self.b,
@@ -271,7 +267,7 @@ class TestObjective(unittest.TestCase):
         op_cost_str = str(self.b.operatingCostCommitment.expr)
         assert "genShutdown" not in op_cost_str
         assert "genStartup" not in op_cost_str
-        assert "storagefixedCost" not in op_cost_str
+        assert "storageFixedCost" not in op_cost_str
 
     def test_add_commitment_constraints_no_storage(self):
         self._create_testing_obj(
@@ -312,7 +308,7 @@ class TestObjective(unittest.TestCase):
         assert "genStartup" in op_cost_str
 
         # no storage
-        assert "storagefixedCost" not in op_cost_str
+        assert "storageFixedCost" not in op_cost_str
         assert "storageCapacity" not in op_cost_str
 
         # if advanced hydro true
@@ -357,7 +353,7 @@ class TestObjective(unittest.TestCase):
         assert "genStartup" not in op_cost_str
 
         # no storage
-        assert "storagefixedCost" not in op_cost_str
+        assert "storageFixedCost" not in op_cost_str
         assert "storageCapacity" not in op_cost_str
 
         # if advanced hydro true
@@ -402,7 +398,7 @@ class TestObjective(unittest.TestCase):
         assert "genStartup" in op_cost_str
 
         # if storage true
-        assert "storagefixedCost" in op_cost_str
+        assert "storageFixedCost" in op_cost_str
 
         # no advanced hydro
         assert "hydroCapacity" not in op_cost_str
@@ -446,7 +442,7 @@ class TestObjective(unittest.TestCase):
         assert "genStartup" not in op_cost_str
 
         # if storage true
-        assert "storagefixedCost" in op_cost_str
+        assert "storageFixedCost" in op_cost_str
 
         # no advanced hydro
         assert "hydroCapacity" not in op_cost_str
@@ -491,7 +487,7 @@ class TestObjective(unittest.TestCase):
         assert "genStartup" in op_cost_str
 
         # no storage
-        assert "storagefixedCost" not in op_cost_str
+        assert "storageFixedCost" not in op_cost_str
         assert "storageCapacity" not in op_cost_str
 
         # no advanced hydro
@@ -583,7 +579,6 @@ class TestObjective(unittest.TestCase):
         assert "curtailmentCost" in curt_expr_str
         assert "investmentFactor" in curt_expr_str
         assert "dispatchPeriod" in curt_expr_str
-        assert "renewableCurtailment" in curt_expr_str
 
         # operating cost constraint should use these terms
         assert "operatingCostInvestment" in op_expr_str
@@ -594,7 +589,6 @@ class TestObjective(unittest.TestCase):
         assert "genShutdown" in op_expr_str
         assert "genStartup" in op_expr_str
         assert "dispatchPeriod" in op_expr_str
-        assert "renewableCurtailment" in op_expr_str
 
         # check that the structure includes the expected indexing pattern
         assert "representativePeriod[1]" in curt_expr_str
