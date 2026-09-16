@@ -41,6 +41,13 @@ generation/loads for the 5bus case: `energy_capacity`, `initial_state_of_charge`
 `max_charge_rate`, `min_charge_rate`, `ramp_up_input_60min`,`ramp_down_input_60min`,
 `ramp_up_output_60min`, `ramp_down_output_60min`, and `investment_cost`
 
+## Branch data modifications
+
+A few further changes were made to `branch.csv`:
+- Quotes removed from branch UIDs
+- Columns `Cont Rating`, `LTE Rating`, and `STE Rating` were scaled up by 10x to better match
+the scale of generation/loads for the 5bus case.
+
 ## References
 
 1. (Pending)

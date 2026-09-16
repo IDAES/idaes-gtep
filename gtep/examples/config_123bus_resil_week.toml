@@ -16,12 +16,11 @@ level = "INFO"
 
 [data]
 data_path = "../gtep/data/123_Bus_Resil_Week"
-stages = 3
+stages = 1
 num_reps = 4
-len_reps = 24
-num_commit = 24
+num_commit = 2
 num_dispatch = 1
-duration_dispatch = 60
+duration_representative_period = 2
 
 # Extra Texas/resilience case-study preprocessing
 load_scaling_path = "../gtep/data/123_Bus_Resil_Week/ERCOT-Adjusted-Forecast.xlsb"
@@ -34,7 +33,7 @@ enabled = false
 include_investment = true
 include_commitment = true
 include_redispatch = true
-scale_loads = false
+scale_loads = true
 scale_texas_loads = true
 transmission = true
 storage = false
@@ -53,4 +52,11 @@ mip_gap = 0.001
 
 [results]
 dir_name = "results"
+save_json = true
 value_threshold = 1e-3
+
+[plots]
+enabled = false
+case_json = "combined"
+plot_type = "all"
+stackgraph = false

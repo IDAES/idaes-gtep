@@ -24,7 +24,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b):
+def add_dispatch_variables(b, paramPeriodLength):
     """This method adds dispatch-associated variables to
     dispatch period block.
 
@@ -55,7 +55,7 @@ def add_dispatch_variables(b):
 
         return (
             b.thermalGeneration[gen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * (m.varCost[gen] + m.fuelCost[gen])
         )
 
@@ -65,7 +65,7 @@ def add_dispatch_variables(b):
 
         return (
             b.renewableGeneration[gen]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * m.varCost[gen]
         )
 
@@ -81,7 +81,7 @@ def add_dispatch_variables(b):
             m = b.model()
             return (
                 b.hydroGeneration[hydroGen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.varCost[hydroGen]
             )
 
@@ -91,7 +91,7 @@ def add_dispatch_variables(b):
         def reactiveGeneratorCost(b, gen):
             return (
                 b.thermalReactiveGeneration[gen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.fuelCostReactive[gen]
             )
 
@@ -108,7 +108,7 @@ def add_dispatch_variables(b):
         m = b.model()
         return (
             b.loadShed[bus]
-            * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+            * u.convert(paramPeriodLength, to_units=u.hr)
             * m.loadShedCostperCurtailment  # $/MWh
         )
 
@@ -140,7 +140,7 @@ def add_dispatch_variables(b):
             m = b.model()
             return (
                 b.thermalReactiveGeneration[gen]
-                * u.convert(m.dispatchPeriodLength, to_units=u.hr)
+                * u.convert(paramPeriodLength, to_units=u.hr)
                 * m.fuelCostReactive[gen]
             )
 
@@ -300,14 +300,21 @@ def add_dispatch_constraints(b):
             balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
-    # NOTE: In comparison to reference [1], this is "per renewable
-    # generator". [TODO: Should we include charging costs from
-    # non-colocated plants?]
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
     def capacity_factor(b, renewableGen):
+
+        # If investment is disabled, keep the original equation for
+        # existing renewables and force candidate renewables to zero.
+        if not m.config["include_investment"] and str(renewableGen).endswith("-c"):
+            return (
+                b.renewableGeneration[renewableGen]
+                + b.renewableCurtailment[renewableGen]
+                == 0 * u.MW
+            )
+
         return (
             b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            == c_p.renewableCapacityExpected[renewableGen]
+            <= c_p.renewableCapacityExpected[renewableGen]
         )
 
     # [TODO: Add renewableExtended to this and anywhere else.]

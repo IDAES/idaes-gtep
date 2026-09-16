@@ -35,10 +35,9 @@ def get_solved_model():
         planning_data_args={
             "stages": 1,
             "num_reps": 1,
-            "len_reps": 1,
             "num_commit": 1,
             "num_dispatch": 1,
-            "duration_dispatch": 15,
+            "duration_representative_period": 1,
         },
         prescient_data_args={
             "representative_dates": ["2020-01-28 00:00"],
@@ -68,17 +67,15 @@ class TestExpansionPlanningSolution(unittest.TestCase):
         self.assertIsInstance(sol_object.gen_df, pd.DataFrame)
         self.assertFalse(sol_object.gen_df.empty)
 
-        gen_types = sol_object._get_generation_types()
+        self.assertIn("CC", sol_object.gen_types)
+        self.assertIn("CT", sol_object.gen_types)
+        self.assertIn("PV", sol_object.gen_types)
+        self.assertIn("WIND", sol_object.gen_types)
+        self.assertIn("BATTERY", sol_object.gen_types)
+        self.assertIn("OTHER", sol_object.gen_types)
 
-        self.assertIn("CC", gen_types)
-        self.assertIn("CT", gen_types)
-        self.assertIn("PV", gen_types)
-        self.assertIn("WIND", gen_types)
-        self.assertIn("BATTERY", gen_types)
-        self.assertIn("other", gen_types)
-
-        self.assertTrue(hasattr(gen_types["CC"], "label"))
-        self.assertTrue(hasattr(gen_types["CC"], "color"))
+        self.assertTrue(hasattr(sol_object.gen_types["CC"], "label"))
+        self.assertTrue(hasattr(sol_object.gen_types["CC"], "color"))
 
     def test_create_results_directory_and_save_model_config(self):
         # Test the creation of the results directory and the model
@@ -87,10 +84,9 @@ class TestExpansionPlanningSolution(unittest.TestCase):
             planning_data_args={
                 "stages": 1,
                 "num_reps": 1,
-                "len_reps": 1,
                 "num_commit": 1,
                 "num_dispatch": 1,
-                "duration_dispatch": 15,
+                "duration_representative_period": 1,
             },
             include_cost_data=False,
         )

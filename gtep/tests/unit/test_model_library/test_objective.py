@@ -41,7 +41,7 @@ class TestObjective(unittest.TestCase):
         )
 
         self.check_helper.add_object(
-            name="total_cost_objective_rule",
+            name="total_cost_objective",
             units=u.USD,
             obj_type=pyo.Objective,
         )

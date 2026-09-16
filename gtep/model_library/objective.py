@@ -59,5 +59,5 @@ def create_objective_function(m):
         )
 
     @m.Objective()
-    def total_cost_objective_rule(m):
+    def total_cost_objective(m):
         return m.operatingCostTotal + m.expansionCostTotal + m.penaltyCostTotal

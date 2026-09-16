@@ -27,4 +27,10 @@ extend-ignore-re = [
     "\"id\": \".*\"",
     # ser is used as a variable name for pd.Series, so we exclude it when followed by a dot
     "ser[.].*",
+    # Plotly serializes data when converting to markdown, which is appearing in
+    # cell outputs and causing spell check to fail. Ignore binary data:
+    '''\\"bdata\\":\\"[^"]*\\\"''',
+    # Long AI-written regex pattern that should hopefully stop html
+    # within figures from failing
+    '''(?s)"text/html"\s*:\s*\[(?:\s*"(?:\\.|[^"\\])*"\s*,?)*\s*\]''',
 ]

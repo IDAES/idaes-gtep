@@ -29,9 +29,6 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
 
     m = b.model()
 
-    b.commitmentPeriodLength = pyo.Param(
-        within=pyo.PositiveReals, default=1, units=u.hr
-    )
     b.carbonTax = pyo.Param(default=0)
 
     # Capacity needs to be in the commitment block "b", not in main
@@ -215,12 +212,15 @@ def add_investment_commitment_constraints(m, b, investment_stage):
 
     @b.Constraint(doc="Curtailment penalties for investment period")
     def renewable_curtailment_cost(b):
+        m = b.model()
         renewableCurtailmentRep = 0
         for rep_per in b.representativePeriods:
             for com_per in b.representativePeriod[rep_per].commitmentPeriods:
                 renewableCurtailmentRep += (
                     m.weights[rep_per]
-                    * m.commitmentPeriodLength
+                    * b.representativePeriod[rep_per]
+                    .commitmentPeriod[com_per]
+                    .commitmentPeriodLength
                     * b.representativePeriod[rep_per]
                     .commitmentPeriod[com_per]
                     .renewableCurtailmentCommitment  # in MW
@@ -232,11 +232,9 @@ def add_investment_commitment_constraints(m, b, investment_stage):
             == m.investmentFactor[investment_stage] * renewableCurtailmentRep
         )
 
-    # [BLN: Convert this to a constraint using operatingCostInvestment
-    # Var. May also need to move it.]
-
     @b.Constraint(doc="Operating costs for investment period")
     def operatingCostInvestment_constraint(b):
+        m = b.model()
         return b.operatingCostInvestment == (
             m.investmentFactor[investment_stage]
             * sum(

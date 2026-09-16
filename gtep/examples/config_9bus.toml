@@ -58,6 +58,7 @@ tee = true
 
 [results]
 dir_name = "results"
+save_json = true
 value_threshold = 1e-3
 
 [plots]

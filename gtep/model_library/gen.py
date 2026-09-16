@@ -97,29 +97,45 @@ def add_investment_generators_constraints(m, b, investment_stage):
     # indicator variables of the status disjuncts to define the
     # operation of generators.
     for gen in m.thermalGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(False)
-            b.genExtended[gen].indicator_var.fix(False)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.genOperational[gen].indicator_var.fix(True)
+
+        if investment_stage == m.stages.first():
+            if m.md.data["elements"]["generator"][gen]["in_service"]:
+                b.genOperational[gen].indicator_var.fix(True)
+            else:
+                b.genOperational[gen].indicator_var.fix(False)
+                b.genExtended[gen].indicator_var.fix(False)
+
+            # Candidates should not be retired in the first stage
+            # because they do not exist yet.
+            if str(gen).endswith("-c"):
+                b.genRetired[gen].indicator_var.fix(False)
 
     for gen in m.renewableGenerators:
-        if (
-            m.md.data["elements"]["generator"][gen]["in_service"] == False
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(0)
-        elif (
-            m.md.data["elements"]["generator"][gen]["in_service"] == True
-            and investment_stage == 1
-        ):
-            b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+
+        if investment_stage == m.stages.first():
+            if m.md.data["elements"]["generator"][gen]["in_service"]:
+                b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
+            else:
+                b.renewableOperational[gen].set_value(0)
+                b.renewableExtended[gen].fix(0)
+                b.renewableRetired[gen].fix(0)
+
+    if not m.config["include_investment"]:
+
+        for therm_gen in m.thermalGenerators:
+            if str(therm_gen).endswith("-c"):
+                b.genDisabled[therm_gen].indicator_var.fix(True)
+
+        # Renewable generators currently use continuous capacity
+        # variables instead of investment-status disjuncts.
+        for renew_gen in m.renewableGenerators:
+
+            if str(renew_gen).endswith("-c"):
+                b.renewableOperational[renew_gen].fix(0)
+                b.renewableInstalled[renew_gen].fix(0)
+                b.renewableRetired[renew_gen].fix(0)
+                b.renewableExtended[renew_gen].fix(0)
+                b.renewableDisabled[renew_gen].fix(0)
 
     @b.Expression(doc="Generators investment costs in $")
     def generators_investment_cost(b):
@@ -281,19 +297,19 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
-                    <= m.rampUpRates[generator]
-                    * b.dispatchPeriod[dispatchPeriod].periodLength
-                    * m.thermalCapacity[generator]
+                    <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
-                    <= m.rampUpRates[generator]
-                    * b.dispatchPeriod[dispatchPeriod].periodLength
-                    * m.thermalCapacity[generator]
+                    - previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
+                    <= m.rampUpRates[generator] * m.thermalCapacity[generator]
                 )
             else:
                 return pyo.Constraint.Skip
@@ -308,17 +324,19 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= m.rampDownRates[generator]  # in MW/min
-                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
                     * m.thermalCapacity[generator]  # in MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= m.rampDownRates[generator]  # in MW/min
-                    * b.dispatchPeriod[dispatchPeriod].periodLength  # in min
                     * m.thermalCapacity[generator]  # in MW
                 )
             else:
@@ -365,30 +383,24 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                    - r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    - previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are only taking the value]
                         pyo.value(m.rampUpRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -431,30 +443,24 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
                 )
             elif dispatchPeriod == 1 and commitment_period != 1:
+                previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
+                previous_dispatch_period = (
+                    previous_commitment_block.dispatchPeriods.last()
+                )
                 return (
-                    r_p.commitmentPeriod[commitment_period - 1]
-                    .dispatchPeriod[b.dispatchPeriods.last()]
-                    .thermalGeneration[generator]
+                    previous_commitment_block.dispatchPeriod[
+                        previous_dispatch_period
+                    ].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     <= max(
                         pyo.value(m.thermalMin[generator]),
-                        # [ESR: Make sure the time units are consistent
-                        # here since we are taking the value only]
                         pyo.value(m.rampDownRates[generator])
-                        * pyo.value(
-                            b.dispatchPeriod[dispatchPeriod].periodLength
-                        )  # in minutes
                         * pyo.value(m.thermalCapacity[generator]),
                     )
                     * u.MW
@@ -633,7 +639,6 @@ def add_generators_logical_constraints(m):
             m.investmentStage[stage].renewableOperational[gen]
             + m.investmentStage[stage].renewableInstalled[gen]
             + m.investmentStage[stage].renewableExtended[gen]
-            + m.investmentStage[stage].renewableRetired[gen]
             + m.investmentStage[stage].renewableRetired[gen]
             <= m.renewableCapacityNameplate[gen]
         )
