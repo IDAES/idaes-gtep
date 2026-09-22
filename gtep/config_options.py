@@ -97,7 +97,6 @@ def _get_model_config():
             ),
         ),
     )
-    
 
     CONFIG.declare(
         "time_period_subsets",
@@ -130,13 +129,13 @@ def _get_model_config():
             ),
         ),
     )
-    
+
     return CONFIG
 
 
 def _add_common_configs(CONFIG):
     """Add common GTEP model configuration options.
-    
+
     These options are shared across model formulations and control
     load-scaling behavior.
 
@@ -161,8 +160,7 @@ def _add_common_configs(CONFIG):
             default=False,
             domain=Bool,
             description=(
-                "Enable Texas-case-specific load scaling logic, when "
-                "applicable."
+                "Enable Texas-case-specific load scaling logic, when " "applicable."
             ),
         ),
     )
@@ -185,7 +183,7 @@ def _add_investment_configs(CONFIG):
             description="Include thermal generation investment options.",
         ),
     )
-    
+
     CONFIG.declare(
         "renewable_generation",
         ConfigValue(
@@ -194,7 +192,7 @@ def _add_investment_configs(CONFIG):
             description="Include renewable generation investment options.",
         ),
     )
-    
+
     CONFIG.declare(
         "storage",
         ConfigValue(
@@ -203,7 +201,7 @@ def _add_investment_configs(CONFIG):
             description="Include storage investment and operation modeling.",
         ),
     )
-    
+
     CONFIG.declare(
         "transmission",
         ConfigValue(
@@ -212,7 +210,7 @@ def _add_investment_configs(CONFIG):
             description="Include transmission modeling and investment options.",
         ),
     )
-    
+
     CONFIG.declare(
         "transmission_switching",
         ConfigValue(
