@@ -79,7 +79,7 @@ The available configuration options are described in the table below:
 | `include_investment` | `Bool` | `True` | Enables investment-related decisions. When disabled, candidate assets should not be selected for installation. |
 | `include_commitment` | `Bool` | `True` | Enables unit commitment logic, including generator on/off operating-status decisions. |
 | `include_redispatch` | `Bool` | `True` | Enables redispatch within commitment periods. This is relevant when there is more than one dispatch period per commitment period. |
-| `flow_model` | `In({"DC", "CP", "ACP", "ACR", "transport"})` | `"DC"` | Selects the power-flow formulation used in the model. |
+| `flow_model` | `In({"DC", "CP", "ACP", "ACR", "transport"})` | `"DC"` | Selects the power-flow formulation used in the model. Available values are described in the table below. |
 | `time_period_subsets` | `ConfigList` | `[]` | Optional list for defining fixed-length or fixed-subset time-period structures. |
 | `time_period_dict` | `ConfigDict` | `{}` | Optional nested dictionary describing custom investment, representative, commitment, and dispatch period structures. |
 | `dispatch_randomization` | `Bool` | `True` | Enables randomized dispatch information instead of fixed values per commitment period. |
