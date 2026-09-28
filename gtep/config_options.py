@@ -118,7 +118,10 @@ def _get_model_config():
     #     ConfigDict(
     #         description=(
     #             "Optional nested dictionary defining custom investment, "
-    #             "representative, commitment, and dispatch period structures."
+    #             "representative, commitment, and dispatch period structures. "
+    #             " The dictionary is specified as {(investment period #, length): "
+    #             "{(representative period #, length): {(commitment period #, length): "
+    #             "{dispatch period #: length}}}"
     #         )
     #     ),
     # )
