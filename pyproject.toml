@@ -69,3 +69,8 @@ gtep = [
     "data/costs/**",
     "*.ipynb"
     ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gtep*"]
+exclude = ["archived*"]
