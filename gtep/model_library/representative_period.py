@@ -81,13 +81,47 @@ def add_representative_period_logical_constraints(b, rep_per):
     m = b.model()
     i_p = b.parent_block()
 
+    def ramp_rate_fraction(
+        b,
+        ramp_rate_mw_per_min,
+        commitmentPeriod,
+        thermalGen,
+    ):
+        """This function converts ramp rate from MW/min to fraction of
+        capacity per commitment period.
+
+        If thermal capacity is zero, return 1 to avoid division by
+        zero and represent no additional ramping restriction.
+
+        """
+
+        thermal_capacity_mw = m.thermalCapacity[thermalGen]
+
+        if pyo.value(thermal_capacity_mw) == 0:
+            return 1
+
+        commitment_duration_hr = b.commitmentPeriod[
+            commitmentPeriod
+        ].commitmentPeriodLength
+        commitment_duration_min = pyo.units.convert(
+            commitment_duration_hr,
+            to_units=u.minutes,
+        )
+
+        return pyo.value(
+            ramp_rate_mw_per_min * commitment_duration_min / thermal_capacity_mw
+        )
+
     # [TODO: This needs to be updated for variable length
     # commitment periods. Do this by (pre) processing the set of
     # commitment periods for req_shutdown_periods.]
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_shutdown(b, commitmentPeriod, thermalGen):
         req_shutdown_periods = ceil(
-            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"])
+            1
+            / ramp_rate_fraction(
+                b, m.rampDownRates[thermalGen], commitmentPeriod, thermalGen
+            )
         )
         return (
             pyo.atmost(
@@ -144,8 +178,9 @@ def add_representative_period_logical_constraints(b, rep_per):
     def consistent_commitment_startup(b, commitmentPeriod, thermalGen):
         req_startup_periods = ceil(
             1
-            # / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
-            / pyo.value(m.rampUpRates[thermalGen])
+            / ramp_rate_fraction(
+                b, m.rampUpRates[thermalGen], commitmentPeriod, thermalGen
+            )
         )
         return (
             pyo.atmost(
@@ -174,7 +209,10 @@ def add_representative_period_logical_constraints(b, rep_per):
     @b.LogicalConstraint(b.commitmentPeriods, m.thermalGenerators)
     def consistent_commitment_on_after_startup(b, commitmentPeriod, thermalGen):
         req_startup_periods = ceil(
-            1 / float(m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"])
+            1
+            / ramp_rate_fraction(
+                b, m.rampUpRates[thermalGen], commitmentPeriod, thermalGen
+            )
         )
         return (
             pyo.atleast(
