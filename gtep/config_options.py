@@ -98,37 +98,42 @@ def _get_model_config():
         ),
     )
 
-    CONFIG.declare(
-        "time_period_subsets",
-        ConfigList(
-            description=(
-                "Optional list defining fixed-length or fixed-subset "
-                "time-period structures."
-            )
-        ),
-    )
+    # NOTE: The commented configuration options below are not
+    # currently active in the model. They are kept here for reference
+    # and may be re-enabled in a future update if support for these
+    # features is restored or extended.
 
-    CONFIG.declare(
-        "time_period_dict",
-        ConfigDict(
-            description=(
-                "Optional nested dictionary defining custom investment, "
-                "representative, commitment, and dispatch period structures."
-            )
-        ),
-    )
+    # CONFIG.declare(
+    #     "time_period_subsets",
+    #     ConfigList(
+    #         description=(
+    #             "Optional list defining fixed-length or fixed-subset "
+    #             "time-period structures."
+    #         )
+    #     ),
+    # )
 
-    CONFIG.declare(
-        "dispatch_randomization",
-        ConfigValue(
-            default=True,
-            domain=Bool,
-            description=(
-                "Use randomized dispatch information instead of fixed "
-                "values per commitment period."
-            ),
-        ),
-    )
+    # CONFIG.declare(
+    #     "time_period_dict",
+    #     ConfigDict(
+    #         description=(
+    #             "Optional nested dictionary defining custom investment, "
+    #             "representative, commitment, and dispatch period structures."
+    #         )
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "dispatch_randomization",
+    #     ConfigValue(
+    #         default=True,
+    #         domain=Bool,
+    #         description=(
+    #             "Use randomized dispatch information instead of fixed "
+    #             "values per commitment period."
+    #         ),
+    #     ),
+    # )
 
     return CONFIG
 
@@ -176,24 +181,6 @@ def _add_investment_configs(CONFIG):
     """
 
     CONFIG.declare(
-        "thermal_generation",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Include thermal generation investment options.",
-        ),
-    )
-
-    CONFIG.declare(
-        "renewable_generation",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Include renewable generation investment options.",
-        ),
-    )
-
-    CONFIG.declare(
         "storage",
         ConfigValue(
             default=False,
@@ -212,15 +199,6 @@ def _add_investment_configs(CONFIG):
     )
 
     CONFIG.declare(
-        "transmission_switching",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Allow transmission switching decisions during dispatch.",
-        ),
-    )
-
-    CONFIG.declare(
         "advanced_hydro",
         ConfigValue(
             default=False,
@@ -231,6 +209,38 @@ def _add_investment_configs(CONFIG):
             ),
         ),
     )
+
+    # NOTE: The commented configuration options below are not
+    # currently active in the model. They are kept here for reference
+    # and may be re-enabled in a future update if support for these
+    # features is restored or extended.
+
+    # CONFIG.declare(
+    #     "thermal_generation",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Include thermal generation investment options.",
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "renewable_generation",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Include renewable generation investment options.",
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "transmission_switching",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Allow transmission switching decisions during dispatch.",
+    #     ),
+    # )
 
 
 def _add_solver_configs(CONFIG):
