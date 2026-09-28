@@ -260,6 +260,12 @@ class TestExpansionPlanningData(unittest.TestCase):
             else:
                 self.assertEqual(gen["lifetime"], 3)
 
+            gen_data = testObject.md.data["elements"]["generator"][gen_name]
+            if "ramp_agc" in gen_data:
+                ramp_value = gen_data["ramp_agc"]
+            else:
+                ramp_value = 0.1
+
             # Check other fixed attributes
             self.assertEqual(gen["spinning_reserve_frac"], 0.1)
             self.assertEqual(gen["quickstart_reserve_frac"], 0.1)
@@ -268,8 +274,8 @@ class TestExpansionPlanningData(unittest.TestCase):
             self.assertEqual(gen["max_operating_reserve"], 1)
             self.assertEqual(gen["max_spinning_reserve"], 1)
             self.assertEqual(gen["max_quickstart_reserve"], 1)
-            self.assertEqual(gen["ramp_up_rate"], 0.1)
-            self.assertEqual(gen["ramp_down_rate"], 0.1)
+            self.assertEqual(gen["ramp_up_rate"], ramp_value)
+            self.assertEqual(gen["ramp_down_rate"], ramp_value)
             self.assertEqual(gen["emissions_factor"], 1)
             self.assertEqual(gen["start_fuel"], 1)
             self.assertEqual(gen["investment_cost"], 1)
