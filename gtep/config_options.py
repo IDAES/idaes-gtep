@@ -53,7 +53,7 @@ def _get_model_config():
             default=True,
             domain=Bool,
             description=(
-                "Enable investment decisions for candidate and existing "
+                "Enable investment decisions for candidate "
                 "assets. When disabled, candidate assets are not selected "
                 "for installation."
             ),
