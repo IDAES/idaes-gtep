@@ -81,7 +81,7 @@ jobs:
           pytest -v --cov=gtep --cov-report=xml gtep
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@7
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.GTEP_CODECOV_TOKEN }}
           fail_ci_if_error: true
