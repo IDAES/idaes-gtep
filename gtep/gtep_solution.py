@@ -1143,7 +1143,7 @@ class ExpansionPlanningSolution:
             )
         # Add load shed as a stacked bar
         tab20 = plt.get_cmap("tab20")
-        if sum(load_shed_trace) > 0:
+        if load_shed_trace.sum() > 0:
             traces.append(
                 go.Bar(
                     x=times,
