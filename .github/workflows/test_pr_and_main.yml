@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Run Spell Checker
         uses: crate-ci/typos@master
-        with: 
+        with:
           config: ./.github/workflows/typos.toml
 
   build:
@@ -59,7 +59,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
@@ -74,8 +74,14 @@ jobs:
       - name: Install idaes-gtep
         run: |
           pip install -e .
-          pip install pytest highspy
-          
+          pip install pytest pytest-cov highspy
+
       - name: Run Tests
         run: |
-          pytest -v gtep
+          pytest -v --cov=gtep --cov-report=xml gtep
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@7
+        with:
+          token: ${{ secrets.GTEP_CODECOV_TOKEN }}
+          fail_ci_if_error: true
