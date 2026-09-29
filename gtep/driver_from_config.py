@@ -156,19 +156,12 @@ def main(config_path):
         "include_commitment": True,
         "include_redispatch": True,
         "flow_model": "DC",
-        # Time-period options
-        "time_period_subsets": [],
-        "time_period_dict": {},
-        "dispatch_randomization": False,
         # Common options
         "scale_loads": True,
         "scale_texas_loads": False,
         # Investment options
-        "thermal_generation": False,
-        "renewable_generation": False,
         "storage": False,
         "transmission": False,
-        "transmission_switching": False,
         "advanced_hydro": False,
     }
     for key, default_value in model_defaults.items():
