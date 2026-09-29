@@ -80,16 +80,10 @@ The available configuration options are described in the table below:
 | `include_commitment` | `Bool` | `True` | Enables unit commitment logic, including generator on/off operating-status decisions. |
 | `include_redispatch` | `Bool` | `True` | Enables redispatch within commitment periods. This is relevant when there is more than one dispatch period per commitment period. |
 | `flow_model` | `In({"DC", "CP", "ACP", "ACR", "transport"})` | `"DC"` | Selects the power-flow formulation used in the model. Available values are described in the table below. |
-| `time_period_subsets` | `ConfigList` | `[]` | Optional list for defining fixed-length or fixed-subset time-period structures. |
-| `time_period_dict` | `ConfigDict` | `{}` | Optional nested dictionary describing custom investment, representative, commitment, and dispatch period structures. |
-| `dispatch_randomization` | `Bool` | `True` | Enables randomized dispatch information instead of fixed values per commitment period. |
 | `scale_loads` | `Bool` | `True` | Enables load scaling in the model rather than directly modifying the input data. |
 | `scale_texas_loads` | `Bool` | `False` | Enables Texas-case-specific load scaling logic, when applicable. |
-| `thermal_generation` | `Bool` | `False` | Enables thermal generation investment options. |
-| `renewable_generation` | `Bool` | `False` | Enables renewable generation investment options. |
 | `storage` | `Bool` | `False` | Enables storage investment and operation modeling. |
 | `transmission` | `Bool` | `False` | Enables transmission modeling and transmission investment options. |
-| `transmission_switching` | `Bool` | `False` | Allows transmission switching decisions during dispatch. |
 | `advanced_hydro` | `Bool` | `False` | Enables advanced hydro modeling features, including daily average hydro requirements. |
 
 The available options for the `flow_model` configuration are listed
