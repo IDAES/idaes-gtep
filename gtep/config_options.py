@@ -168,7 +168,7 @@ def _add_common_configs(CONFIG):
             default=False,
             domain=Bool,
             description=(
-                "Enable Texas-case-specific load scaling logic, when " "applicable."
+                "Enable Texas-case-specific load scaling logic, when applicable."
             ),
         ),
     )
