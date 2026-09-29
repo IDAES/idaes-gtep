@@ -205,4 +205,14 @@ rep_days = [
 ]
 sol_object.create_stackgraph(dir_name, rep_days)
 
+# Calculate analysis metrics from the model data object and saved
+# result JSON files.
+outputs, metrics_df = sol_object.create_analysis(
+    results_path=dir_name,
+    gtep_model=mod_object,
+    print_results=True,
+    save_csv=True,
+    csv_path=f"{dir_name}/analysis_metrics.csv",
+    hours_per_period=1.0,
+)
 logger.info("GTEP run complete.")

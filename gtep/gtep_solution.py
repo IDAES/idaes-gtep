@@ -48,6 +48,7 @@ class ExpansionPlanningSolution:
     """
 
     def __init__(self, data_path):
+        self.data_path = data_path
         self.gen_df = pd.read_csv(f"{data_path}/gen.csv")
         self.storage_csv_path = os.path.join(data_path, "storage.csv")
         if os.path.exists(self.storage_csv_path):
@@ -1259,3 +1260,262 @@ class ExpansionPlanningSolution:
             fig.write_html(f"{plot_path}")
             logger.info(f" -> Saved interactive stackgraph to {plot_path}")
         return fig
+
+    def create_analysis(
+        self,
+        results_path,
+        gtep_model,
+        print_results=True,
+        save_csv=True,
+        csv_path=None,
+        hours_per_period=1.0,
+    ):
+        """This method creates a set of analysis metrics from model
+        data and results.
+
+        This method reads system information from the GTEP Pyomo
+        model, model data object, and saved JSON result files to
+        calculate aggregate solution metrics.
+
+        :param results_path: Directory containing saved result JSON files.
+        :param gtep_model: Solved ExpansionPlanningModel object.
+        :param print_results: If True, print calculated metrics.
+                              Defaults to True.
+        :param save_csv: If True, save calculated metrics to CSV.
+                         Defaults to True.
+        :param csv_path: Optional output path for the metrics CSV file.
+                         If not provided, defaults to
+                         ``results_path/analysis_metrics.csv``.
+        :param hours_per_period: Duration of each generation time period
+                                 in hours. Defaults to 1.0.
+        :return: Tuple containing the metrics dictionary and metrics
+                 DataFrame.
+
+        """
+
+        m = gtep_model.model
+        md = m.md
+        md_data = md.data
+        elements = md_data["elements"]
+
+        metrics_rows = []
+
+        def record_metric(metric, value, units="", category=""):
+            """Record and optionally print a metric."""
+            row = {
+                "metric": metric,
+                "category": category,
+                "value": value,
+                "units": units,
+            }
+
+            metrics_rows.append(row)
+
+            if print_results:
+                unit_text = f" {units}" if units else ""
+                print(f"{metric}: {value}{unit_text}")
+
+        def load_result_json(filename):
+            """This function loads a JSON result file."""
+
+            result_file = os.path.join(results_path, filename)
+
+            if not os.path.exists(result_file):
+                raise FileNotFoundError(f"Could not find {filename} at: {result_file}")
+
+            with open(result_file, "r") as f:
+                return json.load(f)
+
+        def count_buses():
+            """This function returns the number of buses from the
+            model set.
+
+            """
+
+            total_buses = len(list(m.buses))
+
+            record_metric(
+                metric="buses",
+                value=total_buses,
+                category="parameter_in_model",
+            )
+
+            return {
+                "buses": total_buses,
+            }
+
+        def count_assets(asset_set, metrics):
+            """This function returns total, existing, and candidate
+            assets.
+
+            """
+
+            total_assets = len(list(asset_set))
+            existing_assets = sum(
+                1 for asset in asset_set if not str(asset).endswith("-c")
+            )
+            candidate_assets = sum(
+                1 for asset in asset_set if str(asset).endswith("-c")
+            )
+
+            record_metric(
+                metric=metrics[0],
+                value=total_assets,
+                category="parameter_in_model",
+            )
+            record_metric(
+                metric=metrics[1],
+                value=existing_assets,
+                category="parameter_in_model",
+            )
+            record_metric(
+                metric=metrics[2],
+                value=candidate_assets,
+                category="parameter_in_model",
+            )
+
+            return {
+                metrics[0]: total_assets,
+                metrics[1]: existing_assets,
+                metrics[2]: candidate_assets,
+            }
+
+        def count_loads():
+            """This function returns load count."""
+
+            total_loads = len(elements.get("load", {}))
+
+            record_metric(
+                metric="loads",
+                value=total_loads,
+                category="parameter_in_model",
+            )
+
+            return {
+                "loads": total_loads,
+            }
+
+        def calculate_total_load_gw():
+            """This function reads loads.json and returns total load in
+            GW.
+
+            """
+
+            loads_data = load_result_json("loads.json")
+
+            total_mw = sum(float(value) for value in loads_data.values())
+            total_gw = total_mw / 1000
+
+            record_metric(
+                metric="total_load",
+                value=total_gw,
+                units="GW",
+                category="system_power",
+            )
+
+            return total_gw
+
+        def calculate_total_load_shed_mw():
+            """This function reads load_shed.json and returns total
+            load shed in MW.
+
+            """
+
+            load_shed_data = load_result_json("load_shed.json")
+
+            total_load_shed = sum(float(value) for value in load_shed_data.values())
+
+            record_metric(
+                metric="total_load_shed",
+                value=total_load_shed,
+                units="MW",
+                category="calculated_in_model",
+            )
+
+            return total_load_shed
+
+        def calculate_total_generation_gw():
+            """This function reads generation.json and returns total
+            generation in GW.
+
+            """
+
+            generation_data = load_result_json("generation.json")
+
+            total_mw = sum(float(value) for value in generation_data.values())
+            total_gw = total_mw / 1000
+
+            record_metric(
+                metric="total_generation",
+                value=total_gw,
+                units="GW",
+                category="system_power",
+            )
+
+            return total_gw
+
+        def calculate_total_generation_gwh():
+            """This function reads generation.json and returns total
+            generation in GWh.
+
+            """
+
+            generation_data = load_result_json("generation.json")
+
+            total_mw = sum(float(value) for value in generation_data.values())
+            total_gwh = total_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_generation",
+                value=total_gwh,
+                units="GWh",
+                category="system_energy",
+            )
+
+            return total_gwh
+
+        outputs = {}
+
+        # Metrics from parameters in the model
+        outputs.update(count_buses())
+        outputs.update(
+            count_assets(
+                m.lines, metrics=["branches", "existing_branches", "candidate_branches"]
+            )
+        )
+        outputs.update(
+            count_assets(
+                m.generators,
+                metrics=["generators", "existing_generators", "candidate_generators"],
+            )
+        )
+        if m.config["storage"]:
+            outputs.update(
+                count_assets(
+                    m.storage,
+                    metrics=["storage", "existing_storage", "candidate_storage"],
+                )
+            )
+        outputs.update(count_loads())
+
+        # Metrics from calculated variables in the model
+        outputs["total_generation_gw"] = calculate_total_generation_gw()
+        outputs["total_generation_gwh"] = calculate_total_generation_gwh()
+        outputs["total_load_gw"] = calculate_total_load_gw()
+        outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
+
+        metrics_df = pd.DataFrame(metrics_rows)
+
+        if save_csv:
+            if csv_path is None:
+                csv_path = os.path.join(results_path, "analysis_metrics.csv")
+
+            output_path = os.path.abspath(csv_path)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            metrics_df.to_csv(output_path, index=False)
+
+            if print_results:
+                print(f"\nSaved analysis metrics to: {output_path}")
+
+        return outputs, metrics_df
