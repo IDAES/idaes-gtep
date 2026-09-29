@@ -73,4 +73,4 @@ gtep = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["gtep*"]
-exclude = ["archived*"]
+exclude = ["archive*"]
