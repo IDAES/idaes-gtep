@@ -188,7 +188,7 @@ def _add_investment_configs(CONFIG):
         ConfigValue(
             default=False,
             domain=Bool,
-            description="Include storage investment and operation modeling.",
+            description="Include storage investment options and operational constraints.",
         ),
     )
 
