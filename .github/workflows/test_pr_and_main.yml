@@ -32,8 +32,8 @@ jobs:
     # OS and/or Python version don't make a difference, so we choose ubuntu and 3.10 for performance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
       - name: Install Black
@@ -47,10 +47,10 @@ jobs:
     name: Check Spelling
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run Spell Checker
-        uses: crate-ci/typos@master
-        with: 
+        uses: crate-ci/typos@main
+        with:
           config: ./.github/workflows/typos.toml
 
   build:
@@ -59,23 +59,29 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
 
       - name: Install idaes-gtep
         run: |
           pip install -e .
-          pip install pytest highspy
-          
+          pip install pytest pytest-cov highspy
+
       - name: Run Tests
         run: |
-          pytest -v gtep
+          pytest -v --cov=gtep --cov-report=xml gtep
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.GTEP_CODECOV_TOKEN }}
+          fail_ci_if_error: true
