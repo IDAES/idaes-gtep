@@ -61,3 +61,39 @@ define specific parts of the model formulation under the directory
 | `scaling.py` | Provides load-scaling utilities and related model adjustments. |
 | `hydro.py` | Defines hydropower-specific variables and constraints used when advanced hydro modeling is enabled. |
 
+## Model Configuration Options
+
+The GTEP model uses a Pyomo `ConfigBlock` to define model options that
+control which parts of the formulation are included. These options
+determine whether the model includes investment decisions, commitment
+logic, redispatch, load scaling, transmission modeling, storage, hydro
+constraints, and the selected power-flow formulation. These options
+are applied before model construction. Turning an option on or off
+changes which variables, constraints, disjunctions, and cost terms are
+included in the model.
+
+The available configuration options are described in the table below:
+
+| Option | Type | Default | Description |
+|---|---|---:|---|
+| `include_investment` | `Bool` | `True` | Enables investment-related decisions. When disabled, candidate assets should not be selected for installation. |
+| `include_commitment` | `Bool` | `True` | Enables unit commitment logic, including generator on/off operating-status decisions. |
+| `include_redispatch` | `Bool` | `True` | Enables redispatch within commitment periods. This is relevant when there is more than one dispatch period per commitment period. |
+| `flow_model` | `In({"DC", "CP", "ACP", "ACR", "transport"})` | `"DC"` | Selects the power-flow formulation used in the model. Available values are described in the table below. |
+| `scale_loads` | `Bool` | `True` | Enables load scaling in the model rather than directly modifying the input data. |
+| `scale_texas_loads` | `Bool` | `False` | Enables Texas-case-specific load scaling logic, when applicable. |
+| `storage` | `Bool` | `False` | Enables storage investment and operation modeling. |
+| `transmission` | `Bool` | `False` | Enables transmission modeling and transmission investment options. |
+| `advanced_hydro` | `Bool` | `False` | Enables advanced hydro modeling features, including daily average hydro requirements. |
+
+The available options for the `flow_model` configuration are listed
+below:
+
+| `flow_model` Value | Description |
+|---|---|
+| `"DC"` | DC power-flow approximation. |
+| `"CP"` | Copper-plate power-flow approximation. |
+| `"ACP"` | AC power flow in polar formulation. |
+| `"ACR"` | AC power flow in rectangular formulation. |
+| `"transport"` | Transport-style network flow approximation. |
+

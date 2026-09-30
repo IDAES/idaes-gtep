@@ -80,21 +80,13 @@ include_redispatch = true
 # Power flow formulation. Common options: "DC", "CP".
 flow_model = "DC"
 
-# Time-period options.
-time_period_subsets = []
-time_period_dict = {}
-dispatch_randomization = false
-
 # Common options.
 scale_loads = true
 scale_texas_loads = false
 
 # Investment/model component options.
-thermal_generation = false
-renewable_generation = false
 storage = false
 transmission = true
-transmission_switching = false
 advanced_hydro = false
 
 

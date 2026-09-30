@@ -1129,6 +1129,8 @@ class ExpansionPlanningSolution:
             values = np.array(
                 [generation[s][p][c][d][name] for s, p, c, d in time_periods]
             )
+            if np.sum(values) == 0:
+                continue
             pattern_shape = GEN_TYPE_HATCHES.get(name, "")
             # Use lower opacity for candidate types (those with a
             # hatch)
@@ -1147,16 +1149,17 @@ class ExpansionPlanningSolution:
             )
         # Add load shed as a stacked bar
         tab20 = plt.get_cmap("tab20")
-        traces.append(
-            go.Bar(
-                x=times,
-                y=load_shed_trace,
-                name="Load Shed",
-                marker_color=mcolors.to_hex(tab20(7)),
-                opacity=0.7,
-                marker_line_width=0,
+        if np.sum(load_shed_trace) > 0:
+            traces.append(
+                go.Bar(
+                    x=times,
+                    y=load_shed_trace,
+                    name="Load Shed",
+                    marker_color=mcolors.to_hex(tab20(7)),
+                    opacity=0.7,
+                    marker_line_width=0,
+                )
             )
-        )
         fig = go.Figure(data=traces)
         fig.add_trace(
             go.Scatter(
