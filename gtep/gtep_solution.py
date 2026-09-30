@@ -1474,6 +1474,114 @@ class ExpansionPlanningSolution:
 
             return total_gwh
 
+        def calculate_total_curtailment_gwh():
+            """This function reads curtailment.json and returns total
+            curtailment in GWh.
+
+            """
+
+            curtailment_data = load_result_json("curtailment.json")
+
+            total_mw = sum(float(value) for value in curtailment_data.values())
+            total_gwh = total_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_curtailment",
+                value=total_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+
+            return total_gwh
+
+        def calculate_storage_operation_gwh():
+            """This function reads charging.json and discharging.json
+            and returns total storage charging and discharging in GWh.
+
+            """
+
+            charging_data = load_result_json("charging.json")
+            discharging_data = load_result_json("discharging.json")
+
+            total_charging_mw = sum(float(value) for value in charging_data.values())
+            total_discharging_mw = sum(
+                float(value) for value in discharging_data.values()
+            )
+
+            total_charging_gwh = total_charging_mw * hours_per_period / 1000
+            total_discharging_gwh = total_discharging_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_storage_charging",
+                value=total_charging_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+            record_metric(
+                metric="total_storage_discharging",
+                value=total_discharging_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+
+            return {
+                "total_storage_charging_gwh": total_charging_gwh,
+                "total_storage_discharging_gwh": total_discharging_gwh,
+            }
+
+        def count_installed_assets(asset_set, metric):
+            """This function returns the number of installed candidate
+            assets from saved investment results.
+
+            """
+
+            installed_assets = set()
+
+            investment_files = [
+                "renewable_investments.json",
+                "dispatchable_investments.json",
+            ]
+
+            for investment_file in investment_files:
+                investment_data = load_result_json(investment_file)
+
+                for asset in asset_set:
+                    asset = str(asset)
+
+                    if not asset.endswith("-c"):
+                        continue
+
+                    for key, value in investment_data.items():
+                        if "Installed" not in key:
+                            continue
+
+                        if not (
+                            key.endswith(f".{asset}")
+                            or key.endswith(f"[{asset}]")
+                            or key.rsplit(".", 1)[-1].strip("'\"") == asset
+                        ):
+                            continue
+
+                        if float(value) >= 0.001:
+                            installed_assets.add(asset)
+
+            count = len(installed_assets)
+
+            record_metric(
+                metric=metric,
+                value=count,
+                category="calculated_in_model",
+            )
+
+            return count
+
+        # Calculate analysis metrics from three sources: model sets
+        # and input-derived parameters, saved operational result
+        # files, and saved investment/cost result files. These metrics
+        # summarize case size, dispatch/reliability outcomes, selected
+        # candidate assets, and aggregate costs for comparing
+        # experiments.
+
         outputs = {}
 
         # Metrics from parameters in the model
@@ -1503,6 +1611,15 @@ class ExpansionPlanningSolution:
         outputs["total_generation_gwh"] = calculate_total_generation_gwh()
         outputs["total_load_gw"] = calculate_total_load_gw()
         outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
+        outputs["total_curtailment_gwh"] = calculate_total_curtailment_gwh()
+        if m.config["storage"]:
+            outputs.update(calculate_storage_operation_gwh())
+        outputs["installed_generators"] = count_installed_assets(
+            m.generators, "installed_generators"
+        )
+        outputs["installed_branches"] = count_installed_assets(
+            m.lines, "installed_branches"
+        )
 
         metrics_df = pd.DataFrame(metrics_rows)
 
