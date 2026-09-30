@@ -623,9 +623,8 @@ def add_model_parameters(m):
             thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_up_rate"]
             for thermalGen in m.thermalGenerators
         },
-        # units=u.MW / u.minutes,
-        units=u.dimensionless,
-        doc="Ramp up rates for each generator as a fraction of maximum generator output",
+        units=u.MW / u.minutes,
+        doc="Ramp up rates for each generator",
     )
 
     m.rampDownRates = pyo.Param(
@@ -634,9 +633,8 @@ def add_model_parameters(m):
             thermalGen: m.md.data["elements"]["generator"][thermalGen]["ramp_down_rate"]
             for thermalGen in m.thermalGenerators
         },
-        # units=u.MW / u.minutes,
-        units=u.dimensionless,
-        doc="Ramp down rates for each generator as a fraction of maximum generator output",
+        units=u.MW / u.minutes,
+        doc="Ramp down rates for each generator",
     )
 
     # Matching for each generator to the region containing the bus at which the generator

@@ -581,8 +581,31 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["generator"][gen][
                         "max_quickstart_reserve"
                     ] = 1
-                    self.md.data["elements"]["generator"][gen]["ramp_up_rate"] = 0.1
-                    self.md.data["elements"]["generator"][gen]["ramp_down_rate"] = 0.1
+
+                    # Use values from the "Ramp Rate MW/Min" input
+                    # column when available. Prescient stores these
+                    # values in the generator dictionary as "ramp_q"
+                    # and "ramp_agc". If these values are missing, use
+                    # 0.1 as the default ramp-up and ramp-down rate.
+                    gen_data = self.md.data["elements"]["generator"][gen]
+                    if (
+                        "ramp_agc" in gen_data
+                        and gen_data["ramp_agc"] is not None
+                        and str(gen_data["ramp_agc"]).strip() != ""
+                        and str(gen_data["ramp_agc"]).strip().upper()
+                        not in ["NA", "NAN", "NONE"]
+                    ):
+                        ramp_rate_value = gen_data["ramp_agc"]
+                    else:
+                        ramp_rate_value = 0.1
+
+                    self.md.data["elements"]["generator"][gen][
+                        "ramp_up_rate"
+                    ] = ramp_rate_value
+                    self.md.data["elements"]["generator"][gen][
+                        "ramp_down_rate"
+                    ] = ramp_rate_value
+
                     self.md.data["elements"]["generator"][gen]["emissions_factor"] = 1
                     self.md.data["elements"]["generator"][gen]["start_fuel"] = 1
                     self.md.data["elements"]["generator"][gen]["investment_cost"] = 1
