@@ -29,11 +29,22 @@ _supported_flows = {
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
     "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
-    "transport": ("gtep.transport", "transport"),
 }
 
 
 def _get_model_config():
+    """This function creates and returns the base GTEP model
+    configuration block.
+
+    This configuration block defines core model options used by the
+    ``ExpansionPlanningModel`` class. These options control investment,
+    commitment, redispatch, power-flow formulation, and time-period
+    structure settings.
+
+    :return: GTEP model configuration block.
+
+    """
+
     CONFIG = ConfigBlock("GTEPModelConfig")
 
     CONFIG.declare(
@@ -41,7 +52,11 @@ def _get_model_config():
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Enable inclusion of any investment options.",
+            description=(
+                "Enable investment decisions for candidate "
+                "assets. When disabled, candidate assets are not selected "
+                "for installation."
+            ),
         ),
     )
 
@@ -50,7 +65,10 @@ def _get_model_config():
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Include unit commitment formulation.",
+            description=(
+                "Include unit commitment decisions, including generator "
+                "on/off operating-status logic."
+            ),
         ),
     )
 
@@ -59,7 +77,11 @@ def _get_model_config():
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Include economic redispatch formulation (i.e., >1 dispatch period per commitment period).",
+            description=(
+                "Include redispatch decisions within commitment periods. "
+                "This is relevant when there is more than one dispatch "
+                "period per commitment period."
+            ),
         ),
     )
 
@@ -68,89 +90,113 @@ def _get_model_config():
         ConfigValue(
             default="DC",
             domain=In(_supported_flows),
-            description="Power flow approximation to use.",
+            description=(
+                "Power-flow formulation to use. Supported options include "
+                "DC, CP, ACP, and ACR."
+            ),
         ),
     )
 
-    CONFIG.declare(
-        "time_period_subsets",
-        ConfigList(
-            description="Time period counts for fixed-length and fixed-subset periods."
-        ),
-    )
+    # NOTE: The commented configuration options below are not
+    # currently active in the model. They are kept here for reference
+    # and may be re-enabled in a future update if support for these
+    # features is restored or extended.
 
-    CONFIG.declare(
-        "time_period_dict",
-        ConfigDict(
-            description="Time period dict, specified as {(investment period #, length): {(representative period #, length): {(commitment period #, length): {dispatch period #: length}}}"
-        ),
-    )
+    # CONFIG.declare(
+    #     "time_period_subsets",
+    #     ConfigList(
+    #         description=(
+    #             "Optional list defining fixed-length or fixed-subset "
+    #             "time-period structures."
+    #         )
+    #     ),
+    # )
 
-    CONFIG.declare(
-        "dispatch_randomization",
-        ConfigValue(
-            default=True,
-            domain=Bool,
-            description="Introduces random dispatch information rather than having fixed values per commitment period.",
-        ),
-    )
+    # CONFIG.declare(
+    #     "time_period_dict",
+    #     ConfigDict(
+    #         description=(
+    #             "Optional nested dictionary defining custom investment, "
+    #             "representative, commitment, and dispatch period structures. "
+    #             " The dictionary is specified as {(investment period #, length): "
+    #             "{(representative period #, length): {(commitment period #, length): "
+    #             "{dispatch period #: length}}}"
+    #         )
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "dispatch_randomization",
+    #     ConfigValue(
+    #         default=True,
+    #         domain=Bool,
+    #         description=(
+    #             "Use randomized dispatch information instead of fixed "
+    #             "values per commitment period."
+    #         ),
+    #     ),
+    # )
+
     return CONFIG
 
 
 def _add_common_configs(CONFIG):
+    """Add common GTEP model configuration options.
+
+    These options are shared across model formulations and control
+    load-scaling behavior.
+
+    """
 
     CONFIG.declare(
         "scale_loads",
         ConfigValue(
             default=True,
             domain=Bool,
-            description="Allow scaling of load values into future years; i.e., load scaling is represented in the model but not the data.",
+            description=(
+                "Enable scaling of load values into future years. Load "
+                "scaling is represented in the model rather than directly "
+                "modifying the input data."
+            ),
         ),
     )
 
     CONFIG.declare(
         "scale_texas_loads",
-        ConfigValue(default=False, domain=Bool, description="but why"),
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Enable Texas-case-specific load scaling logic, when applicable."
+            ),
+        ),
     )
 
 
 def _add_investment_configs(CONFIG):
-    CONFIG.declare(
-        "thermal_generation",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Include thermal generation investment options",
-        ),
-    )
-    CONFIG.declare(
-        "renewable_generation",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Include renewable generation investment options",
-        ),
-    )
+    """This function adds investment and model-component configuration
+    options.
+
+    These options control which candidate asset types and component
+    formulations are included in the GTEP model.
+
+    """
+
     CONFIG.declare(
         "storage",
         ConfigValue(
-            default=False, domain=Bool, description="Include storage investment options"
+            default=False,
+            domain=Bool,
+            description="Include storage investment options and operational constraints.",
         ),
     )
+
     CONFIG.declare(
         "transmission",
         ConfigValue(
             default=False,
             domain=Bool,
-            description="Include transmission investment options",
-        ),
-    )
-    CONFIG.declare(
-        "transmission_switching",
-        ConfigValue(
-            default=False,
-            domain=Bool,
-            description="Allow transmission switching during dispatch",
+            description="Include transmission modeling and investment options.",
         ),
     )
 
@@ -159,10 +205,51 @@ def _add_investment_configs(CONFIG):
         ConfigValue(
             default=False,
             domain=Bool,
-            description="Include daily average hydro requirements",
+            description=(
+                "Include advanced hydro modeling features, including daily "
+                "average hydro requirements."
+            ),
         ),
     )
 
+    # NOTE: The commented configuration options below are not
+    # currently active in the model. They are kept here for reference
+    # and may be re-enabled in a future update if support for these
+    # features is restored or extended.
+
+    # CONFIG.declare(
+    #     "thermal_generation",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Include thermal generation investment options.",
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "renewable_generation",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Include renewable generation investment options.",
+    #     ),
+    # )
+
+    # CONFIG.declare(
+    #     "transmission_switching",
+    #     ConfigValue(
+    #         default=False,
+    #         domain=Bool,
+    #         description="Allow transmission switching decisions during dispatch.",
+    #     ),
+    # )
+
 
 def _add_solver_configs(CONFIG):
+    """This function adds solver-related configuration options.
+
+    This is currently reserved for future solver options.  Solver
+    settings are handled by the driver/configuration workflow.
+
+    """
     pass

@@ -124,21 +124,13 @@ mod_object.config["include_commitment"] = True
 mod_object.config["include_redispatch"] = True
 mod_object.config["flow_model"] = "DC"
 
-# Time-period options
-mod_object.config["time_period_subsets"] = []
-mod_object.config["time_period_dict"] = {}
-mod_object.config["dispatch_randomization"] = True
-
 # Common options
 mod_object.config["scale_loads"] = False
 mod_object.config["scale_texas_loads"] = False
 
 # Investment options
-mod_object.config["thermal_generation"] = False
-mod_object.config["renewable_generation"] = False
 mod_object.config["storage"] = False
 mod_object.config["transmission"] = True
-mod_object.config["transmission_switching"] = False
 mod_object.config["advanced_hydro"] = False
 
 # ---------------------------------------------------------------------
