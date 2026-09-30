@@ -50,7 +50,7 @@ table below shows more details about each section:
 
 ## Legacy Drivers
 
-Older standalone drivers have been moved to the `archived/legacy_drivers`
+Older standalone drivers have been moved to the `archive/legacy_drivers`
 directory. These files are kept for reference, but the preferred
 workflow is to use either `driver.py` or `driver_from_config.py` with
 a TOML configuration file. The table below links the configuration
