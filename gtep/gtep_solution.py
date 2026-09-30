@@ -1746,12 +1746,11 @@ class ExpansionPlanningSolution:
 
             return outputs
 
-        # Calculate analysis metrics from three sources: model sets
-        # and input-derived parameters, saved operational result
-        # files, and saved investment/cost result files. These metrics
-        # summarize case size, dispatch/reliability outcomes, selected
-        # candidate assets, and aggregate costs for comparing
-        # experiments.
+        # Calculate analysis metrics from model sets and parameters,
+        # saved operational result files, saved investment result
+        # files, and model cost expressions. These metrics summarize
+        # the number of assets, dispatch and and commitment results,
+        # installed candidate assets, and costs.
 
         outputs = {}
 
