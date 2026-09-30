@@ -1575,7 +1575,7 @@ class ExpansionPlanningSolution:
 
             return count
 
-        def calculate_total_costs(cost_units="billion"):
+        def calculate_total_costs(cost_units="million"):
             """Return total objective and major objective components.
 
             This function reads the objective and top-level cost
@@ -1583,7 +1583,7 @@ class ExpansionPlanningSolution:
 
             :param cost_units: Units used for reporting costs. Options
                                are "million" or "billion". Defaults to
-                               "billion".
+                               "million".
             :return: Dictionary with total and component costs.
             """
             cost_scales = {
