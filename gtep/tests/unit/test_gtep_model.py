@@ -210,7 +210,9 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.dimensionless)
-        assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorInvestmentCost, u.USD / u.MW)
+        assert_units_equivalent(m.generatorFixedCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorVariableCost, u.USD / u.h / u.MW)
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,
@@ -249,10 +251,12 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10
+        # previous successful objective values: 9207.95, 6078.86,
+        # 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30,
+        # 6986122.88, 7118266.88, 27944303.09, 28076447.10,
+        # 27944303.10
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 27944303.10, places=1
+            value(modObject.model.total_cost_objective), 27944582.86, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -288,10 +292,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09
+        # previous successful objective values: 531860.15, 531883.43,
+        # 7977055.4, 7977055.4, 7977150.30, 6986122.88, 7977169.84,
+        # 27944303.09, 31908490.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 31908490.95, places=1
+            value(modObject.model.total_cost_objective), 31908770.71, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
