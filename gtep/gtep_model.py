@@ -294,14 +294,9 @@ def create_stages(
         # on the investment year. IMPORTANT NOTE: This function
         # repopulates m.fuelCost, m.generatorInvestmentCost,
         # m.generatorFixedCost, and m.generatorVariableCost, which
-        # were previously initialized in components.py. To preserve
-        # component.py values, comment out this function.
-        logger.warning(
-            "Re-populating m.fuelCost, m.generatorInvestmentCost,"
-            " m.generatorFixedCost, and m.generatorVariableCost for"
-            f" year {b_inv.year}. These initialized parameters are "
-            " overwritten using preprocessed data from m.mc.gen_data_target."
-        )
+        # were previously initialized in components.py. Here it
+        # considers the year. To preserve component.py values, comment
+        # out this function.
         comps.repopulate_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
