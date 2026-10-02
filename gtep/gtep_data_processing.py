@@ -402,22 +402,26 @@ class DataProcessing:
                 )
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
-        # # Add converted cost columns using units expected by the GTEP
-        # # Pyomo parameters. Original cost columns are preserved.
-        # self.convert_cost_columns(years)
-        
+        # Add converted cost columns using units expected by the GTEP
+        # Pyomo parameters. Original cost columns are preserved.
+        self.convert_cost_columns(years)
+
         if save_csv:
             self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
 
     def convert_cost_columns(self, years):
         """This method converts cost columns to
         ``self.gen_data_target`` to match the units expected by the
-        GTEP model parameters. The units are: fixed cost in $/MWh,
-        variable cost in $/MWh, investment cost in $/MW, and fuel cost
-        in $/MWh.
+        GTEP model parameters. The converted costs have the following
+        units:
+
+                fixed_cost_<year> = USD / MW hr
+                var_cost_<year> = USD / MW hr
+                investment_cost_<year> = USD / MW
+                fuel_cost_<year> = USD / MW / hr
 
         """
-        
+
         inv_factor = pyo.value(
             pyo.units.convert(
                 1 * u.USD / u.kW,
@@ -453,4 +457,5 @@ class DataProcessing:
             self.gen_data_target[f"fixed_cost_{year}"] = fixed_ops * fixed_factor
             self.gen_data_target[f"var_cost_{year}"] = var_ops
             self.gen_data_target[f"fuel_cost_{year}"] = fuel_costs
+            # Assume fuel cost reactive is the same as fuel cost
             self.gen_data_target[f"fuel_cost_reactive_{year}"] = fuel_costs
