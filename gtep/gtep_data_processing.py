@@ -16,13 +16,17 @@
 
 # author: Soraya Rawlings and Kyle Skolfield
 import logging
-
-from typing import Any
-from warnings import warn
 import pandas as pd
-from gtep.config_data import ConfigData
+
 from pathlib import Path
 from os.path import join, dirname, abspath
+from typing import Any
+from warnings import warn
+
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+
+from gtep.config_data import ConfigData
 
 datadir = join(dirname(abspath(str(__file__))), "data")
 logger = logging.getLogger("gtep.gtep_data_processing")
@@ -398,5 +402,55 @@ class DataProcessing:
                 )
         self.gen_data_target = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
 
+        # # Add converted cost columns using units expected by the GTEP
+        # # Pyomo parameters. Original cost columns are preserved.
+        # self.convert_cost_columns(years)
+        
         if save_csv:
             self.gen_data_target.to_csv((out_path / "costs.csv").resolve(), index=False)
+
+    def convert_cost_columns(self, years):
+        """This method converts cost columns to
+        ``self.gen_data_target`` to match the units expected by the
+        GTEP model parameters. The units are: fixed cost in $/MWh,
+        variable cost in $/MWh, investment cost in $/MW, and fuel cost
+        in $/MWh.
+
+        """
+        
+        inv_factor = pyo.value(
+            pyo.units.convert(
+                1 * u.USD / u.kW,
+                to_units=u.USD / u.MW,
+            )
+        )
+        fixed_factor = pyo.value(
+            pyo.units.convert(
+                1 * u.USD / (u.kW * u.year),
+                to_units=u.USD / (u.MW * u.hr),
+            )
+        )
+
+        for year in years:
+            capex = pd.to_numeric(
+                self.gen_data_target[f"capex_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            fixed_ops = pd.to_numeric(
+                self.gen_data_target[f"fixed_ops_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            var_ops = pd.to_numeric(
+                self.gen_data_target[f"var_ops_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            fuel_costs = pd.to_numeric(
+                self.gen_data_target[f"fuel_costs_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+
+            self.gen_data_target[f"investment_cost_{year}"] = capex * inv_factor
+            self.gen_data_target[f"fixed_cost_{year}"] = fixed_ops * fixed_factor
+            self.gen_data_target[f"var_cost_{year}"] = var_ops
+            self.gen_data_target[f"fuel_cost_{year}"] = fuel_costs
+            self.gen_data_target[f"fuel_cost_reactive_{year}"] = fuel_costs
