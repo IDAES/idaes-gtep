@@ -210,7 +210,9 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.dimensionless)
-        assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorInvestmentCost, u.USD / u.MW)
+        assert_units_equivalent(m.generatorFixedCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorVariableCost, u.USD / u.h / u.MW)
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,

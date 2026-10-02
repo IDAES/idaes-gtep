@@ -653,19 +653,19 @@ def add_model_parameters(m):
 
     # Initialize fixed and variable costs and update values during
     # investment stage.
-    m.fixedCost = pyo.Param(
+    m.generatorFixedCost = pyo.Param(
         m.generators,
         initialize={gen: 1 for gen in m.generators},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
+        doc="Fixed operating costs for all generators",
     )
-    m.varCost = pyo.Param(
+    m.generatorVariableCost = pyo.Param(
         m.generators,
         initialize={gen: 1 for gen in m.generators},
         mutable=True,
         units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
+        doc="Variable costs for all generators",
     )
 
     # Initialize curtailment and load shed costs as parameters and
@@ -789,11 +789,11 @@ def repopulate_cost_parameters(m, year):
     units_reactive_fuel_cost = u.USD / (u.MVAR * u.hr)
     for gen in m.generators:
         if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
-            m.fixedCost[gen] = pyo.units.convert(
+            m.generatorFixedCost[gen] = pyo.units.convert(
                 m.genThermalFixOpCost[0] * units_fixed_cost,
                 to_units=u.USD / (u.MW * u.hr),
             )
-            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
+            m.generatorVariableCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
 
             m.generatorInvestmentCost[gen] = pyo.units.convert(
                 m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
@@ -805,11 +805,11 @@ def repopulate_cost_parameters(m, year):
             m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
         else:
             # For renewable
-            m.fixedCost[gen] = pyo.units.convert(
+            m.generatorFixedCost[gen] = pyo.units.convert(
                 m.genRenewableFixOpCost[0] * units_fixed_cost,
                 to_units=u.USD / (u.MW * u.hr),
             )
-            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
+            m.generatorVariableCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
 
             m.generatorInvestmentCost[gen] = pyo.units.convert(
                 m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
