@@ -181,7 +181,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     )
 
 
-def add_model_parameters(m):
+def add_model_parameters(m, years):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
@@ -189,9 +189,9 @@ def add_model_parameters(m):
 
     """
 
-    # Add investment years. [TODO: Make sure this value comes from a
-    # configuration arg and not hardcoded values.]
-    m.years = [2025, 2030, 2035]
+    # Add investment years. This data is coming from the model data
+    # processing object.
+    m.years = years
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(

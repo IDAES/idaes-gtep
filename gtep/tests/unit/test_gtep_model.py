@@ -718,3 +718,63 @@ class TestGTEP(unittest.TestCase):
         # )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_Bus5_with_forecast_years_different_from_default(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+            planning_data_args={
+                "years": [2030],
+                "stages": 1,
+                "num_reps": 4,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2020-01-28 00:00",
+                    "2020-04-23 00:00",
+                    "2020-07-05 00:00",
+                    "2020-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-28 00:00": 115,
+                    "2020-04-23 00:00": 95,
+                    "2020-07-05 00:00": 50,
+                    "2020-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 2947899.93, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)

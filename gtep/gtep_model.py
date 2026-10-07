@@ -119,6 +119,7 @@ class ExpansionPlanningModel:
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
+        self.years = data.years
 
         if data.period_structure_json_file:
             period_dict = load_period_structure_from_json(
@@ -195,7 +196,7 @@ class ExpansionPlanningModel:
             m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
         )
 
-        comps.add_model_parameters(m)
+        comps.add_model_parameters(m, self.years)
 
         create_stages(
             m,
