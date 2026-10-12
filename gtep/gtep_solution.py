@@ -1262,16 +1262,21 @@ class ExpansionPlanningSolution:
             plot_path = f"{results_path}/plots/stackgraph_generators.html"
             fig.write_html(f"{plot_path}")
             logger.info(f" -> Saved interactive stackgraph to {plot_path}")
+
+        self.time_periods = time_periods
+        self.loads_trace = loads_trace
+        self.generation = generation
+
         return fig
 
     def create_analysis(
         self,
         results_path,
         gtep_model,
-        print_results=True,
         save_csv=True,
         csv_path=None,
         hours_per_period=1.0,
+        cost_units="million",
     ):
         """This method creates a set of analysis metrics from model
         data and results.
@@ -1282,8 +1287,6 @@ class ExpansionPlanningSolution:
 
         :param results_path: Directory containing saved result JSON files.
         :param gtep_model: Solved ExpansionPlanningModel object.
-        :param print_results: If True, print calculated metrics.
-                              Defaults to True.
         :param save_csv: If True, save calculated metrics to CSV.
                          Defaults to True.
         :param csv_path: Optional output path for the metrics CSV file.
@@ -1291,6 +1294,10 @@ class ExpansionPlanningSolution:
                          ``results_path/analysis_metrics.csv``.
         :param hours_per_period: Duration of each generation time period
                                  in hours. Defaults to 1.0.
+        :param cost_units: Units used for reporting costs. Options
+                           are "million" or "billion". Defaults to
+                           "million".
+
         :return: Tuple containing the metrics dictionary and metrics
                  DataFrame.
 
@@ -1313,10 +1320,6 @@ class ExpansionPlanningSolution:
             }
 
             metrics_rows.append(row)
-
-            if print_results:
-                unit_text = f" {units}" if units else ""
-                print(f"{metric}: {value}{unit_text}")
 
         def load_result_json(filename):
             """This function loads a JSON result file."""
@@ -1344,7 +1347,7 @@ class ExpansionPlanningSolution:
             )
 
             return {
-                "buses": total_buses,
+                "buses": int(total_buses),
             }
 
         def count_assets(asset_set, metrics):
@@ -1378,9 +1381,9 @@ class ExpansionPlanningSolution:
             )
 
             return {
-                metrics[0]: total_assets,
-                metrics[1]: existing_assets,
-                metrics[2]: candidate_assets,
+                metrics[0]: int(total_assets),
+                metrics[1]: int(existing_assets),
+                metrics[2]: int(candidate_assets),
             }
 
         def count_loads():
@@ -1395,7 +1398,7 @@ class ExpansionPlanningSolution:
             )
 
             return {
-                "loads": total_loads,
+                "loads": int(total_loads),
             }
 
         def calculate_total_load_gw():
@@ -1793,8 +1796,8 @@ class ExpansionPlanningSolution:
         outputs["installed_branches"] = count_installed_assets(
             m.lines, "installed_branches"
         )
-        outputs.update(calculate_total_costs(cost_units="million"))
-        outputs.update(calculate_operating_and_fixed_costs(cost_units="million"))
+        outputs.update(calculate_total_costs(cost_units=cost_units))
+        outputs.update(calculate_operating_and_fixed_costs(cost_units=cost_units))
 
         metrics_df = pd.DataFrame(metrics_rows)
 
@@ -1807,7 +1810,125 @@ class ExpansionPlanningSolution:
 
             metrics_df.to_csv(output_path, index=False)
 
-            if print_results:
-                print(f"\nSaved analysis metrics to: {output_path}")
+            if save_csv:
+                logger.info(f"\nSaved analysis metrics to: {output_path}")
 
         return outputs, metrics_df
+
+    def read_day_results(
+        self,
+        rep_days: list,
+        target_day: str,
+        target_hour: int | None = None,
+        save_csv: bool = False,
+        results_path: Path = None,
+    ) -> dict:
+        """This method returns load and generation values for a single
+        representative day and, optionally, a single hour from the
+        computed stackgraph data.
+
+        rep_days : list[str]
+                   List of representative‑day strings exactly as
+                   produced in `create_stackgraph`
+                   (e.g. `["2030-02-01 00:00", …]`).
+        target_day : str
+                     Representative‑day string to inspect (it must
+                     appear in `rep_days`).
+        target_hour : int | None, optional
+                      Hour of the day (0‑23).  If `None` the method
+                      returns the full 24‑hour profile for the day;
+                      otherwise only the requested hour is returned.
+        return dict
+               {
+                "day": <target_day>,
+                "hour": <hour or "all">,
+                "load_mw": <float>,
+                "generation_mw": {
+                    "<gen_type>": <float>,
+                    …
+                    }
+                 }
+
+        """
+
+        # Locate the day index
+        try:
+            day_idx = rep_days.index(target_day)
+        except ValueError as exc:
+            raise ValueError(
+                f"Target day '{target_day}' not found in rep_days."
+            ) from exc
+
+        # Decide which indices we need to read
+        if target_hour is None:
+            # Return the whole 24‑hour slice
+            hour_range = range(24)
+        else:
+            if not (0 <= target_hour <= 23):
+                raise ValueError("The target_hour must be between 0 and 23.")
+            hour_range = [target_hour]
+
+        # NOTE: Test only for the `time_periods` attribute. The three
+        # main data attributes used in this method (self.time_periods,
+        # self.loads_trace, and self.generation) are currently created
+        # together `create stackgraph`. If, in the future, any of them
+        # are defined elsewhere, this check should be updated.
+        if not hasattr(self, "time_periods"):
+            self.create_stackgraph(results_path, rep_days, savefig=False)
+
+        # Create dictionary to collect results
+        day_results = {
+            "day": target_day,
+            "hour": "all" if target_hour is None else target_hour,
+            "load_mw": 0.0,
+            "generation_mw": {},  # filled per hour below
+        }
+
+        # List of all generation keys we care about from main
+        # gen_types.
+        gen_keys = list(self.gen_types.keys())
+
+        for hour in hour_range:
+            # Global index into the flat `loads_trace` and
+            # `time_periods` list
+            flat_idx = day_idx * 24 + hour
+            tp = self.time_periods[flat_idx]
+
+            # Load
+            load_mw = self.loads_trace[flat_idx]
+
+            # Sum across hours if we are returning the whole day
+            day_results["load_mw"] += load_mw
+
+            # Generation
+            gen_at_tp = self.generation[tp[0]][tp[1]][tp[2]][tp[3]]
+
+            for gk in gen_keys:
+                value = gen_at_tp.get(gk, 0.0)  # MW
+
+                # Accumulate if we are returning the whole day
+                day_results["generation_mw"].setdefault(gk, 0.0)
+                day_results["generation_mw"][gk] += value
+
+        if save_csv:
+            results_path = os.path.join(results_path, f"day_results.csv")
+
+            csv_path = os.path.abspath(results_path)
+            os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+            # Write the CSV
+            with open(csv_path, mode="w", newline="") as f:
+                writer = csv.writer(f)
+
+                writer.writerow(["day", day_results["day"]])
+                writer.writerow(["hour", day_results["hour"]])
+                writer.writerow(["total_load_mw", f"{day_results['load_mw']:.6f}"])
+                writer.writerow([])  # blank line
+                writer.writerow(["generation_type", "value_mw"])
+
+                for gen_type, val in sorted(day_results["generation_mw"].items()):
+                    writer.writerow([gen_type, f"{val:.6f}"])
+
+            logger.info(f"Day results saved to: {csv_path}")
+
+        return day_results

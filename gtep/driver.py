@@ -202,9 +202,23 @@ sol_object.create_stackgraph(dir_name, rep_days)
 outputs, metrics_df = sol_object.create_analysis(
     results_path=dir_name,
     gtep_model=mod_object,
-    print_results=True,
     save_csv=True,
     csv_path=f"{dir_name}/analysis_metrics.csv",
     hours_per_period=1.0,
+    cost_units="million",
 )
 logger.info("GTEP run complete.")
+
+# Print results for a single selected day and time
+day_info = sol_object.read_day_results(
+    rep_days=[
+        "2020-01-28 00:00",
+        "2020-04-23 00:00",
+        "2020-07-05 00:00",
+        "2020-10-14 00:00",
+    ],
+    target_day="2020-04-23 00:00",
+    target_hour=12,
+    save_csv=True,
+    results_path=dir_name,
+)
