@@ -414,6 +414,11 @@ class ExpansionPlanningSolution:
                 for e in exp:
                     costs[exp[e].name] = pyo.value(exp[e])
 
+        # Save objective value to costs dictionary
+        for obj in m.component_objects(pyo.Objective, descend_into=True):
+            # Scalar objective
+            costs[obj.name] = pyo.value(obj)
+
         # Loads are currently read through Prescient, which maps them
         # to buses and stores them as indexed parameters. If a future
         # workflow loads non-Prescient scalar load parameters, this
