@@ -1298,7 +1298,6 @@ class ExpansionPlanningSolution:
     def create_analysis(
         self,
         results_path,
-        gtep_model,
         save_csv=True,
         csv_path=None,
         hours_per_period=1.0,
@@ -1328,11 +1327,6 @@ class ExpansionPlanningSolution:
                  DataFrame.
 
         """
-
-        m = gtep_model.model
-        md = m.md
-        md_data = md.data
-        elements = md_data["elements"]
 
         metrics_rows = []
 
@@ -1668,32 +1662,33 @@ class ExpansionPlanningSolution:
 
             return outputs
 
-        # Calculate analysis metrics from model sets and parameters,
-        # saved operational result files, saved investment result
-        # files, and model cost expressions. These metrics summarize
-        # the number of assets, dispatch and and commitment results,
-        # installed candidate assets, and costs.
+        # Calculate analysis metrics from .json files. These metrics
+        # summarize the number of assets, installed candidate assets,
+        # and costs.
+        lines = list(load_result_json("list_lines.json"))
+        generators = list(load_result_json("list_generators.json"))
+        thermal_generators = list(load_result_json("list_thermal_generators.json"))
+        renewable_generators = list(load_result_json("list_renewable_generators.json"))
+        storage = list(load_result_json("list_storage.json"))
 
         outputs = {}
-
-        # Metrics from parameters in the model
         outputs.update(count_buses())
         outputs.update(count_load_buses())
         outputs.update(
             count_assets(
-                list(load_result_json("list_lines.json")),
+                lines,
                 metrics=["branches", "existing_branches", "candidate_branches"],
             )
         )
         outputs.update(
             count_assets(
-                list(load_result_json("list_generators.json")),
+                generators,
                 metrics=["generators", "existing_generators", "candidate_generators"],
             )
         )
         outputs.update(
             count_assets(
-                list(load_result_json("list_thermal_generators.json")),
+                thermal_generators,
                 metrics=[
                     "thermal_generators",
                     "existing_thermal_generators",
@@ -1703,7 +1698,7 @@ class ExpansionPlanningSolution:
         )
         outputs.update(
             count_assets(
-                list(load_result_json("list_renewable_generators.json")),
+                renewable_generators,
                 metrics=[
                     "renewable_generators",
                     "existing_renewable_generators",
@@ -1711,26 +1706,24 @@ class ExpansionPlanningSolution:
                 ],
             )
         )
-        if m.config["storage"]:
-            outputs.update(
-                count_assets(
-                    list(load_result_json("list_storage.json")),
-                    metrics=["storage", "existing_storage", "candidate_storage"],
-                )
+        outputs.update(
+            count_assets(
+                storage,
+                metrics=["storage", "existing_storage", "candidate_storage"],
             )
+        )
 
         outputs["total_load_gw"] = calculate_total_load_gw()
         outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
         outputs["total_generation_gw"] = calculate_total_generation_gw()
         outputs["total_generation_gwh"] = calculate_total_generation_gwh()
         outputs["total_curtailment_gwh"] = calculate_total_curtailment_gwh()
-        if m.config["storage"]:
-            outputs.update(calculate_storage_operation_gwh())
+        outputs.update(calculate_storage_operation_gwh())
         outputs["installed_generators"] = count_installed_assets(
-            m.generators, "installed_generators"
+            generators, "installed_generators"
         )
         outputs["installed_branches"] = count_installed_assets(
-            m.lines, "installed_branches"
+            lines, "installed_branches"
         )
         outputs.update(calculate_total_costs(cost_units=cost_units))
 
