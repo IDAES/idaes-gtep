@@ -1607,15 +1607,14 @@ class ExpansionPlanningSolution:
             return count
 
         def calculate_total_costs(cost_units="million"):
-            """Return total objective and major objective components.
-
-            This function reads the objective and top-level cost
-            expressions directly from the solved Pyomo model.
+            """Return total objective and major objective components
+            from `costs.json`.
 
             :param cost_units: Units used for reporting costs. Options
                                are "million" or "billion". Defaults to
                                "million".
             :return: Dictionary with total and component costs.
+
             """
             cost_scales = {
                 "million": (1e6, "M$", "million"),
@@ -1630,25 +1629,32 @@ class ExpansionPlanningSolution:
 
             scale_factor, units_label, output_suffix = cost_scales[cost_units]
 
+            # Load the JSON file using the supplied helper
+            costs = load_result_json("costs.json")
+
+            # Keys that appear in the JSON (same ones that appear in
+            # the model).
             cost_terms = {
-                "total_objective_cost": m.total_cost_objective,
-                "total_operating_cost": m.operatingCostTotal,
-                "total_expansion_cost": m.expansionCostTotal,
-                "total_penalty_cost": m.penaltyCostTotal,
+                "total_objective_cost": "total_cost_objective",
+                "total_operating_cost": "operatingCostTotal",
+                "total_expansion_cost": "expansionCostTotal",
+                "total_penalty_cost": "penaltyCostTotal",
             }
 
-            outputs = {}
+            outputs: Dict[str, float] = {}
 
-            for metric, expression in cost_terms.items():
-                value = pyo.value(expression, exception=False)
+            for metric, json_key in cost_terms.items():
+                raw_value = costs.get(json_key)
+                # value = pyo.value(expression, exception=False)
 
-                if value is None:
+                if raw_value is None:
                     logger.warning(
-                        "Could not evaluate cost expression '%s'. Skipping.",
+                        "Key `%s` not found in costs.json. Skipping this metric.",
                         metric,
                     )
                     continue
 
+                value = float(raw_value)
                 scaled_value = float(value) / scale_factor
 
                 record_metric(
@@ -1659,121 +1665,6 @@ class ExpansionPlanningSolution:
                 )
 
                 outputs[f"{metric}_{output_suffix}"] = scaled_value
-
-            return outputs
-
-        def calculate_operating_and_fixed_costs(cost_units="million"):
-            """This function returns operating-cost breakdown from
-            model expressions.
-
-            Dispatch operating cost is calculated from each dispatch
-            block's ``operatingCostDispatch`` expression. The remaining
-            portion of total operating cost is reported as
-            commitment-level fixed operating cost. This residual
-            includes fixed generator costs, startup costs, and storage
-            fixed costs when enabled, because these terms are included
-            in ``operatingCostCommitment``.
-
-            :param cost_units: Units used for reporting costs. Options
-                               are "million" or "billion". Defaults to
-                               "million".
-            :return: Dictionary with operating-cost breakdown.
-
-            """
-            cost_scales = {
-                "million": (1e6, "M$", "million"),
-                "billion": (1e9, "B$", "billion"),
-            }
-
-            if cost_units not in cost_scales:
-                raise ValueError(
-                    f"Unsupported cost_units '{cost_units}'. "
-                    "Choose 'million' or 'billion'."
-                )
-
-            scale_factor, units_label, output_suffix = cost_scales[cost_units]
-
-            total_operating_cost = pyo.value(
-                m.operatingCostTotal,
-                exception=False,
-            )
-
-            if total_operating_cost is None:
-                logger.warning(
-                    "Could not evaluate m.operatingCostTotal. "
-                    "Skipping operating-cost breakdown."
-                )
-                return {}
-
-            dispatch_operating_cost = 0.0
-
-            for stage in m.stages:
-                stage_block = m.investmentStage[stage]
-
-                for rep in stage_block.representativePeriods:
-                    rep_block = stage_block.representativePeriod[rep]
-
-                    for commitment in rep_block.commitmentPeriods:
-                        commitment_block = rep_block.commitmentPeriod[commitment]
-
-                        for dispatch in commitment_block.dispatchPeriods:
-                            dispatch_block = commitment_block.dispatchPeriod[dispatch]
-
-                            dispatch_cost = pyo.value(
-                                dispatch_block.operatingCostDispatch,
-                                exception=False,
-                            )
-
-                            if dispatch_cost is None:
-                                logger.warning(
-                                    "Could not evaluate operatingCostDispatch "
-                                    "for stage=%s, representative=%s, "
-                                    "commitment=%s, dispatch=%s. Skipping.",
-                                    stage,
-                                    rep,
-                                    commitment,
-                                    dispatch,
-                                )
-                                continue
-
-                            dispatch_operating_cost += (
-                                pyo.value(m.investmentFactor[stage])
-                                * pyo.value(m.weights[rep])
-                                * float(dispatch_cost)
-                            )
-
-            fixed_operating_cost = total_operating_cost - dispatch_operating_cost
-
-            outputs = {
-                f"total_operating_cost_{output_suffix}": (
-                    total_operating_cost / scale_factor
-                ),
-                f"dispatch_operating_cost_{output_suffix}": (
-                    dispatch_operating_cost / scale_factor
-                ),
-                f"fixed_commitment_operating_cost_{output_suffix}": (
-                    fixed_operating_cost / scale_factor
-                ),
-            }
-
-            record_metric(
-                metric="total_operating_cost",
-                value=outputs[f"total_operating_cost_{output_suffix}"],
-                units=units_label,
-                category="cost",
-            )
-            record_metric(
-                metric="dispatch_operating_cost",
-                value=outputs[f"dispatch_operating_cost_{output_suffix}"],
-                units=units_label,
-                category="cost",
-            )
-            record_metric(
-                metric="fixed_commitment_operating_cost",
-                value=outputs[f"fixed_commitment_operating_cost_{output_suffix}"],
-                units=units_label,
-                category="cost",
-            )
 
             return outputs
 
@@ -1828,11 +1719,10 @@ class ExpansionPlanningSolution:
                 )
             )
 
-        # Metrics from calculated variables in the model
-        outputs["total_generation_gw"] = calculate_total_generation_gw()
-        outputs["total_generation_gwh"] = calculate_total_generation_gwh()
         outputs["total_load_gw"] = calculate_total_load_gw()
         outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
+        outputs["total_generation_gw"] = calculate_total_generation_gw()
+        outputs["total_generation_gwh"] = calculate_total_generation_gwh()
         outputs["total_curtailment_gwh"] = calculate_total_curtailment_gwh()
         if m.config["storage"]:
             outputs.update(calculate_storage_operation_gwh())
@@ -1843,7 +1733,6 @@ class ExpansionPlanningSolution:
             m.lines, "installed_branches"
         )
         outputs.update(calculate_total_costs(cost_units=cost_units))
-        outputs.update(calculate_operating_and_fixed_costs(cost_units=cost_units))
 
         metrics_df = pd.DataFrame(metrics_rows)
 
