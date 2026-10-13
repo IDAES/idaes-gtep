@@ -128,7 +128,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
                 value_threshold=1e-3,
             )
 
-            expected_files = [
+            expected_files_with_dicts = [
                 "renewable_investments.json",
                 "dispatchable_investments.json",
                 "load_shed.json",
@@ -142,7 +142,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
                 "discharging.json",
             ]
 
-            for filename in expected_files:
+            for filename in expected_files_with_dicts:
                 file_path = Path(results_dir) / filename
                 self.assertTrue(file_path.exists())
 
@@ -150,3 +150,158 @@ class TestExpansionPlanningSolution(unittest.TestCase):
                     data = json.load(f)
 
                 self.assertIsInstance(data, dict)
+
+            expected_files_with_lists = [
+                "list_load_buses.json",
+                "list_buses.json",
+                "list_generators.json",
+                "list_thermal_generators.json",
+                "list_renewable_generators.json",
+                "list_lines.json",
+                "list_storage.json",
+            ]
+
+            for filename in expected_files_with_lists:
+                file_path = Path(results_dir) / filename
+                self.assertTrue(file_path.exists())
+
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+
+                self.assertIsInstance(data, list)
+
+    def test_create_analysis_and_csv(self):
+        # Test values saved using the create_analysis method.
+        solved_mod = get_solved_model()
+        sol_object = ExpansionPlanningSolution(input_data_path)
+
+        # Create a temporary results directory and write all JSON
+        # result files.
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = Path(tempfile.mkdtemp())
+            results_dir = sol_object.create_results_directory(temp_dir / "results")
+
+            # Write the JSON files.
+            sol_object.save_results_in_json_files(
+                solved_mod,
+                results_dir,
+                value_threshold=1e-3,
+            )
+
+            # Run the create_analysis method and save .csv file.
+            outputs, metrics_df = sol_object.create_analysis(
+                results_path=results_dir,
+                save_csv=True,
+                csv_path=f"{results_dir}/analysis_metrics.csv",
+                hours_per_period=1.0,
+                cost_units="million",
+            )
+
+            # Verify the CSV file exists
+            csv_file = results_dir / "analysis_metrics.csv"
+            self.assertTrue(
+                csv_file.exists(), msg="analysis_metrics.csv was not created"
+            )
+
+            # Load the CSV and sanity‑check its structure
+            df = pd.read_csv(csv_file)
+
+            # Expected columns – exactly the ones the method builds
+            expected_cols = {"metric", "category", "value", "units"}
+            self.assertTrue(
+                expected_cols.issubset(df.columns),
+                msg=f"CSV missing columns: {expected_cols - set(df.columns)}",
+            )
+
+            # Check metrics that must be present
+            key_metrics = {
+                "buses",
+                "load_buses",
+                "branches",
+                "existing_branches",
+                "candidate_branches",
+                "generators",
+                "existing_generators",
+                "candidate_generators",
+                "thermal_generators",
+                "existing_thermal_generators",
+                "candidate_thermal_generators",
+                "renewable_generators",
+                "existing_renewable_generators",
+                "candidate_renewable_generators",
+                "storage",
+                "existing_storage",
+                "candidate_storage",
+                "total_load",
+                "total_load_shed",
+                "total_generation",
+                "total_generation",
+                "total_curtailment",
+                "total_storage_charging",
+                "total_storage_discharging",
+                "installed_generators",
+                "installed_branches",
+                "total_objective_cost",
+                "total_operating_cost",
+                "total_expansion_cost",
+                "total_penalty_cost",
+            }
+
+            missing = key_metrics - set(df["metric"])
+            self.assertFalse(
+                missing,
+                msg=f"The following expected metrics are absent from the CSV: {missing}",
+            )
+
+            # Expected values
+            expected_values = [
+                ("buses", "parameter_in_model", 5),
+                ("load_buses", "parameter_in_model", 3),
+                ("branches", "parameter_in_model", 7),
+                ("existing_branches", "parameter_in_model", 7),
+                ("candidate_branches", "parameter_in_model", 0),
+                ("generators", "parameter_in_model", 12),
+                ("existing_generators", "parameter_in_model", 8),
+                ("candidate_generators", "parameter_in_model", 4),
+                ("thermal_generators", "parameter_in_model", 4),
+                ("existing_thermal_generators", "parameter_in_model", 4),
+                ("candidate_thermal_generators", "parameter_in_model", 0),
+                ("renewable_generators", "parameter_in_model", 8),
+                ("existing_renewable_generators", "parameter_in_model", 4),
+                ("candidate_renewable_generators", "parameter_in_model", 4),
+                ("storage", "parameter_in_model", 0),
+                ("existing_storage", "parameter_in_model", 0),
+                ("candidate_storage", "parameter_in_model", 0),
+            ]
+
+            def _row_for(metric, category):
+                matches = df[(df["metric"] == metric) & (df["category"] == category)]
+                self.assertEqual(
+                    len(matches),
+                    1,
+                    msg=f"Expected exactly one row for metric='{metric}', category='{category}'. "
+                    f"Found {len(matches)}.",
+                )
+                return matches.iloc[0]
+
+            # Perform the numeric assertions
+            for metric, category, expected in expected_values:
+                row = _row_for(metric, category)
+                actual = row["value"]
+                if isinstance(expected, float):
+                    # Allow a tolerance for floating‑point rounding
+                    self.assertAlmostEqual(
+                        actual,
+                        expected,
+                        places=2,
+                        msg=f"Metric '{metric}' (category={category}) value mismatch: "
+                        f"expected {expected}, got {actual}",
+                    )
+                else:
+                    # Integer values have an exact match
+                    self.assertEqual(
+                        actual,
+                        expected,
+                        msg=f"Metric '{metric}' (category={category}) value mismatch: "
+                        f"expected {expected}, got {actual}",
+                    )
