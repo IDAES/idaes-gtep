@@ -428,7 +428,8 @@ class ExpansionPlanningSolution:
         # Count assets in model and save a json file with this
         # information. Here we turn any Pyomo Set (including RangeSet)
         # into a plain list. The asstes saved are: buses, generators,
-        # branches (lines), and storage.
+        # branches (lines), loads, and storage.
+        load_buses = sorted(list(m.load_buses))
         buses = sorted(list(m.buses))
         generators = sorted(list(m.generators))
         thermal_generators = sorted(list(m.thermalGenerators))
@@ -451,6 +452,7 @@ class ExpansionPlanningSolution:
             "reserves": reserves,
             "charging": charging,
             "discharging": discharging,
+            "list_load_buses": load_buses,
             "list_buses": buses,
             "list_generators": generators,
             "list_thermal_generators": thermal_generators,
@@ -1352,12 +1354,12 @@ class ExpansionPlanningSolution:
                 return json.load(f)
 
         def count_buses():
-            """This function returns the number of buses from the
-            model set.
+            """This function returns the number of buses from results
+            .json files.
 
             """
 
-            total_buses = len(list(m.buses))
+            total_buses = len(list(load_result_json("list_buses.json")))
 
             record_metric(
                 metric="buses",
@@ -1365,13 +1367,27 @@ class ExpansionPlanningSolution:
                 category="parameter_in_model",
             )
 
-            return {
-                "buses": int(total_buses),
-            }
+            return {"buses": int(total_buses)}
+
+        def count_load_buses():
+            """This function returns the number of load_buses from results
+            .json files.
+
+            """
+
+            total_load_buses = len(list(load_result_json("list_load_buses.json")))
+
+            record_metric(
+                metric="load_buses",
+                value=total_load_buses,
+                category="parameter_in_model",
+            )
+
+            return {"load_buses": int(total_load_buses)}
 
         def count_assets(asset_set, metrics):
             """This function returns total, existing, and candidate
-            assets.
+            assets from results .json files.
 
             """
 
@@ -1403,21 +1419,6 @@ class ExpansionPlanningSolution:
                 metrics[0]: int(total_assets),
                 metrics[1]: int(existing_assets),
                 metrics[2]: int(candidate_assets),
-            }
-
-        def count_loads():
-            """This function returns load count."""
-
-            total_loads = len(elements.get("load", {}))
-
-            record_metric(
-                metric="loads",
-                value=total_loads,
-                category="parameter_in_model",
-            )
-
-            return {
-                "loads": int(total_loads),
             }
 
         def calculate_total_load_gw():
@@ -1781,25 +1782,46 @@ class ExpansionPlanningSolution:
 
         # Metrics from parameters in the model
         outputs.update(count_buses())
+        outputs.update(count_load_buses())
         outputs.update(
             count_assets(
-                m.lines, metrics=["branches", "existing_branches", "candidate_branches"]
+                list(load_result_json("list_lines.json")),
+                metrics=["branches", "existing_branches", "candidate_branches"],
             )
         )
         outputs.update(
             count_assets(
-                m.generators,
+                list(load_result_json("list_generators.json")),
                 metrics=["generators", "existing_generators", "candidate_generators"],
+            )
+        )
+        outputs.update(
+            count_assets(
+                list(load_result_json("list_thermal_generators.json")),
+                metrics=[
+                    "thermal_generators",
+                    "existing_thermal_generators",
+                    "candidate_thermal_generators",
+                ],
+            )
+        )
+        outputs.update(
+            count_assets(
+                list(load_result_json("list_renewable_generators.json")),
+                metrics=[
+                    "renewable_generators",
+                    "existing_renewable_generators",
+                    "candidate_renewable_generators",
+                ],
             )
         )
         if m.config["storage"]:
             outputs.update(
                 count_assets(
-                    m.storage,
+                    list(load_result_json("list_storage.json")),
                     metrics=["storage", "existing_storage", "candidate_storage"],
                 )
             )
-        outputs.update(count_loads())
 
         # Metrics from calculated variables in the model
         outputs["total_generation_gw"] = calculate_total_generation_gw()
