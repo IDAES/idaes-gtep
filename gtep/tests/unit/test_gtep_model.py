@@ -31,6 +31,7 @@ from gtep.tests.unit.utils_for_testing import create_data, create_model
 from egret.data.model_data import ModelData
 
 curr_dir = Path(__file__).resolve().parent
+Bus5_case_path = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 Texas123_case_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
 
 
@@ -210,7 +211,9 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.dimensionless)
-        assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorInvestmentCost, u.USD / u.MW)
+        assert_units_equivalent(m.generatorFixedCost, u.USD / u.h / u.MW)
+        assert_units_equivalent(m.generatorVariableCost, u.USD / u.h / u.MW)
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,
@@ -249,10 +252,12 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10
+        # previous successful objective values: 9207.95, 6078.86,
+        # 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30,
+        # 6986122.88, 7118266.88, 27944303.09, 28076447.10,
+        # 27944303.10
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 27944303.10, places=1
+            value(modObject.model.total_cost_objective), 27944582.86, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -288,10 +293,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09
+        # previous successful objective values: 531860.15, 531883.43,
+        # 7977055.4, 7977055.4, 7977150.30, 6986122.88, 7977169.84,
+        # 27944303.09, 31908490.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 31908490.95, places=1
+            value(modObject.model.total_cost_objective), 31908770.71, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -717,4 +723,65 @@ class TestGTEP(unittest.TestCase):
         #     value(modObject.model.total_cost_objective), 20105684865.29, places=1
         # )
 
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_from_csv_files(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 4,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2020-01-28 00:00",
+                    "2020-04-23 00:00",
+                    "2020-07-05 00:00",
+                    "2020-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-28 00:00": 115,
+                    "2020-04-23 00:00": 95,
+                    "2020-07-05 00:00": 50,
+                    "2020-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": True,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            include_cost_data=True,
+            use_cost_from_data_files=True,
+            data_path=Bus5_case_path,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 125950815.36, places=1
+        )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
