@@ -298,6 +298,8 @@ def create_stages(
         # considers the year. To preserve component.py values, comment
         # out this function.
         comps.repopulate_cost_parameters(m, b_inv.year)
+        if m.config["storage"]:
+            stor.repopulate_storage_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
