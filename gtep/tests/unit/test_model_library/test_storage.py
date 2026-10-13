@@ -96,7 +96,7 @@ class TestObjective(TestCase):
             index=self.m.storage,
         )
         self.check_helper.add_object(
-            name="storageLifetimes",
+            name="storageLifetime",
             obj_type=pyo.Param,
             units=u.year,
             index=self.m.storage,
@@ -136,7 +136,7 @@ class TestObjective(TestCase):
             index=self.m.storage,
         )
         self.check_helper.add_object(
-            name="storageVarCost",
+            name="storageVariableCost",
             obj_type=pyo.Param,
             units=u.USD / u.MW / u.hr,
             index=self.m.storage,
