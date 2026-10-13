@@ -201,7 +201,6 @@ sol_object.create_stackgraph(dir_name, rep_days)
 # result JSON files.
 outputs, metrics_df = sol_object.create_analysis(
     results_path=dir_name,
-    gtep_model=mod_object,
     save_csv=True,
     csv_path=f"{dir_name}/analysis_metrics.csv",
     hours_per_period=1.0,
