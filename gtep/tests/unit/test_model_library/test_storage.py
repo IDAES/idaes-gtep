@@ -155,7 +155,6 @@ class TestObjective(TestCase):
             obj_type=pyo.Constraint,
             units=u.MW * u.hr,
             index=(self.m.storage, self.b.dispatchPeriods),
-            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="storDischarging",
