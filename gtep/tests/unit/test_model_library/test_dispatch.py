@@ -30,7 +30,7 @@ def check_CP_flow_balance(td, c: pyo.Constraint):
         expected += [td.b.storageDischarged[bt] for bt in td.m.storage]
         expected += [td.b.storageCharged[bt] for bt in td.m.storage]
     expected += [td.b.parent_block().loads[bus] for bus in td.m.buses]
-    expected += [td.b.loadShed[bus] for bus in td.m.buses]
+    expected += [td.b.loadShed[bus] for bus in td.m.load_buses]
     td.check_helper.check_expr_contains(c, expected)
 
 
@@ -143,13 +143,13 @@ class TestDispatch(unittest.TestCase):
             name="loadShed",
             units=u.MW,
             obj_type=pyo.Var,
-            index=self.m.buses,
+            index=self.m.load_buses,
         )
         self.check_helper.add_object(
             name="loadShedCost",
             units=u.USD,
             obj_type=pyo.Expression,
-            index=self.m.buses,
+            index=self.m.load_buses,
         )
         self.check_helper.add_object(
             name="renewableSurplusDispatch",
