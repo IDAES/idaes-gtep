@@ -648,13 +648,13 @@ class ExpansionPlanningData:
 
         branch_data = {}
         if "Static Line" not in branch_df.columns: 
-            branch_df["Static Line"] = 1
+            branch_df["Static Line"] = 0
 
         for _, row in branch_df.iterrows():
             name = row["UID"]
             static_status = bool(row["Static Line"])
 
-            self.md.data["elements"]["branch"][branch]["static"] = static_status
+            self.md.data["elements"]["branch"][name]["static"] = static_status
 
     def texas_case_study_updates(self, data_path):
         """Imports generator data for texas case study.

@@ -250,9 +250,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10
+        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 27944303.10, places=1
+            value(modObject.model.total_cost_objective), 29483643.26, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -289,9 +289,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09
+        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 31908490.95, places=1
+            value(modObject.model.total_cost_objective), 33109372.80, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -685,7 +685,7 @@ class TestGTEP(unittest.TestCase):
                 "scale_loads": False,
                 "transmission": True,
                 "storage": False,
-                "flow_model": "DC",
+                "flow_model": "transport",
             },
             candidate_gens=[
                 "Natural Gas_CT",
