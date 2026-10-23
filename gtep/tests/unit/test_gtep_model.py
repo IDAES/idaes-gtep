@@ -32,7 +32,6 @@ from egret.data.model_data import ModelData
 
 curr_dir = Path(__file__).resolve().parent
 Texas123_case_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
-bus9_case_path = (curr_dir / ".." / ".." / "data" / "9_bus_GTEP_dir").resolve()
 
 
 @pytest.fixture
