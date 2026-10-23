@@ -58,7 +58,11 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
     # NOTE: Right now, this means that branches can only be specified
     # entirely as standard or as dc ... not mix-and-match.
-    assert (len(m.md.data["elements"]["branch"]) != 0 or m.config["flow_model"] != "CP") "no branches are defined and a flow model has been chosen"
+    assert (len(m.md.data["elements"]["branch"]) != 0 or m.config["flow_model"] != "CP"), (
+            "no branches are defined and a the flow model is "
+            f"set to {m.config["flow_model"]}. Define branch data"
+            "or set the flow model to 'CP'"
+        )
         # TODO: I don't think dc_branches are really supported right now
         # The dc_branch option is not in the required_data_files.csv
         # Setting this to error if the flow model is not set to "CP" 
@@ -85,7 +89,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             branch for branch in m.md.data["elements"]["branch"]
             if not m.md.data["elements"]["branch"][branch]["static"] and 
                 not m.md.data["elements"]["branch"][branch]["candidate"]
-        )
+        ),
         doc="Non-static, non-candidate lines"
     )
 
@@ -93,7 +97,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         initialize = (
             branch for branch in m.md.data["elements"]["branch"]
             if m.md.data["elements"]["branch"][branch]["candidate"]
-        )
+        ),
         doc="Candidate lines"
     )
     m.investmentLines = pyo.Set(
@@ -101,7 +105,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             branch for branch in m.md.data["elements"]["branch"] 
             if not m.md.data["elements"]["branch"][branch]["static"] or
                 m.md.data["elements"]["branch"][branch]["candidate"]
-        )
+        ),
         doc="Non-static or candidate lines"
     )
 
