@@ -186,16 +186,17 @@ def add_dispatch_variables(b, paramPeriodLength):
             m.transmissionCapacity[branch],
         )
 
-    # [TODO: Check units since they might need to be fixed for
-    # variable temporal resolution.]
-    b.powerFlow = pyo.Var(
-        m.lines,
-        domain=pyo.Reals,
-        bounds=power_flow_limits,
-        initialize=0,
-        units=u.MW,
-        doc="Power flow in MW",
-    )
+    if m.config["flow_model"] != "CP":
+        # [TODO: Check units since they might need to be fixed for
+        # variable temporal resolution.]
+        b.powerFlow = pyo.Var(
+            m.lines,
+            domain=pyo.Reals,
+            bounds=power_flow_limits,
+            initialize=0,
+            units=u.MW,
+            doc="Power flow in MW",
+        )
 
     # Add transmission lines state disjuncts (in use and not in
     # use). The power flow is calculated here using OPF formulations.
@@ -269,8 +270,8 @@ def add_dispatch_constraints(b):
 
     else:
 
-        # This flow balance equation corresponds to the "transport"
-        # flow_model configuration option.
+        # This flow balance equation is a nodal power balance used by
+        # each flow model except for "CP".
         @b.Constraint(m.buses, doc="Power balance constraint")
         def flow_balance(b, bus):
             balance = 0 * u.MW
