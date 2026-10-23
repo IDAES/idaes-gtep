@@ -293,7 +293,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
             doc="Ramp up limits for fully-on thermal generators",
         )
         def ramp_up_limits(disj, dispatchPeriod):
-            if dispatchPeriod != 1 and commitment_period != 1:
+            if dispatchPeriod != 1:
                 return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
                     generator
                 ] - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[
@@ -302,7 +302,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     m.rampUpRates[generator]  # in MW/min
                     * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
                 )
-            elif dispatchPeriod == 1 and commitment_period != 1:
+            elif commitment_period != 1:
                 previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
                 previous_dispatch_period = (
                     previous_commitment_block.dispatchPeriods.last()
@@ -314,25 +314,38 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                 ].thermalGeneration[
                     generator
                 ] <= (
-                    m.rampUpRates[generator]  # in Mw/min
+                    m.rampUpRates[generator]  # in MW/min
                     * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
                 )
             else:
-                return pyo.Constraint.Skip
-
+                final_commitment_period = r_p.commitmentPeriods.last()
+                final_dispatch_period = r_p.commitmentPeriod[
+                    final_commitment_period
+                ].dispatchPeriods.last()
+                return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                    generator
+                ] - r_p.commitmentPeriod[final_commitment_period].dispatchPeriod[
+                    final_dispatch_period
+                ].thermalGeneration[
+                    generator
+                ] <= (
+                    m.rampUpRates[generator]  # in Mw/min
+                    * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
+                )
+            
         @disj.Constraint(
             b.dispatchPeriods,
             doc="Ramp down limits for fully-on thermal generators",
         )
         def ramp_down_limits(disj, dispatchPeriod):
-            if dispatchPeriod != 1 and commitment_period != 1:
+            if dispatchPeriod != 1:
                 return b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[
                     generator
                 ] - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator] <= (
                     m.rampDownRates[generator]  # in MW/min
                     * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
                 )
-            elif dispatchPeriod == 1 and commitment_period != 1:
+            elif commitment_period != 1:
                 previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
                 previous_dispatch_period = (
                     previous_commitment_block.dispatchPeriods.last()
@@ -348,7 +361,20 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
                 )
             else:
-                return pyo.Constraint.Skip
+                final_commitment_period = r_p.commitmentPeriods.last()
+                final_dispatch_period = r_p.commitmentPeriod[
+                    final_commitment_period
+                ].dispatchPeriods.last()
+                return b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                    generator
+                ] - r_p.commitmentPeriod[final_commitment_period].dispatchPeriod[
+                    final_dispatch_period
+                ].thermalGeneration[
+                    generator
+                ] <= (
+                    m.rampDownRates[generator]  # in Mw/min
+                    * b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength  # in min
+                )
 
         # NOTE: maxSpinningReserve is a percentage of thermalCapacity
         @disj.Constraint(b.dispatchPeriods, doc="Maximum spinning reserve")
@@ -385,7 +411,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
             doc="Ramp up constraints for generators starting up",
         )
         def ramp_up_limits(disj, dispatchPeriod):
-            if dispatchPeriod != 1 and commitment_period != 1:
+            if dispatchPeriod != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
@@ -398,7 +424,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     )
                     * u.MW
                 )
-            elif dispatchPeriod == 1 and commitment_period != 1:
+            elif commitment_period != 1:
                 previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
                 previous_dispatch_period = (
                     previous_commitment_block.dispatchPeriods.last()
@@ -418,7 +444,25 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * u.MW
                 )
             else:
-                return pyo.Constraint.Skip
+                final_commitment_period = r_p.commitmentPeriods.last()
+                final_dispatch_period = r_p.commitmentPeriod[
+                    final_commitment_period
+                ].dispatchPeriods.last()
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                        generator
+                    ] - r_p.commitmentPeriod[final_commitment_period].dispatchPeriod[
+                        final_dispatch_period
+                    ].thermalGeneration[
+                        generator
+                    ] <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        pyo.value(m.rampUpRates[generator])  # in Mw/min
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength)  # in min
+                    ) * u.MW
+                )
+            
+
 
     @b.Disjunct(m.thermalGenerators)
     def genShutdown(disj, generator):
@@ -449,7 +493,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
             doc="Ramp down constraints for generators shutting down",
         )
         def ramp_down_limits(disj, dispatchPeriod):
-            if dispatchPeriod != 1 and commitment_period != 1:
+            if dispatchPeriod != 1:
                 return (
                     b.dispatchPeriod[dispatchPeriod - 1].thermalGeneration[generator]
                     - b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
@@ -462,7 +506,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     )
                     * u.MW
                 )
-            elif dispatchPeriod == 1 and commitment_period != 1:
+            elif commitment_period != 1:
                 previous_commitment_block = r_p.commitmentPeriod[commitment_period - 1]
                 previous_dispatch_period = (
                     previous_commitment_block.dispatchPeriods.last()
@@ -482,7 +526,23 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     * u.MW
                 )
             else:
-                return pyo.Constraint.Skip
+                final_commitment_period = r_p.commitmentPeriods.last()
+                final_dispatch_period = r_p.commitmentPeriod[
+                    final_commitment_period
+                ].dispatchPeriods.last()
+                return (
+                    b.dispatchPeriod[dispatchPeriod].thermalGeneration[
+                        generator
+                    ] - r_p.commitmentPeriod[final_commitment_period].dispatchPeriod[
+                        final_dispatch_period
+                    ].thermalGeneration[
+                        generator
+                    ] <= max(
+                        pyo.value(m.thermalMin[generator]),
+                        pyo.value(m.rampDownRates[generator])  # in Mw/min
+                        * pyo.value(b.dispatchPeriod[dispatchPeriod].dispatchPeriodLength)  # in min
+                    ) * u.MW
+                )
 
     @b.Disjunct(m.thermalGenerators)
     def genOff(disj, generator):
