@@ -520,52 +520,54 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
 
 def generators_status_always_on(m, b, r_p, i_p, commitment_period):
-    """This method defines only one disjunct to enforce that
-    generators are always 'On'. This method is used when unit
-    commitment is not modeled, ensuring generators are always
-    considered operational while startup, shutdown, and offline states
-    are ignored.
-
+    """This method defines sets the generators to always be on.
+    It is used when unit commitment is not modeled, ensuring generators 
+    are always considered operational while startup, shutdown, and 
+    offline states are ignored.
     """
 
-    @b.Disjunct(m.thermalGenerators)
-    def genOn(disj, generator):
-        b = disj.parent_block()
+    # For now, we do not allow reserves unless we do commitment.
+    # This preserves the previous formulation's behavior, which bounded
+    # generation plus spinning reserve by installed thermal capacity.
 
-        # For now, we do not allow reserves unless we do commitment
-
-        @disj.Constraint(b.dispatchPeriods, doc="Minimum operating limits")
-        def operating_limit_min(d, dispatchPeriod):
-            return (
-                0 * u.MW
-                <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-            )
-
-        @disj.Constraint(b.dispatchPeriods, doc="Maximum operating limits")
-        def operating_limit_max(d, dispatchPeriod):
-            return (
-                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
-                <= m.thermalCapacity[generator]
-            )
-
-        @disj.Constraint(
-            b.dispatchPeriods,
-            doc="Enforces that generators cannot be committed unless they are operational or just installed",
+    @b.Constraint(
+        m.thermalGenerators,
+        b.dispatchPeriods,
+        doc="Minimum operating limits",
+    )
+    def operating_limit_min(b, generator, dispatchPeriod):
+        return (
+            0 * u.MW
+            <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
         )
-        def commit_active_gens_only(d, dispatchPeriod):
-            return (
-                b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= i_p.genOperational[generator].binary_indicator_var * u.MW
-                + i_p.genInstalled[generator].binary_indicator_var * u.MW
-                + i_p.genExtended[generator].binary_indicator_var * u.MW
-            )
 
-    @b.Disjunction(m.thermalGenerators, doc="Disjunction for generator status")
-    def genStatus(disj, generator):
-        return [
-            disj.genOn[generator],
-        ]
+    @b.Constraint(
+        m.thermalGenerators,
+        b.dispatchPeriods,
+        doc="Maximum operating limits",
+    )
+    def operating_limit_max(b, generator, dispatchPeriod):
+        return (
+            b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            + b.dispatchPeriod[dispatchPeriod].spinningReserve[generator]
+            <= m.thermalCapacity[generator]
+        )
+
+    @b.Constraint(
+        m.thermalGenerators,
+        b.dispatchPeriods,
+        doc="Enforces that generators cannot generate unless they are operational, installed, or extended",
+    )
+    def commit_active_gens_only(b, generator, dispatchPeriod):
+        return (
+            b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
+            <= (
+                i_p.genOperational[generator].binary_indicator_var
+                + i_p.genInstalled[generator].binary_indicator_var
+                + i_p.genExtended[generator].binary_indicator_var
+            )
+            * m.thermalCapacity[generator]
+        )
 
 
 def add_generators_logical_constraints(m):

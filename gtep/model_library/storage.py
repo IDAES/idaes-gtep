@@ -239,12 +239,20 @@ def add_storage_params(m: pyo.Model):
     )
 
 
-def add_storage_state_disjuncts(b: BlockData):
+def add_storage_states(b: BlockData):
     """
-    This function adds battery storage charging and discharging
-    disjuncts and constraints.
+    This function adds battery storage charging/discharging constraints.
 
-    :param b:           Commitment block to add disjuncts to
+    If m.config["simple_storage"] is True, this uses a disjunct-free
+    storage formulation. In that case, storage can charge and discharge
+    simultaneously, but charging and discharging are bounded by whether
+    the storage device is active in the investment-stage status
+    disjunction: operational, installed, or extended.
+
+    If m.config["simple_storage"] is False, this uses the existing GDP
+    storage formulation with charging, discharging, and off disjuncts.
+
+    :param b:           Commitment block to add constraints/disjuncts to
     :type b:            pyomo.core.base.block.BlockData
     """
 
@@ -266,7 +274,9 @@ def add_storage_state_disjuncts(b: BlockData):
         if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
             return b.dispatchPeriod[disp_per].storageChargeLevel[
                 bat
-            ] == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat] + (
+            ] == r_p.retainedStorageChargeLevelFromPrev[
+                (comm_per, disp_per), bat
+            ] + (
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
@@ -276,6 +286,39 @@ def add_storage_state_disjuncts(b: BlockData):
             )
         return pyo.Constraint.Skip
 
+    if m.config["simple_storage"]:
+
+        def active_storage_binary(bat):
+            return (
+                i_p.storOperational[bat].indicator_var.get_associated_binary()
+                + i_p.storInstalled[bat].indicator_var.get_associated_binary()
+                + i_p.storExtended[bat].indicator_var.get_associated_binary()
+            )
+
+        @b.Constraint(
+            m.storage,
+            b.dispatchPeriods,
+            doc="Limit storage charging to active storage units",
+        )
+        def storage_charge_active_limit(b, bat, disp):
+            return (
+                b.dispatchPeriod[disp].storageCharged[bat]
+                <= active_storage_binary(bat) * m.chargeMax[bat]
+            )
+
+        @b.Constraint(
+            m.storage,
+            b.dispatchPeriods,
+            doc="Limit storage discharging to active storage units",
+        )
+        def storage_discharge_active_limit(b, bat, disp):
+            return (
+                b.dispatchPeriod[disp].storageDischarged[bat]
+                <= active_storage_binary(bat) * m.dischargeMax[bat]
+            )
+
+        return
+
     #########################
     # Discharging constraints
     #########################
@@ -283,7 +326,7 @@ def add_storage_state_disjuncts(b: BlockData):
     @b.Disjunct(m.storage, doc="Storage discharging operating limits")
     def storDischarging(disj, bat):
 
-        @disj.Constraint(b.dispatchPeriods, doc=f"Discharging min operating limit")
+        @disj.Constraint(b.dispatchPeriods, doc="Discharging min operating limit")
         def discharge_limit_min(disj, disp):
             return b.dispatchPeriod[disp].storageDischarged[bat] >= m.dischargeMin[bat]
 
@@ -298,7 +341,7 @@ def add_storage_state_disjuncts(b: BlockData):
     @b.Disjunct(m.storage)
     def storCharging(disj, bat):
 
-        @disj.Constraint(b.dispatchPeriods, doc=f"Charging min operating limit")
+        @disj.Constraint(b.dispatchPeriods, doc="Charging min operating limit")
         def charge_limit_min(disj, disp):
             return b.dispatchPeriod[disp].storageCharged[bat] >= m.chargeMin[bat]
 
@@ -338,7 +381,8 @@ def add_storage_state_disjuncts(b: BlockData):
     )
     def commit_active_batts_only(b, bat):
         return pyo.lor(
-            b.storCharging[bat].indicator_var, b.storDischarging[bat].indicator_var
+            b.storCharging[bat].indicator_var,
+            b.storDischarging[bat].indicator_var,
         ).implies(
             pyo.lor(
                 i_p.storOperational[bat].indicator_var,
