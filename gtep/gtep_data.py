@@ -586,7 +586,8 @@ class ExpansionPlanningData:
                     # column when available. Prescient stores these
                     # values in the generator dictionary as "ramp_q"
                     # and "ramp_agc". If these values are missing, use
-                    # 0.1 as the default ramp-up and ramp-down rate.
+                    # 1 MW/min as the default ramp-up and ramp-down
+                    # rate.
                     gen_data = self.md.data["elements"]["generator"][gen]
                     if (
                         "ramp_agc" in gen_data
@@ -597,7 +598,7 @@ class ExpansionPlanningData:
                     ):
                         ramp_rate_value = gen_data["ramp_agc"]
                     else:
-                        ramp_rate_value = 0.1
+                        ramp_rate_value = 1
 
                     self.md.data["elements"]["generator"][gen][
                         "ramp_up_rate"

@@ -264,7 +264,7 @@ class TestExpansionPlanningData(unittest.TestCase):
             if "ramp_agc" in gen_data:
                 ramp_value = gen_data["ramp_agc"]
             else:
-                ramp_value = 0.1
+                ramp_value = 1
 
             # Check other fixed attributes
             self.assertEqual(gen["spinning_reserve_frac"], 0.1)
