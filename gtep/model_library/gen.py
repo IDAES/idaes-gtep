@@ -556,9 +556,11 @@ def generators_status_always_on(m, b, r_p, i_p, commitment_period):
         def commit_active_gens_only(d, dispatchPeriod):
             return (
                 b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-                <= (i_p.genOperational[generator].binary_indicator_var
-                + i_p.genInstalled[generator].binary_indicator_var
-                + i_p.genExtended[generator].binary_indicator_var) 
+                <= (
+                    i_p.genOperational[generator].binary_indicator_var
+                    + i_p.genInstalled[generator].binary_indicator_var
+                    + i_p.genExtended[generator].binary_indicator_var
+                )
                 * m.thermalCapacity[generator]
             )
 
