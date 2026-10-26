@@ -430,6 +430,22 @@ class ExpansionPlanningSolution:
                     for p in param:
                         loads[param[p].name] = pyo.value(param[p])
 
+        rep_days = []
+        for param in m.component_objects(pyo.Param, descend_into=True):
+            if "Date" in param.name:
+                if type(param) is IndexedParam:
+                    for p in param:
+                        rep_days.append(pyo.value(param[p]))
+
+        weights = []
+        for param in m.component_objects(pyo.Param, descend_into=True):
+            if "weights" in param.name:
+                if type(param) is IndexedParam:
+                    for p in param:
+                        weights.append(pyo.value(param[p]))
+
+        rep_days_weights = dict(zip(rep_days, weights))
+
         # Count assets in model and save a json file with this
         # information. Here we turn any Pyomo Set (including RangeSet)
         # into a plain list. The asstes saved are: buses, generators,
@@ -457,6 +473,8 @@ class ExpansionPlanningSolution:
             "reserves": reserves,
             "charging": charging,
             "discharging": discharging,
+            "rep_days": rep_days,
+            "rep_days_weights": rep_days_weights,
             "list_load_buses": load_buses,
             "list_buses": buses,
             "list_generators": generators,
