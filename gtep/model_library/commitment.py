@@ -162,10 +162,7 @@ def add_commitment_constraints(b, comm_per):
             op_cost_gen_startup = 0
 
         return (
-            op_cost_dispatch
-            + op_cost_gen_state
-            + op_cost_gen_startup
-            + op_cost_storage
+            op_cost_dispatch + op_cost_gen_state + op_cost_gen_startup + op_cost_storage
         )
 
     @b.Expression(doc="Total curtailment for commitment block in MW")
