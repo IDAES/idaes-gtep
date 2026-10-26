@@ -62,7 +62,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         len(m.md.data["elements"]["branch"]) != 0 or m.config["flow_model"] != "CP"
     ), (
         "no branches are defined and a the flow model is "
-        f"set to {m.config["flow_model"]}. Define branch data"
+        f"set to {m.config['flow_model']}. Define branch data"
         "or set the flow model to 'CP'"
     )
     # TODO: I don't think dc_branches are really supported right now
