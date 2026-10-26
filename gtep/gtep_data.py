@@ -193,7 +193,7 @@ class ExpansionPlanningData:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
                 self.md.data["elements"]["branch"][branch]["candidate"] = True
-            else: 
+            else:
                 self.md.data["elements"]["branch"][branch]["candidate"] = False
 
         for stor in self.md.data["elements"]["storage"]:
@@ -636,8 +636,8 @@ class ExpansionPlanningData:
             )
             self.md.data["elements"]["storage"] = {}
 
-    def load_branch_csv(self, data_path): 
-        """This method imports branch data. 
+    def load_branch_csv(self, data_path):
+        """This method imports branch data.
 
         :param data_path: filepath for branch data csv file
         """
@@ -647,7 +647,7 @@ class ExpansionPlanningData:
         branch_df = pd.read_csv(branch_path)
 
         branch_data = {}
-        if "Static Line" not in branch_df.columns: 
+        if "Static Line" not in branch_df.columns:
             branch_df["Static Line"] = 0
 
         for _, row in branch_df.iterrows():

@@ -55,6 +55,7 @@ def _delta_bus_angle_inequality(expr):
         DELTA_BUS_ANGLE_UPPER,
     )
 
+
 def _add_bus_angle_variables(m, b):
     """Create bus-angle variables outside all disjuncts when needed."""
     flow_model = m.config["flow_model"]
@@ -377,12 +378,14 @@ def _add_static_transmission_constraints(m, b, static_lines):
         # Define voltage magnitude variables for from and to buses
         b.static_voltage_from = pyo.Var(static_lines, bounds=(0, 2))
         b.static_voltage_to = pyo.Var(static_lines, bounds=(0, 2))
-        
+
         # Define active and reactive power flow variables
         b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
         b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
 
-        @b.Constraint(static_lines, doc="ACP active power-flow constraints for static lines")
+        @b.Constraint(
+            static_lines, doc="ACP active power-flow constraints for static lines"
+        )
         def static_ac_power_flow_p(b, branch):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
@@ -396,7 +399,9 @@ def _add_static_transmission_constraints(m, b, static_lines):
                 )
             )
 
-        @b.Constraint(static_lines, doc="ACP reactive power-flow constraints for static lines")
+        @b.Constraint(
+            static_lines, doc="ACP reactive power-flow constraints for static lines"
+        )
         def static_ac_power_flow_q(b, branch):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
@@ -421,7 +426,9 @@ def _add_static_transmission_constraints(m, b, static_lines):
         b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
         b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
 
-        @b.Constraint(static_lines, doc="ACR active power-flow constraints for static lines")
+        @b.Constraint(
+            static_lines, doc="ACR active power-flow constraints for static lines"
+        )
         def static_ac_power_flow_p(b, branch):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
@@ -436,7 +443,9 @@ def _add_static_transmission_constraints(m, b, static_lines):
                 - B * (Vf_r * Vt_i - Vf_i * Vt_r)
             )
 
-        @b.Constraint(static_lines, doc="ACR reactive power-flow constraints for static lines")
+        @b.Constraint(
+            static_lines, doc="ACR reactive power-flow constraints for static lines"
+        )
         def static_ac_power_flow_q(b, branch):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
@@ -487,7 +496,6 @@ def add_transmission_state_disjuncts(m, b, i_p):
             )
             def delta_bus_angle_bounds(disj):
                 return _delta_bus_angle_inequality(b.deltaBusAngle[branch])
-
 
         if flow_model == "ACP":
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
