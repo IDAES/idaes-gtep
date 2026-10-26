@@ -117,7 +117,7 @@ def add_commitment_constraints(b, comm_per):
             for disp_per in b.dispatchPeriods
         )
 
-        if m.config["storage"]:
+        if m.config["storage"] and m.config["include_commitment"]:
             op_cost_storage = sum(
                 m.storageFixedCost[stor] * m.storageCapacity[stor]  # in $/MWh * MWh
                 for stor in m.storage
@@ -164,25 +164,7 @@ def add_commitment_constraints(b, comm_per):
                 + op_cost_storage
             )
         else:
-            op_cost_gen_state = sum(
-                m.fixedCost[gen]
-                * b.commitmentPeriodLength
-                * m.thermalCapacity[gen]
-                * b.genOn[gen].indicator_var.get_associated_binary()
-                for gen in m.thermalGenerators
-            )
-            op_cost_gen_state += sum(
-                m.fixedCost[gen]
-                * b.commitmentPeriodLength
-                * m.renewableCapacityNameplate[gen]
-                for gen in m.renewableGenerators
-            )
-
-            if m.config["advanced_hydro"]:
-                op_cost_gen_state += sum(
-                    m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
-                    for gen in m.hydroGenerators
-                )
+            op_cost_gen_state = 0
 
             return op_cost_dispatch + op_cost_gen_state + op_cost_storage
 
