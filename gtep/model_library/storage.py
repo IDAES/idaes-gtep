@@ -275,11 +275,15 @@ def add_storage_state_disjuncts(b: BlockData):
                 b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
         else:
-            final_comm_per  = r_p.commitmentPeriods.last()
-            final_disp_per  = r_p.commitmentPeriod[final_comm_per].dispatchPeriods.last()
+            final_comm_per = r_p.commitmentPeriods.last()
+            final_disp_per = r_p.commitmentPeriod[final_comm_per].dispatchPeriods.last()
             return b.dispatchPeriod[disp_per].storageChargeLevel[
                 bat
-            ] == r_p.commitmentPeriod[final_comm_per].dispatchPeriod[final_disp_per].storageChargeLevel[bat] + (
+            ] == r_p.commitmentPeriod[final_comm_per].dispatchPeriod[
+                final_disp_per
+            ].storageChargeLevel[
+                bat
+            ] + (
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
@@ -389,20 +393,24 @@ def add_investment_storage_constraints(m, b, investment_stage):
         )
 
     @b.Constraint(
-    b.representativePeriods,
-    m.storage,
-    doc="Enforces that the first time point is fixed to the initStorageChargeLevel",
+        b.representativePeriods,
+        m.storage,
+        doc="Enforces that the first time point is fixed to the initStorageChargeLevel",
     )
     def fix_init_storage_charge_level(b, rep_per, bat):
         m = b.model()
-        first_comm_period      = b.representativePeriod[rep_per].commitmentPeriods.first()
-        first_dispatch_period = b.representativePeriod[rep_per].commitmentPeriod[first_comm_period].dispatchPeriods.first()
+        first_comm_period = b.representativePeriod[rep_per].commitmentPeriods.first()
+        first_dispatch_period = (
+            b.representativePeriod[rep_per]
+            .commitmentPeriod[first_comm_period]
+            .dispatchPeriods.first()
+        )
         return (
-                b.representativePeriod[rep_per]
-                    .commitmentPeriod[first_comm_period]
-                        .dispatchPeriod[first_dispatch_period]
-                            .storageChargeLevel[bat] ==
-                                m.initStorageChargeLevel[bat]
+            b.representativePeriod[rep_per]
+            .commitmentPeriod[first_comm_period]
+            .dispatchPeriod[first_dispatch_period]
+            .storageChargeLevel[bat]
+            == m.initStorageChargeLevel[bat]
         )
 
 
