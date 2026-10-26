@@ -38,7 +38,11 @@ def check_flow_balance(td, c: pyo.Constraint):
     """Checks the flow balance constraint."""
     expected = {}
     for i in c.index_set():
-        expected[i] = [td.b.parent_block().loads[i], td.b.loadShed[i]]
+        if i in td.m.load_buses: 
+            expected[i] = [td.b.parent_block().loads[i], td.b.loadShed[i]]
+        else: 
+            expected[i] = [td.b.parent_block().loads[i]]
+
         expected[i] += [
             td.b.powerFlow[line]
             for line in td.m.lines
