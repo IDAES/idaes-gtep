@@ -50,7 +50,7 @@ base_dir = Path(__file__).resolve().parent
 
 
 def load_all_results(results_dir: Path) -> dict:
-    """This function reads all JSON files writen by the
+    """This function reads all JSON files written by the
     `save_results_in_json_files` function.  It raises an error if any
     of the required files is missing.
 
@@ -114,7 +114,7 @@ def main():
 
     logger.info("Loading JSON result files from %s", results_path)
 
-    # Read all the results files and save the representative dyas
+    # Read all the results files and save the representative days
     # separately since we use it during the calculation of the
     # metrics.
     results = load_all_results(results_path)
