@@ -29,6 +29,7 @@ _supported_flows = {
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
     "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
+    "transport": ("gtep.transport", "transport"),
 }
 
 
@@ -92,7 +93,7 @@ def _get_model_config():
             domain=In(_supported_flows),
             description=(
                 "Power-flow formulation to use. Supported options include "
-                "DC, CP, ACP, and ACR."
+                "DC, CP, ACP, ACR, and transport"
             ),
         ),
     )
