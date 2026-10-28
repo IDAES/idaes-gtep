@@ -597,6 +597,16 @@ class ExpansionPlanningData:
                         not in ["NA", "NAN", "NONE"]
                     ):
                         ramp_rate_value = gen_data["ramp_agc"]
+
+                    elif (
+                        "ramp_q" in gen_data
+                        and gen_data["ramp_q"] is not None
+                        and str(gen_data["ramp_q"]).strip() != ""
+                        and str(gen_data["ramp_q"]).strip().upper()
+                        not in ["NA", "NAN", "NONE"]
+                    ):
+                        ramp_rate_value = gen_data["ramp_q"]
+
                     else:
                         ramp_rate_value = 1
 
