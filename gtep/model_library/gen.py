@@ -333,7 +333,7 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
                     # we enforce a cyclic ramp-up limit. The
                     # constraint links the last dispatch period of the
                     # last commitment period to the first dispatch
-                    # period to guarantee that the generation does no
+                    # period to guarantee that the generation does not
                     # exceed the ramp-up rate. The main assumption is
                     # that each representative period always follows
                     # itself (i.e., the horizon is cyclic). See ref[1]
@@ -359,10 +359,10 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
                     # If `include_cyclic_ramping` is False, the
                     # constraint is skipped.  In this no‑enforcement
-                    # mode the first dispatch and commitment periods
-                    # are free to take any generation value, with no
-                    # ramping restrictions applied at the horizon
-                    # boundary.
+                    # mode the first dispatch period in the first
+                    # commitment period is free to take any generation
+                    # value, with no ramping restrictions applied at
+                    # the horizon boundary.
 
                     return pyo.Constraint.Skip
 
