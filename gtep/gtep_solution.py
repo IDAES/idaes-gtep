@@ -84,6 +84,12 @@ class ExpansionPlanningSolution:
         storage = mcolors.to_hex(tab20(15))
         biomass = mcolors.to_hex(tab20(16))
         other = mcolors.to_hex(tab20(0))
+        other_renew = mcolors.to_hex(tab20(17))
+        btm = mcolors.to_hex(tab20(18))
+        imports = mcolors.to_hex(tab20(4))
+        ic = mcolors.to_hex(tab20(6))
+        fuel_cell = mcolors.to_hex(tab20(12))
+        geothermal = mcolors.to_hex(tab20(10))
 
         self.gen_types = {
             "CC": GenerationType("Gas CC", gas_cc),
@@ -103,6 +109,11 @@ class ExpansionPlanningSolution:
             "BATTERY": GenerationType("Storage", storage),
             "PS": GenerationType("Pumped Storage", storage),
             "OTHER": GenerationType("Other", other),
+            "OTHER_RENEW": GenerationType("Other Renewables", other_renew),
+            "IMPORTS": GenerationType("Imports", imports),
+            "BEHIND_THE_METER": GenerationType("BTM", btm),
+            "IC": GenerationType("Internal Combustion", ic),
+            "FUEL_CELL": GenerationType("Fuel Cell", fuel_cell),
         }
         gen_types_candidate = {
             unit
@@ -1315,6 +1326,7 @@ class ExpansionPlanningSolution:
 
         self.time_periods = time_periods
         self.loads_trace = loads_trace
+        self.load_shed_trace = load_shed_trace
         self.generation = generation
 
         return fig
@@ -1812,7 +1824,7 @@ class ExpansionPlanningSolution:
             ) from exc
 
         # Decide which indices we need to read
-        if target_hour is None:
+        if target_hour is "all":
             # Return the whole 24‑hour slice
             hour_range = range(24)
         else:
@@ -1822,17 +1834,19 @@ class ExpansionPlanningSolution:
 
         # NOTE: Test only for the `time_periods` attribute. The three
         # main data attributes used in this method (self.time_periods,
-        # self.loads_trace, and self.generation) are currently created
-        # together `create stackgraph`. If, in the future, any of them
-        # are defined elsewhere, this check should be updated.
+        # self.loads_trace, self.load_shed_trace, and self.generation)
+        # are currently created together `create stackgraph`. If, in
+        # the future, any of them are defined elsewhere, this check
+        # should be updated.
         if not hasattr(self, "time_periods"):
             self.create_stackgraph(results_path, rep_days, savefig=False)
 
         # Create dictionary to collect results
         day_results = {
             "day": target_day,
-            "hour": "all" if target_hour is None else target_hour,
+            "hour": target_hour,
             "load_mw": 0.0,
+            "load_shed_mw": 0.0,
             "generation_mw": {},  # filled per hour below
         }
 
@@ -1849,8 +1863,12 @@ class ExpansionPlanningSolution:
             # Load
             load_mw = self.loads_trace[flat_idx]
 
+            # Load shed
+            load_shed_mw = self.load_shed_trace[flat_idx]
+
             # Sum across hours if we are returning the whole day
             day_results["load_mw"] += load_mw
+            day_results["load_shed_mw"] += load_shed_mw
 
             # Generation
             gen_at_tp = self.generation[tp[0]][tp[1]][tp[2]][tp[3]]
@@ -1863,7 +1881,9 @@ class ExpansionPlanningSolution:
                 day_results["generation_mw"][gk] += value
 
         if save_csv:
-            results_path = os.path.join(results_path, f"day_results.csv")
+            results_path = os.path.join(
+                results_path, f"day_results_{target_day}_{target_hour}.csv"
+            )
 
             csv_path = os.path.abspath(results_path)
             os.makedirs(os.path.dirname(csv_path), exist_ok=True)
@@ -1875,6 +1895,9 @@ class ExpansionPlanningSolution:
                 writer.writerow(["day", day_results["day"]])
                 writer.writerow(["hour", day_results["hour"]])
                 writer.writerow(["total_load_mw", f"{day_results['load_mw']:.6f}"])
+                writer.writerow(
+                    ["total_load_shed_mw", f"{day_results['load_shed_mw']:.6f}"]
+                )
                 writer.writerow([])  # blank line
                 writer.writerow(["generation_type", "value_mw"])
 
