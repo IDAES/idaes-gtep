@@ -17,11 +17,13 @@ level = "INFO"
 [data]
 data_path = "../gtep/data/9_bus_GTEP_dir"
 stages = 2
-num_reps = 2
-len_reps = 1
-num_commit = 6
-num_dispatch = 4
-duration_dispatch = 15
+num_reps = 4
+num_commit = 4
+num_dispatch = 2
+duration_representative_period = 4
+
+representative_dates = ["2020-01-28 00:00", "2020-04-23 00:00", "2020-07-05 00:00", "2020-10-14 00:00"]
+representative_weights = {"2020-01-28 00:00"= 105, "2020-04-23 00:00"= 95, "2020-07-05 00:00"= 85, "2020-10-14 00:00"= 80}
 
 [cost_data]
 enabled = true
@@ -42,11 +44,10 @@ save_csv = true
 include_investment = true
 include_commitment = true
 include_redispatch = true
-scale_loads = true
+scale_loads = false
 transmission = true
 storage = false
-flow_model = "DC"
-advanced_hydro = false
+flow_model = "transport"
 
 [transformations]
 bound_pretransformation = false
