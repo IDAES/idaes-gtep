@@ -106,7 +106,7 @@ def _get_model_config():
                 "If set to True, the model enforces ramp‑limit "
                 "continuity across the horizon boundary. If set to "
                 "False, the ramping constraint is omitted for the first "
-                "period."
+                "dispatch period of the first commitment period."
             ),
         ),
     )
