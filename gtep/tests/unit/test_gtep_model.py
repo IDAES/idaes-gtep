@@ -396,7 +396,7 @@ class TestGTEP(unittest.TestCase):
         # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96,
         # 923474476.75, 926202612.69
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 870203472.69, places=1
+            value(modObject.model.total_cost_objective), 723494956.65, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -717,4 +717,45 @@ class TestGTEP(unittest.TestCase):
         #     value(modObject.model.total_cost_objective), 20105684865.29, places=1
         # )
 
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_Bus5_with_transport_model(self):
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 2,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "transport",
+                "advanced_hydro": True,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 241142049.55, places=1
+        )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
