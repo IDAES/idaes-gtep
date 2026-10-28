@@ -270,7 +270,7 @@ def add_storage_state_disjuncts(b: BlockData):
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                * m.storageDischargingEfficiency[bat]
+                / m.storageDischargingEfficiency[bat]
             ) * u.convert(
                 b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
@@ -287,7 +287,7 @@ def add_storage_state_disjuncts(b: BlockData):
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
-                * m.storageDischargingEfficiency[bat]
+                / m.storageDischargingEfficiency[bat]
             ) * u.convert(
                 b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
@@ -366,8 +366,7 @@ def add_storage_state_disjuncts(b: BlockData):
 
 def add_investment_storage_constraints(m, b, investment_stage):
 
-    # Fix "in-service" batteries initial investment state based on
-    # input. [TODO: Initialize storage level (state of charge)]
+    # Fix "in-service" batteries initial investment state based on input
     for stor in m.storage:
         in_service = m.md.data["elements"]["storage"][stor]["in_service"]
 
