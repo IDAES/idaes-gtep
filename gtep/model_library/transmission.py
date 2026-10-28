@@ -223,6 +223,10 @@ def add_transmission_state_disjuncts(m, b, i_p):
 
     @b.Disjunct(m.lines)
     def branchInUse(disj, branch):
+
+        if m.config["flow_model"] == "transport":
+            return
+
         b = disj.parent_block()
 
         def bus_angle_bounds(disj, bus, doc="Voltage angle"):
@@ -400,11 +404,12 @@ def add_transmission_state_disjuncts(m, b, i_p):
     @b.Disjunct(m.lines)
     def branchNotInUse(disj, branch):
 
-        # Fixing power flow to 0 and not creating bus angle variables
-        # for branches that are not in use.
-        @disj.Constraint()
-        def dc_power_flow(disj):
-            return b.powerFlow[branch] == 0 * u.MW
+        if m.config["flow_model"] != "CP":
+            # Fixing power flow to 0 and not creating bus angle variables
+            # for branches that are not in use.
+            @disj.Constraint()
+            def dc_power_flow(disj):
+                return b.powerFlow[branch] == 0 * u.MW
 
         return
 
