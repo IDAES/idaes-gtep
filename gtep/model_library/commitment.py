@@ -129,7 +129,7 @@ def add_commitment_constraints(b, comm_per):
         # generator and should be included to have consistent units.]
         if m.config["include_commitment"]:
             op_cost_gen_state = sum(
-                m.fixedCost[gen]
+                m.generatorFixedCost[gen]
                 * b.commitmentPeriodLength
                 * m.thermalCapacity[gen]
                 * (
@@ -145,7 +145,7 @@ def add_commitment_constraints(b, comm_per):
                 for gen in m.thermalGenerators
             )
             op_cost_gen_state += sum(
-                m.fixedCost[gen]
+                m.generatorFixedCost[gen]
                 * b.commitmentPeriodLength
                 * m.renewableCapacityNameplate[gen]
                 for gen in m.renewableGenerators
@@ -153,7 +153,9 @@ def add_commitment_constraints(b, comm_per):
 
             if m.config["advanced_hydro"]:
                 op_cost_gen_state += sum(
-                    m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    m.generatorFixedCost[gen]
+                    * b.commitmentPeriodLength
+                    * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
                 )
 
@@ -165,14 +167,14 @@ def add_commitment_constraints(b, comm_per):
             )
         else:
             op_cost_gen_state = sum(
-                m.fixedCost[gen]
+                m.generatorFixedCost[gen]
                 * b.commitmentPeriodLength
                 * m.thermalCapacity[gen]
                 * b.genOn[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
             op_cost_gen_state += sum(
-                m.fixedCost[gen]
+                m.generatorFixedCost[gen]
                 * b.commitmentPeriodLength
                 * m.renewableCapacityNameplate[gen]
                 for gen in m.renewableGenerators
@@ -180,7 +182,9 @@ def add_commitment_constraints(b, comm_per):
 
             if m.config["advanced_hydro"]:
                 op_cost_gen_state += sum(
-                    m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
+                    m.generatorFixedCost[gen]
+                    * b.commitmentPeriodLength
+                    * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
                 )
 

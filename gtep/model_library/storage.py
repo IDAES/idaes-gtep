@@ -16,9 +16,13 @@ Transmission Expansion Planning (GTEP) Model
 
 """
 
+import logging
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
+
+logger = logging.getLogger("gtep.model_library.storage")
 
 
 def add_storage_params(m: pyo.Model):
@@ -161,7 +165,7 @@ def add_storage_params(m: pyo.Model):
         doc="Cost of life extension, as a fraction of initial investment cost",
     )
 
-    m.storageLifetimes = pyo.Param(
+    m.storageLifetime = pyo.Param(
         m.storage,
         initialize={stor: 3 for stor in m.storage},
         mutable=True,
@@ -229,7 +233,7 @@ def add_storage_params(m: pyo.Model):
         doc="Storage fixed operating costs, in USD/MWh",
     )
 
-    m.storageVarCost = pyo.Param(
+    m.storageVariableCost = pyo.Param(
         m.storage,
         initialize={stor: 0 for stor in m.storage},
         mutable=True,
@@ -676,3 +680,43 @@ def add_commitment_storage_constraints(b):
             b.dispatchPeriod[disp_per].storageCostDispatch
             for disp_per in b.dispatchPeriods
         )
+
+
+def repopulate_storage_cost_parameters(m, year):
+    """This function repopulates storage cost parameters for a
+    selected year.
+
+    The units required by the model parameters are:
+
+        fixed_ops_cost_<year> = USD / MW hr
+        var_ops_cost_<year> = USD / MW hr
+        capex_<year> = USD / MW hr
+
+    """
+
+    if m.mc is None:
+        logger.warning(
+            "Cost data for year %s was not provided in m.mc."
+            " Keeping all storage cost parameters to default"
+            " values.",
+            year,
+        )
+        return
+
+    if hasattr(m.mc, "storage_cost_from_csv_data"):
+        logger.info(
+            "Re-populating storage cost parameters (investment,"
+            " fixed, and variables costs) for year %s.",
+            year,
+        )
+
+        for index, row in m.mc.storage_cost_from_csv_data.iterrows():
+            storage = row["name"]
+
+            # Read costs for the selected year
+            capex_yr = float(row[f"capex_{year}"])
+            fixed_ops_yr = float(row[f"fixed_ops_cost_{year}"])
+            var_ops_yr = float(row[f"var_ops_cost_{year}"])
+            m.storageInvestmentCost[storage] = capex_yr
+            m.storageFixedCost[storage] = fixed_ops_yr
+            m.storageVariableCost[storage] = var_ops_yr
