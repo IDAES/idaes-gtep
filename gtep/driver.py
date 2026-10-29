@@ -206,7 +206,6 @@ outputs, metrics_df = sol_object.create_analysis(
     hours_per_period=1.0,
     cost_units="million",
 )
-logger.info("GTEP run complete.")
 
 # Print results for a single selected day and time
 day_info = sol_object.read_day_results(
@@ -221,3 +220,5 @@ day_info = sol_object.read_day_results(
     save_csv=True,
     results_path=dir_name,
 )
+
+logger.info("GTEP run complete.")
