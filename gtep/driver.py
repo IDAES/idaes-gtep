@@ -205,6 +205,7 @@ outputs, metrics_df = sol_object.create_analysis(
     csv_path=f"{dir_name}/analysis_metrics.csv",
     hours_per_period=1.0,
     cost_units="million",
+    data_dir=data_path,
 )
 
 # Print results for a single selected day and time

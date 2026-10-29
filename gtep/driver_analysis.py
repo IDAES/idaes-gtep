@@ -148,6 +148,7 @@ def main():
         csv_path=results_path / "analysis_metrics.csv",
         hours_per_period=1.0,
         cost_units="million",
+        data_dir=data_path,
     )
     logger.info("Analysis metrics saved to %s", results_path / "analysis_metrics.csv")
 
