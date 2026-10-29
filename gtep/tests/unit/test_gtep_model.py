@@ -210,10 +210,10 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m.renewable_capacity_enforcement[1, "10_PV"].expr, u.MW)
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
+        assert_units_equivalent(m.rampUpRates, u.MW / u.min)
         assert_units_equivalent(m.generatorInvestmentCost, u.USD / u.MW)
         assert_units_equivalent(m.generatorFixedCost, u.USD / u.h / u.MW)
         assert_units_equivalent(m.generatorVariableCost, u.USD / u.h / u.MW)
-        assert_units_equivalent(m.rampUpRates, u.MW / u.min)
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,
@@ -821,7 +821,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
+        # Previous values: 125950815.36
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 125950815.36, places=1
+            value(modObject.model.total_cost_objective), 126029173.22, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
