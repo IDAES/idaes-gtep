@@ -124,6 +124,18 @@ def _get_model_config():
         ),
     )
 
+    CONFIG.declare(
+        "relax_storage_dispatch",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Whether to use disjuncts to require storage not "
+                "charge and discharge simultaneously"
+            ),
+        ),
+    )
+
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these
