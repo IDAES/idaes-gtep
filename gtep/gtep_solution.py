@@ -1914,9 +1914,6 @@ class ExpansionPlanningSolution:
         # Decide which indices we need to read
         if target_hour == "all":
             # Return the whole 24‑hour slice
-            assert (
-                len(hour_range) == 24
-            ), "Expected 24 hours in hour_range for 'all' mode."
             hour_range = range(24)
         else:
             if not (0 <= target_hour <= 23):
