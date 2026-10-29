@@ -11,6 +11,15 @@
 # for full copyright and license information.
 #################################################################################
 
+"""References
+
+[1] Felix C. A. Auer, Robert Gaugl, Thomas Klatzer, Diego
+A. Tejada-Arango, Sonja Wogrin, Connecting Representative Periods in
+Energy System Optimization Models using Markov Transition Matrices.
+https://doi.org/10.48550/arXiv.2510.18555
+
+"""
+
 from pyomo.common.config import (
     ConfigBlock,
     ConfigDict,
@@ -86,6 +95,23 @@ def _get_model_config():
         ),
     )
 
+    # See ref [1] for more details about this configuration option.
+    CONFIG.declare(
+        "include_cyclic_ramping",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Enable cyclic ramp‑up/down constraints that link the "
+                "final dispatch period of the horizon to the first. "
+                "If set to True, the model enforces ramp‑limit "
+                "continuity across the horizon boundary. If set to "
+                "False, the ramping constraint is omitted for the first "
+                "dispatch period of the first commitment period."
+            ),
+        ),
+    )
+
     CONFIG.declare(
         "flow_model",
         ConfigValue(
@@ -93,7 +119,7 @@ def _get_model_config():
             domain=In(_supported_flows),
             description=(
                 "Power-flow formulation to use. Supported options include "
-                "DC, CP, ACP, and ACR."
+                "DC, CP, ACP, ACR, and transport"
             ),
         ),
     )

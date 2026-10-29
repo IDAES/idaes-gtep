@@ -270,7 +270,9 @@ def add_dispatch_constraints(b):
 
     else:
 
-        @b.Constraint(m.buses, doc="Energy balance constraint")
+        # This flow balance equation is a nodal power balance used by
+        # each flow model except for "CP".
+        @b.Constraint(m.buses, doc="Power balance constraint")
         def flow_balance(b, bus):
             balance = 0 * u.MW
             # Add power flow to constraint

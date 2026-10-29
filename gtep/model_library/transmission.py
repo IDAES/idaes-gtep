@@ -483,6 +483,10 @@ def add_transmission_state_disjuncts(m, b, i_p):
 
     @b.Disjunct(investment_lines)
     def branchInUse(disj, branch):
+
+        if m.config["flow_model"] == "transport":
+            return
+
         b = disj.parent_block()
         flow_model = m.config["flow_model"]
 
