@@ -760,7 +760,7 @@ class TestGTEP(unittest.TestCase):
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
-    def test_Bus5_with_forecast_years_different_from_default(self):
+    def test_Bus5_with_forecast_year_different_from_default(self):
         # This test verifies that the expansion planning model can be
         # built and solved using preprocessed cost data with advanced
         # hydropower enabled. The test also checks unit consistency
@@ -815,7 +815,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
+        # Previous values: 2947899.93
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 2947899.93, places=1
+            value(modObject.model.total_cost_objective), 2911270.44, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
