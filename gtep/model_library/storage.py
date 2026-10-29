@@ -274,9 +274,7 @@ def add_storage_states(b: BlockData):
         if (comm_per, disp_per) in r_p.commitDispatchPairsNotFirst:
             return b.dispatchPeriod[disp_per].storageChargeLevel[
                 bat
-            ] == r_p.retainedStorageChargeLevelFromPrev[
-                (comm_per, disp_per), bat
-            ] + (
+            ] == r_p.retainedStorageChargeLevelFromPrev[(comm_per, disp_per), bat] + (
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]

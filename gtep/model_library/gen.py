@@ -658,8 +658,8 @@ def add_generators_state_disjuncts(m, b, r_p, i_p, commitment_period):
 
 def generators_status_always_on(m, b, r_p, i_p, commitment_period):
     """This method defines sets the generators to always be on.
-    It is used when unit commitment is not modeled, ensuring generators 
-    are always considered operational while startup, shutdown, and 
+    It is used when unit commitment is not modeled, ensuring generators
+    are always considered operational while startup, shutdown, and
     offline states are ignored.
     """
 
@@ -673,10 +673,7 @@ def generators_status_always_on(m, b, r_p, i_p, commitment_period):
         doc="Minimum operating limits",
     )
     def operating_limit_min(b, generator, dispatchPeriod):
-        return (
-            0 * u.MW
-            <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
-        )
+        return 0 * u.MW <= b.dispatchPeriod[dispatchPeriod].thermalGeneration[generator]
 
     @b.Constraint(
         m.thermalGenerators,
