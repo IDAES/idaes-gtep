@@ -89,7 +89,6 @@ class ExpansionPlanningSolution:
         imports = mcolors.to_hex(tab20(4))
         ic = mcolors.to_hex(tab20(6))
         fuel_cell = mcolors.to_hex(tab20(12))
-        geothermal = mcolors.to_hex(tab20(10))
 
         self.gen_types = {
             "CC": GenerationType("Gas CC", gas_cc),
