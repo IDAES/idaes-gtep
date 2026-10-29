@@ -1912,7 +1912,7 @@ class ExpansionPlanningSolution:
             ) from exc
 
         # Decide which indices we need to read
-        if target_hour is "all":
+        if target_hour == "all":
             # Return the whole 24‑hour slice
             assert (
                 len(hour_range) == 24
