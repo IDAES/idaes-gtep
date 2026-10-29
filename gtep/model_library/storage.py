@@ -243,13 +243,13 @@ def add_storage_states(b: BlockData):
     """
     This function adds battery storage charging/discharging constraints.
 
-    If m.config["simple_storage"] is True, this uses a disjunct-free
+    If m.config["relax_storage_dispatch"] is True, this uses a disjunct-free
     storage formulation. In that case, storage can charge and discharge
     simultaneously, but charging and discharging are bounded by whether
     the storage device is active in the investment-stage status
     disjunction: operational, installed, or extended.
 
-    If m.config["simple_storage"] is False, this uses the existing GDP
+    If m.config["relax_storage_dispatch"] is False, this uses the existing GDP
     storage formulation with charging, discharging, and off disjuncts.
 
     :param b:           Commitment block to add constraints/disjuncts to
@@ -286,7 +286,7 @@ def add_storage_states(b: BlockData):
             )
         return pyo.Constraint.Skip
 
-    if m.config["simple_storage"]:
+    if m.config["relax_storage_dispatch"]:
 
         def active_storage_binary(bat):
             return (

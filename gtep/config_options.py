@@ -125,7 +125,7 @@ def _get_model_config():
     )
 
     CONFIG.declare(
-        "simple_storage",
+        "relax_storage_dispatch",
         ConfigValue(
             default=False,
             domain=Bool,
