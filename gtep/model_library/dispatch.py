@@ -96,14 +96,14 @@ def add_dispatch_variables(b, paramPeriodLength):
             )
 
     b.loadShed = pyo.Var(
-        m.buses,
+        m.load_buses,
         domain=pyo.NonNegativeReals,
         initialize=0,
         units=u.MW,
         doc="Load shed per bus",
     )
 
-    @b.Expression(m.buses, doc="Load shed cost per bus in $")
+    @b.Expression(m.load_buses, doc="Load shed cost per bus in $")
     def loadShedCost(b, bus):
         m = b.model()
         return (
@@ -156,7 +156,7 @@ def add_dispatch_variables(b, paramPeriodLength):
 
     @b.Expression(doc="Total load shed cost summed in $")
     def loadShedCostDispatch(b):
-        return sum(b.loadShedCost[bus] for bus in m.buses)
+        return sum(b.loadShedCost[bus] for bus in m.load_buses)
 
     storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
     hydro_term = (
@@ -186,16 +186,17 @@ def add_dispatch_variables(b, paramPeriodLength):
             m.transmissionCapacity[branch],
         )
 
-    # [TODO: Check units since they might need to be fixed for
-    # variable temporal resolution.]
-    b.powerFlow = pyo.Var(
-        m.lines,
-        domain=pyo.Reals,
-        bounds=power_flow_limits,
-        initialize=0,
-        units=u.MW,
-        doc="Power flow in MW",
-    )
+    if m.config["flow_model"] != "CP":
+        # [TODO: Check units since they might need to be fixed for
+        # variable temporal resolution.]
+        b.powerFlow = pyo.Var(
+            m.lines,
+            domain=pyo.Reals,
+            bounds=power_flow_limits,
+            initialize=0,
+            units=u.MW,
+            doc="Power flow in MW",
+        )
 
     # Add transmission lines state disjuncts (in use and not in
     # use). The power flow is calculated here using OPF formulations.
@@ -263,13 +264,15 @@ def add_dispatch_constraints(b):
                 balance += sum([b.storageDischarged[bt] for bt in m.storage])
                 balance -= sum([b.storageCharged[bt] for bt in m.storage])
             balance -= sum([c_p.loads[bus] for bus in m.buses])
-            balance += sum([b.loadShed[bus] for bus in m.buses])
+            balance += sum([b.loadShed[bus] for bus in m.load_buses])
 
             return balance == 0 * u.MW
 
     else:
 
-        @b.Constraint(m.buses, doc="Energy balance constraint")
+        # This flow balance equation is a nodal power balance used by
+        # each flow model except for "CP".
+        @b.Constraint(m.buses, doc="Power balance constraint")
         def flow_balance(b, bus):
             balance = 0 * u.MW
             # Add power flow to constraint
@@ -297,7 +300,8 @@ def add_dispatch_constraints(b):
 
             # Add the loads as a parameter (already includes units).
             balance -= c_p.loads[bus]
-            balance += b.loadShed[bus]
+            if bus in m.load_buses:
+                balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
     @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
