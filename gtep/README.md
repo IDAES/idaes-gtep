@@ -31,6 +31,47 @@ There are two main ways to run the GTEP model:
    python driver_from_config.py --config examples/config_5bus.toml
    ```
 
+## How to Run Analysis Tool
+
+If you already have the JSON files produced by
+`save_results_in_json_files` from the `ExpansionPlanningSolution`
+class, you can skip model building and solving and run only the
+post-processing / analysis steps. For this, use the dedicated driver
+`driver_analysis.py` as shown below:
+
+   ```bash
+   python driver_analysis.py --data-dir <path/to/input_csv_folder> --results-dir <path/to/json_results_folder>
+   ```
+   
+The driver loads the CSV data, reads the JSON files, creates an
+ExpansionPlanningSolution object, and then runs the same analysis
+methods (plots, tables, CSV exports) that the normal drivers execute
+after a solve. The required JSON files are given in the table below.
+
+| JSON file (key in `output_files`) | Description |
+|---|---|
+| `renewable_investments.json` | Investment variables for renewable assets |
+| `dispatchable_investments.json` | Investment variables for dispatchable assets |
+| `load_shed.json` | Load shed values |
+| `costs.json` | All cost components and the objective value |
+| `flows.json` | Power flow values |
+| `generation.json` | Generation values |
+| `curtailment.json` | Renewable curtailment values |
+| `loads.json` | Load values |
+| `reserves.json` | Reserve values |
+| `charging.json` | Storage charging values |
+| `discharging.json` | Storage discharging values |
+| `rep_days.json` | List of representative days |
+| `rep_days_weights.json` | Dictionary of representative days and weights |
+| `list_load_buses.json` | List of bus IDs that have loads |
+| `list_buses.json` | List of all bus IDs in the grid |
+| `list_generators.json` | List of all generator IDs (renewable and thermal) |
+| `list_thermal_generators.json` | List of thermal generators IDs |
+| `list_renewable_generators.json` | List of renewable generators IDs |
+| `list_lines.json` | List of transmission line IDs |
+| `list_storage.json` | List of storage assets IDs (empty list if storage is disabled) |
+
+
 ## Main Files
 
 | File | Description |
