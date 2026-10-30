@@ -143,19 +143,11 @@ class TestObjective(TestCase):
         )
 
     def _add_storage_state_disjuncts(self):
-        continuity_constraint_skipped = [
-            (bat, d)
-            for bat in self.m.storage
-            for d in self.b.dispatchPeriods
-            if (self.b.parent_block().index(), d)
-            == self.b.parent_block().commitDispatchPairs.first()
-        ]
         self.check_helper.add_object(
             name="battery_storage_balance",
             obj_type=pyo.Constraint,
             units=u.MW * u.hr,
             index=(self.m.storage, self.b.dispatchPeriods),
-            skipped_on=continuity_constraint_skipped,
         )
         self.check_helper.add_object(
             name="storDischarging",
