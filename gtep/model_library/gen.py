@@ -124,7 +124,7 @@ def add_investment_generators_constraints(m, b, investment_stage):
             if m.md.data["elements"]["generator"][gen]["in_service"]:
                 b.renewableOperational[gen].fix(m.renewableCapacityNameplate[gen])
             else:
-                b.renewableOperational[gen].set_value(0)
+                b.renewableOperational[gen].fix(0)
                 b.renewableExtended[gen].fix(0)
                 b.renewableRetired[gen].fix(0)
 
