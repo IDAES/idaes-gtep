@@ -29,10 +29,10 @@ This module uses the following transmission-line sets:
 
     m.nonStaticLines
         Lines that may be operational, retired, disabled,
-        extended, or installed/reinstalled, including both 
+        extended, or installed/reinstalled, including both
         existing and candidate lines
 
-GDP disjuncts are created only for ``m.nonStaticLines``. 
+GDP disjuncts are created only for ``m.nonStaticLines``.
 Static lines receive deterministic transmission-flow
 constraints directly on the relevant block.
 """
@@ -125,7 +125,7 @@ def _branch_ac_data(m, branch):
 
 
 def add_investment_transmission_constraints(m, b, investment_stage):
-    non_static_lines = m.nonStaticlines
+    non_static_lines = m.nonStaticLines
     candidate_lines = m.candidateLines
 
     for branch in non_static_lines:
@@ -183,7 +183,7 @@ def add_transmission_status_disjuncts(b, transmission_set=None):
 
     # Ignore a legacy caller passing m.lines here; static lines must not get
     # investment disjuncts.
-    non_static_lines = m.nonStaticlines
+    non_static_lines = m.nonStaticLines
 
     @b.Disjunct(non_static_lines)
     def branchOperational(disj, branch):
@@ -222,7 +222,7 @@ def add_transmission_logical_constraints(m):
     These constraints are applied only to non-static lines, i.e.,
     Static lines have no status disjuncts and therefore are excluded.
     """
-    non_static_lines = m.nonStaticlines
+    non_static_lines = m.nonStaticLines
 
     @m.LogicalConstraint(
         m.stages,
@@ -472,7 +472,7 @@ def add_transmission_state_disjuncts(m, b, i_p):
     Static lines receive no operating-state disjuncts; they instead receive
     deterministic flow constraints directly on block ``b``.
     """
-    non_static_lines = m.nonStaticlines
+    non_static_lines = m.nonStaticLines
     static_lines = m.staticLines
 
     _add_bus_angle_variables(m, b)
