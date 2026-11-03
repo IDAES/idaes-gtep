@@ -23,19 +23,17 @@ This module uses the following transmission-line sets:
         Existing/non-candidate lines that cannot be retired, disabled, installed,
         or extended. These lines do not receive GDP disjuncts.
 
-    m.nonStaticLines
-        Existing/non-candidate lines that may be operational, retired, disabled,
-        extended, or installed/reinstalled.
-
     m.candidateLines
         Candidate lines that may be operational, retired, disabled, extended,
         or installed.
 
-    m.investmentLines
-        union of m.nonStaticLines and m.candidateLines
+    m.nonStaticLines
+        Lines that may be operational, retired, disabled,
+        extended, or installed/reinstalled, including both 
+        existing and candidate lines
 
-GDP disjuncts are created only for ``m.nonStaticLines`` and
-``m.candidateLines``. Static lines receive deterministic transmission-flow
+GDP disjuncts are created only for ``m.nonStaticLines``. 
+Static lines receive deterministic transmission-flow
 constraints directly on the relevant block.
 """
 
@@ -44,15 +42,12 @@ import math
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 
-DELTA_BUS_ANGLE_LOWER = -math.pi / 6
-DELTA_BUS_ANGLE_UPPER = math.pi / 6
-
 
 def _delta_bus_angle_inequality(expr):
     return pyo.inequality(
-        DELTA_BUS_ANGLE_LOWER,
+        -math.pi / 6,
         expr,
-        DELTA_BUS_ANGLE_UPPER,
+        math.pi / 6,
     )
 
 
@@ -130,10 +125,10 @@ def _branch_ac_data(m, branch):
 
 
 def add_investment_transmission_constraints(m, b, investment_stage):
-    investment_lines = m.investmentLines
+    non_static_lines = m.nonStaticlines
     candidate_lines = m.candidateLines
 
-    for branch in investment_lines:
+    for branch in non_static_lines:
         if investment_stage == m.stages.first():
             b.branchOperational[branch].indicator_var.fix(
                 m.md.data["elements"]["branch"][branch]["in_service"]
@@ -152,13 +147,13 @@ def add_investment_transmission_constraints(m, b, investment_stage):
             * m.branchInvestmentCost[branch]
             * m.branchCapitalMultiplier[branch]
             * b.branchInstalled[branch].indicator_var.get_associated_binary()
-            for branch in investment_lines
+            for branch in non_static_lines
         ) + sum(
             m.transmissionCapacity[branch]
             * m.branchInvestmentCost[branch]
             * m.branchExtensionMultiplier[branch]
             * b.branchExtended[branch].indicator_var.get_associated_binary()
-            for branch in investment_lines
+            for branch in non_static_lines
         )
 
 
@@ -188,29 +183,29 @@ def add_transmission_status_disjuncts(b, transmission_set=None):
 
     # Ignore a legacy caller passing m.lines here; static lines must not get
     # investment disjuncts.
-    investment_lines = m.investmentLines
+    non_static_lines = m.nonStaticlines
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchOperational(disj, branch):
         return
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchInstalled(disj, branch):
         return
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchRetired(disj, branch):
         return
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchDisabled(disj, branch):
         return
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchExtended(disj, branch):
         return
 
-    @b.Disjunction(investment_lines)
+    @b.Disjunction(non_static_lines)
     def branchInvestStatus(disj, branch):
         return [
             disj.branchOperational[branch],
@@ -225,14 +220,13 @@ def add_transmission_logical_constraints(m):
     """Add logical constraints for transmission-line status transitions.
 
     These constraints are applied only to non-static lines, i.e.,
-    ``m.nonStaticLines`` and ``m.candidateLines``. Static lines have no status
-    disjuncts and therefore are excluded.
+    Static lines have no status disjuncts and therefore are excluded.
     """
-    investment_lines = m.investmentLines
+    non_static_lines = m.nonStaticlines
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is online at time t, it must have "
             "been online or installed at time t-1"
@@ -252,7 +246,7 @@ def add_transmission_logical_constraints(m):
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is online at time t, it must be "
             "online, extended, or retired at time t+1"
@@ -273,7 +267,7 @@ def add_transmission_logical_constraints(m):
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is retired in period t-1, it should "
             "be disabled in period t"
@@ -292,7 +286,7 @@ def add_transmission_logical_constraints(m):
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is disabled at time t-1, it must "
             "stay disabled or be installed at time t"
@@ -312,7 +306,7 @@ def add_transmission_logical_constraints(m):
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is extended at time t-1, it must "
             "stay extended or be retired at time t"
@@ -332,7 +326,7 @@ def add_transmission_logical_constraints(m):
 
     @m.LogicalConstraint(
         m.stages,
-        investment_lines,
+        non_static_lines,
         doc=(
             "Enforces that, if a branch is installed in period t-1, it must "
             "be operational in period t"
@@ -478,13 +472,13 @@ def add_transmission_state_disjuncts(m, b, i_p):
     Static lines receive no operating-state disjuncts; they instead receive
     deterministic flow constraints directly on block ``b``.
     """
-    investment_lines = m.investmentLines
+    non_static_lines = m.nonStaticlines
     static_lines = m.staticLines
 
     _add_bus_angle_variables(m, b)
     _add_static_transmission_constraints(m, b, static_lines)
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchInUse(disj, branch):
 
         if m.config["flow_model"] == "transport":
@@ -593,20 +587,20 @@ def add_transmission_state_disjuncts(m, b, i_p):
             # available to carry flow subject to capacity constraints elsewhere.
             return
 
-    @b.Disjunct(investment_lines)
+    @b.Disjunct(non_static_lines)
     def branchNotInUse(disj, branch):
         @disj.Constraint()
         def no_power_flow(disj):
             return b.powerFlow[branch] == 0 * u.MW
 
-    @b.Disjunction(investment_lines)
+    @b.Disjunction(non_static_lines)
     def branchInUseStatus(disj, branch):
         return [disj.branchInUse[branch], disj.branchNotInUse[branch]]
 
     if m.config["transmission"]:
 
         @b.LogicalConstraint(
-            investment_lines,
+            non_static_lines,
             doc="Enforces that, if a branch is in use, it must be active",
         )
         def must_use_active_branches(b, branch):
@@ -619,7 +613,7 @@ def add_transmission_state_disjuncts(m, b, i_p):
             )
 
         @b.LogicalConstraint(
-            investment_lines,
+            non_static_lines,
             doc="Enforces that, if a branch is not in use, it must be inactive",
         )
         def cannot_use_inactive_branches(b, branch):

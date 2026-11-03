@@ -87,16 +87,6 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         doc="Static transmission lines",
     )
 
-    m.nonStaticLines = pyo.Set(
-        initialize=(
-            branch
-            for branch in m.md.data["elements"]["branch"]
-            if not m.md.data["elements"]["branch"][branch]["static"]
-            and not m.md.data["elements"]["branch"][branch]["candidate"]
-        ),
-        doc="Non-static, non-candidate lines",
-    )
-
     m.candidateLines = pyo.Set(
         initialize=(
             branch
@@ -105,14 +95,15 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         ),
         doc="Candidate lines",
     )
-    m.investmentLines = pyo.Set(
+
+    m.nonStaticLines = pyo.Set(
         initialize=(
             branch
             for branch in m.md.data["elements"]["branch"]
             if not m.md.data["elements"]["branch"][branch]["static"]
             or m.md.data["elements"]["branch"][branch]["candidate"]
         ),
-        doc="Non-static or candidate lines",
+        doc="Non-static, non-candidate lines",
     )
 
     _toBranches = defaultdict(list)
