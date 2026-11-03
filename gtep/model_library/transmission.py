@@ -80,6 +80,9 @@ def _add_bus_angle_variables(m, b):
         doc="Voltage angle",
     )
 
+    # To ensure a unique solution, fix one of the busAngles to zero
+    b.fix_slack_bus_angle = pyo.Constraint(expr=b.busAngle[m.buses.first()] == 0)
+
     @b.Expression(m.lines, doc="Voltage angle difference across each branch")
     def deltaBusAngle(b, branch):
         fb = m.from_bus[branch]
