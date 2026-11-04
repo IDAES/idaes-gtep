@@ -106,7 +106,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             ),
             doc="Non-static, non-candidate lines",
         )
-    else: 
+    else:
         # If transmission expansion is not allowed, we can make all
         # non-candidate lines static and remove the not in service lines
         # This removes constraints that would otherwise be added to the model
