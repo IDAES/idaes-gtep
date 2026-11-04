@@ -686,7 +686,8 @@ class ExpansionPlanningData:
 
         for _, row in branch_df.iterrows():
             name = row["UID"]
-            static_status = bool(row["Static Line"])
+
+            static_status = bool(row["Static Line"]) and self.md.data["elements"]["branch"][branch]["in_service"]
 
             self.md.data["elements"]["branch"][name]["static"] = static_status
 
