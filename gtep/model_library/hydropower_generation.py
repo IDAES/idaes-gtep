@@ -13,9 +13,13 @@
 
 """Advanced hydropower modeling for the GTEP model (``advanced_hydro=True``).
 
-Every hydro unit (``unit_type == "HYDRO"``) is dispatched between a
-minimum and a maximum output in each commitment period, and has an
-energy budget over each representative period:
+Every hydro unit (``unit_type == "HYDRO"``) is modeled separately from
+the other renewables. With ``hydro_budget=False`` (the default) each unit
+runs at its ``p_max`` series in every commitment period.
+
+With ``hydro_budget=True`` each unit is dispatched between a minimum and
+a maximum output in each commitment period, and has an energy budget
+over each representative period:
 
 - maximum: the ``p_max`` series (PMax MW);
 - minimum: the ``DAY_AHEAD_hydro_min.csv`` series when the unit has one,
@@ -32,9 +36,9 @@ representative period, and water that is not used is spilled. Budgets
 are not carried between representative periods.
 
 With neither file, the minimum equals the maximum and the budget equals
-their sum, so output is fixed at ``p_max`` (the previous behavior). With
-only a minimum file, the unit can run anywhere between its minimum and
-``p_max`` and spill the rest.
+their sum, so output is fixed at ``p_max`` (the same as
+``hydro_budget=False``). With only a minimum file, the unit can run
+anywhere between its minimum and ``p_max`` and spill the rest.
 """
 
 import logging
@@ -43,6 +47,7 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 logger = logging.getLogger("gtep.model_library.hydropower_generation")
+
 
 def _series_value(gen_data, key, commitment_period):
     """Value of a generator attribute for one commitment period.
@@ -69,7 +74,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         for g in m.hydroGenerators
     }
 
-    if m.config["hydro_budget"]
+    if m.config["hydro_budget"]:
         min_values = {}
         budget_values = {}
         for g in m.hydroGenerators:
@@ -87,7 +92,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
             budget_key = "hydro_budget" if "hydro_budget" in gen_data[g] else "p_max"
             value = _series_value(gen_data[g], budget_key, commitmentPeriod)
             budget_values[g] = value
-    else: 
+    else:
         min_values = max_values
         budget_values = max_values
 
@@ -117,12 +122,18 @@ def fix_hydropower_limits(b, commitmentPeriod):
 
 
 def add_representative_hydropower(b, repPer):
-    """Add the hydro energy-budget constraints to a representative-period block."""
+    """Add the hydro energy-budget constraints to a representative-period block.
+
+    Only used when ``hydro_budget`` is True. Without a budget the minimum
+    equals the maximum in every period, so there is nothing to shift or
+    spill and the constraints would be redundant.
+    """
+    m = b.model()
+    if not m.config["hydro_budget"]:
+        return
 
     # Relative tolerance for the feasibility check on budgets vs minimum output.
     budget_rtol = 1e-9
-
-    m = b.model()
 
     gen_data = m.md.data["elements"]["generator"]
 
