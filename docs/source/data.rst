@@ -115,9 +115,68 @@ description of the relevant parameters included.
    ============================ ========= ============= ============================================
 
 
+Optional hydro inputs
+---------------------
+
+Two optional files give hydro units a minimum output and an inflow
+(energy) budget. They are read by
+:meth:`load_hydro_timeseries<gtep.gtep_data.ExpansionPlanningData.load_hydro_timeseries>`,
+which ``load_prescient`` calls automatically, and are used only when the
+model options ``advanced_hydro`` and ``hydro_budget`` are both ``True``
+(see the advanced hydropower section of the modeling page). The files
+are still read and checked when ``hydro_budget`` is ``False``, but the
+model ignores them.
+
+.. table:: Table 2: Optional hydro input files
+   :widths: 25 20 45
+
+   ============================== ==================== =================================================================
+   File                           Units                Description
+   ============================== ==================== =================================================================
+   ``DAY_AHEAD_hydro_min.csv``    MW                   Minimum output of each listed hydro unit in each period.
+                                                       Stored as ``hydro_p_min``.
+   ``DAY_AHEAD_hydro_budget.csv`` MW (average)         Inflow to each listed unit's reservoir, as average MW of
+                                                       generation-equivalent energy in each period (for hourly data,
+                                                       the same number as MWh per period). Stored as ``hydro_budget``.
+   ============================== ==================== =================================================================
+
+Both files use the layout of ``DAY_AHEAD_renewables.csv``: the columns
+``Year``, ``Month``, ``Day`` and ``Period`` (counting from 1 within each
+day), followed by one column per hydro generator ``GEN UID``:
+
+.. code-block:: text
+
+   Year,Month,Day,Period,1_HYDRO
+   2020,1,1,1,4.2
+   2020,1,1,2,3.8
+
+- Each file may list any subset of the ``HYDRO`` units. A column that is
+  not a ``HYDRO`` generator in ``gen.csv`` raises an error, as do blank
+  or negative values and dates that do not cover the simulation.
+- Periods have the length given by the ``DAY_AHEAD`` ``Period_Resolution``
+  in ``simulation_objects.csv`` (3600 s, hourly, in the bundled cases),
+  and ``Period`` counts from 1 within each day. Timestamps are built the
+  same way as EGRET's RTS-GMLC parser, which Prescient uses for the other
+  ``DAY_AHEAD`` files. Values are then aligned to the model's time steps
+  (averaged when the files are finer, held when they are coarser).
+- A unit without a column uses its ``p_max`` series instead, for the
+  minimum, the inflow, or both. With neither file a unit runs at
+  ``p_max``, the same as with ``hydro_budget`` set to ``False``.
+- The files are listed, with their required columns, in
+  ``gtep/data/required_data_files.csv``.
+
+.. note::
+
+   The existing hydro ``p_max`` and ``p_min`` series are filled in by
+   Prescient from ``REAL_TIME_renewables.csv`` (the value at the start of
+   each model time step), not from ``DAY_AHEAD_renewables.csv``.
+   ``timeseries_pointers.csv`` in the bundled cases points both
+   ``PMin MW`` and ``PMax MW`` at the same column, which is why hydro
+   output was fixed before these inputs were added.
+
+
 .. currentmodule:: gtep.gtep_data
 
 
 .. automodule:: gtep.gtep_data
-    :members: 
-    
+    :members:
