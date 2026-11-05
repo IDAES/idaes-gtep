@@ -304,31 +304,31 @@ def add_dispatch_constraints(b):
                 balance += b.loadShed[bus]
             return balance == 0 * u.MW
 
-    @b.Constraint(m.renewableGenerators, doc="Capacity factor constraint")
-    def capacity_factor(b, renewableGen):
-
-        # If investment is disabled, keep the original equation for
-        # existing renewables and force candidate renewables to zero.
-        if not m.config["include_investment"] and str(renewableGen).endswith("-c"):
-            return (
-                b.renewableGeneration[renewableGen]
-                + b.renewableCurtailment[renewableGen]
-                == 0 * u.MW
-            )
-
-        return (
-            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
-            <= c_p.renewableCapacityExpected[renewableGen]
+    @b.Expression(
+        m.renewableGenerators,
+        doc="Available renewable output given the built capacity, in MW",
+    )
+    def renewableAvailable(b, renewableGen):
+        return c_p.renewableCapacityFactor[renewableGen] * (
+            i_p.renewableOperational[renewableGen]
+            + i_p.renewableInstalled[renewableGen]
+            + i_p.renewableExtended[renewableGen]
         )
 
-    # [TODO: Add renewableExtended to this and anywhere else.]
-    @b.Constraint(m.renewableGenerators)
-    def operational_renewables_only(b, renewableGen):
+    # Generation plus curtailment equals the output available from the
+    # capacity that exists in this stage (capacity factor x built MW). This
+    # makes curtailment the unused part of the available output (issue
+    # #219) and scales availability with partial builds. Candidates that
+    # are not built (or are disabled by include_investment=False) have zero
+    # built capacity, so their generation and curtailment are zero.
+    @b.Constraint(
+        m.renewableGenerators,
+        doc="Renewable generation plus curtailment equals available output",
+    )
+    def capacity_factor(b, renewableGen):
         return (
-            b.renewableGeneration[renewableGen]
-            <= i_p.renewableInstalled[renewableGen]
-            + i_p.renewableOperational[renewableGen]
-            + i_p.renewableExtended[renewableGen]
+            b.renewableGeneration[renewableGen] + b.renewableCurtailment[renewableGen]
+            == b.renewableAvailable[renewableGen]
         )
 
     # Add legacy equations. These are not used in current version of
