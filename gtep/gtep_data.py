@@ -28,6 +28,7 @@ from prescient.data.providers import gmlc_data_provider
 
 logger = logging.getLogger("gtep.gtep_data")
 
+
 # Optional hydro input files (same layout as DAY_AHEAD_renewables.csv).
 def _read_day_ahead_series(path, time_index, step, period_resolution_s):
     """Read a Prescient-style time-series CSV and align it to ``time_index``.

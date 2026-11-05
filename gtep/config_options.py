@@ -239,6 +239,18 @@ def _add_investment_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare(
+        "hydro_budget",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Include hydro budget modeling; only used when "
+                "`advanced_hydro` and `hydro_budget are both True."
+            ),
+        ),
+    )
+
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these
