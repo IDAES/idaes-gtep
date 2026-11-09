@@ -391,26 +391,37 @@ def add_investment_storage_constraints(m, b, investment_stage):
             for bat in m.storage
         )
 
-    @b.Constraint(
-        b.representativePeriods,
-        m.storage,
-        doc="Enforces that the first time point is fixed to the initStorageChargeLevel",
-    )
-    def fix_init_storage_charge_level(b, rep_per, bat):
-        m = b.model()
-        first_comm_period = b.representativePeriod[rep_per].commitmentPeriods.first()
-        first_dispatch_period = (
-            b.representativePeriod[rep_per]
-            .commitmentPeriod[first_comm_period]
-            .dispatchPeriods.first()
+    if m.config["fix_init_storage"]:
+        # Initial storage level can be fixed across
+        # all representative periods as is done by
+        # Li et al. (DOI: 10.1016/j.ejor.2021.06.024;
+        # see constraints A.30 and A.31)
+        # Alternatively, initial state of charge can
+        # be a variable the model chooses as done
+        # by Khorramfar et al. in
+        # https://arxiv.org/pdf/2308.16814 (see (9))
+        @b.Constraint(
+            b.representativePeriods,
+            m.storage,
+            doc="Enforces that the first time point is fixed to the initStorageChargeLevel",
         )
-        return (
-            b.representativePeriod[rep_per]
-            .commitmentPeriod[first_comm_period]
-            .dispatchPeriod[first_dispatch_period]
-            .storageChargeLevel[bat]
-            == m.initStorageChargeLevel[bat]
-        )
+        def fix_init_storage_charge_level(b, rep_per, bat):
+            m = b.model()
+            first_comm_period = b.representativePeriod[
+                rep_per
+            ].commitmentPeriods.first()
+            first_dispatch_period = (
+                b.representativePeriod[rep_per]
+                .commitmentPeriod[first_comm_period]
+                .dispatchPeriods.first()
+            )
+            return (
+                b.representativePeriod[rep_per]
+                .commitmentPeriod[first_comm_period]
+                .dispatchPeriod[first_dispatch_period]
+                .storageChargeLevel[bat]
+                == m.initStorageChargeLevel[bat]
+            )
 
 
 def add_storage_status_disjuncts(b, storage_set):
