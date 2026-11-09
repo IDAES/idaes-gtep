@@ -79,33 +79,31 @@ def check_flow_balance(td, c: pyo.Constraint):
 
 
 def check_capacity_factor(td, c: pyo.Constraint):
-    expected = {
-        i: (
-            [td.b.renewableGeneration[i], td.b.renewableCurtailment[i]]
-            if not td.m.config["include_investment"] and str(i).endswith("-c")
-            else [
-                td.b.renewableGeneration[i],
-                td.b.renewableCurtailment[i],
-                td.b.parent_block().renewableCapacityExpected[i],
-            ]
-        )
-        for i in c.index_set()
-    }
-    td.check_helper.check_expr_contains(c, expected)
-
-
-def check_operational_renewables_only(td, c: pyo.Constraint):
+    """Generation + curtailment == capacity factor x built capacity."""
     i_p = td.b.parent_block().parent_block().parent_block()
     expected = {
         i: [
             td.b.renewableGeneration[i],
-            i_p.renewableInstalled[i],
+            td.b.renewableCurtailment[i],
             i_p.renewableOperational[i],
+            i_p.renewableInstalled[i],
             i_p.renewableExtended[i],
         ]
+        # The capacity factor is 0 (no expected/nameplate terms) when the
+        # nameplate capacity is 0.
+        + (
+            [
+                td.b.parent_block().renewableCapacityExpected[i],
+                td.m.renewableCapacityNameplate[i],
+            ]
+            if pyo.value(td.m.renewableCapacityNameplate[i]) > 0
+            else []
+        )
         for i in c.index_set()
     }
     td.check_helper.check_expr_contains(c, expected)
+    for i in c.index_set():
+        td.assertTrue(c[i].equality)
 
 
 class TestDispatch(unittest.TestCase):
@@ -233,11 +231,10 @@ class TestDispatch(unittest.TestCase):
             check_func=check_capacity_factor,
         )
         self.check_helper.add_object(
-            name="operational_renewables_only",
+            name="renewableAvailable",
             units=u.MW,
-            obj_type=pyo.Constraint,
+            obj_type=pyo.Expression,
             index=self.m.renewableGenerators,
-            check_func=check_operational_renewables_only,
         )
 
     def _coordinate_tests(self, config, use_9_bus=False):
