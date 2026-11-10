@@ -689,7 +689,7 @@ class ExpansionPlanningData:
 
             static_status = (
                 bool(row["Static Line"])
-                and self.md.data["elements"]["branch"][branch]["in_service"]
+                and self.md.data["elements"]["branch"][name]["in_service"]
             )
 
             self.md.data["elements"]["branch"][name]["static"] = static_status
