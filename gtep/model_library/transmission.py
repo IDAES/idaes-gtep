@@ -593,6 +593,20 @@ def add_transmission_state_disjuncts(m, b, i_p):
         def no_power_flow(disj):
             return b.powerFlow[branch] == 0 * u.MW
 
+        # With losses or hurdle costs the flow is split into directional
+        # parts. Both must be zero too; otherwise equal flows in both
+        # directions on an unused branch would create losses (or hurdle
+        # costs) with zero net flow.
+        if hasattr(b, "powerFlowPos"):
+
+            @disj.Constraint()
+            def no_power_flow_pos(disj):
+                return b.powerFlowPos[branch] == 0 * u.MW
+
+            @disj.Constraint()
+            def no_power_flow_neg(disj):
+                return b.powerFlowNeg[branch] == 0 * u.MW
+
     @b.Disjunction(non_static_lines)
     def branchInUseStatus(disj, branch):
         return [disj.branchInUse[branch], disj.branchNotInUse[branch]]

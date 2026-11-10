@@ -124,6 +124,49 @@ def _get_model_config():
         ),
     )
 
+    CONFIG.declare(
+        "transmission_losses",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Model transmission losses as a constant fraction "
+                "(loss_factor column in branch.csv) of the absolute power "
+                "flow on each branch. Half of each branch's losses is added "
+                "to the demand at each of its end buses. Supported with the "
+                "transport and DC flow models."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "hurdle_rate",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Add a hurdle (wheeling) cost of hurdle_rate_value $/MWh on "
+                "the absolute power flow on each branch. A small value "
+                "removes degenerate solutions, such as power circulating "
+                "around a loop in the transport model. Not supported with "
+                "the CP flow model."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "hurdle_rate_value",
+        ConfigValue(
+            default=0.01,
+            domain=NonNegativeFloat,
+            description=(
+                "Hurdle cost in $/MWh of branch flow, used when hurdle_rate "
+                "is True. The default of 0.01 matches the ReEDS default "
+                "hurdle rate used to reduce degeneracy."
+            ),
+        ),
+    )
+
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these

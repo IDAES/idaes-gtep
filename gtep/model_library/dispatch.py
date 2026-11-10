@@ -158,22 +158,6 @@ def add_dispatch_variables(b, paramPeriodLength):
     def loadShedCostDispatch(b):
         return sum(b.loadShedCost[bus] for bus in m.load_buses)
 
-    storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
-    hydro_term = (
-        b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
-    )
-
-    @b.Expression(doc="Total cost for dispatch in $")
-    def operatingCostDispatch(b):
-        return (
-            b.thermalGenerationCostDispatch
-            + b.reactiveGenerationCostDispatch
-            + b.renewableGenerationCostDispatch
-            + b.loadShedCostDispatch
-            + storage_term
-            + hydro_term
-        )
-
     @b.Expression(doc="Total curtailment dispatch for renewable generators in MW")
     def renewableCurtailmentDispatch(b):
         return sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
@@ -198,9 +182,94 @@ def add_dispatch_variables(b, paramPeriodLength):
             doc="Power flow in MW",
         )
 
+    if m.config["flow_model"] != "CP" and (
+        m.config["transmission_losses"] or m.config["hurdle_rate"]
+    ):
+        # Split each branch flow into nonnegative directional parts so the
+        # absolute flow (powerFlowPos + powerFlowNeg) can be used for losses
+        # and hurdle costs. Only created when one of those options is on.
+        def directional_flow_limits(b, branch):
+            return (0 * u.MW, m.transmissionCapacity[branch])
+
+        b.powerFlowPos = pyo.Var(
+            m.lines,
+            domain=pyo.NonNegativeReals,
+            bounds=directional_flow_limits,
+            initialize=0,
+            units=u.MW,
+            doc="Power flow from the from bus to the to bus in MW",
+        )
+        b.powerFlowNeg = pyo.Var(
+            m.lines,
+            domain=pyo.NonNegativeReals,
+            bounds=directional_flow_limits,
+            initialize=0,
+            units=u.MW,
+            doc="Power flow from the to bus to the from bus in MW",
+        )
+
+        @b.Constraint(m.lines, doc="Power flow is the net of the directional flows")
+        def power_flow_split(b, branch):
+            return b.powerFlow[branch] == (
+                b.powerFlowPos[branch] - b.powerFlowNeg[branch]
+            )
+
+        @b.Constraint(
+            m.lines, doc="Directional flows together cannot exceed line capacity"
+        )
+        def power_flow_split_limit(b, branch):
+            return (
+                b.powerFlowPos[branch] + b.powerFlowNeg[branch]
+                <= m.transmissionCapacity[branch]
+            )
+
+        @b.Expression(m.lines, doc="Absolute power flow on each branch in MW")
+        def powerFlowMagnitude(b, branch):
+            return b.powerFlowPos[branch] + b.powerFlowNeg[branch]
+
+        if m.config["transmission_losses"]:
+
+            @b.Expression(m.lines, doc="Transmission losses on each branch in MW")
+            def transmissionLoss(b, branch):
+                return m.lossFactor[branch] * b.powerFlowMagnitude[branch]
+
+        if m.config["hurdle_rate"]:
+
+            @b.Expression(doc="Total hurdle (wheeling) cost on branch flows in $")
+            def hurdleCostDispatch(b):
+                return sum(
+                    m.hurdleRate
+                    * b.powerFlowMagnitude[branch]
+                    * u.convert(paramPeriodLength, to_units=u.hr)
+                    for branch in m.lines
+                )
+
+    if m.config["flow_model"] != "CP":
         # Add transmission lines state disjuncts (in use and not in
         # use). The power flow is calculated here using OPF formulations.
+        # This comes after the directional flows (if any) so the
+        # branchNotInUse disjunct can also fix them to zero.
         transm.add_transmission_state_disjuncts(m, b, i_p)
+
+    storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
+    hydro_term = (
+        b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
+    )
+    hurdle_term = (
+        b.hurdleCostDispatch if hasattr(b, "hurdleCostDispatch") else 0 * u.USD
+    )
+
+    @b.Expression(doc="Total cost for dispatch in $")
+    def operatingCostDispatch(b):
+        return (
+            b.thermalGenerationCostDispatch
+            + b.reactiveGenerationCostDispatch
+            + b.renewableGenerationCostDispatch
+            + b.loadShedCostDispatch
+            + storage_term
+            + hydro_term
+            + hurdle_term
+        )
 
     def spinning_reserve_limits(
         b, thermalGen, doc="Bounds on thermal generator spinning reserve supply"
@@ -280,8 +349,16 @@ def add_dispatch_constraints(b):
             start_points = m.branchByFromBus[bus]
             gens = m.generatorsByBus[bus]
 
+            # A positive flow goes from the from bus to the to bus: it
+            # leaves the branch's from bus and arrives at its to bus.
             balance += sum(b.powerFlow[i] for i in end_points)
             balance -= sum(b.powerFlow[i] for i in start_points)
+
+            # Half of each connected branch's losses is demand at this bus.
+            if m.config["transmission_losses"]:
+                balance -= 0.5 * sum(
+                    b.transmissionLoss[i] for i in list(end_points) + list(start_points)
+                )
             # Add generation to constraint
             balance += sum(
                 b.thermalGeneration[g] for g in m.thermalGeneratorsByBus[bus]

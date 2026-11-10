@@ -126,7 +126,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
         m.lines = pyo.Set(
             initialize=m.staticLines,
-            doc="Individual transmission lines",
+            doc="Individual transmission lines (in service only)",
         )
 
     _toBranches = defaultdict(list)
@@ -442,6 +442,31 @@ def add_model_parameters(m):
         units=u.m,
         doc="Distance between terminal buses for each transmission line",
     )
+
+    if m.config["transmission_losses"]:
+        m.lossFactor = pyo.Param(
+            m.lines,
+            initialize={
+                branch: m.md.data["elements"]["branch"][branch].get("loss_factor", 0)
+                for branch in m.lines
+            },
+            mutable=True,
+            units=u.dimensionless,
+            doc="Fraction of the absolute power flow lost on each branch",
+        )
+        if all(pyo.value(m.lossFactor[branch]) == 0 for branch in m.lines):
+            logger.warning(
+                "transmission_losses is True but no branch has a nonzero "
+                "loss_factor in branch.csv, so there are no losses."
+            )
+
+    if m.config["hurdle_rate"]:
+        m.hurdleRate = pyo.Param(
+            initialize=m.config["hurdle_rate_value"],
+            mutable=True,
+            units=u.USD / (u.MW * u.hr),
+            doc="Hurdle (wheeling) cost on the absolute power flow on each branch",
+        )
 
     # Initialize investment costs in each new transmission
     # line. Currently selected the value of 0 to ensure investments
