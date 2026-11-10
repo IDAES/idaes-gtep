@@ -38,7 +38,7 @@ _supported_flows = {
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
     "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
-    "transport": ("gtep.transport", "transport"),
+    "transport": ("gtep.transport", "Transport power flow approximation"),
 }
 
 
@@ -120,6 +120,49 @@ def _get_model_config():
             description=(
                 "Power-flow formulation to use. Supported options include "
                 "DC, CP, ACP, ACR, and transport"
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "transmission_losses",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Model transmission losses as a constant fraction "
+                "(loss_factor column in branch.csv) of the absolute power "
+                "flow on each branch. Half of each branch's losses is added "
+                "to the demand at each of its end buses. Supported with the "
+                "transport and DC flow models."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "hurdle_rate",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Add a hurdle (wheeling) cost of hurdle_rate_value $/MWh on "
+                "the absolute power flow on each branch. A small value "
+                "removes degenerate solutions, such as power circulating "
+                "around a loop in the transport model. Not supported with "
+                "the CP flow model."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "hurdle_rate_value",
+        ConfigValue(
+            default=0.01,
+            domain=NonNegativeFloat,
+            description=(
+                "Hurdle cost in $/MWh of branch flow, used when hurdle_rate "
+                "is True. The default of 0.01 matches the ReEDS default "
+                "hurdle rate used to reduce degeneracy."
             ),
         ),
     )

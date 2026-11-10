@@ -34,6 +34,7 @@ Cont Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_long_term""]",m.tra
 LTE Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_short_term""]",,branch.csv,Long-term emergency rating,
 STE Rating,u.MW,"[""elements""][""branch""][<UID>][""rating_emergency""]",,branch.csv,Short-term emergency rating,
 Tr Ratio,u.dimensionless,,,branch.csv,Transformer tap ratio,Transformer winding ratio. If nonzero the branch is treated as a transformer; if blank or zero the branch is treated as a line.
+loss_factor,u.dimensionless,"[""elements""][""branch""][<UID>][""loss_factor""]",m.lossFactor,branch.csv,Branch loss factor,"Optional. Fraction of the absolute branch flow that is lost (e.g., 0.01 for 1%). Used only when transmission_losses = True; blank means no losses."
 Bus ID,u.dimensionless,,,bus.csv,Bus identifier,
 Bus Name,u.dimensionless,"[""elements""][""bus""][<Bus Name>]",m.buses,bus.csv,Bus name,
 BaseKV,u.kV,"[""elements""][""bus""][<Bus Name>][""base_kv""]",,bus.csv,Base voltage,
@@ -76,9 +77,9 @@ Year,u.dimensionless,,,DAY_AHEAD_load.csv,Year,
 Month,u.dimensionless,,,DAY_AHEAD_load.csv,Month,
 Day,u.dimensionless,,,DAY_AHEAD_load.csv,Day,
 Period,u.dimensionless,,,DAY_AHEAD_load.csv,Time period,
-<load_name>,u.MW,"[""elements""][""load""][<Load Bus UID>][""p_load""][“values”]",b.loads,DAY_AHEAD_load.csv,Real power for each load(s),Each additional column corresponds to a load name and contains the real power demand time series for that load.
+<load_name>,u.MW,"[""elements""][""load""][<Load Bus UID>][""p_load""][ï¿½valuesï¿½]",b.loads,DAY_AHEAD_load.csv,Real power for each load(s),Each additional column corresponds to a load name and contains the real power demand time series for that load.
 Year,u.dimensionless,,,DAY_AHEAD_renewables.csv,Year,
 Month,u.dimensionless,,,DAY_AHEAD_renewables.csv,Month,
 Day,u.dimensionless,,,DAY_AHEAD_renewables.csv,Day,
 Period,u.dimensionless,,,DAY_AHEAD_renewables.csv,Time period,
-<renewable_generator_name>,u.MW,"[""elements""][""generator""][<GEN UID>][""p_max""][“values”]",m.renewableCapacityNameplate,DAY_AHEAD_renewables.csv,Real power for renewable generator(s),Each additional column corresponds to a renewable generator name and contains the renewable generation time series for that generator.
+<renewable_generator_name>,u.MW,"[""elements""][""generator""][<GEN UID>][""p_max""][ï¿½valuesï¿½]",m.renewableCapacityNameplate,DAY_AHEAD_renewables.csv,Real power for renewable generator(s),Each additional column corresponds to a renewable generator name and contains the renewable generation time series for that generator.

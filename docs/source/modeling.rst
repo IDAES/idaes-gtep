@@ -360,17 +360,69 @@ by example code).
        `renewableCurtailment`           Variable            Amount of curtailed renewable power
        `spinningReserve`                Variable            
        `quickstartReserve`              Variable
-       `powerFlow`                      Variable             Power flow
+       `powerFlow`                      Variable             Power flow; positive from the branch's from bus to its to bus
+       `powerFlowPos`, `powerFlowNeg`   Variable             Directional parts of `powerFlow`; only with `transmission_losses` or `hurdle_rate`
+       `power_flow_split`               Constraint           `powerFlow` equals `powerFlowPos` minus `powerFlowNeg`
+       `power_flow_split_limit`         Constraint           `powerFlowPos` plus `powerFlowNeg` is at most the line capacity
+       `transmissionLoss`               Expression           Losses on each branch, `lossFactor` times the absolute flow; only with
+                                                             `transmission_losses`
+       `hurdleCostDispatch`             Expression           Hurdle cost on the absolute flow on all branches; only with `hurdle_rate`
        `renewableGenerationSurplus`     Expression           Power surplus per renewable generator
        `renewableCurtailmentCost`       Expression           Cost of curtailment per renewable generator
        `generatorCost`                  Expression           Thermal generator cost based on the fuel cost
        `loadShedCost`                   Expression           Load shed cost per bus
        `branchInUseStatus`              Disjunction          Discrete decision to determine the status of the transmission equipment. The alternatives
                                                              are: `branchInUse` (which includes the DC OPF equations) and `branchNotInUse` (which
-							     fixes power flow to zero).
+                                                             fixes power flow, and its directional parts if present, to zero).
        `must_use_active_branches`       Logical constraint   If a branch is in use, it must be active
        `cannot_use_inactive_branches`   Logical constraint   If a branch is not in use, it must be inactive
        ================================ =================== =========================================================================================
+
+
+    **Transmission losses and hurdle rates.** Two options apply to the
+    branch flows of the network flow models. With ``transmission_losses``
+    (transport and DC models) or ``hurdle_rate`` (all models except CP),
+    each branch flow :math:`f_l` is split into nonnegative directional
+    parts:
+
+    .. math::
+
+       f_l = f^+_l - f^-_l, \qquad f^+_l + f^-_l \le \overline{F}_l,
+       \qquad f^+_l, f^-_l \ge 0
+
+    With ``transmission_losses``, the losses on branch :math:`l` are a
+    constant fraction :math:`\lambda_l` (``loss_factor`` in
+    ``branch.csv``, 0 when blank) of the absolute flow, and half of them
+    is added to the demand at each end bus :math:`i`, as in GenX:
+
+    .. math::
+
+       L_l = \lambda_l \left(f^+_l + f^-_l\right), \qquad
+       \text{demand}_i \mathrel{+}= \tfrac{1}{2}
+       \sum_{l \ni i} L_l
+
+    With ``hurdle_rate``, each MWh of flow in either direction costs
+    ``hurdle_rate_value`` $/MWh (default 0.01, the ReEDS default), added
+    to the dispatch operating cost:
+
+    .. math::
+
+       C^{hurdle} = h \sum_l \left(f^+_l + f^-_l\right) \Delta t
+
+    Either option makes power circulating around a loop costly, which
+    removes degenerate transport-model solutions in which flow moves
+    around a loop at no cost. Unused (``branchNotInUse``) branches fix
+    :math:`f^+_l` and :math:`f^-_l` to zero. Nothing prevents
+    :math:`f^+_l` and :math:`f^-_l` from both being positive ("phantom
+    losses"), which the solver may choose when burning energy has value
+    (e.g., to avoid a unit start-up). Losses are not included in the
+    reserve or renewable requirement constraints.
+
+    A common way to set :math:`\lambda_l` is 1% per 100 miles for AC
+    lines (ReEDS and the GenX examples), or 0.5% per 100 miles plus
+    converter losses for HVDC. A value can also be derived from the
+    branch resistance as :math:`\lambda_l \approx r_l F^{ref}_l /
+    S_{base}`, which is exact at a reference flow :math:`F^{ref}_l`.
 
 
 **Step 5:** Define objective function
@@ -393,5 +445,4 @@ by example code).
     :members:
 
 .. automodule:: gtep.gtep_model
-    :members: 
-
+    :members:
