@@ -72,12 +72,12 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
     # m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
 
-    m.lines = pyo.Set(
-        initialize=m.md.data["elements"]["branch"].keys(),
-        doc="Individual transmission lines",
-    )
-
     if m.config["transmission"]:
+        m.lines = pyo.Set(
+            initialize=m.md.data["elements"]["branch"].keys(),
+            doc="Individual transmission lines",
+        )
+
         m.staticLines = pyo.Set(
             initialize=(
                 branch
@@ -124,9 +124,15 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
         m.nonStaticLines = pyo.Set()
 
+        m.lines = pyo.Set(
+            initialize=m.staticLines,
+            doc="Individual transmission lines",
+        )
+
     _toBranches = defaultdict(list)
     _fromBranches = defaultdict(list)
-    for branch, data in m.md.data["elements"]["branch"].items():
+    for branch in m.lines:
+        data = m.md.data["elements"]["branch"][branch]
         _toBranches[data["to_bus"]].append(branch)
         _fromBranches[data["from_bus"]].append(branch)
 
