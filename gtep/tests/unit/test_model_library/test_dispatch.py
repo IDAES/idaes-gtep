@@ -195,7 +195,7 @@ class TestDispatch(unittest.TestCase):
             units=u.MW,
             obj_type=pyo.Var,
             index=self.m.lines,
-            cond=self.m.config["flow_model"] != "CP",
+            cond=(self.m.config["flow_model"] != "CP"),
         )
         self.check_helper.add_object(
             name="spinningReserve",
