@@ -280,8 +280,8 @@ def add_dispatch_constraints(b):
             start_points = m.branchByFromBus[bus]
             gens = m.generatorsByBus[bus]
 
-            balance -= sum(b.powerFlow[i] for i in end_points)
-            balance += sum(b.powerFlow[i] for i in start_points)
+            balance += sum(b.powerFlow[i] for i in end_points)
+            balance -= sum(b.powerFlow[i] for i in start_points)
             # Add generation to constraint
             balance += sum(
                 b.thermalGeneration[g] for g in m.thermalGeneratorsByBus[bus]
