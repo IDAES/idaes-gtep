@@ -14,6 +14,13 @@
 """Constraints for the Storage Component in the Generation and
 Transmission Expansion Planning (GTEP) Model
 
+References regarding storage initialization and temporal linking:
+[1] Li et al. 2022. "Mixed-integer linear programming models and algorithms
+    for generation and transmission expansion planning of power systems."
+    European Journal of Operational Research 297 (3):1071-1082
+[2] Khorramfar et al. 2024. "Cost-effective Planning of Decarbonized
+    Power-Gas Infrastructure to Meet the Challenges of Heating Electrification"
+    https://arxiv.org/pdf/2308.16814
 """
 
 import pyomo.environ as pyo
@@ -394,12 +401,10 @@ def add_investment_storage_constraints(m, b, investment_stage):
     if m.config["fix_init_storage"]:
         # Initial storage level can be fixed across
         # all representative periods as is done by
-        # Li et al. (DOI: 10.1016/j.ejor.2021.06.024;
-        # see constraints A.30 and A.31)
+        # ref [1] (see constraints A.30 and A.31)
         # Alternatively, initial state of charge can
         # be a variable the model chooses as done
-        # by Khorramfar et al. in
-        # https://arxiv.org/pdf/2308.16814 (see (9))
+        # by ref [2] (see equation (9))
         @b.Constraint(
             b.representativePeriods,
             m.storage,
