@@ -464,17 +464,27 @@ class ExpansionPlanningSolution:
 
         # Count assets in model and save a json file with this
         # information. Here we turn any Pyomo Set (including RangeSet)
-        # into a plain list. The asstes saved are: buses, generators,
-        # branches (lines), loads, and storage.
-        load_buses = sorted(list(m.load_buses))
-        buses = sorted(list(m.buses))
-        generators = sorted(list(m.generators))
-        thermal_generators = sorted(list(m.thermalGenerators))
-        renewable_generators = sorted(list(m.renewableGenerators))
-        lines = sorted(list(m.lines))
-        # Storage, only if the model was built with storage
-        # enabled. If not, it will be an empty list.
-        storage = sorted(list(m.storage)) if hasattr(m, "storage") else []
+        # into a plain list. The assets saved are: buses, generators,
+        # branches (lines), loads, and storage (the latter only if the
+        # model was built with storage enabled. If not, storage will
+        # be an empty list).
+        names = [
+            "load_buses",
+            "buses",
+            "generators",
+            "thermalGenerators",
+            "renewableGenerators",
+            "lines",
+        ]
+        (
+            load_buses,
+            buses,
+            generators,
+            thermal_generators,
+            renewable_generators,
+            lines,
+        ) = [list(getattr(m, n)) for n in names]
+        storage = list(m.storage) if hasattr(m, "storage") else []
 
         # Output file names
         output_files = {
