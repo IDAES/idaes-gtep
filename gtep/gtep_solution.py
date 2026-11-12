@@ -1381,7 +1381,7 @@ class ExpansionPlanningSolution:
         metrics_rows = []
 
         def record_metric(metric, value, units="", category=""):
-            """Record and optionally print a metric."""
+            """Record metric."""
             row = {
                 "metric": metric,
                 "category": category,
