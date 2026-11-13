@@ -47,6 +47,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         # properly with default values.
         testObject = ExpansionPlanningData()
         self.assertIsInstance(testObject, ExpansionPlanningData)
+        self.assertEqual(testObject.years, [2025, 2030, 2035])
         self.assertEqual(testObject.stages, 2)
         self.assertEqual(testObject.num_reps, 4)
         self.assertEqual(testObject.num_commit, 24)
@@ -55,7 +56,8 @@ class TestExpansionPlanningData(unittest.TestCase):
 
         # Test that the ExpansionPlanningData object initializes
         # properly with input values.
-        testObject = ExpansionPlanningData(1, 2, 2, 2, 2, 15)
+        testObject = ExpansionPlanningData([2025], 1, 2, 2, 2, 2, 15)
+        self.assertEqual(testObject.years, [2025])
         self.assertEqual(testObject.stages, 1)
         self.assertEqual(testObject.num_reps, 2)
         self.assertEqual(testObject.num_commit, 2)
@@ -65,6 +67,7 @@ class TestExpansionPlanningData(unittest.TestCase):
         # Test that the ExpansionPlanningData object initializes
         # properly with partial input values.
         testObject = ExpansionPlanningData()
+        self.assertEqual(testObject.years, [2025, 2030, 2035])
         self.assertEqual(testObject.stages, 2)
         self.assertEqual(testObject.num_reps, 4)
         self.assertEqual(testObject.num_commit, 24)

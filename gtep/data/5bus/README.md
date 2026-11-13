@@ -31,8 +31,8 @@ incorrect cost estimates.
 
 ## Storage data
 
-Storage data has been added (`storage.csv`). This data is taken from `9_bus_GTEP_dir/storage.csv`,
-with a few modifications:
+Storage data has been added (`storage.csv`). This data is taken from
+`9_bus_GTEP_dir/storage.csv`, with a few modifications:
 - The `bus` column was adjusted to reflect valid IDs from this directory's `bus.csv`
 - The `name` column was similarly changed
 - The following columns were scaled down by 100x to better match the scale of
@@ -47,6 +47,17 @@ A few further changes were made to `branch.csv`:
 - Quotes removed from branch UIDs
 - Columns `Cont Rating`, `LTE Rating`, and `STE Rating` were scaled up by 10x to better match
 the scale of generation/loads for the 5bus case.
+
+## Year Cost Data
+
+This case includes cost data for generators, branches, and storage
+assets for three different years: 2025, 2030, and 2035. For the
+generators, this data is taken from the `gtep_cost_data` dictionary
+from `gtep_data_processing.py`. This data is included to illustrate
+the use of CSV files to repopulate cost parameters in the model. For
+branches and storage, all values are set to 0, except for the lifetime
+values set to the value of 3, which is a default value given in
+`gtep_data_processing.py`.
 
 ## References
 

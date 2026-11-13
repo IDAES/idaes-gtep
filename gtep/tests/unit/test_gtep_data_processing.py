@@ -219,12 +219,12 @@ class TestGTEPDataProcessing(unittest.TestCase):
                 ng_data_path,
                 gens,
             )
-            self.assertIsInstance(self.data_processing.gen_data_target, pd.DataFrame)
+            self.assertIsInstance(self.data_processing.gen_cost_data, pd.DataFrame)
             self.assertNotIn(
                 "costs.csv", [path.name for path in Path.iterdir(tempdir)]
             )  # make sure we don't write if save_csv=False
 
-        self.gen_data_target = None  # reset
+        self.gen_cost_data = None  # reset
 
         # provide invalid ng_cost_quantity
         with self.assertRaises(ValueError):
@@ -268,6 +268,6 @@ class TestGTEPDataProcessing(unittest.TestCase):
                 out_path=tempdir,
             )
             self.assertIsInstance(
-                self.data_processing.gen_data_target, pd.DataFrame
+                self.data_processing.gen_cost_data, pd.DataFrame
             )  # make sure we are still storing as an attribute
             self.assertIn("costs.csv", [path.name for path in Path.iterdir(tempdir)])
