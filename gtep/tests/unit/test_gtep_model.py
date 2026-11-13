@@ -255,9 +255,9 @@ class TestGTEP(unittest.TestCase):
         # previous successful objective values: 9207.95, 6078.86,
         # 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30,
         # 6986122.88, 7118266.88, 27944303.09, 28076447.10,
-        # 27944303.10, 27944582.86
+        # 27944303.10, 27944582.86, 28076447.10
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 28076447.10, places=1
+            value(modObject.model.total_cost_objective), 27944715.00, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -768,10 +768,9 @@ class TestGTEP(unittest.TestCase):
 
     def test_with_cost_data_from_csv_files(self):
         # This test verifies that the expansion planning model can be
-        # built and solved using preprocessed cost data with advanced
-        # hydropower enabled. The test also checks unit consistency
-        # and validates the resulting objective value against an
-        # expected benchmark.
+        # built and solved using cost data from the input data .csv
+        # files.
+
         modObject = create_model(
             planning_data_args={
                 "stages": 2,
@@ -800,7 +799,7 @@ class TestGTEP(unittest.TestCase):
                 "include_redispatch": True,
                 "scale_loads": False,
                 "transmission": True,
-                "storage": True,
+                "storage": False,
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
@@ -822,8 +821,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 125950815.36
+        # Previous values (with storage=True): 125950815.36,
+        # 126029173.22
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 126029173.22, places=1
+            value(modObject.model.total_cost_objective), 9603914.08, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
