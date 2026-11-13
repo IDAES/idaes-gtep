@@ -184,6 +184,20 @@ class ExpansionPlanningData:
 
         self.load_storage_csv(data_path)
 
+        # Optional hydro minimum-output and inflow-budget time series.
+        # These must be attached before representative_data is cloned
+        # below so every representative day carries them. Periods use the
+        # DAY_AHEAD Period_Resolution, as in EGRET's parser.
+        hydro_period_resolution_s = int(
+            metadata_df.loc["Period_Resolution"]["DAY_AHEAD"]
+        )
+        self.validate_hydro_timeseries(
+            data_path, period_resolution_s=hydro_period_resolution_s
+        )
+        self.load_hydro_timeseries(
+            data_path, period_resolution_s=hydro_period_resolution_s
+        )
+
         for gen in self.md.data["elements"]["generator"]:
             if "-c" in gen:  # key/Gen UID in csv file; -c = candidate?
                 self.md.data["elements"]["generator"][gen]["in_service"] = False
@@ -665,6 +679,97 @@ class ExpansionPlanningData:
             )
             self.md.data["elements"]["storage"] = {}
 
+    def load_hydro_timeseries(
+        self,
+        data_path,
+        min_file="DAY_AHEAD_hydro_min.csv",
+        budget_file="DAY_AHEAD_hydro_budget.csv",
+        period_resolution_s=None,
+    ):
+        """Load optional hydro minimum-output and inflow-budget time series.
+
+        Both files use the DAY_AHEAD_renewables.csv layout (``Year, Month,
+        Day, Period`` followed by one column per hydro generator), with
+        periods of the DAY_AHEAD ``Period_Resolution`` in
+        simulation_objects.csv, and may list any subset of the HYDRO
+        generators:
+
+        - ``DAY_AHEAD_hydro_min.csv``: minimum discharge in MW for each
+          period. Stored as ``hydro_p_min``.
+        - ``DAY_AHEAD_hydro_budget.csv``: inflow to the reservoir expressed
+          as average MW of generation-equivalent energy over each period
+          (for hourly data, MW and MWh per period are the same number).
+          Stored as ``hydro_budget``.
+
+        The series are aligned to the model's time steps (averaged when the
+        files are finer, held when they are coarser) and attached to
+        the generators as EGRET time series. The files are not checked
+        here; call :meth:`validate_hydro_timeseries` first (load_prescient
+        does). They are used only when the
+        model option ``advanced_hydro`` is True. A missing file is skipped;
+        units without a column use their ``p_max`` series for both the
+        minimum and the inflow (see model_library/hydropower_generation.py).
+
+        Note: the existing hydro ``p_max``/``p_min`` series are populated by
+        Prescient from REAL_TIME_renewables.csv (the value at the start of
+        each model time step), not from DAY_AHEAD_renewables.csv.
+
+        :param data_path: Folder containing the data files.
+        :param min_file: File name of the minimum-discharge series.
+        :param budget_file: File name of the inflow-budget series.
+        :param period_resolution_s: Length of one ``Period`` in the files,
+            in seconds. When None, read from the DAY_AHEAD
+            ``Period_Resolution`` in ``data_path/simulation_objects.csv``.
+        """
+        data_path = Path(data_path)
+        if period_resolution_s is None:
+            metadata = pd.read_csv(data_path / "simulation_objects.csv", index_col=0)
+            period_resolution_s = int(metadata.loc["Period_Resolution"]["DAY_AHEAD"])
+        generators = self.md.data["elements"]["generator"]
+        time_index = pd.to_datetime(self.md.data["system"]["time_keys"])
+        step = pd.Timedelta(
+            minutes=float(self.md.data["system"].get("time_period_length_minutes", 60))
+        )
+        self.hydro_timeseries_files = {}
+
+        for filename, key in ((min_file, "hydro_p_min"), (budget_file, "hydro_budget")):
+            path = data_path / filename
+            if not path.exists():
+                continue
+
+            # Timestamps are built the same way as EGRET's RTS-GMLC parser
+            # (egret.parsers.rts_gmlc.parser._read_columnar_timeseries_file):
+            # the Year/Month/Day date plus (Period - 1) periods of
+            # period_resolution_s seconds.
+            df = pd.read_csv(path)
+            date_columns = ["Year", "Month", "Day", "Period"]
+            values = df.drop(columns=date_columns).astype(float)
+            values.index = pd.to_datetime(
+                df[["Year", "Month", "Day"]]
+            ) + pd.to_timedelta((df["Period"] - 1) * period_resolution_s, unit="s")
+            values = values.sort_index()
+
+            # Average within each model time step [key, key + step),
+            # anchored on the first time key, then hold values forward onto
+            # the model's time keys (for files coarser than the model).
+            origin = time_index[0]
+            bins = (values.index - origin) // step
+            averaged = values.groupby(bins).mean()
+            averaged.index = origin + averaged.index * step
+            aligned = averaged.reindex(time_index, method="ffill")
+
+            for gen in aligned.columns:
+                generators[str(gen)][key] = {
+                    "data_type": "time_series",
+                    "values": aligned[gen].astype(float).tolist(),
+                }
+
+            self.hydro_timeseries_files[key] = str(path)
+            logger.info(
+                f"Loaded {key} time series for {len(aligned.columns)} hydro unit(s) "
+                f"from {path}."
+            )
+
     def texas_case_study_updates(self, data_path):
         """Imports generator data for texas case study.
 
@@ -880,4 +985,104 @@ class ExpansionPlanningData:
                     f"{target_file} has missing values in required column "
                     f"'{col}' for {row_description}. Please update the input "
                     "data before loading with Prescient."
+                )
+
+    def validate_hydro_timeseries(
+        self,
+        data_path,
+        min_file="DAY_AHEAD_hydro_min.csv",
+        budget_file="DAY_AHEAD_hydro_budget.csv",
+        period_resolution_s=None,
+    ):
+        """This method validates the optional hydro time-series files
+        before they are loaded with load_hydro_timeseries.
+
+        For each file that exists (a missing file is skipped), this
+        method checks that:
+
+        - the ``Year``, ``Month``, ``Day`` and ``Period`` columns exist;
+        - ``Period`` values are between 1 and the number of periods in a
+          day for the DAY_AHEAD ``Period_Resolution``;
+        - no ``Year``/``Month``/``Day``/``Period`` row is repeated;
+        - every other column is a HYDRO generator in gen.csv;
+        - all values are numeric, not blank, and not negative;
+        - the data start no later than the model's first time step.
+
+        Must be called after the Prescient model data (``self.md``) is
+        loaded, since it checks generators and time keys.
+
+        :param data_path: Folder containing the data files.
+        :param min_file: File name of the minimum-discharge series.
+        :param budget_file: File name of the inflow-budget series.
+        :param period_resolution_s: Length of one ``Period`` in the files,
+            in seconds. When None, read from the DAY_AHEAD
+            ``Period_Resolution`` in ``data_path/simulation_objects.csv``.
+        """
+        data_path = Path(data_path)
+        if period_resolution_s is None:
+            metadata = pd.read_csv(data_path / "simulation_objects.csv", index_col=0)
+            period_resolution_s = int(metadata.loc["Period_Resolution"]["DAY_AHEAD"])
+        generators = self.md.data["elements"]["generator"]
+        time_index = pd.to_datetime(self.md.data["system"]["time_keys"])
+        step = pd.Timedelta(
+            minutes=float(self.md.data["system"].get("time_period_length_minutes", 60))
+        )
+        periods_per_day = 86400.0 / period_resolution_s
+        date_columns = ["Year", "Month", "Day", "Period"]
+
+        for filename in (min_file, budget_file):
+            path = data_path / filename
+            if not path.exists():
+                continue
+
+            df = pd.read_csv(path)
+
+            missing = [c for c in date_columns if c not in df.columns]
+            if missing:
+                raise ValueError(f"{path} is missing required column(s) {missing}.")
+
+            if df["Period"].max() > periods_per_day or df["Period"].min() < 1:
+                raise ValueError(
+                    f"{path} has Period values outside 1..{periods_per_day:g}, "
+                    f"which is the number of {period_resolution_s:g}-second "
+                    "periods in a day (Period_Resolution in "
+                    "simulation_objects.csv)."
+                )
+
+            # Timestamps as in load_hydro_timeseries (EGRET's RTS-GMLC parser).
+            stamps = pd.to_datetime(df[["Year", "Month", "Day"]]) + pd.to_timedelta(
+                (df["Period"] - 1) * period_resolution_s, unit="s"
+            )
+            if stamps.duplicated().any():
+                raise ValueError(f"{path} has duplicate Year/Month/Day/Period rows.")
+
+            value_columns = [c for c in df.columns if c not in date_columns]
+            for gen in value_columns:
+                if gen not in generators:
+                    raise ValueError(
+                        f"{filename} has a column for '{gen}', which is not a "
+                        "generator in gen.csv."
+                    )
+                if generators[gen].get("unit_type") != "HYDRO":
+                    raise ValueError(
+                        f"{filename} has a column for '{gen}', which is not a "
+                        f"HYDRO unit (Unit Type = {generators[gen].get('unit_type')})."
+                    )
+
+            values = df[value_columns].apply(pd.to_numeric, errors="coerce")
+            if values.isna().any().any():
+                bad = values.columns[values.isna().any()].tolist()
+                raise ValueError(
+                    f"{path} has blank or non-numeric values in column(s) {bad}."
+                )
+            if (values < 0).any().any():
+                bad = values.columns[(values < 0).any()].tolist()
+                raise ValueError(f"{path} has negative values in column(s) {bad}.")
+
+            # Values are held forward onto the model's time keys, so the data
+            # must start within the first model time step.
+            if stamps.min() >= time_index[0] + step:
+                raise ValueError(
+                    f"{path} does not cover the model's time keys (no data at or "
+                    f"before {time_index[0]})."
                 )

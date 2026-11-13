@@ -330,6 +330,11 @@ by example code).
        `consistent_commitment_downtime`              Logical Constraint 
        `consistent_commitment_start_after_downtime`  Logical Constraint
        `commit_active_gens_only`                     Logical constraint  Generators cannot be committed unless they are operational or just installed
+       `hydroCapacityExpected`                       Parameter           Maximum output of each hydro unit (p_max); only with `advanced_hydro`
+       `hydroMinimumExpected`                        Parameter           Minimum output of each hydro unit: hydro min file (else p_max) with `hydro_budget`,
+                                                                         p_max without; only with `advanced_hydro`
+       `hydroInflow`                                 Parameter           Reservoir inflow of each hydro unit: hydro budget file (else p_max) with `hydro_budget`,
+                                                                         p_max without; only with `advanced_hydro`
        ============================================= =================== =============================================================================
 
  
@@ -358,6 +363,7 @@ by example code).
        `thermalGeneration`              Variable            Thermal generation power during the dispatch stage
        `renewableGeneration`            Variable            Renewable generation power during the dispatch stage
        `renewableCurtailment`           Variable            Amount of curtailed renewable power
+       `hydroGeneration`                Variable            Hydro generation, bounded by `hydroMinimumExpected` and `hydroCapacityExpected`; only with `advanced_hydro`
        `spinningReserve`                Variable            
        `quickstartReserve`              Variable
        `powerFlow`                      Variable             Power flow
@@ -387,11 +393,74 @@ by example code).
        create_objective_function(m)
 
 
+Advanced hydropower
+-------------------
+
+When the ``advanced_hydro`` option is ``True``, hydro units
+(``Unit Type`` = ``HYDRO``) are removed from the renewable generators
+and modeled in :mod:`gtep.model_library.hydropower_generation`. Two
+options control how they are dispatched:
+
+.. table:: Table 4: Hydro modeling options
+   :widths: 25 25 50
+
+   ====================== ===================== ==================================================================
+   ``advanced_hydro``     ``hydro_budget``      Hydro behavior
+   ====================== ===================== ==================================================================
+   ``False`` (default)    ``False`` (default)   Hydro units are ordinary renewables (output up to ``p_max``,
+                                                with curtailment).
+   ``True``               ``False``             Hydro units are modeled separately and run at their ``p_max``
+                                                series in every period. The hydro files are not used.
+   ``True``               ``True``              Minimum and maximum output in each period and an inflow budget
+                                                with spill over each representative period (below).
+   ``False``              ``True``              Not allowed; model construction raises an error.
+   ====================== ===================== ==================================================================
+
+With ``hydro_budget`` set to ``True``, each hydro unit :math:`h` is
+dispatched between a minimum and a maximum in every dispatch period
+:math:`d` of commitment period :math:`c`, and has an energy budget over
+each representative period :math:`r`:
+
+.. math::
+
+   \underline{P}_{h,c} \le p_{h,d} \le \overline{P}_{h,c}
+
+.. math::
+
+   \sum_{c \in r} \sum_{d \in c} p_{h,d} \, \Delta t_d + s_{h,r}
+   = \sum_{c \in r} I_{h,c} \, \Delta t_c, \qquad s_{h,r} \ge 0
+
+where :math:`\overline{P}` is the ``p_max`` series,
+:math:`\underline{P}` is the minimum (``DAY_AHEAD_hydro_min.csv``), and
+:math:`I` is the inflow (``DAY_AHEAD_hydro_budget.csv``), both described
+in :ref:`Data`. A unit without a column in either file uses ``p_max``
+for that series. With neither file, the minimum equals the maximum and
+the budget equals their sum, so the unit runs at ``p_max``. Generation
+can be shifted within a representative period, and unused water is
+spilled (:math:`s`). Budgets are not carried between representative
+periods, and spill has no cost.
+
+If the minimum output alone needs more energy than the budget provides,
+model construction stops with an error naming the unit, the
+representative day, and which inputs were defaulted.
+
+.. table:: Table 5: Hydro components in each representative period (``hydro_budget`` only)
+   :widths: 20 15 35
+
+   ================================ =================== ===================================================================
+   Component                        Type                Description
+   ================================ =================== ===================================================================
+   `hydroSpill`                     Variable            Spilled (unused) hydro energy over the representative period, MWh
+   `hydroEnergyBudget`              Expression          Inflow energy over the representative period, MWh
+   `hydroEnergyGenerated`           Expression          Hydro energy generated over the representative period, MWh
+   `hydro_energy_budget`            Constraint          Generation plus spill equals the inflow budget
+   ================================ =================== ===================================================================
+
+
 .. currentmodule:: gtep.gtep_model
 
 .. automodule:: gtep
     :members:
 
 .. automodule:: gtep.gtep_model
-    :members: 
-
+    :members:
