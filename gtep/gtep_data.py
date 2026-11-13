@@ -34,6 +34,7 @@ class ExpansionPlanningData:
 
     def __init__(
         self,
+        years=[2025, 2030, 2035],
         stages=2,
         num_reps=4,
         num_commit=24,
@@ -44,6 +45,7 @@ class ExpansionPlanningData:
     ):
         """Initialize generation & expansion planning data object.
 
+        :param: years: list of years
         :param: stages: integer number of investment periods
         :param: num_reps: integer number of representative periods per investment period
         :param: num_commit: integer number of commitment periods per representative period
@@ -57,6 +59,8 @@ class ExpansionPlanningData:
                 if provided. Default is None.
 
         """
+
+        self.years = years
         self.stages = stages
         self.num_reps = num_reps
         self.num_commit = num_commit
