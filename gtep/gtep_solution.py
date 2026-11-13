@@ -1503,9 +1503,12 @@ class ExpansionPlanningSolution:
 
             return {"load_buses": int(total_load_buses)}
 
-        def count_assets(asset_set, metrics):
+        def count_assets(asset_set, metric_names):
             """This function returns total, existing, and candidate
             assets from results .json files.
+
+            :param metric_names: Dictionary with keys 'total',
+                                 'existing', 'candidate'
 
             """
 
@@ -1518,25 +1521,25 @@ class ExpansionPlanningSolution:
             )
 
             record_metric(
-                metric=metrics[0],
+                metric=metric_names["total"],
                 value=total_assets,
                 category="parameter_in_model",
             )
             record_metric(
-                metric=metrics[1],
+                metric=metric_names["existing"],
                 value=existing_assets,
                 category="parameter_in_model",
             )
             record_metric(
-                metric=metrics[2],
+                metric=metric_names["candidate"],
                 value=candidate_assets,
                 category="parameter_in_model",
             )
 
             return {
-                metrics[0]: int(total_assets),
-                metrics[1]: int(existing_assets),
-                metrics[2]: int(candidate_assets),
+                metric_names["total"]: int(total_assets),
+                metric_names["existing"]: int(existing_assets),
+                metric_names["candidate"]: int(candidate_assets),
             }
 
         def calculate_total_load_gw():
@@ -1796,39 +1799,51 @@ class ExpansionPlanningSolution:
         outputs.update(
             count_assets(
                 lines,
-                metrics=["branches", "existing_branches", "candidate_branches"],
+                metric_names={
+                    "total": "branches",
+                    "existing": "existing_branches",
+                    "candidate": "candidate_branches",
+                },
             )
         )
         outputs.update(
             count_assets(
                 generators,
-                metrics=["generators", "existing_generators", "candidate_generators"],
+                metric_names={
+                    "total": "generators",
+                    "existing": "existing_generators",
+                    "candidate": "candidate_generators",
+                },
             )
         )
         outputs.update(
             count_assets(
                 thermal_generators,
-                metrics=[
-                    "thermal_generators",
-                    "existing_thermal_generators",
-                    "candidate_thermal_generators",
-                ],
+                metric_names={
+                    "total": "thermal_generators",
+                    "existing": "existing_thermal_generators",
+                    "candidate": "candidate_thermal_generators",
+                },
             )
         )
         outputs.update(
             count_assets(
                 renewable_generators,
-                metrics=[
-                    "renewable_generators",
-                    "existing_renewable_generators",
-                    "candidate_renewable_generators",
-                ],
+                metric_names={
+                    "total": "renewable_generators",
+                    "existing": "existing_renewable_generators",
+                    "candidate": "candidate_renewable_generators",
+                },
             )
         )
         outputs.update(
             count_assets(
                 storage,
-                metrics=["storage", "existing_storage", "candidate_storage"],
+                metric_names={
+                    "total": "storage",
+                    "existing": "existing_storage",
+                    "candidate": "candidate_storage",
+                },
             )
         )
 
