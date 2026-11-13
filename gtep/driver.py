@@ -197,4 +197,29 @@ rep_days = [
 ]
 sol_object.create_stackgraph(dir_name, rep_days)
 
+# Calculate analysis metrics from the model data object and saved
+# result JSON files.
+outputs, metrics_df = sol_object.create_analysis(
+    results_path=dir_name,
+    save_csv=True,
+    csv_path=f"{dir_name}/analysis_metrics.csv",
+    hours_per_period=1.0,
+    cost_units="million",
+    data_dir=data_path,
+)
+
+# Print results for a single selected day and time
+day_info = sol_object.read_day_results(
+    rep_days=[
+        "2020-01-28 00:00",
+        "2020-04-23 00:00",
+        "2020-07-05 00:00",
+        "2020-10-14 00:00",
+    ],
+    target_day="2020-04-23 00:00",
+    target_hour=12,
+    save_csv=True,
+    results_path=dir_name,
+)
+
 logger.info("GTEP run complete.")
