@@ -70,10 +70,7 @@ def add_investment_disjuncts(b):
         transm.add_transmission_status_disjuncts(b, m.lines)
 
 
-def add_investment_constraints(
-    b,
-    investment_stage,
-):
+def add_investment_constraints(b, investment_stage, year):
     """This method adds standard inequalities (i.e., those not
     involving disjunctions) to the investment stage block.
 
@@ -85,10 +82,10 @@ def add_investment_constraints(
     # storage, when needed. These constraints include fixing indicator
     # variables based on "in_service" data for the units and the
     # calculation of investment cost.
-    gens.add_investment_generators_constraints(m, b, investment_stage)
+    gens.add_investment_generators_constraints(m, b, investment_stage, year)
 
     if m.config["transmission"]:
-        transm.add_investment_transmission_constraints(m, b, investment_stage)
+        transm.add_investment_transmission_constraints(m, b, investment_stage, year)
 
     if m.config["storage"]:
         stor.add_investment_storage_constraints(m, b, investment_stage)

@@ -99,7 +99,7 @@ def add_generators_status_disjuncts(b, thermalgens_set, renewablegens_set):
         ]
 
 
-def add_investment_generators_constraints(m, b, investment_stage):
+def add_investment_generators_constraints(m, b, investment_stage, year):
 
     # These constraints take the "in_service" data and fix the
     # indicator variables of the status disjuncts to define the
@@ -152,14 +152,14 @@ def add_investment_generators_constraints(m, b, investment_stage):
                 # [ESR: When including the disjunction
                 # genInvestStatus, think if we should replace this
                 # cost with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.thermalCapacity[gen]  # in MW
                 * m.capitalMultiplier[gen]
                 * b.genInstalled[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.capitalMultiplier[gen]
                 * b.renewableInstalled[gen]  # in MW
                 for gen in m.renewableGenerators
@@ -168,26 +168,26 @@ def add_investment_generators_constraints(m, b, investment_stage):
                 # [ESR WIP: When including the disjunction
                 # genInvestStatus, think if we should replace this cost
                 # with generatorInstallationCost.]
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.extensionMultiplier[gen]
                 * m.thermalCapacity[gen]
                 * b.genExtended[gen].indicator_var.get_associated_binary()
                 for gen in m.thermalGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.extensionMultiplier[gen]
                 * b.renewableExtended[gen]
                 for gen in m.renewableGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.retirementMultiplier[gen]
                 * b.renewableRetired[gen]
                 for gen in m.renewableGenerators
             )
             + sum(
-                m.generatorInvestmentCost[gen]
+                m.generatorInvestmentCost[gen, year]
                 * m.retirementMultiplier[gen]
                 * m.thermalCapacity[gen]
                 * b.genRetired[gen].indicator_var.get_associated_binary()

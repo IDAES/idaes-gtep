@@ -298,7 +298,7 @@ def create_stages(
         # were previously initialized in components.py. Here it
         # considers the year. To preserve component.py values, comment
         # out this function.
-        comps.repopulate_cost_parameters(m, b_inv.year)
+        # comps.populate_cost_parameters(m, b_inv.year)
         if m.config["storage"]:
             stor.repopulate_storage_cost_parameters(m, b_inv.year)
 
@@ -395,6 +395,7 @@ def create_stages(
                         disp.add_dispatch_variables(
                             b_disp,
                             b_disp.dispatchPeriodLength,
+                            b_inv.year,
                         )
                         disp.add_dispatch_constraints(b_disp)
 
@@ -420,7 +421,11 @@ def create_stages(
                     commit.add_commitment_disjuncts(b_comm, commitment_period)
 
                     # Adds cost-related commitment constraints
-                    commit.add_commitment_constraints(b_comm, commitment_period)
+                    commit.add_commitment_constraints(
+                        b_comm,
+                        commitment_period,
+                        b_inv.year,
+                    )
 
                 # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
 
@@ -435,9 +440,14 @@ def create_stages(
             # --------------------------------------------------------------
 
     for investment_stage in m.stages:
+        b_inv = m.investmentStage[investment_stage]
+        b_inv.year = m.years[investment_stage - 1]
         inv.add_investment_constraints(
-            m.investmentStage[investment_stage], investment_stage
+            m.investmentStage[investment_stage],
+            investment_stage,
+            b_inv.year,
         )
+
     #############
 
     # Add logical constraints for generators and transmission lines

@@ -203,7 +203,8 @@ class TestGTEP(unittest.TestCase):
         m_rep_period = m_inv.representativePeriod[1]
         m_commit = m_rep_period.commitmentPeriod[1]
         m_disp = m_commit.dispatchPeriod[1]
-
+        # m.generatorFixedCost.display()
+        # quit()
         assert_units_equivalent(m_rep_period.representativePeriodLength, u.h)
         assert_units_equivalent(m_commit.commitmentPeriodLength, u.h)
         assert_units_equivalent(m_disp.dispatchPeriodLength, u.min)
@@ -211,9 +212,16 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.MW / u.min)
-        assert_units_equivalent(m.generatorInvestmentCost, u.USD / u.MW)
-        assert_units_equivalent(m.generatorFixedCost, u.USD / u.h / u.MW)
-        assert_units_equivalent(m.generatorVariableCost, u.USD / u.h / u.MW)
+        for gen in m.generators:
+            assert_units_equivalent(
+                m.generatorInvestmentCost[gen, m_inv.year], u.USD / u.MW
+            )
+            assert_units_equivalent(
+                m.generatorFixedCost[gen, m_inv.year], u.USD / u.h / u.MW
+            )
+            assert_units_equivalent(
+                m.generatorVariableCost[gen, m_inv.year], u.USD / u.h / u.MW
+            )
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,
@@ -344,10 +352,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91,
-        # 776765960.70, 779494096.65, 723494956.65
+        # previous successful objective values: 1524581869.89,
+        # 779334165.7, 779344643.1, 779486340.91, 776765960.70,
+        # 779494096.65, 723494956.65, 779494096.65
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779494096.65, places=1
+            value(modObject.model.total_cost_objective), 779490734.95, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -399,10 +408,11 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96,
-        # 923474476.75, 926202612.69, 870203472.69, 723494956.65
+        # previous successful objective values: 1524533561.02,
+        # 926187704.4, 926194856.96, 923474476.75, 926202612.69,
+        # 870203472.69, 723494956.65, 779466381.38
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779466381.38, places=1
+            value(modObject.model.total_cost_objective), 779461519.77, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -653,9 +663,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55
+        # Previous values: 779418083.72, 767038945.08, 767708848.64,
+        # 255902949.54, 241142049.55, 255902949.55
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902949.55, places=1
+            value(modObject.model.total_cost_objective), 255902380.68, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -760,9 +771,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55
+        # Previous values: 241142049.55, 255902949.55
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902949.55, places=1
+            value(modObject.model.total_cost_objective), 255902380.68, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 

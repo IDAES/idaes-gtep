@@ -22,7 +22,7 @@ import pyomo.environ as pyo
 from pyomo.environ import units as u
 
 
-def add_investment_transmission_constraints(m, b, investment_stage):
+def add_investment_transmission_constraints(m, b, investment_stage, year):
 
     for branch in m.lines:
         if investment_stage == m.stages.first():
@@ -39,13 +39,13 @@ def add_investment_transmission_constraints(m, b, investment_stage):
 
         return sum(
             m.transmissionCapacity[branch]
-            * m.branchInvestmentCost[branch]
+            * m.branchInvestmentCost[branch, year]
             * m.branchCapitalMultiplier[branch]
             * b.branchInstalled[branch].indicator_var.get_associated_binary()
             for branch in m.lines
         ) + sum(
             m.transmissionCapacity[branch]
-            * m.branchInvestmentCost[branch]
+            * m.branchInvestmentCost[branch, year]
             * m.branchExtensionMultiplier[branch]
             * b.branchExtended[branch].indicator_var.get_associated_binary()
             for branch in m.lines

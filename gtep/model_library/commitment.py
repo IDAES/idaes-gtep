@@ -86,7 +86,7 @@ def add_commitment_disjuncts(b, commitment_period):
         stor.add_storage_state_disjuncts(b)
 
 
-def add_commitment_constraints(b, comm_per):
+def add_commitment_constraints(b, comm_per, year):
     """This method adds the commitment disjunctions and constraints to
     representative period block.
 
@@ -129,7 +129,7 @@ def add_commitment_constraints(b, comm_per):
         # generator and should be included to have consistent units.]
         if m.config["include_commitment"]:
             op_cost_gen_state = sum(
-                m.generatorFixedCost[gen]
+                m.generatorFixedCost[gen, year]
                 * b.commitmentPeriodLength
                 * m.thermalCapacity[gen]
                 * (
@@ -145,7 +145,7 @@ def add_commitment_constraints(b, comm_per):
                 for gen in m.thermalGenerators
             )
             op_cost_gen_state += sum(
-                m.generatorFixedCost[gen]
+                m.generatorFixedCost[gen, year]
                 * b.commitmentPeriodLength
                 * m.renewableCapacityNameplate[gen]
                 for gen in m.renewableGenerators
@@ -153,7 +153,7 @@ def add_commitment_constraints(b, comm_per):
 
             if m.config["advanced_hydro"]:
                 op_cost_gen_state += sum(
-                    m.generatorFixedCost[gen]
+                    m.generatorFixedCost[gen, year]
                     * b.commitmentPeriodLength
                     * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators
