@@ -112,7 +112,18 @@ description of the relevant parameters included.
    `branchInvestmentCost`       Parameter USD
    `branchCapitalMultiplier`    Parameter
    `branchExtensionMultiplier`  Parameter
+   `lossFactor`                 Parameter dimensionless Fraction of the absolute flow lost on each branch
+                                                        (``loss_factor`` in ``branch.csv``); only with
+                                                        ``transmission_losses``
+   `hurdleRate`                 Parameter USD/MWh       Hurdle cost on branch flows (``hurdle_rate_value``);
+                                                        only with ``hurdle_rate``
    ============================ ========= ============= ============================================
+
+``branch.csv`` may include an optional ``loss_factor`` column: the
+fraction of a branch's absolute power flow that is lost (for example
+``0.01`` for 1%). It is used only when the model option
+``transmission_losses`` is ``True``. A blank value means no losses on
+that branch, and values must be in [0, 1).
 
 
 .. currentmodule:: gtep.gtep_data
@@ -120,4 +131,3 @@ description of the relevant parameters included.
 
 .. automodule:: gtep.gtep_data
     :members: 
-    

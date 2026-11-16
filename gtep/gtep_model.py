@@ -169,6 +169,21 @@ class ExpansionPlanningModel:
 
         m.config = self.config
 
+        if m.config["transmission_losses"] and m.config["flow_model"] not in (
+            "transport",
+            "DC",
+        ):
+            raise ValueError(
+                "The transmission_losses option is supported only with the "
+                "transport and DC flow models (flow_model="
+                f"{m.config['flow_model']!r})."
+            )
+        if m.config["hurdle_rate"] and m.config["flow_model"] == "CP":
+            raise ValueError(
+                "The hurdle_rate option needs branch flows and is not supported "
+                "with the CP flow model."
+            )
+
         # NOTE: scale_ModelData_to_pu doesn't account for expansion
         # data -- does it need to?
         # [TODO: checks for active/built/inactive/unbuilt/etc. gen]

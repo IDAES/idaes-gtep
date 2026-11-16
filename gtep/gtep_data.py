@@ -192,10 +192,15 @@ class ExpansionPlanningData:
         for branch in self.md.data["elements"]["branch"]:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
+                self.md.data["elements"]["branch"][branch]["candidate"] = True
+            else:
+                self.md.data["elements"]["branch"][branch]["candidate"] = False
 
         for stor in self.md.data["elements"]["storage"]:
             if "-c" in stor:  # key/Branch UID
                 self.md.data["elements"]["storage"][stor]["in_service"] = False
+
+        self.load_branch_csv(data_path)
 
         # Get the timestamps in the loaded day-ahead data. Default
         # representative_dates are selected from this list to ensure
@@ -664,6 +669,43 @@ class ExpansionPlanningData:
                 f"Warning: The file '{storage_path}' does not exist. Skipping loading storage data."
             )
             self.md.data["elements"]["storage"] = {}
+
+    def load_branch_csv(self, data_path):
+        """This method imports branch data.
+
+        :param data_path: filepath for branch data csv file
+        """
+        data_path = Path(data_path)
+
+        branch_path = data_path / "branch.csv"
+        branch_df = pd.read_csv(branch_path)
+
+        branch_data = {}
+        if "Static Line" not in branch_df.columns:
+            branch_df["Static Line"] = 0
+
+        has_loss_factor = "loss_factor" in branch_df.columns
+
+        for _, row in branch_df.iterrows():
+            name = row["UID"]
+            branch_data = self.md.data["elements"]["branch"][name]
+
+            static_status = bool(row["Static Line"]) and branch_data["in_service"]
+
+            branch_data["static"] = static_status
+
+            # Optional loss factor: fraction of the absolute flow lost on the
+            # branch (used when the transmission_losses option is True). A
+            # blank value means no losses on that branch.
+            if has_loss_factor and not pd.isna(row["loss_factor"]):
+                loss_factor = float(row["loss_factor"])
+                if not 0 <= loss_factor < 1:
+                    raise ValueError(
+                        f"branch.csv: loss_factor for branch {name} is "
+                        f"{loss_factor}; it must be a fraction in [0, 1) "
+                        "(for example 0.01 for 1% losses)."
+                    )
+                branch_data["loss_factor"] = loss_factor
 
     def texas_case_study_updates(self, data_path):
         """Imports generator data for texas case study.
