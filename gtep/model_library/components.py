@@ -268,7 +268,9 @@ def add_model_parameters(m):
             renewableGen: m.md.data["elements"]["generator"][renewableGen]["nameplate"]
             for renewableGen in m.renewableGenerators
         },
-        mutable=True,
+        # mutable is set to False because it is used to set the
+        # capacity factor and should not change
+        mutable=False,
         units=u.MW,
         doc="Maximum output of each renewable generator",
     )
