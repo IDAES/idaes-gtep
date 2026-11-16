@@ -48,14 +48,14 @@ def add_time_links(b: pyo.Block):
             b.commitDispatchPairsNotFirst,
             m.storage,
             # retention rate is a % / hr, so we convert the dispatchPeriodLength
-            # to hours. Retained charge level is the original charge level 
+            # to hours. Retained charge level is the original charge level
             # minus the charge level times (1 - retention rate) times period length
             initialize={
                 ((c, d), bat): (
                     b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
                     .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
-                    .storageChargeLevel[bat] - 
-                    b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
+                    .storageChargeLevel[bat]
+                    - b.commitmentPeriod[b.commitDispatchPairs.prev((c, d))[0]]
                     .dispatchPeriod[b.commitDispatchPairs.prev((c, d))[1]]
                     .storageChargeLevel[bat]
                     * (1 / u.hr - m.storageRetentionRate[bat])
