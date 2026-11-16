@@ -240,6 +240,18 @@ def _add_investment_configs(CONFIG):
     )
 
     CONFIG.declare(
+        "fix_init_storage",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description=(
+                "Fix the initial storage level to the initial_state_of_charge "
+                "from the storage.csv."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
         "include_reconductoring",
         ConfigValue(
             default=False,
