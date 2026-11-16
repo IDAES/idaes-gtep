@@ -265,7 +265,7 @@ def add_model_parameters(m):
     m.renewableCapacityNameplate = pyo.Param(
         m.renewableGenerators,
         initialize={
-            renewableGen: m.md.data["elements"]["generator"][renewablegen]["nameplate"]
+            renewableGen: m.md.data["elements"]["generator"][renewableGen]["nameplate"]
             for renewableGen in m.renewableGenerators
         },
         mutable=True,
