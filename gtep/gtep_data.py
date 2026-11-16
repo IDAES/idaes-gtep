@@ -374,7 +374,7 @@ class ExpansionPlanningData:
 
             if gen in nameplate_dict:
                 self.md.data["elements"]["generator"][gen]["nameplate"] = (
-                    nameplate_dict[gen_uid]
+                    nameplate_dict[gen]
                 )
             else:
                 self.md.data["elements"]["generator"][gen]["nameplate"] = 0
