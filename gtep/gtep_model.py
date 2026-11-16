@@ -169,6 +169,18 @@ class ExpansionPlanningModel:
 
         m.config = self.config
 
+        if m.config["include_reconductoring"]:
+            if not (m.config["include_investment"] and m.config["transmission"]):
+                raise ValueError(
+                    "The include_reconductoring option requires "
+                    "include_investment=True and transmission=True."
+                )
+            if m.config["flow_model"] == "CP":
+                raise ValueError(
+                    "The include_reconductoring option requires power flow modeling "
+                    "but the user has chosen `CP` for the flow model"
+                )
+
         # NOTE: scale_ModelData_to_pu doesn't account for expansion
         # data -- does it need to?
         # [TODO: checks for active/built/inactive/unbuilt/etc. gen]

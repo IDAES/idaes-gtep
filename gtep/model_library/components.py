@@ -27,6 +27,67 @@ import gtep.model_library.storage as stor
 logger = logging.getLogger("gtep.model_library.components")
 
 
+def _reconductor_pairs(m):
+    """Return validated (candidate, existing line) reconductoring pairs.
+
+    Each candidate line with a ``reconductored_line`` value in branch.csv
+    replaces that existing line. The existing line must be in branch.csv,
+    must not be a candidate or a static line, and must connect the same
+    from and to buses as the candidate.
+    """
+    branches = m.md.data["elements"]["branch"]
+    if not any("reconductored_line" in data for data in branches.values()):
+        raise ValueError(
+            "include_reconductoring is True, but branch.csv has no "
+            "reconductored_line column."
+        )
+
+    pairs = []
+    for new, data in branches.items():
+        old = data.get("reconductored_line")
+        if old is None:
+            continue
+        if not data["candidate"]:
+            raise ValueError(
+                f"Branch {new} has reconductored_line {old}, but it is not a "
+                "candidate line (its UID must contain '-c')."
+            )
+        if old not in branches:
+            raise ValueError(
+                f"Candidate line {new} reconductors line {old}, which is not in "
+                "branch.csv."
+            )
+        old_data = branches[old]
+        if old_data["candidate"]:
+            raise ValueError(
+                f"Candidate line {new} reconductors line {old}, which is itself "
+                "a candidate line; it must be an existing line."
+            )
+        if (data["from_bus"], data["to_bus"]) != (
+            old_data["from_bus"],
+            old_data["to_bus"],
+        ):
+            raise ValueError(
+                f"Candidate line {new} ({data['from_bus']} -> {data['to_bus']}) "
+                f"must have the same from and to buses as line {old} "
+                f"({old_data['from_bus']} -> {old_data['to_bus']})."
+            )
+        if old not in m.nonStaticLines:
+            raise ValueError(
+                f"Candidate line {new} reconductors line {old}, which is a static "
+                "line (Static Line = 1) and cannot be retired."
+            )
+        pairs.append((new, old))
+
+    if not pairs:
+        logger.warning(
+            "include_reconductoring is True, but no candidate line has a "
+            "reconductored_line value in branch.csv."
+        )
+    return pairs
+
+
+
 def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
@@ -129,6 +190,13 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             doc="Individual transmission lines",
         )
 
+    if m.config["include_reconductoring"]:
+        m.reconductorPairs = pyo.Set(
+            dimen=2,
+            initialize=_reconductor_pairs(m),
+            doc="(reconductor candidate line, existing line it replaces)",
+        )
+        
     _toBranches = defaultdict(list)
     _fromBranches = defaultdict(list)
     for branch in m.lines:

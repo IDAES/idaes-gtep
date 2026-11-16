@@ -239,6 +239,17 @@ def _add_investment_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare(
+        "include_reconductoring",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Allow candidate lines to reconductor existing lines. A candidate's ",
+                "reconductored_line (branch.csv) names the existing line it replaces"
+            ),
+        ),
+    )
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these
