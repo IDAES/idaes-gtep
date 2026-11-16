@@ -282,7 +282,7 @@ def add_model_parameters(m):
             )
             for renewableGen in m.renewableGenerators
         },
-        # mutable is set to False because it is used to set the 
+        # mutable is set to False because it is used to set the
         # capacity factor and should not change
         mutable=False,
         units=u.MW,
