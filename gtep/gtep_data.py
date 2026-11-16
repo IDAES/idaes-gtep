@@ -348,12 +348,17 @@ class ExpansionPlanningData:
             for row in reader:
                 gen_uid = row.get("GEN UID")
                 heat_rate_str = row.get("HR_avg_0")
-                nameplate = row.get("PMax MW")
+                nameplate_str = row.get("PMax MW")
 
                 if heat_rate_str not in (None, "", "NA"):
                     heat_rate = float(heat_rate_str)
                 else:
                     heat_rate = None
+
+                if nameplate_str not in (None, "", "NA"):
+                    nameplate = float(nameplate_str)
+                else:
+                    nameplate = 0
 
                 if gen_uid and heat_rate is not None:
                     heat_rate_dict[gen_uid] = heat_rate
