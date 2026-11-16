@@ -250,7 +250,7 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 28076447.10, 
+        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 28076447.10,
         # 28088689.10, 28184373.53
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 28114310.83, places=1
