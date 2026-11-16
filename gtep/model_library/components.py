@@ -571,7 +571,7 @@ def add_model_parameters(m, years):
         mutable=True,
     )
 
-    add_cost_parameters(m)
+    add_gen_branch_cost_parameters(m)
     if m.config["storage"] == True:
         stor.add_storage_params(m)
 
@@ -608,7 +608,7 @@ def add_model_parameters(m, years):
     """
 
 
-def add_cost_parameters(m):
+def add_gen_branch_cost_parameters(m):
     """Add transmission lines, generators, and fuel cost parameters
     for stage years. The costs parameters support multi-year planning
     with year-indexed values.
