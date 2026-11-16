@@ -88,7 +88,7 @@ def add_investment_constraints(b, investment_stage, year):
         transm.add_investment_transmission_constraints(m, b, investment_stage, year)
 
     if m.config["storage"]:
-        stor.add_investment_storage_constraints(m, b, investment_stage)
+        stor.add_investment_storage_constraints(m, b, investment_stage, year)
 
     # NOTE: The following constraints can be split into rep_per and
     # invest_stage components if desired.

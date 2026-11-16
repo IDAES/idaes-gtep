@@ -242,7 +242,12 @@ class TestInvestment(unittest.TestCase):
                 )
 
                 # Check that storage constraints are added
-                mock_stor.assert_any_call(self.m, self.b, self.investment_stage)
+                mock_stor.assert_any_call(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")
@@ -347,7 +352,10 @@ class TestInvestment(unittest.TestCase):
 
                 # check the functions that are always called were called properly
                 mock_gens.assert_called_once_with(
-                    self.m, self.b, self.investment_stage, b_inv.year
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
                 )
                 mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
 
@@ -355,7 +363,12 @@ class TestInvestment(unittest.TestCase):
                 mock_transm.assert_not_called()
 
                 # Check that storage constraints are added
-                mock_stor.assert_called_once_with(self.m, self.b, self.investment_stage)
+                mock_stor.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")

@@ -289,18 +289,6 @@ def create_stages(
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
         b_inv.year = m.years[investment_stage - 1]
-        # print(f"{b_inv}.year = {b_inv.year}")
-
-        # Declare cost parameters for each stage because they depend
-        # on the investment year. IMPORTANT NOTE: This function
-        # repopulates m.fuelCost, m.generatorInvestmentCost,
-        # m.generatorFixedCost, and m.generatorVariableCost, which
-        # were previously initialized in components.py. Here it
-        # considers the year. To preserve component.py values, comment
-        # out this function.
-        # comps.populate_cost_parameters(m, b_inv.year)
-        if m.config["storage"]:
-            stor.repopulate_storage_cost_parameters(m, b_inv.year)
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
