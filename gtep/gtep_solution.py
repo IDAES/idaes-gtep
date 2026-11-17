@@ -1347,7 +1347,6 @@ class ExpansionPlanningSolution:
         csv_path=None,
         hours_per_period=1.0,
         cost_units="million",
-        data_dir=None,
     ):
         """This method creates a set of analysis metrics from model
         data and results.
@@ -1368,9 +1367,6 @@ class ExpansionPlanningSolution:
         :param cost_units: Units used for reporting costs. Options
                            are "million" or "billion". Defaults to
                            "million".
-        :param data_dir: Path to directory containing original data files
-                         (for generator counting). If None, will look in
-                         results_path.
 
 
         :return: Tuple containing the metrics dictionary and metrics
@@ -1401,75 +1397,6 @@ class ExpansionPlanningSolution:
 
             with open(result_file, "r") as f:
                 return json.load(f)
-
-        def count_generators_by_type(data_dir):
-            """Count the number of generators by unit type from the
-            original gen.csv file, separating existing and candidate
-            generators.
-
-            """
-
-            data_dir = Path(data_dir)
-            gen_file = data_dir / "gen.csv"
-
-            # Initialize separate counters for existing and candidate
-            # generators.
-            existing_counts = defaultdict(int)
-            candidate_counts = defaultdict(int)
-            total_existing = 0
-            total_candidate = 0
-
-            with open(gen_file, mode="r") as f:
-                reader = csv.DictReader(f)
-
-                for row in reader:
-                    unit_type = row["Unit Type"].strip()
-                    gen_uid = row["GEN UID"].strip()
-
-                    # Check if this is a candidate generator (ends
-                    # with -c).
-                    if gen_uid.endswith("-c"):
-                        candidate_counts[unit_type] += 1
-                        total_candidate += 1
-                    else:
-                        existing_counts[unit_type] += 1
-                        total_existing += 1
-
-            record_metric(
-                metric="total_existing_generators",
-                value=total_existing,
-                category="system_assets",
-                units="",
-            )
-
-            record_metric(
-                metric="total_candidate_generators",
-                value=total_candidate,
-                category="system_assets",
-                units="",
-            )
-
-            # Record metrics for each unit type for existent and
-            # candidate generators.
-            for unit_type, count in sorted(existing_counts.items()):
-                # Create metric name by replacing spaces with
-                # underscores.
-                safe_unit_type = unit_type.lower().replace(" ", "_")
-                metric_name = f"generator_count_{safe_unit_type}"
-
-                record_metric(metric=metric_name, value=count, category="system_assets")
-            for unit_type, count in sorted(candidate_counts.items()):
-                safe_unit_type = unit_type.lower().replace(" ", "_")
-                metric_name = f"candidate_generator_count_{safe_unit_type}"
-
-                record_metric(metric=metric_name, value=count, category="system_assets")
-
-            return {
-                "existing": dict(existing_counts),
-                "candidate": dict(candidate_counts),
-                "total_existing": total_existing,
-                "total_candidate": total_candidate,
-            }
 
         def count_buses():
             """This function returns the number of buses from results
@@ -1847,13 +1774,6 @@ class ExpansionPlanningSolution:
             )
         )
 
-        generator_count = count_generators_by_type(data_dir)
-        outputs["generator_counts"] = {
-            "existing": generator_count["existing"],
-            "candidate": generator_count["candidate"],
-            "total_existing": generator_count["total_existing"],
-            "total_candidate": generator_count["total_candidate"],
-        }
         outputs["total_load_gw"] = calculate_total_load_gw()
         outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
         outputs["total_generation_gw"] = calculate_total_generation_gw()
@@ -1880,15 +1800,6 @@ class ExpansionPlanningSolution:
             metrics_df.to_csv(output_path, index=False)
 
             logger.info(f"\nSaved analysis metrics to: {output_path}")
-
-            generator_metrics = metrics_df[
-                metrics_df["metric"].str.contains(
-                    "generator_count|candidate_generator_count|total_.*_generators"
-                )
-            ]
-            test_output_path = os.path.join(results_path, "generator_count.csv")
-            generator_metrics.to_csv(test_output_path, index=False)
-            logger.info(f"Wrote generator metrics to {test_output_path}")
 
         return outputs, metrics_df
 
