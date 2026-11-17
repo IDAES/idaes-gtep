@@ -17,7 +17,7 @@ This driver does not build or solve the GTEP optimization model.  It
 is built for cases where a full GTEP run has already been completed
 and the JSON result files produced by
 `ExpansionPlanningSolution.save_results_in_json_files` are
-available. When any of the required JSON files are missing the script
+available. When any of the required JSON files are missing, the script
 aborts with a clear `FileNotFoundError`. The script produces:
 
 - Generation‑mix plots (piechart, treemap, or both)

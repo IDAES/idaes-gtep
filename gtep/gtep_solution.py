@@ -449,16 +449,14 @@ class ExpansionPlanningSolution:
         rep_days = []
         for param in m.component_objects(pyo.Param, descend_into=True):
             if "Date" in param.name:
-                if type(param) is IndexedParam:
-                    for p in param:
-                        rep_days.append(pyo.value(param[p]))
+                for p in param:
+                    rep_days.append(pyo.value(param[p]))
 
         weights = []
         for param in m.component_objects(pyo.Param, descend_into=True):
             if "weights" in param.name:
-                if type(param) is IndexedParam:
-                    for p in param:
-                        weights.append(pyo.value(param[p]))
+                for p in param:
+                    weights.append(pyo.value(param[p]))
 
         rep_days_weights = dict(zip(rep_days, weights))
 
@@ -1859,8 +1857,8 @@ class ExpansionPlanningSolution:
         # NOTE: Test only for the `time_periods` attribute. The three
         # main data attributes used in this method (self.time_periods,
         # self.loads_trace, self.load_shed_trace, and self.generation)
-        # are currently created together `create stackgraph`. If, in
-        # the future, any of them are defined elsewhere, this check
+        # are currently created together in `create stackgraph`. If,
+        # in the future, any of them are defined elsewhere, this check
         # should be updated.
         if not hasattr(self, "time_periods"):
             self.create_stackgraph(results_path, rep_days, savefig=False)
