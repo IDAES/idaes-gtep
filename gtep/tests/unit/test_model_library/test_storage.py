@@ -15,6 +15,12 @@
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.common.unittest import TestCase
+from pyomo.environ import (
+    SolverFactory,
+    value,
+    TransformationFactory,
+    check_optimal_termination,
+)
 import pyomo.gdp as gdp
 
 from gtep.tests.unit.pyomo_object_testing import PyomoCheckHelper
@@ -241,3 +247,117 @@ class TestObjective(TestCase):
             planning_data_args={"num_commit": 2, "num_dispatch": 2},
             config={"storage": True},
         )
+
+    def test_storage_retention_and_periodicity(self):
+        # Test the storage charge-level links in a solved model:
+        #   - Between consecutive dispatch periods, the retention rate
+        #     is applied to the previous charge level. battery_1a and
+        #     battery_1b have a retention rate of 0.95 and 1, respectively
+        #   - The first dispatch period of a representative period is
+        #     linked to the last one, with the retention rate applied
+        #     to the last period's charge level.
+        # fix_init_storage is set to False (not the default), so the
+        # model chooses the initial charge level.
+        # Dispatch periods are 1 hour long, so the retained charge
+        # level should be exactly the retention rate times the
+        # previous charge level.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 1,
+                "num_commit": 6,
+                "num_dispatch": 1,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "transmission": False,
+                "storage": True,
+                "fix_init_storage": False,
+                "flow_model": "DC",
+            },
+            include_cost_data=False,
+        )
+        m = modObject.model
+
+        inv_block = m.investmentStage[m.stages.first()]
+        rep_block = inv_block.representativePeriod[inv_block.representativePeriods[0]]
+
+        # The initial charge level should not be fixed
+        self.assertFalse(hasattr(inv_block, "fix_init_storage_charge_level"))
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(m)
+
+        modObject.results = opt.solve(m)
+        self.assertTrue(check_optimal_termination(modObject.results))
+
+        def dispatch_block(pair):
+            comm_per, disp_per = pair
+            return rep_block.commitmentPeriod[comm_per].dispatchPeriod[disp_per]
+
+        def net_charge(pair, bat):
+            # Net energy added in a dispatch period, in MWh
+            disp = dispatch_block(pair)
+            hours = value(u.convert(disp.dispatchPeriodLength, u.hr))
+            return hours * value(
+                disp.storageCharged[bat] * m.storageChargingEfficiency[bat]
+                - disp.storageDischarged[bat] / m.storageDischargingEfficiency[bat]
+            )
+
+        pairs = list(rep_block.commitDispatchPairs)
+        first_pair, second_pair, last_pair = pairs[0], pairs[1], pairs[-1]
+
+        for pair in pairs:
+            self.assertAlmostEqual(
+                value(u.convert(dispatch_block(pair).dispatchPeriodLength, u.hr)),
+                1.0,
+            )
+
+        expected_retention = {
+            "battery_1a": 0.95,
+            "battery_1b": 1.00,
+        }
+
+        for bat, retention in expected_retention.items():
+            with self.subTest(battery=bat):
+                self.assertAlmostEqual(value(m.storageRetentionRate[bat]), retention)
+
+                before = value(dispatch_block(first_pair).storageChargeLevel[bat])
+                after = value(dispatch_block(second_pair).storageChargeLevel[bat])
+
+                # Charge level retained from the first period into the
+                # second period
+                self.assertAlmostEqual(
+                    value(
+                        rep_block.retainedStorageChargeLevelFromPrev[second_pair, bat]
+                    ),
+                    retention * before,
+                    places=5,
+                )
+
+                # Removing the energy charged or discharged in the second
+                # period, the change in charge level is the retention
+                # rate
+                self.assertAlmostEqual(
+                    after - net_charge(second_pair, bat),
+                    retention * before,
+                    places=5,
+                )
+
+                # The first period is linked to the last period, with
+                # the retention rate applied to the last period's charge
+                # level
+                first_level = value(dispatch_block(first_pair).storageChargeLevel[bat])
+                last_level = value(dispatch_block(last_pair).storageChargeLevel[bat])
+                self.assertAlmostEqual(
+                    first_level - net_charge(first_pair, bat),
+                    retention * last_level,
+                    places=5,
+                )
