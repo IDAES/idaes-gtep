@@ -613,9 +613,9 @@ def add_gen_branch_cost_parameters(m):
     """Adds cost parameters for transmission lines, generators, and
     thermal generators fuel costs for stage years. The costs
     parameters support multi-year planning with year-indexed values.
-    
+
     The cost data source depends on configuration values:
-    
+
         - If include_cost_data=True and
           use_cost_from_data_files=False, it adds costs from
           pre-converted spreadsheet data from m.mc.gen_cost_data.
@@ -772,10 +772,8 @@ def add_gen_branch_cost_parameters(m):
             cost_df["Unit Type"] = cost_df["Unit Type"].astype(str).str.upper()
 
             def get_cost_row_by_unit_type(gen):
-                """Gets cost row based on generator type.
+                """Gets cost row based on generator type."""
 
-                """
-                
                 gen_data = m.md.data["elements"]["generator"][gen]
                 unit_type = str(gen_data.get("unit_type", "")).strip().upper()
                 generator_type = str(gen_data.get("generator_type", "")).strip().lower()
