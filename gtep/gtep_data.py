@@ -341,22 +341,33 @@ class ExpansionPlanningData:
         # is done manually because the generator data loaded into
         # self.md does not include heat rate values by default. Units
         # should be in MMBTU/MWh.
+        # Also load in the p Max value as "nameplate" so that it can
+        # be loaded into renewables; "p_max" itself for renewables
+        # gets set by DAY_AHEAD_renewables.csv as a time series
         gen_csv_file = os.path.join(data_path, "gen.csv")
         heat_rate_dict = {}
+        nameplate_dict = {}
         with open(gen_csv_file, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 gen_uid = row.get("GEN UID")
                 heat_rate_str = row.get("HR_avg_0")
+                nameplate_str = row.get("PMax MW")
 
                 if heat_rate_str not in (None, "", "NA"):
                     heat_rate = float(heat_rate_str)
                 else:
                     heat_rate = None
 
+                if nameplate_str not in (None, "", "NA"):
+                    nameplate = float(nameplate_str)
+                else:
+                    nameplate = 0
+
                 if gen_uid and heat_rate is not None:
                     heat_rate_dict[gen_uid] = heat_rate
 
+                nameplate_dict[gen_uid] = nameplate
         for gen in self.md.data["elements"]["generator"]:
             if gen in heat_rate_dict:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = (
@@ -364,6 +375,13 @@ class ExpansionPlanningData:
                 )
             else:
                 self.md.data["elements"]["generator"][gen]["heat_rate"] = 0
+
+            if gen in nameplate_dict:
+                self.md.data["elements"]["generator"][gen]["nameplate"] = (
+                    nameplate_dict[gen]
+                )
+            else:
+                self.md.data["elements"]["generator"][gen]["nameplate"] = 0
 
         thermal_heat_rates = [
             self.md.data["elements"]["generator"][gen].get("heat_rate", 0)
