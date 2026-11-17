@@ -87,7 +87,6 @@ def _reconductor_pairs(m):
     return pairs
 
 
-
 def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
@@ -196,7 +195,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
             initialize=_reconductor_pairs(m),
             doc="(reconductor candidate line, existing line it replaces)",
         )
-        
+
     _toBranches = defaultdict(list)
     _fromBranches = defaultdict(list)
     for branch in m.lines:

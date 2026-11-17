@@ -810,7 +810,7 @@ class TestGTEP(unittest.TestCase):
         # Test that, when include_reconductoring is False, the
         # reconductoring candidates are treated as ordinary candidate
         # lines and no reconductoring components are built
-        # NOTE: we may want to change this behavior and make 
+        # NOTE: we may want to change this behavior and make
         # reconductoring lines separate from candidates
         modObject = create_model(
             config={

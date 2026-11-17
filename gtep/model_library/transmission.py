@@ -160,6 +160,7 @@ def add_investment_transmission_constraints(m, b, investment_stage):
         if branch in candidate_lines:
             if not m.config["include_investment"]:
                 b.branchDisabled[branch].indicator_var.fix(True)
+
     @b.Expression(doc="Transmission investment costs in $")
     def transmission_investment_cost(b):
         m = b.model()
@@ -364,10 +365,9 @@ def add_transmission_logical_constraints(m):
             if stage != 1
             else pyo.LogicalConstraint.Skip
         )
-    
+
     if m.config["include_reconductoring"]:
         _add_reconductoring_logical_constraints(m)
-
 
 
 def _add_reconductoring_logical_constraints(m):

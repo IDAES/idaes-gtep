@@ -303,4 +303,3 @@ def _add_solver_configs(CONFIG):
 
     """
     pass
-    

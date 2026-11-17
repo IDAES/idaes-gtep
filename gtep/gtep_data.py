@@ -678,7 +678,9 @@ class ExpansionPlanningData:
         data_path = Path(data_path)
 
         branch_path = data_path / "branch.csv"
-        branch_df = pd.read_csv(branch_path, dtype={"UID": str, "reconductored_line": str})
+        branch_df = pd.read_csv(
+            branch_path, dtype={"UID": str, "reconductored_line": str}
+        )
 
         has_reconductored_line = "reconductored_line" in branch_df.columns
 
@@ -695,8 +697,7 @@ class ExpansionPlanningData:
             )
 
             self.md.data["elements"]["branch"][name]["static"] = static_status
-        
-        
+
             # Optional reconductoring: the existing line this candidate
             # replaces (used when include_reconductoring is True; checked when
             # the model is built). None means the column exists but the
