@@ -663,8 +663,8 @@ def add_storage_cost_parameters(m):
 
         if m.mc is not None and hasattr(m.mc, "storage_cost_from_csv_data"):
 
-            # Use cost data from storage.csv file with the style
-            # {cost_type}_{year}.
+            # Use cost data from storage.csv file with format
+            # `{cost_type}_{year}`.
             for index, row in m.mc.storage_cost_from_csv_data.iterrows():
                 storage = row["UID"]
                 if storage in m.storage:
@@ -675,10 +675,9 @@ def add_storage_cost_parameters(m):
                         init_dict[(storage, year)] = float(row[column_name])
         else:
 
-            # Use cost data from storage.csv file.
+            # Use cost data from storage.csv file in column
+            # `investment_cost`.
             if cost_type == "capex":
-                # For investment costs, use capital_cost from storage
-                # data.
                 for storage in m.storage:
                     capital_cost = m.md.data["elements"]["storage"][storage].get(
                         "investment_cost", default_value
@@ -732,7 +731,7 @@ def add_storage_cost_parameters(m):
         initialize=get_storage_cost_init(m, m.years, "capex", 0),
         mutable=True,
         domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),  # Soraya has u.USD / u.MW
+        units=u.USD / (u.MW * u.hr),
         doc="Future not real cost; based on idealized targets, in $/MWh",
     )
 
@@ -755,7 +754,3 @@ def add_storage_cost_parameters(m):
         units=u.USD / (u.MW * u.hr),
         doc="Storage variable costs, in USD/MWh",
     )
-    # m.storageInvestmentCost.display()
-    # m.storageFixedCost.display()
-    # m.storageVariableCost.display()
-    # quit()
