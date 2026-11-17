@@ -260,10 +260,7 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86,
-        # 531860.15, 531883.43, 7977055.4, 7977055.4, 7977150.30,
-        # 6986122.88, 7118266.88, 27944303.09, 28076447.10,
-        # 27944303.10, 27944582.86, 28076447.10, 27944715.00,
+        # Previous objective values: 28076447.10, 27944715.00,
         # 27943560.0, 28088689.10, 27943560.0, 28114310.83
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 27943560.0, places=1
@@ -302,10 +299,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43,
-        # 7977055.4, 7977055.4, 7977150.30, 6986122.88, 7977169.84,
-        # 27944303.09, 31908490.95, 31908770.71, 31907880.00,
-        # 31908498.69
+        # Previous objective values: 27944303.09, 31908490.95,
+        # 31908770.71, 31907880.00, 31908498.69
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 31907880.00, places=1
         )
@@ -354,10 +349,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89,
-        # 779334165.7, 779344643.1, 779486340.91, 776765960.70,
-        # 779494096.65, 723494956.65, 779494096.65, 779490734.95,
-        # 770962861.02, 779495688.36
+        # Previous objective values: 779494096.65, 723494956.65,
+        # 779494096.65, 779490734.95, 770962861.02, 779495688.36
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 776512859.77, places=1
         )
@@ -411,10 +404,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02,
-        # 926187704.4, 926194856.96, 923474476.75, 926202612.69,
-        # 870203472.69, 723494956.65, 779466381.38, 779461519.77,
-        # 770933645.84, 775960791.77
+        # Previous objective values: 723494956.65, 779466381.38,
+        # 779461519.77, 770933645.84, 775960791.77
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 776481898.95, places=1
         )
@@ -490,11 +481,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 8584301655.08, 3545283964.22,
-        # 3359204716.88, 3487926967.61, 13435364152.91,
-        # 13573783610.18, 13435364152.91, 13573783610.18,
-        # 13484210206.93, 13599560631.67, 13492932384.68,
-        # 13602265546.78
+        # Previous objective values: 13573783610.18, 13484210206.93,
+        # 13599560631.67, 13492932384.68, 13602265546.78
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 13493887958.01, places=1
         )
@@ -670,9 +658,8 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 779418083.72, 767038945.08, 767708848.64,
-        # 255902949.54, 241142049.55, 255902949.55, 255902380.68,
-        # (value after merging main) 255903177.76
+        # Previous objective values: 255902949.54, 241142049.55,
+        # 255902949.55, 255902380.68, 255903177.76
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 255902630.95, places=1
         )
@@ -902,7 +889,7 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous values: 241142049.55, 255902949.55, 255908867.70,
-        # 3577603.86, 255903177.76 (value after merging main)
+        # 255903177.76, 3577603.86
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 3650853.17, places=1
         )
