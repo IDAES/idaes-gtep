@@ -17,7 +17,6 @@ Planning (GTEP) Model
 """
 
 import logging
-import pandas as pd
 
 import pyomo.environ as pyo
 from pyomo.environ import units as u
@@ -885,6 +884,3 @@ def add_gen_branch_cost_parameters(m):
         units=u.USD / (u.MVAR * u.hr),
         doc="Cost per unit of fuel at each generator (reactive power) by year",
     )
-    # m.fuelCost.display()
-    # m.fuelCostReactive.display()
-    # # quit()
