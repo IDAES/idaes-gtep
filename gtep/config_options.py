@@ -239,6 +239,18 @@ def _add_investment_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare(
+        "fix_init_storage",
+        ConfigValue(
+            default=True,
+            domain=Bool,
+            description=(
+                "Fix the initial storage level to the initial_state_of_charge "
+                "from the storage.csv."
+            ),
+        ),
+    )
+
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these
