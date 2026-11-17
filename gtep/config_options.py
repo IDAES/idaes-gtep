@@ -257,7 +257,7 @@ def _add_investment_configs(CONFIG):
             default=False,
             domain=Bool,
             description=(
-                "Allow candidate lines to reconductor existing lines. A candidate's ",
+                "Allow candidate lines to reconductor existing lines. A candidate's "
                 "reconductored_line (branch.csv) names the existing line it replaces"
             ),
         ),
@@ -303,3 +303,4 @@ def _add_solver_configs(CONFIG):
 
     """
     pass
+    

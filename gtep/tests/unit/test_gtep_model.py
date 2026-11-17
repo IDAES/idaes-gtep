@@ -11,12 +11,14 @@
 # for full copyright and license information.
 #################################################################################
 
+import copy
 import json
 import pytest
 from pathlib import Path
 
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
+from pyomo.environ import check_optimal_termination
 from pyomo.environ import units as u
 from pyomo.environ import TransformationFactory
 from pyomo.util.check_units import (
@@ -251,8 +253,9 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
         # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 28076447.10
+        # 28088689.10
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 28088689.10, places=1
+            value(modObject.model.total_cost_objective), 29628029.26, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -471,9 +474,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
-        # 13435364152.91, 13573783610.18, 13435364152.91, 13573783610.18
+        # 13435364152.91, 13573783610.18, 13435364152.91, 13573783610.18, 13599560631.67
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 13599560631.67, places=1
+            value(modObject.model.total_cost_objective), 14096928573.71, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -760,3 +763,247 @@ class TestGTEP(unittest.TestCase):
             value(modObject.model.total_cost_objective), 255902949.55, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_reconductoring_sets(self):
+        # Test that the reconductoring sets and logical constraints are
+        # built from the reconductoring candidates in the 5-bus case
+        modObject = create_model(
+            config={
+                "include_investment": True,
+                "transmission": True,
+                "flow_model": "DC",
+                "include_reconductoring": True,
+            },
+            include_cost_data=False,
+        )
+        m = modObject.model
+
+        expected_pairs = {
+            ("branch_2_3-c", "branch_2_3"),
+            ("branch_1_2-c", "branch_1_2"),
+            ("branch_1_4-c", "branch_1_4"),
+            ("branch_4_10-c", "branch_4_10"),
+            ("branch_1_10-c", "branch_1_10"),
+        }
+        self.assertEqual(set(m.reconductorPairs), expected_pairs)
+
+        # All branches, including the reconductoring candidates, are in
+        # the model
+        self.assertEqual(len(m.lines), 12)
+        self.assertEqual(set(m.candidateLines), {new for new, _ in expected_pairs})
+
+        # Lines being reconductored must be able to change status, so
+        # they cannot be static
+        self.assertEqual(len(m.staticLines), 0)
+        for new, old in expected_pairs:
+            self.assertIn(new, m.nonStaticLines)
+            self.assertIn(old, m.nonStaticLines)
+
+        self.assertTrue(hasattr(m, "reconductor_replaces_existing_line"))
+        self.assertTrue(hasattr(m, "reconductor_first_stage_retirement"))
+
+        # Each existing line has a single reconductoring candidate, so
+        # there are no "at most one reconductor" constraints
+        self.assertEqual(len(m.one_reconductor_per_line), 0)
+
+    def test_candidates_are_new_lines(self):
+        # Test that, when include_reconductoring is False, the
+        # reconductoring candidates are treated as ordinary candidate
+        # lines and no reconductoring components are built
+        # NOTE: we may want to change this behavior and make 
+        # reconductoring lines separate from candidates
+        modObject = create_model(
+            config={
+                "include_investment": True,
+                "transmission": True,
+                "flow_model": "DC",
+                "include_reconductoring": False,
+            },
+            include_cost_data=False,
+        )
+        m = modObject.model
+
+        expected_candidates = {
+            "branch_2_3-c",
+            "branch_1_2-c",
+            "branch_1_4-c",
+            "branch_4_10-c",
+            "branch_1_10-c",
+        }
+        self.assertEqual(len(m.lines), 12)
+        self.assertEqual(set(m.candidateLines), expected_candidates)
+        for branch in expected_candidates:
+            self.assertIn(branch, m.nonStaticLines)
+
+        self.assertFalse(hasattr(m, "reconductorPairs"))
+        self.assertFalse(hasattr(m, "reconductor_replaces_existing_line"))
+        self.assertFalse(hasattr(m, "reconductor_first_stage_retirement"))
+
+    def test_reconductoring_transmission_off_excludes_candidates(self):
+        # Test that candidate lines, including the reconductoring
+        # candidates, are left out of the model when transmission is
+        # False
+        modObject = create_model(include_cost_data=False)
+        m = modObject.model
+
+        self.assertEqual(len(m.lines), 7)
+        self.assertEqual(len(m.candidateLines), 0)
+        for branch in m.lines:
+            self.assertFalse(branch.endswith("-c"))
+
+    def test_reconductoring_config_errors(self):
+        # Test that include_reconductoring raises an error when
+        # combined with incompatible model options
+        bad_configs = {
+            "no investment": {
+                "include_investment": False,
+                "transmission": True,
+                "flow_model": "DC",
+            },
+            "no transmission": {
+                "include_investment": True,
+                "transmission": False,
+                "flow_model": "DC",
+            },
+            "copper plate": {
+                "include_investment": True,
+                "transmission": True,
+                "flow_model": "CP",
+            },
+        }
+
+        for case, config in bad_configs.items():
+            with self.subTest(case=case):
+                config["include_reconductoring"] = True
+                with self.assertRaises(ValueError):
+                    create_model(config=config, include_cost_data=False)
+
+    def test_reconductoring_invalid_data_errors(self):
+        # Test that invalid reconductoring data raises an error when the
+        # model is built. Each case modifies a copy of the loaded 5-bus
+        # branch data. The model reads branch data from the
+        # representative-period copies in representative_data (not from
+        # md), so every copy is modified.
+        data_object, _ = create_data(include_cost_data=False)
+
+        def make_static(branches):
+            branches["branch_1_2"]["static"] = True
+
+        def missing_line(branches):
+            branches["branch_1_2-c"]["reconductored_line"] = "no_such_line"
+
+        def candidate_line(branches):
+            branches["branch_1_2-c"]["reconductored_line"] = "branch_1_4-c"
+
+        def different_buses(branches):
+            branches["branch_1_2-c"]["reconductored_line"] = "branch_1_4"
+
+        def not_a_candidate(branches):
+            branches["branch_2_3"]["reconductored_line"] = "branch_1_2"
+
+        def no_column(branches):
+            for data in branches.values():
+                data.pop("reconductored_line", None)
+
+        bad_data = {
+            "static line": (make_static, "static line"),
+            "line not in branch.csv": (missing_line, "not in branch.csv"),
+            "line is a candidate": (candidate_line, "itself a candidate"),
+            "different buses": (different_buses, "same from and to buses"),
+            "not a candidate": (not_a_candidate, "not a candidate"),
+            "no reconductored_line column": (no_column, "no reconductored_line"),
+        }
+
+        for case, (modify, message) in bad_data.items():
+            with self.subTest(case=case):
+                case_data = copy.deepcopy(data_object)
+                for data in [case_data.md, *case_data.representative_data]:
+                    modify(data.data["elements"]["branch"])
+
+                modObject = ExpansionPlanningModel(
+                    config={
+                        "include_investment": True,
+                        "transmission": True,
+                        "flow_model": "DC",
+                        "include_reconductoring": True,
+                    },
+                    data=case_data,
+                    cost_data=None,
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    modObject.create_model()
+
+    def test_with_reconductoring(self):
+        # Solve the 5-bus case with reconductoring. Two stages are used
+        # so that both first-stage retirement and stage-to-stage
+        # replacement logic are included.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+                "include_reconductoring": True,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+        self.assertTrue(check_optimal_termination(modObject.results))
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 809993428.69, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+        # Check that an existing line is never active at the same time
+        # as its reconductoring candidate
+        m = modObject.model
+
+        def is_active(disjunct):
+            return round(value(disjunct.binary_indicator_var)) == 1
+
+        for stage in m.stages:
+            inv_block = m.investmentStage[stage]
+            for new, old in m.reconductorPairs:
+                new_active = any(
+                    is_active(inv_block.component(state)[new])
+                    for state in (
+                        "branchOperational",
+                        "branchInstalled",
+                        "branchExtended",
+                    )
+                )
+                old_inactive = any(
+                    is_active(inv_block.component(state)[old])
+                    for state in ("branchRetired", "branchDisabled")
+                )
+                if new_active:
+                    self.assertTrue(old_inactive, msg=f"stage {stage}: {new} and {old}")
