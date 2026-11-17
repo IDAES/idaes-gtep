@@ -35,9 +35,7 @@ logger = logging.getLogger(__name__)
 def run_checker():
     """Main execution function."""
 
-    parser = argparse.ArgumentParser(
-        description="Run checker"
-    )
+    parser = argparse.ArgumentParser(description="Run checker")
     parser.add_argument("--data-dir", help="Directory containing gen.csv")
     parser.add_argument("--output", help="Output directory")
     args = parser.parse_args()
