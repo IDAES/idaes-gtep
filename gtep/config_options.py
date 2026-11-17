@@ -38,7 +38,7 @@ _supported_flows = {
     "CP": ("gtep.cp", "Copper plate power flow approximation"),
     "ACP": ("gtep.acp", "AC power flow in polar formulation"),
     "ACR": ("gtep.acr", "AC power flow in rectangular formulation"),
-    "transport": ("gtep.transport", "transport"),
+    "transport": ("gtep.transport", "Transport power flow approximation"),
 }
 
 
@@ -251,6 +251,17 @@ def _add_investment_configs(CONFIG):
         ),
     )
 
+    CONFIG.declare(
+        "include_reconductoring",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Allow candidate lines to reconductor existing lines. A candidate's "
+                "reconductored_line (branch.csv) names the existing line it replaces"
+            ),
+        ),
+    )
     # NOTE: The commented configuration options below are not
     # currently active in the model. They are kept here for reference
     # and may be re-enabled in a future update if support for these

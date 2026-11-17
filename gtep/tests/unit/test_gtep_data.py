@@ -431,3 +431,75 @@ class TestExpansionPlanningData(unittest.TestCase):
             "gen.csv",
             requirements_file=requirements_file,
         )
+
+    def test_load_branch_csv_candidate_and_static_flags(self):
+        # Test that candidate and static flags are set for existing
+        # and candidate branches. The 5-bus branch.csv has no
+        # "Static Line" column, so no branch should be static.
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=input_data_source)
+        branches = testObject.md.data["elements"]["branch"]
+
+        self.assertEqual(branches["branch_1_2"]["candidate"], False)
+        self.assertEqual(branches["branch_1_2"]["in_service"], True)
+        self.assertEqual(branches["branch_1_2"]["static"], False)
+
+        self.assertEqual(branches["branch_1_2-c"]["candidate"], True)
+        self.assertEqual(branches["branch_1_2-c"]["in_service"], False)
+        self.assertEqual(branches["branch_1_2-c"]["static"], False)
+
+        for branch, data in branches.items():
+            self.assertEqual(data["static"], False, msg=branch)
+
+    def test_load_branch_csv_reconductored_line(self):
+        # Test that the reconductored_line column is read in: each
+        # reconductoring candidate names the existing line it
+        # replaces, and existing lines have no value.
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=input_data_source)
+        branches = testObject.md.data["elements"]["branch"]
+
+        expected_pairs = {
+            "branch_2_3-c": "branch_2_3",
+            "branch_1_2-c": "branch_1_2",
+            "branch_1_4-c": "branch_1_4",
+            "branch_4_10-c": "branch_4_10",
+            "branch_1_10-c": "branch_1_10",
+        }
+
+        for branch, data in branches.items():
+            self.assertIn("reconductored_line", data, msg=branch)
+            self.assertEqual(
+                data["reconductored_line"], expected_pairs.get(branch), msg=branch
+            )
+
+        # Transformers do not get reconductoring candidates
+        self.assertNotIn("branch_3_4_0-c", branches)
+        self.assertNotIn("branch_3_4_1-c", branches)
+
+    def test_load_branch_csv_reconductoring_candidate_data(self):
+        # Test that the reconductoring candidates in the 5-bus case
+        # have the same buses as the line they replace, ratings scaled
+        # up by 25%, and resistance and reactance scaled by 1/1.25.
+        testObject = ExpansionPlanningData()
+        testObject.load_prescient(data_path=input_data_source)
+        branches = testObject.md.data["elements"]["branch"]
+
+        for branch, data in branches.items():
+            existing_line = data["reconductored_line"]
+            if existing_line is None:
+                continue
+            existing = branches[existing_line]
+
+            self.assertEqual(data["from_bus"], existing["from_bus"], msg=branch)
+            self.assertEqual(data["to_bus"], existing["to_bus"], msg=branch)
+
+            for rating in ("rating_long_term", "rating_short_term", "rating_emergency"):
+                self.assertAlmostEqual(
+                    data[rating], 1.25 * existing[rating], places=6, msg=branch
+                )
+
+            for impedance in ("resistance", "reactance"):
+                self.assertAlmostEqual(
+                    data[impedance], existing[impedance] / 1.25, places=8, msg=branch
+                )

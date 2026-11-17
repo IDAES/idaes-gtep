@@ -178,15 +178,15 @@ def add_dispatch_variables(b, paramPeriodLength):
     def renewableCurtailmentDispatch(b):
         return sum(b.renewableCurtailment[gen] for gen in m.renewableGenerators)
 
-    # Restrictions on flow over uninvested lines are enforced in a
-    # disjuction below
-    def power_flow_limits(b, branch, doc="Bounds on transmission line capacity"):
-        return (
-            -m.transmissionCapacity[branch],
-            m.transmissionCapacity[branch],
-        )
-
     if m.config["flow_model"] != "CP":
+        # Restrictions on flow over uninvested lines are enforced in a
+        # disjuction below
+        def power_flow_limits(b, branch, doc="Bounds on transmission line capacity"):
+            return (
+                -m.transmissionCapacity[branch],
+                m.transmissionCapacity[branch],
+            )
+
         # [TODO: Check units since they might need to be fixed for
         # variable temporal resolution.]
         b.powerFlow = pyo.Var(
@@ -198,9 +198,9 @@ def add_dispatch_variables(b, paramPeriodLength):
             doc="Power flow in MW",
         )
 
-    # Add transmission lines state disjuncts (in use and not in
-    # use). The power flow is calculated here using OPF formulations.
-    transm.add_transmission_state_disjuncts(m, b, i_p)
+        # Add transmission lines state disjuncts (in use and not in
+        # use). The power flow is calculated here using OPF formulations.
+        transm.add_transmission_state_disjuncts(m, b, i_p)
 
     def spinning_reserve_limits(
         b, thermalGen, doc="Bounds on thermal generator spinning reserve supply"
@@ -280,8 +280,8 @@ def add_dispatch_constraints(b):
             start_points = m.branchByFromBus[bus]
             gens = m.generatorsByBus[bus]
 
-            balance -= sum(b.powerFlow[i] for i in end_points)
-            balance += sum(b.powerFlow[i] for i in start_points)
+            balance += sum(b.powerFlow[i] for i in end_points)
+            balance -= sum(b.powerFlow[i] for i in start_points)
             # Add generation to constraint
             balance += sum(
                 b.thermalGeneration[g] for g in m.thermalGeneratorsByBus[bus]
