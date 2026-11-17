@@ -48,16 +48,30 @@ A few further changes were made to `branch.csv`:
 - Columns `Cont Rating`, `LTE Rating`, and `STE Rating` were scaled up by 10x to better match
 the scale of generation/loads for the 5bus case.
 
-## Year Cost Data
+## Year Cost Data in Input Data Files
 
 This case includes cost data for generators, branches, and storage
-assets for three different years: 2025, 2030, and 2035. For the
-generators, this data is taken from the `gtep_cost_data` dictionary
-from `gtep_data_processing.py`. This data is included to illustrate
-the use of CSV files to repopulate cost parameters in the model. For
-branches and storage, all values are set to 0, except for the lifetime
-values set to the value of 3, which is a default value given in
-`gtep_data_processing.py`.
+assets across three years: 2025, 2030, and 2035. The data is stored in
+the following CSV files: `gen.csv`, `branch.csv`, and
+`storage.csv`. Each file includes cost values in columns formatted as
+`{cost_type}_{year}`, covering capex, fixed operating costs, and
+variable costs. The data is processed and stored in dictionaries
+within `gtep_data_processing.py`: `gen_cost_from_csv_data`,
+`branch_cost_from_csv_data`, and `storage_cost_from_csv_data`.
+
+To use this cost feature, enable the following configuration options
+in your driver:
+
+    ```bash
+    include_cost_data = True
+    use_cost_from_data_files = True
+    data_path = "<path_to_input_data_files>"
+    ```
+
+Note that the input CSV values are illustrative examples for
+populating cost parameters in the model (assumed values). For branches
+and storage, all cost values are set to 0, except for lifetime, which
+has a default value of (as defined in `gtep_data_processing.py`).
 
 ## References
 
