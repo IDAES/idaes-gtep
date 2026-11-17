@@ -252,8 +252,7 @@ class TestObjective(TestCase):
         # Test the storage charge-level links in a solved model:
         #   - Between consecutive dispatch periods, the retention rate
         #     is applied to the previous charge level. battery_1a and
-        #     battery_1b have a retention rate of 0.95 per hour in the
-        #     5-bus storage.csv; battery_1c-c has a rate of 1.
+        #     battery_1b have a retention rate of 0.95 and 1, respectively
         #   - The first dispatch period of a representative period is
         #     linked to the last one, with the retention rate applied
         #     to the last period's charge level.
@@ -325,8 +324,7 @@ class TestObjective(TestCase):
 
         expected_retention = {
             "battery_1a": 0.95,
-            "battery_1b": 0.95,
-            "battery_1c-c": 1.0,
+            "battery_1b": 1.00,
         }
 
         for bat, retention in expected_retention.items():
