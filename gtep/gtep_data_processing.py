@@ -142,7 +142,9 @@ class DataProcessing:
         }
         if "Natural Gas_CT" in candidate_gens:
             logger.warning(
-                "Natural Gas_CT does not have cost data. We will assume all natural gas costs are coming from fossil energy sources (Natural Gas_FE)."
+                "Natural Gas_CT does not have cost data. We will assume all"
+                " natural gas costs are coming from fossil energy sources"
+                " (Natural Gas_FE)."
             )
         return result
 
@@ -172,7 +174,8 @@ class DataProcessing:
             not_a_sheet = [name for name in gens if name not in xls.sheet_names]
             if not_a_sheet:
                 raise ValueError(
-                    f"All elements of gens must be a sheet in {cost_data_path}. The following are not sheets: {not_a_sheet}"
+                    f"All elements of gens must be a sheet in {cost_data_path}."
+                    " The following are not sheets: {not_a_sheet}"
                 )
 
             cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
@@ -182,7 +185,8 @@ class DataProcessing:
             missing_years = [year for year in years if year not in df.columns]
             if missing_years:
                 raise ValueError(
-                    f"One or more years ({missing_years}) were not in the {gen} cost dataset. Available columns: {df.columns}"
+                    f"One or more years ({missing_years}) were not in the {gen}"
+                    " cost dataset. Available columns: {df.columns}"
                 )
 
         return {
@@ -364,6 +368,37 @@ class DataProcessing:
 
         setattr(self, cost_attr, df)
 
+    def extract_wacc_real(self, cost_dir: dict, year: int) -> dict:
+        """Extracts the WACC Real for all generators and a given year.
+
+        WACC (Weighted Average Cost of Capital) represents the cost of
+        financing (equity + debt). WACC "Real" rates are preferred
+        because they exclude inflation, making them consistent with
+        most long-term energy planning models (which typically use
+        real costs). If using nominal costs (including inflation),
+        then use "WACC Nominal" instead of "WACC Real" under
+        wacc_type.
+
+        :cost_dir (dict): Dictionary of generator costs DataFrames.
+        :year (int): Year for which to extract WACC Real.
+
+        returns: (dict) WACC Real values for all generators.
+
+        """
+
+        wacc_dict = {}
+        wacc_type = "WACC Real"
+
+        for gen_name, cost_df in cost_dir.items():
+            wacc_row = cost_df[cost_df["Key2"] == wacc_type]
+
+            if wacc_row.empty:
+                raise ValueError(f"No {wacc_type} found for generator '{gen_name}'.")
+
+            wacc_dict[gen_name] = float(wacc_row[year].iloc[0])
+
+        return wacc_dict
+
     def load_gen_data(
         self,
         bus_data_path: Path = None,
@@ -468,7 +503,9 @@ class DataProcessing:
             ng_cost_df = self.get_ng_costs(ng_cost_path)
             if ng_cost_quantity not in ng_cost_df.index:
                 raise ValueError(
-                    f"The provided natural gas quantity {ng_cost_quantity} is not in the natural gas cost dataset. Available quantities: {ng_cost_df.index}"
+                    f"The provided natural gas quantity {ng_cost_quantity} is"
+                    " not in the natural gas cost dataset. Available quantities:"
+                    " {ng_cost_df.index}"
                 )
 
             missing_years = [
@@ -476,28 +513,34 @@ class DataProcessing:
             ]
             if missing_years:
                 raise ValueError(
-                    f"One or more years ({missing_years}) were not in the natural gas cost dataset. Available columns: {ng_cost_df.columns}"
+                    f"One or more years ({missing_years}) were not in the natural gas"
+                    " cost dataset. Available columns: {ng_cost_df.columns}"
                 )
 
-            # maps set of generator types in gen_bus_df to set of generator types w/ cost data
+            # maps set of generator types in gen_bus_df to set of
+            # generator types w/ cost data
             candidate_gens_dict = self.get_clean_gens_dict(candidate_gens)
 
             buses_by_gen = self.get_buses_by_gen(
                 gen_bus_df, set(candidate_gens_dict.keys())
             )
-            cost_dict = self.extract_cost_data(
+            self.cost_dict = self.extract_cost_data(
                 cost_data_path, set(candidate_gens_dict.values()), years, scenario
             )
 
             # build output dataframe
             df_rows = []
             for bus_gen, cost_gen in candidate_gens_dict.items():
-                # NOTE: the current implementation in main has a possible bug: Natural Gas CT are not included in the output csv!
-                # the following two lines recreate the bug to allow comparison of remaining outputs
+                # NOTE: the current implementation in main has a
+                # possible bug: Natural Gas CT are not included in the
+                # output csv!
+
+                # the following two lines recreate the bug to allow
+                # comparison of remaining outputs
                 # if bus_gen != cost_gen:
                 #     continue
                 gen_cost_df = self.get_gen_cost_data(
-                    cost_dict[cost_gen], gen_bus_df, bus_gen
+                    self.cost_dict[cost_gen], gen_bus_df, bus_gen
                 )
                 for bus_name, bus in buses_by_gen[bus_gen].items():
                     df_rows.append(
@@ -522,12 +565,16 @@ class DataProcessing:
                     (out_path / "costs.csv").resolve(), index=False
                 )
 
-    def convert_cost_columns(self, years):
-        """This method converts cost columns to
-        ``self.gen_cost_data`` to match the units expected by the
-        GTEP model parameters. The converted costs have the following
+    def convert_cost_columns(self, years, lifetime=3):
+        """Convert cost columns to annualized units for GTEP in
+        ``self.gen_cost_data`` to match the units expected by the GTEP
+        model parameters. The converted costs have the following
         units:
 
+        :years:         List of years to process.
+        :lifetime:      Useful lifetime of the asset in years.
+
+        The final units should be:
                 fixed_ops_cost_<year> = USD / MW hr
                 var_ops_cost_<year> = USD / MW hr
                 capex_<year> = USD / MW
@@ -549,6 +596,17 @@ class DataProcessing:
         )
 
         for year in years:
+            # Extract WACC Real and lifetime for the year (assuming
+            # lifetime is constant or provided).
+            wacc_real_dict = self.extract_wacc_real(self.cost_dict, year)
+
+            # Create a mapping from generator name to annuity factor
+            annuity_factors = {}
+            for gen_name, wacc in wacc_real_dict.items():
+                annuity_factors[gen_name] = (wacc * (1 + wacc) ** lifetime) / (
+                    (1 + wacc) ** lifetime - 1
+                )
+
             capex = pd.to_numeric(
                 self.gen_cost_data[f"capex_{year}"],
                 errors="coerce",
@@ -566,7 +624,31 @@ class DataProcessing:
                 errors="coerce",
             ).fillna(0.0)
 
-            self.gen_cost_data[f"capex_{year}"] = capex * inv_factor
+            # Apply generator-specific annuity factors to capex. To do
+            # this, create a mapping from Unit Type to generator name
+            # for WACC lookup. Currently, only two types of generators
+            # are supported to align with the original cost processing
+            # code. NOTE: In GTEP, capex represents the total
+            # annualized capital costs (capex * inv_factor *
+            # annuity_factor).  While the "real" units are $/MW *
+            # year, these are treated as total annual costs without
+            # explicitly including the year unit in the model (i.e.,
+            # they are treated as a scalar cost per year).
+            unit_type_to_gen = {
+                "PV": "Solar - Utility PV",
+                "CT": "Natural Gas_FE",
+            }
+            for unit_type, gen_name in unit_type_to_gen.items():
+                if gen_name in annuity_factors:
+                    # Create mask for rows matching this generator
+                    unit_mask = self.gen_cost_data["Unit Type"] == unit_type
+
+                    # Apply generator-specific annuity factors to
+                    # capex based on Unit Type.
+                    self.gen_cost_data.loc[unit_mask, f"capex_{year}"] = (
+                        capex[unit_mask] * inv_factor * annuity_factors[gen_name]
+                    )
+
             self.gen_cost_data[f"fixed_ops_cost_{year}"] = fixed_ops_cost * fixed_factor
             self.gen_cost_data[f"var_ops_cost_{year}"] = var_ops_cost
             self.gen_cost_data[f"fuel_cost_{year}"] = fuel_costs
