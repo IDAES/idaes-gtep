@@ -982,7 +982,7 @@ class TestGTEP(unittest.TestCase):
         self.assertTrue(check_optimal_termination(modObject.results))
 
         # NOTE: this has the same objective as `test_with_cost_data_and_commitment`
-        # so it is likely no new lines are economically useful 
+        # so it is likely no new lines are economically useful
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 809995020.40, places=1
         )
