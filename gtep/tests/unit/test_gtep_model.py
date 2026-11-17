@@ -233,6 +233,9 @@ class TestGTEP(unittest.TestCase):
             prescient_data_args={
                 "representative_dates": ["2020-01-28 00:00"],
             },
+            config={
+                "scale_loads": False,
+            },
             include_cost_data=False,
         )
 
@@ -251,9 +254,9 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
         # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 28076447.10,
-        # 28088689.10, 28184373.53
+        # 28088689.10, 28184373.53, 28114310.83
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 28114310.83, places=1
+            value(modObject.model.total_cost_objective), 117.00, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -272,6 +275,7 @@ class TestGTEP(unittest.TestCase):
             },
             config={
                 "include_investment": False,
+                "scale_loads": False,
             },
             include_cost_data=False,
         )
@@ -290,9 +294,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39
+        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39, 31908498.69
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 31908498.69, places=1
+            value(modObject.model.total_cost_objective), 117.00, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
