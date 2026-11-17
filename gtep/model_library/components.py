@@ -571,6 +571,7 @@ def add_model_parameters(m, years):
         mutable=True,
     )
 
+    # Add cost parameters
     add_gen_branch_cost_parameters(m)
     if m.config["storage"] == True:
         stor.add_storage_params(m)
@@ -609,19 +610,21 @@ def add_model_parameters(m, years):
 
 
 def add_gen_branch_cost_parameters(m):
-    """Add transmission lines, generators, and fuel cost parameters
-    for stage years. The costs parameters support multi-year planning
-    with year-indexed values.
+    """Adds cost parameters for transmission lines, generators, and
+    thermal generators fuel costs for stage years. The costs
+    parameters support multi-year planning with year-indexed values.
     
-    Cost data source depends on configuration values:
+    The cost data source depends on configuration values:
     
-        - If include_cost_data=True and use_cost_from_data_files=False,
-          use pre-converted spreadsheet data from m.mc.gen_cost_data.
+        - If include_cost_data=True and
+          use_cost_from_data_files=False, it adds costs from
+          pre-converted spreadsheet data from m.mc.gen_cost_data.
 
         - If include_cost_data=True and use_cost_from_data_files=True,
-          use {cost_type}_{year} data from gen.csv and branch.csv files.
+          it adds {cost_type}_{year} data from input data files
+          'gen.csv' and 'branch.csv' files.
 
-    Required units:
+    The required units for relevant costs are:
         fixed_ops_cost_<year>     : USD/MWh
         var_ops_cost_<year>       : USD/MWh
         capex_<year>              : USD/MW
@@ -633,7 +636,7 @@ def add_gen_branch_cost_parameters(m):
     m.years_set = pyo.Set(initialize=m.years)
 
     def get_branch_cost_init(m, years, cost_type, default_value=0):
-        """Create branch cost initialization dictionary.
+        """Creates branch cost initialization dictionary.
 
         :m:             Pyomo model object
         :years:         List of years to initialize costs for
@@ -650,8 +653,8 @@ def add_gen_branch_cost_parameters(m):
 
         if m.mc is not None and hasattr(m.mc, "branch_cost_from_csv_data"):
 
-            # Use cost data from branch.csv file with the style
-            # {cost_type}_{year}.
+            # Use cost data from 'branch.csv' file with the style
+            # {cost_type}_{year}.w
             for index, row in m.mc.branch_cost_from_csv_data.iterrows():
                 branch = row["UID"]
                 if branch in m.lines:
@@ -662,10 +665,9 @@ def add_gen_branch_cost_parameters(m):
                         init_dict[(branch, year)] = float(row[column_name])
         else:
 
-            # Use cost data from branch.csv file.
+            # Use capital/investment cost data from 'branch.csv' file
+            # from column 'capital_cost'.
             if cost_type == "capex":
-                # For investment costs, use capital_cost from branch
-                # data.
                 for branch in m.lines:
                     capital_cost = m.md.data["elements"]["branch"][branch].get(
                         "capital_cost", default_value
@@ -674,8 +676,7 @@ def add_gen_branch_cost_parameters(m):
                         init_dict[(branch, year)] = capital_cost
             else:
 
-                # Use the default value if no other value is
-                # available.
+                # Use default value if no other value is available.
                 for branch in m.lines:
                     for year in years:
                         init_dict[(branch, year)] = default_value
@@ -690,7 +691,6 @@ def add_gen_branch_cost_parameters(m):
         units=u.USD / u.MW,
         doc="Investment cost for each branch by year",
     )
-    # m.branchInvestmentCost.display()
 
     m.branchFixedCost = pyo.Param(
         m.lines,
@@ -736,7 +736,7 @@ def add_gen_branch_cost_parameters(m):
         doc="Cost of life extension for each branch expressed as a fraction of initial investment cost",
     )
 
-    def get_generator_cost_init(m, years, cost_type, default_value=1):
+    def get_generator_cost_init(m, years, cost_type, default_value=0):
         """Create generator cost initialization dictionary.
 
         :m:             Pyomo model object
@@ -757,7 +757,8 @@ def add_gen_branch_cost_parameters(m):
             set_gens = m.generators
 
         if m.mc is not None and hasattr(m.mc, "gen_cost_from_csv_data"):
-            # Use detailed CSV cost data when available
+            # Use cost data from 'gen.csv' with the style
+            # '{cost_type}_{year}`.
             for index, row in m.mc.gen_cost_from_csv_data.iterrows():
                 gen = row["GEN UID"]
                 if gen in set_gens:
@@ -766,13 +767,15 @@ def add_gen_branch_cost_parameters(m):
                         init_dict[(gen, year)] = float(row[column_name])
 
         elif m.mc is not None and hasattr(m.mc, "gen_cost_data"):
-            # Use standardized cost data based on generator type
+            # Use standardized cost data based on the generator type.
             cost_df = m.mc.gen_cost_data.copy()
             cost_df["Unit Type"] = cost_df["Unit Type"].astype(str).str.upper()
 
             def get_cost_row_by_unit_type(gen):
-                """Helper to get cost row based on generator
-                characteristics."""
+                """Gets cost row based on generator type.
+
+                """
+                
                 gen_data = m.md.data["elements"]["generator"][gen]
                 unit_type = str(gen_data.get("unit_type", "")).strip().upper()
                 generator_type = str(gen_data.get("generator_type", "")).strip().lower()
@@ -794,7 +797,7 @@ def add_gen_branch_cost_parameters(m):
                     init_dict[(gen, year)] = float(cost_row[column_name])
         else:
 
-            # Fallback when no cost data is available
+            # Use default value when no cost data is available.
             for gen in set_gens:
                 for year in years:
                     if cost_type == "fuel_cost":
@@ -809,7 +812,7 @@ def add_gen_branch_cost_parameters(m):
     m.generatorInvestmentCost = pyo.Param(
         m.generators,
         m.years_set,
-        initialize=get_generator_cost_init(m, m.years, "capex", 1),
+        initialize=get_generator_cost_init(m, m.years, "capex", 0),
         mutable=True,
         units=u.USD / u.MW,
         doc="Investment cost for all generators by year",
@@ -818,7 +821,7 @@ def add_gen_branch_cost_parameters(m):
     m.generatorFixedCost = pyo.Param(
         m.generators,
         m.years_set,
-        initialize=get_generator_cost_init(m, m.years, "fixed_ops_cost", 1),
+        initialize=get_generator_cost_init(m, m.years, "fixed_ops_cost", 0),
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Fixed operating costs for all generators by year",
@@ -827,15 +830,11 @@ def add_gen_branch_cost_parameters(m):
     m.generatorVariableCost = pyo.Param(
         m.generators,
         m.years_set,
-        initialize=get_generator_cost_init(m, m.years, "var_ops_cost", 1),
+        initialize=get_generator_cost_init(m, m.years, "var_ops_cost", 0),
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Variable costs for all generators by year",
     )
-    # m.generatorInvestmentCost.display()
-    # m.generatorFixedCost.display()
-    # m.generatorVariableCost.display()
-    # quit()
 
     # Fuel costs are calculated from heat rate and fuel price, but can
     # be overridden by cost data.
