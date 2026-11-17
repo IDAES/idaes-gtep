@@ -306,11 +306,11 @@ class TestObjective(TestCase):
             # Net energy added in a dispatch period, in MWh
             disp = dispatch_block(pair)
             hours = value(u.convert(disp.dispatchPeriodLength, u.hr))
-            return hours * (
-                value(disp.storageCharged[bat])
-                * value(m.storageChargingEfficiency[bat])
-                - value(disp.storageDischarged[bat])
-                / value(m.storageDischargingEfficiency[bat])
+            return hours * value(
+                disp.storageCharged[bat]
+                * m.storageChargingEfficiency[bat]
+                - disp.storageDischarged[bat]
+                / m.storageDischargingEfficiency[bat]
             )
 
         pairs = list(rep_block.commitDispatchPairs)
