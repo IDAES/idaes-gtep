@@ -269,7 +269,7 @@ def add_model_parameters(m):
             for renewableGen in m.renewableGenerators
         },
         mutable=True,
-        domain=pyo.PostiveReals,
+        domain=pyo.PositiveReals,
         units=u.MW,
         doc="Maximum output of each renewable generator",
     )
