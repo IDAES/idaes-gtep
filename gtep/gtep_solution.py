@@ -556,8 +556,6 @@ class ExpansionPlanningSolution:
             "discharging": discharging,
             "rep_days": rep_days,
             "rep_days_weights": rep_days_weights,
-            "gen_uid_to_type": gen_uid_to_type,
-            "gen_uid_to_pmax": gen_uid_to_pmax,
             "list_load_buses": load_buses,
             "list_buses": buses,
             "list_generators": generators,
@@ -565,6 +563,8 @@ class ExpansionPlanningSolution:
             "list_renewable_generators": renewable_generators,
             "list_lines": lines,
             "list_storage": storage,  # an empty list if storage is set to False
+            "gen_uid_to_type": gen_uid_to_type,
+            "gen_uid_to_pmax": gen_uid_to_pmax,
             "time_mapping": time_mapping_data,
             "years_day_ahead": years_data,
         }
