@@ -181,9 +181,6 @@ def test_analysis_driver_runs(gtep_dir):
         run_driver_command(
             [
                 sys.executable,
-                str(analysis_driver),
-                "--data-dir",
-                str(temp_dir / "data" / "5bus"),
                 "--results-dir",
                 str(expected_results_dir),
             ],
