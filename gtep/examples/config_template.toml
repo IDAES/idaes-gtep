@@ -113,3 +113,22 @@ dir_name = "results"
 # Minimum variable value saved to JSON files. Increase this to reduce
 # output size or decrease it to keep smaller numerical values.
 value_threshold = 1e-3
+
+# Save model results to JSON files.
+save_json = true
+
+# Minimum variable value saved to JSON files.
+value_threshold = 1e-3
+
+[plots]
+# Create generation-mix plots after solving.
+enabled = true
+case_json = "combined"
+plot_type = "all"
+
+# Create dispatch stackgraph after solving.
+stackgraph = true
+
+# Calculate analysis metrics
+analysis = true
+
