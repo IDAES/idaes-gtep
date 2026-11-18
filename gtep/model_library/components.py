@@ -58,17 +58,81 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
 
     # NOTE: Right now, this means that branches can only be specified
     # entirely as standard or as dc ... not mix-and-match.
-    if len(m.md.data["elements"]["branch"]) == 0:
-        m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
-
-    m.lines = pyo.Set(
-        initialize=m.md.data["elements"]["branch"].keys(),
-        doc="Individual transmission lines",
+    assert (
+        len(m.md.data["elements"]["branch"]) != 0 or m.config["flow_model"] == "CP"
+    ), (
+        "no branches are defined and a the flow model is "
+        f"set to {m.config['flow_model']}. Define branch data"
+        "or set the flow model to 'CP'"
     )
+    # TODO: I don't think dc_branches are really supported right now
+    # The dc_branch option is not in the required_data_files.csv
+    # Setting this to error if the flow model is not set to "CP"
+    # until we get DC branches really supported
+
+    # m.md.data["elements"]["branch"] = m.md.data["elements"]["dc_branch"]
+
+    if m.config["transmission"]:
+        m.lines = pyo.Set(
+            initialize=m.md.data["elements"]["branch"].keys(),
+            doc="Individual transmission lines",
+        )
+
+        m.staticLines = pyo.Set(
+            initialize=(
+                branch
+                for branch in m.md.data["elements"]["branch"]
+                if m.md.data["elements"]["branch"][branch]["static"]
+                and not m.md.data["elements"]["branch"][branch]["candidate"]
+            ),
+            doc="Static transmission lines",
+        )
+
+        m.candidateLines = pyo.Set(
+            initialize=(
+                branch
+                for branch in m.md.data["elements"]["branch"]
+                if m.md.data["elements"]["branch"][branch]["candidate"]
+            ),
+            doc="Candidate lines",
+        )
+
+        m.nonStaticLines = pyo.Set(
+            initialize=(
+                branch
+                for branch in m.md.data["elements"]["branch"]
+                if not m.md.data["elements"]["branch"][branch]["static"]
+                or m.md.data["elements"]["branch"][branch]["candidate"]
+            ),
+            doc="Non-static, non-candidate lines",
+        )
+    else:
+        # If transmission expansion is not allowed, we can make all
+        # non-candidate lines static and remove the not in service lines
+        # This removes constraints that would otherwise be added to the model
+        m.staticLines = pyo.Set(
+            initialize=(
+                branch
+                for branch in m.md.data["elements"]["branch"]
+                if m.md.data["elements"]["branch"][branch]["in_service"]
+                and not m.md.data["elements"]["branch"][branch]["candidate"]
+            ),
+            doc="Static transmission lines",
+        )
+
+        m.candidateLines = pyo.Set()
+
+        m.nonStaticLines = pyo.Set()
+
+        m.lines = pyo.Set(
+            initialize=m.staticLines,
+            doc="Individual transmission lines",
+        )
 
     _toBranches = defaultdict(list)
     _fromBranches = defaultdict(list)
-    for branch, data in m.md.data["elements"]["branch"].items():
+    for branch in m.lines:
+        data = m.md.data["elements"]["branch"][branch]
         _toBranches[data["to_bus"]].append(branch)
         _fromBranches[data["from_bus"]].append(branch)
 
