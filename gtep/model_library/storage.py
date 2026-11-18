@@ -23,9 +23,13 @@ References regarding storage initialization and temporal linking:
     https://arxiv.org/pdf/2308.16814
 """
 
+import logging
+
 import pyomo.environ as pyo
 from pyomo.environ import units as u
 from pyomo.core.base.block import BlockData
+
+logger = logging.getLogger("gtep.model_library.storage")
 
 
 def add_storage_params(m: pyo.Model):
@@ -168,15 +172,6 @@ def add_storage_params(m: pyo.Model):
         doc="Cost of life extension, as a fraction of initial investment cost",
     )
 
-    m.storageLifetimes = pyo.Param(
-        m.storage,
-        initialize={stor: 3 for stor in m.storage},
-        mutable=True,
-        domain=pyo.NonNegativeReals,
-        units=u.year,
-        doc="Lifetime of each storage unit",
-    )
-
     m.storageChargeLimit = pyo.Param(
         initialize=sum(pyo.value(m.chargeMax[bat]) for bat in m.storage),
         mutable=True,
@@ -193,57 +188,7 @@ def add_storage_params(m: pyo.Model):
         doc="Maximum storage discharging per dispatch period, in MW",
     )
 
-    m.chargingCost = pyo.Param(
-        m.storage,
-        initialize={
-            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
-            for bat in m.storage
-        },
-        domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),
-        doc="Cost to charge (in USD/MWh)",
-    )
-
-    m.dischargingCost = pyo.Param(
-        m.storage,
-        initialize={
-            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
-            for bat in m.storage
-        },
-        domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),
-        doc="Cost to discharge (in USD/MWh)",
-    )
-
-    m.storageInvestmentCost = pyo.Param(
-        m.storage,
-        initialize={
-            bat: m.md.data["elements"]["storage"][bat]["investment_cost"]
-            for bat in m.storage
-        },
-        mutable=True,
-        domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),  # Soraya has u.USD / u.MW
-        doc="Future not real cost; based on idealized targets, in $/MWh",
-    )
-
-    m.storageFixedCost = pyo.Param(
-        m.storage,
-        initialize={stor: 0 for stor in m.storage},
-        mutable=True,
-        domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),
-        doc="Storage fixed operating costs, in USD/MWh",
-    )
-
-    m.storageVarCost = pyo.Param(
-        m.storage,
-        initialize={stor: 0 for stor in m.storage},
-        mutable=True,
-        domain=pyo.NonNegativeReals,
-        units=u.USD / (u.MW * u.hr),
-        doc="Storage variable costs, in USD/MWh",
-    )
+    add_storage_cost_parameters(m)
 
 
 def add_storage_state_disjuncts(b: BlockData):
@@ -381,7 +326,7 @@ def add_storage_state_disjuncts(b: BlockData):
         )
 
 
-def add_investment_storage_constraints(m, b, investment_stage):
+def add_investment_storage_constraints(m, b, investment_stage, year):
 
     # Fix "in-service" batteries initial investment state based on input
     for stor in m.storage:
@@ -395,13 +340,13 @@ def add_investment_storage_constraints(m, b, investment_stage):
         m = b.model()
 
         return sum(
-            m.storageInvestmentCost[bat]
+            m.storageInvestmentCost[bat, year]
             * m.storageCapacity[bat]  # Soraya has m.chargeMax, as it was previously
             * m.storageCapitalMultiplier[bat]
             * b.storInstalled[bat].indicator_var.get_associated_binary()
             for bat in m.storage
         ) + sum(
-            m.storageInvestmentCost[bat]
+            m.storageInvestmentCost[bat, year]
             * m.storageCapacity[bat]
             * m.storageExtensionMultiplier[bat]
             * b.storExtended[bat].indicator_var.get_associated_binary()
@@ -690,3 +635,132 @@ def add_commitment_storage_constraints(b):
             b.dispatchPeriod[disp_per].storageCostDispatch
             for disp_per in b.dispatchPeriods
         )
+
+
+def add_storage_cost_parameters(m):
+    """Add and populate storage cost parameters for stage years. The
+    costs parameters support multi-year planning with year-indexed
+    values.
+
+    Cost data source depends on configuration values:
+
+        - If include_cost_data=True and use_cost_from_data_files=True, use
+          {cost_type}_{year} data from storage.csv file.
+
+    The units required by the model parameters are:
+
+        fixed_ops_cost_<year> = USD / MW hr
+        var_ops_cost_<year> = USD / MW hr
+        capex_<year> = USD / MW hr
+
+    """
+
+    def get_storage_cost_init(m, years, cost_type, default_value=0):
+        """Create storage cost initialization dictionary.
+
+        :m:             Pyomo model object
+        :years:         List of years to initialize costs for
+        :cost_type:     String indicating which cost type to get
+                        ('capex', 'fixed_ops_cost', or 'var_ops_cost')
+        :default_value: Default value to use when cost data isn't
+                        available
+
+        returns: Dictionary with (storage, year) keys and cost values
+
+        """
+
+        init_dict = {}
+
+        if m.mc is not None and hasattr(m.mc, "storage_cost_from_csv_data"):
+
+            # Use cost data from storage.csv file with format
+            # `{cost_type}_{year}`.
+            for index, row in m.mc.storage_cost_from_csv_data.iterrows():
+                storage = row["UID"]
+                if storage in m.storage:
+                    for year in years:
+                        # Build the column name based on cost_type and
+                        # year.
+                        column_name = f"{cost_type}_{year}"
+                        init_dict[(storage, year)] = float(row[column_name])
+        else:
+
+            # Use cost data from storage.csv file in column
+            # `investment_cost`.
+            if cost_type == "capex":
+                for storage in m.storage:
+                    capital_cost = m.md.data["elements"]["storage"][storage].get(
+                        "investment_cost", default_value
+                    )
+                    for year in years:
+                        init_dict[(storage, year)] = capital_cost
+            else:
+
+                # Use the default value if no other value is
+                # available.
+                for storage in m.storage:
+                    for year in years:
+                        init_dict[(storage, year)] = default_value
+
+        return init_dict
+
+    m.storageLifetime = pyo.Param(
+        m.storage,
+        initialize={stor: 3 for stor in m.storage},
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.year,
+        doc="Lifetime of each storage unit",
+    )
+
+    m.chargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["charge_cost"]
+            for bat in m.storage
+        },
+        domain=pyo.NonNegativeReals,
+        units=u.USD / (u.MW * u.hr),
+        doc="Cost to charge (in USD/MWh)",
+    )
+
+    m.dischargingCost = pyo.Param(
+        m.storage,
+        initialize={
+            bat: m.md.data["elements"]["storage"][bat]["discharge_cost"]
+            for bat in m.storage
+        },
+        domain=pyo.NonNegativeReals,
+        units=u.USD / (u.MW * u.hr),
+        doc="Cost to discharge (in USD/MWh)",
+    )
+
+    m.storageInvestmentCost = pyo.Param(
+        m.storage,
+        m.years,
+        initialize=get_storage_cost_init(m, m.years, "capex", 0),
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.USD / (u.MW * u.hr),
+        doc="Future not real cost; based on idealized targets, in $/MWh",
+    )
+
+    m.storageFixedCost = pyo.Param(
+        m.storage,
+        m.years,
+        initialize=get_storage_cost_init(m, m.years, "fixed_ops_cost", 0),
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage fixed operating costs, in USD/MWh",
+    )
+
+    m.storageVariableCost = pyo.Param(
+        m.storage,
+        m.years,
+        initialize=get_storage_cost_init(m, m.years, "var_ops_cost", 0),
+        mutable=True,
+        domain=pyo.NonNegativeReals,
+        units=u.USD / (u.MW * u.hr),
+        doc="Storage variable costs, in USD/MWh",
+    )

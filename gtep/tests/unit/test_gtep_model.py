@@ -32,6 +32,7 @@ from gtep.tests.unit.utils_for_testing import create_data, create_model
 from egret.data.model_data import ModelData
 
 curr_dir = Path(__file__).resolve().parent
+Bus5_case_path = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 Texas123_case_path = (curr_dir / ".." / ".." / "data" / "123_Bus_Resil_Week").resolve()
 
 
@@ -203,7 +204,8 @@ class TestGTEP(unittest.TestCase):
         m_rep_period = m_inv.representativePeriod[1]
         m_commit = m_rep_period.commitmentPeriod[1]
         m_disp = m_commit.dispatchPeriod[1]
-
+        # m.generatorFixedCost.display()
+        # quit()
         assert_units_equivalent(m_rep_period.representativePeriodLength, u.h)
         assert_units_equivalent(m_commit.commitmentPeriodLength, u.h)
         assert_units_equivalent(m_disp.dispatchPeriodLength, u.min)
@@ -211,7 +213,16 @@ class TestGTEP(unittest.TestCase):
         assert_units_equivalent(m_inv.renewable_curtailment_cost.expr, u.USD)
         assert_units_equivalent(m_disp.flow_balance["bus1"].expr, u.MW)
         assert_units_equivalent(m.rampUpRates, u.MW / u.min)
-        assert_units_equivalent(m.varCost, u.USD / u.h / u.MW)
+        for gen in m.generators:
+            assert_units_equivalent(
+                m.generatorInvestmentCost[gen, m_inv.year], u.USD / u.MW
+            )
+            assert_units_equivalent(
+                m.generatorFixedCost[gen, m_inv.year], u.USD / u.h / u.MW
+            )
+            assert_units_equivalent(
+                m.generatorVariableCost[gen, m_inv.year], u.USD / u.h / u.MW
+            )
         assert_units_equivalent(m_disp.spinningReserve, u.MW)
         assert_units_equivalent(
             m_commit.genOn["3_CT"].operating_limit_min[1].expr,
@@ -250,11 +261,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 28076447.10,
-        # 28088689.10, 28184373.53
+        # Previous objective values: 28076447.10, 27944715.00,
+        # 27943560.0, 28088689.10, 27943560.0, 28114310.83
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 28114310.83, places=1
+            value(modObject.model.total_cost_objective), 27943560.0, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -290,10 +300,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39
+        # Previous objective values: 27944303.09, 31908490.95,
+        # 31908770.71, 31907880.00, 31908498.69
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 31908498.69, places=1
+            value(modObject.model.total_cost_objective), 31907880.00, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -340,10 +350,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91,
-        # 776765960.70, 779494096.65, 723494956.65, 779494096.65, 779518592.60
+        # Previous objective values: 779494096.65, 723494956.65,
+        # 779494096.65, 779490734.95, 770962861.02, 779495688.36
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779495688.36, places=1
+            value(modObject.model.total_cost_objective), 776512859.77, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -395,10 +405,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96,
-        # 923474476.75, 926202612.69, 870203472.69, 723494956.65
+        # Previous objective values: 723494956.65, 779466381.38,
+        # 779461519.77, 770933645.84, 775960791.77
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779466381.38, places=1
+            value(modObject.model.total_cost_objective), 776481898.95, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -472,11 +482,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
-        # 13435364152.91, 13573783610.18, 13435364152.91, 13573783610.18, 13599560631.67
-        # 13671400777.44
+        # Previous objective values: 13573783610.18, 13484210206.93,
+        # 13599560631.67, 13492932384.68, 13602265546.78
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 13602265546.78, places=1
+            value(modObject.model.total_cost_objective), 13493887958.01, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -650,10 +659,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
-        # 255908867.70
+        # Previous objective values: 255902949.54, 241142049.55,
+        # 255902949.55, 255902380.68, 255903177.76
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 255902630.95, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -743,6 +752,127 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "transport",
                 "advanced_hydro": True,
             },
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Previous values: 241142049.55, 255902949.55, 255902380.68
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 255902630.95, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_from_csv_files(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using cost data from the input data .csv
+        # files.
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 4,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2020-01-28 00:00",
+                    "2020-04-23 00:00",
+                    "2020-07-05 00:00",
+                    "2020-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-28 00:00": 115,
+                    "2020-04-23 00:00": 95,
+                    "2020-07-05 00:00": 50,
+                    "2020-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            include_cost_data=True,
+            use_cost_from_data_files=True,
+            data_path=Bus5_case_path,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Previous values (with storage=True): 125950815.36,
+        # 126029173.22, (with storage=False) 9603914.08
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 9778744.84, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_Bus5_with_forecast_year_different_from_default(self):
+
+        # This test verifies that the expansion planning model can be
+        # built and solved using a forecast year different from the
+        # default.
+        modObject = create_model(
+            planning_data_args={
+                "years": [2030],
+                "stages": 1,
+                "num_reps": 4,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2020-01-28 00:00",
+                    "2020-04-23 00:00",
+                    "2020-07-05 00:00",
+                    "2020-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-28 00:00": 115,
+                    "2020-04-23 00:00": 95,
+                    "2020-07-05 00:00": 50,
+                    "2020-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
             include_cost_data=True,
         )
 
@@ -759,9 +889,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55, 255902949.55, 255908867.70
+        # Previous values: 241142049.55, 255902949.55, 255908867.70,
+        # 255903177.76, 3577603.86
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 3650853.17, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -810,6 +941,6 @@ class TestGTEP(unittest.TestCase):
         self.assertTrue(check_optimal_termination(modObject.results))
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779551084.11, places=1
+            value(modObject.model.total_cost_objective), 776568255.51, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)

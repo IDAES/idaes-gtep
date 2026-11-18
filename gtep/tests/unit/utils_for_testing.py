@@ -46,20 +46,33 @@ def create_data(
     prescient_data_args: dict | None = None,
     candidate_gens: list[str] | None = None,
     include_cost_data: bool = True,
+    use_cost_from_data_files: bool = False,
+    data_path: Path | None = None,
 ):
-    """
-    Create and load the ExpansionPlanningData object and, optionally,
-    create the DataProcessing cost-data object.
+    """Create and load the ExpansionPlanningData object and,
+    optionally, create the DataProcessing cost-data object.
 
     This helper prepares the data objects without constructing an
     ExpansionPlanningModel.
 
-    :param input_data_path: Path to the input data. Defaults to 5bus model.
-    :param planning_data_args: Keyword arguments passed to ExpansionPlanningData.
-    :param prescient_data_args: Keyword arguments passed to load_prescient.
-    :param candidate_gens: Candidate generators passed to DataProcessing.load_gen_data.
-    :param include_cost_data: Whether to build and return a DataProcessing object.
+    :param input_data_path:             Path to the input data. Defaults
+                                        to 5bus model.
+    :param planning_data_args:          Keyword arguments passed to
+                                        ExpansionPlanningData.
+    :param prescient_data_args:         Keyword arguments passed to
+                                        load_prescient.
+    :param candidate_gens:              Candidate generators passed to
+                                        DataProcessing.load_gen_data.
+    :param include_cost_data:           Whether to build and return a
+                                        DataProcessing object.
+    :param use_cost_from_data_files:    Select to use cost data from
+                                        data file.
+                                        Defaults to False.
+    :param data_path:                   Data directory to read cost-related
+                                        values.
+
     :return: Tuple of data object and cost-data object.
+
     """
     if planning_data_args is None:
         planning_data_args = {}
@@ -96,6 +109,8 @@ def create_data(
             ng_cost_path=ng_data_path,
             candidate_gens=candidate_gens,
             save_csv=False,
+            use_cost_from_data_files=use_cost_from_data_files,
+            data_path=data_path,
         )
     else:
         data_processing_object = None
@@ -110,21 +125,38 @@ def create_model(
     config: dict | None = None,
     candidate_gens: list[str] | None = None,
     include_cost_data: bool = True,
+    use_cost_from_data_files: bool = False,
+    data_path: Path | None = None,
 ):
     """
-    :param input_data_path:             Path to the input data. Defaults to 5bus model
-    :param planning_data_args:          Keyword arguments to pass to the constructor for `ExpansionPlanningData`. Defaults to `{}`
-    :param prescient_data_args:         Keyword arguments to pass to `load_prescient`. Defaults to `{}`
-    :param config:                      Dictionary of model config options. Defaults to `{}`
-    :param candidate_gens:              List of candidate generators passed to `DataProcessing.load_gen_data`. Defaults to
-                                            `["Natural Gas_FE", "Solar - Utility PV", "Land-Based Wind"]`
-    :param include_cost_data:           Whether to build a `DataProcessing` object and pass to the `ExpansionPlanningModel` constructor.
-                                            If `False`, `candidate_gens` is ignored. Defaults to `True`
+    :param input_data_path:             Path to the input data. Defaults
+                                        to 5bus model
+    :param planning_data_args:          Keyword arguments to pass to the
+                                        constructor for `ExpansionPlanningData`.
+                                        Defaults to `{}`
+    :param prescient_data_args:         Keyword arguments to pass to
+                                        `load_prescient`. Defaults to `{}`
+    :param config:                      Dictionary of model config options.
+                                        Defaults to `{}`
+    :param candidate_gens:              List of candidate generators passed
+                                        to `DataProcessing.load_gen_data`.
+                                        Defaults to `["Natural Gas_FE", "Solar - Utility PV", "Land-Based Wind"]`
+    :param include_cost_data:           Whether to build a `DataProcessing`
+                                        object and pass to the `ExpansionPlanningModel`
+                                        constructor. If `False`, `candidate_gens`
+                                        is ignored. Defaults to `True`
+    :param use_cost_from_data_files:    Select to use cost data from data file.
+                                        Defaults to False.
+    :param data_path:                   Data directory to read cost-related values.
+
     :type input_data_path:              Path, optional
     :type planning_data_args:           dict, optional
     :type config:                       dict, optional
     :type candidate_gens:               list[str], optional
     :type include_cost_data:            bool, optional
+    :type use_cost_from_data_files:     bool
+    :type data_path:                    pathlib.Path
+
     """
 
     if config is None:
@@ -136,6 +168,8 @@ def create_model(
         prescient_data_args=prescient_data_args,
         candidate_gens=candidate_gens,
         include_cost_data=include_cost_data,
+        use_cost_from_data_files=use_cost_from_data_files,
+        data_path=data_path,
     )
 
     if "storage" in config and config["storage"]:

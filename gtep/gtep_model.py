@@ -119,6 +119,7 @@ class ExpansionPlanningModel:
         self.formulation = formulation
         self.data = data
         self.cost_data = cost_data
+        self.years = data.years
 
         if data.period_structure_json_file:
             period_dict = load_period_structure_from_json(
@@ -192,7 +193,10 @@ class ExpansionPlanningModel:
         m.mc = self.cost_data
 
         comps.add_model_sets(
-            m, self.stages, rep_per=[i for i in range(1, self.num_reps + 1)]
+            m,
+            self.stages,
+            self.years,
+            rep_per=[i for i in range(1, self.num_reps + 1)],
         )
 
         comps.add_model_parameters(m)
@@ -287,20 +291,7 @@ def create_stages(
 
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
-        b_inv.year = m.years[investment_stage - 1]
-        # print(f"{b_inv}.year = {b_inv.year}")
-
-        # Declare cost parameters for each stage because they depend
-        # on the investment year. IMPORTANT NOTE: This function
-        # repopulates m.fuelCost, m.generatorInvestmentCost,
-        # m.fixedCost, and m.varCost, which were previously
-        # initialized in component.py. To preserve component.py
-        # values, comment out this call or the specific parameter
-        # updates inside the function.
-        logger.warning(
-            f"Re-populating m.fuelCost, m.generatorInvestmentCost, m.fixedCost, and m.varCost for year {b_inv.year}. These initialized parameters are overwritten using preprocessed data from m.mc.gen_data_target."
-        )
-        comps.repopulate_cost_parameters(m, b_inv.year)
+        b_inv.year = m.years[investment_stage]
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
@@ -395,6 +386,7 @@ def create_stages(
                         disp.add_dispatch_variables(
                             b_disp,
                             b_disp.dispatchPeriodLength,
+                            b_inv.year,
                         )
                         disp.add_dispatch_constraints(b_disp)
 
@@ -420,7 +412,11 @@ def create_stages(
                     commit.add_commitment_disjuncts(b_comm, commitment_period)
 
                     # Adds cost-related commitment constraints
-                    commit.add_commitment_constraints(b_comm, commitment_period)
+                    commit.add_commitment_constraints(
+                        b_comm,
+                        commitment_period,
+                        b_inv.year,
+                    )
 
                 # --.--.--.--.--.--.----.--.--.--.--.--.----.--.--.--.--.--.--
 
@@ -434,10 +430,12 @@ def create_stages(
                 )
             # --------------------------------------------------------------
 
-    for investment_stage in m.stages:
         inv.add_investment_constraints(
-            m.investmentStage[investment_stage], investment_stage
+            m.investmentStage[investment_stage],
+            investment_stage,
+            b_inv.year,
         )
+
     #############
 
     # Add logical constraints for generators and transmission lines
