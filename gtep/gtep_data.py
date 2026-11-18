@@ -845,11 +845,18 @@ class ExpansionPlanningData:
                 f"Required data-file specification not found: {requirements_file}"
             )
 
-        required_columns = self.get_required_columns_from_file(
-            requirements_file,
-            target_file,
-        )
-
+        # Strip parentheses and any text within them from required
+        # column names.  This ensures column matching is not affected
+        # by optional notes or clarifications in parentheses (example,
+        # "Fuel Price $/MMBTU (**see notes)" becomes "Fuel Price
+        # $/MMBTU").
+        required_columns = [
+            col.split("(")[0].strip()
+            for col in self.get_required_columns_from_file(
+                requirements_file,
+                target_file,
+            )
+        ]
         df = pd.read_csv(data_file)
 
         ramp_col = "Ramp Rate MW/Min"
@@ -890,15 +897,15 @@ class ExpansionPlanningData:
         # Check that each required column has populated values for all
         # rows.
         for col in required_columns_no_ramp:
-            if col == "Fuel Price $/MMBTU":
-                # Only validate Fuel Price for thermal generators
-                if "Fuel" in df.columns:
-                    thermal_mask = df["Fuel"].isin(thermal_unit_types)
-                    missing_mask = is_missing(df.loc[thermal_mask, col])
-                else:
-                    missing_mask = pd.Series([False] * len(df))
+
+            # Only validate fuel-related costs for thermal
+            # generators. These are not required by renewable
+            # generators.
+            if col == "Fuel Price $/MMBTU" or col == "Non Fuel Start Cost $":
+                # Create a mask identifying thermal generators
+                thermal_mask = df["Fuel"].isin(thermal_unit_types)
+                missing_mask = is_missing(df.loc[thermal_mask, col])
             else:
-                missing_mask = is_missing(df[col])
                 missing_mask = is_missing(df[col])
 
             if missing_mask.any():
