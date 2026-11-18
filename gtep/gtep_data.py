@@ -188,13 +188,21 @@ class ExpansionPlanningData:
             if "-c" in gen:  # key/Gen UID in csv file; -c = candidate?
                 self.md.data["elements"]["generator"][gen]["in_service"] = False
 
-        # JSC addn
+        # Candidate lines (UID ending in "-c") and reconductoring lines
+        # (UID ending in "-r") are new lines and are not in service at
+        # the start of the planning horizon.
         for branch in self.md.data["elements"]["branch"]:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
                 self.md.data["elements"]["branch"][branch]["candidate"] = True
             else:
                 self.md.data["elements"]["branch"][branch]["candidate"] = False
+
+            if str(branch).endswith("-r"):
+                self.md.data["elements"]["branch"][branch]["in_service"] = False
+                self.md.data["elements"]["branch"][branch]["reconductor"] = True
+            else:
+                self.md.data["elements"]["branch"][branch]["reconductor"] = False
 
         for stor in self.md.data["elements"]["storage"]:
             if "-c" in stor:  # key/Branch UID
@@ -716,10 +724,11 @@ class ExpansionPlanningData:
 
             self.md.data["elements"]["branch"][name]["static"] = static_status
 
-            # Optional reconductoring: the existing line this candidate
-            # replaces (used when include_reconductoring is True; checked when
-            # the model is built). None means the column exists but the
-            # branch is not a reconductor.
+            # Optional reconductoring: the existing line this
+            # reconductoring line ("-r") replaces (used when
+            # include_reconductoring is True; checked when the model is
+            # built). None means the column exists but the branch is not
+            # a reconductoring line.
             if has_reconductored_line:
                 existing = row["reconductored_line"]
                 self.md.data["elements"]["branch"][name]["reconductored_line"] = (

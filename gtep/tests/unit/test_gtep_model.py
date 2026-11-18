@@ -476,9 +476,9 @@ class TestGTEP(unittest.TestCase):
 
         # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
         # 13435364152.91, 13573783610.18, 13435364152.91, 13573783610.18, 13599560631.67
-        # 13671400777.44, 13602265546.78
+        # 13671400777.44, 13602265546.78, 14098670828.03
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 14098670828.03, places=1
+            value(modObject.model.total_cost_objective), 14098177616.52, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -769,7 +769,7 @@ class TestGTEP(unittest.TestCase):
 
     def test_reconductoring_sets(self):
         # Test that the reconductoring sets and logical constraints are
-        # built from the reconductoring candidates in the 5-bus case
+        # built from the reconductoring lines ("-r") in the 5-bus case
         modObject = create_model(
             config={
                 "include_investment": True,
@@ -782,39 +782,37 @@ class TestGTEP(unittest.TestCase):
         m = modObject.model
 
         expected_pairs = {
-            ("branch_2_3-c", "branch_2_3"),
-            ("branch_1_2-c", "branch_1_2"),
-            ("branch_1_4-c", "branch_1_4"),
-            ("branch_4_10-c", "branch_4_10"),
-            ("branch_1_10-c", "branch_1_10"),
+            ("branch_2_3-r", "branch_2_3"),
+            ("branch_1_2-r", "branch_1_2"),
+            ("branch_1_4-r", "branch_1_4"),
+            ("branch_4_10-r", "branch_4_10"),
+            ("branch_1_10-r", "branch_1_10"),
         }
         self.assertEqual(set(m.reconductorPairs), expected_pairs)
 
-        # All branches, including the reconductoring candidates, are in
-        # the model
+        # All branches, including the reconductoring lines, are in the
+        # model. Reconductoring lines are not candidate lines.
         self.assertEqual(len(m.lines), 12)
-        self.assertEqual(set(m.candidateLines), {new for new, _ in expected_pairs})
+        self.assertEqual(set(m.reconductorLines), {new for new, _ in expected_pairs})
+        self.assertEqual(len(m.candidateLines), 0)
 
         # Lines being reconductored must be able to change status, so
-        # they cannot be static
+        # they cannot be static. nonStaticLines includes the existing
+        # lines and the reconductoring lines.
         self.assertEqual(len(m.staticLines), 0)
-        for new, old in expected_pairs:
-            self.assertIn(new, m.nonStaticLines)
-            self.assertIn(old, m.nonStaticLines)
+        self.assertEqual(set(m.nonStaticLines), set(m.lines))
 
         self.assertTrue(hasattr(m, "reconductor_replaces_existing_line"))
         self.assertTrue(hasattr(m, "reconductor_first_stage_retirement"))
 
-        # Each existing line has a single reconductoring candidate, so
-        # there are no "at most one reconductor" constraints
+        # Each existing line has a single reconductoring line, so there
+        # are no "at most one reconductor" constraints
         self.assertEqual(len(m.one_reconductor_per_line), 0)
 
-    def test_candidates_are_new_lines(self):
+    def test_reconductoring_off_excludes_reconductoring_lines(self):
         # Test that, when include_reconductoring is False, the
-        # reconductoring candidates are treated as ordinary candidate
-        # lines and no reconductoring components are built
-        # NOTE: we may want to change this behavior and make
-        # reconductoring lines separate from candidates
+        # reconductoring lines are left out of the model completely and
+        # no reconductoring components are built
         modObject = create_model(
             config={
                 "include_investment": True,
@@ -826,33 +824,28 @@ class TestGTEP(unittest.TestCase):
         )
         m = modObject.model
 
-        expected_candidates = {
-            "branch_2_3-c",
-            "branch_1_2-c",
-            "branch_1_4-c",
-            "branch_4_10-c",
-            "branch_1_10-c",
-        }
-        self.assertEqual(len(m.lines), 12)
-        self.assertEqual(set(m.candidateLines), expected_candidates)
-        for branch in expected_candidates:
-            self.assertIn(branch, m.nonStaticLines)
+        self.assertEqual(len(m.lines), 7)
+        self.assertEqual(len(m.reconductorLines), 0)
+        self.assertEqual(len(m.candidateLines), 0)
+        self.assertEqual(set(m.nonStaticLines), set(m.lines))
+        for branch in m.lines:
+            self.assertFalse(branch.endswith("-r"))
 
         self.assertFalse(hasattr(m, "reconductorPairs"))
         self.assertFalse(hasattr(m, "reconductor_replaces_existing_line"))
         self.assertFalse(hasattr(m, "reconductor_first_stage_retirement"))
 
-    def test_reconductoring_transmission_off_excludes_candidates(self):
-        # Test that candidate lines, including the reconductoring
-        # candidates, are left out of the model when transmission is
-        # False
+    def test_reconductoring_transmission_off_excludes_new_lines(self):
+        # Test that candidate and reconductoring lines are left out of
+        # the model when transmission is False
         modObject = create_model(include_cost_data=False)
         m = modObject.model
 
         self.assertEqual(len(m.lines), 7)
         self.assertEqual(len(m.candidateLines), 0)
+        self.assertEqual(len(m.reconductorLines), 0)
         for branch in m.lines:
-            self.assertFalse(branch.endswith("-c"))
+            self.assertFalse(branch.endswith("-r"))
 
     def test_reconductoring_config_errors(self):
         # Test that include_reconductoring raises an error when
@@ -889,32 +882,76 @@ class TestGTEP(unittest.TestCase):
         # md), so every copy is modified.
         data_object, _ = create_data(include_cost_data=False)
 
+        def add_candidate(branches):
+            # The 5-bus case has no candidate lines, so add one that is a
+            # copy of branch_1_2
+            branches["branch_1_2-c"] = dict(
+                branches["branch_1_2"],
+                in_service=False,
+                candidate=True,
+                reconductor=False,
+                static=False,
+                reconductored_line=None,
+            )
+
         def make_static(branches):
             branches["branch_1_2"]["static"] = True
 
         def missing_line(branches):
-            branches["branch_1_2-c"]["reconductored_line"] = "no_such_line"
+            branches["branch_1_2-r"]["reconductored_line"] = "no_such_line"
 
-        def candidate_line(branches):
-            branches["branch_1_2-c"]["reconductored_line"] = "branch_1_4-c"
+        def maps_to_candidate(branches):
+            add_candidate(branches)
+            branches["branch_1_2-r"]["reconductored_line"] = "branch_1_2-c"
+
+        def maps_to_reconductoring_line(branches):
+            branches["branch_1_2-r"]["reconductored_line"] = "branch_1_4-r"
 
         def different_buses(branches):
-            branches["branch_1_2-c"]["reconductored_line"] = "branch_1_4"
+            branches["branch_1_2-r"]["reconductored_line"] = "branch_1_4"
 
-        def not_a_candidate(branches):
+        def no_mapping(branches):
+            branches["branch_1_2-r"]["reconductored_line"] = None
+
+        def existing_line_has_mapping(branches):
             branches["branch_2_3"]["reconductored_line"] = "branch_1_2"
+
+        def candidate_has_mapping(branches):
+            add_candidate(branches)
+            branches["branch_1_2-c"]["reconductored_line"] = "branch_1_2"
 
         def no_column(branches):
             for data in branches.values():
                 data.pop("reconductored_line", None)
 
         bad_data = {
-            "static line": (make_static, "static line"),
-            "line not in branch.csv": (missing_line, "not in branch.csv"),
-            "line is a candidate": (candidate_line, "itself a candidate"),
-            "different buses": (different_buses, "same from and to buses"),
-            "not a candidate": (not_a_candidate, "not a candidate"),
-            "no reconductored_line column": (no_column, "no reconductored_line"),
+            "maps to a static line": (make_static, "static line"),
+            "maps to a line not in branch.csv": (missing_line, "not in branch.csv"),
+            "maps to a candidate line": (maps_to_candidate, "is a candidate line"),
+            "maps to a reconductoring line": (
+                maps_to_reconductoring_line,
+                "another reconductoring line",
+            ),
+            "maps to a line on different buses": (
+                different_buses,
+                "same from and to buses",
+            ),
+            "maps to a candidate line": (
+                maps_to_candidate,
+                "is a candidate or reconductoring line",
+            ),
+            "maps to a reconductoring line": (
+                maps_to_reconductoring_line,
+                "is a candidate or reconductoring line",
+            ),
+            "candidate line has a mapping": (
+                candidate_has_mapping,
+                "not a reconductoring line",
+            ),
+            "no reconductored_line column": (
+                no_column,
+                "no reconductored_line column",
+            ),
         }
 
         for case, (modify, message) in bad_data.items():

@@ -47,12 +47,13 @@ A few further changes were made to `branch.csv`:
 - Quotes removed from branch UIDs
 - Columns `Cont Rating`, `LTE Rating`, and `STE Rating` were scaled up by 10x to better match
 the scale of generation/loads for the 5bus case.
-- Reconductoring candidates were added. Each non-transformer line `<UID>` has a candidate
-`<UID>-c` with the same buses and charging susceptance `B`. Its `Cont Rating`,
-`LTE Rating`, and `STE Rating` are 25% higher, and its `R` and `X` are divided by 1.25. The new `reconductored_line` column names the
-existing line each candidate replaces (blank for existing lines). The transformers
-(`branch_3_4_0`, `branch_3_4_1`) have no candidates. When `include_reconductoring` is False
-and `transmission` is True, these candidates are treated as ordinary new candidate lines.
+- Reconductoring lines were added. Each non-transformer line `<UID>` has a reconductoring
+line `<UID>-r` with the same buses and charging susceptance `B`. Its `Cont Rating`,
+`LTE Rating`, and `STE Rating` are 25% higher, and its `R` and `X` are divided by 1.25.
+The new `reconductored_line` column names the existing line each reconductoring line
+replaces (blank for other lines). The transformers (`branch_3_4_0`, `branch_3_4_1`) have
+no reconductoring lines. Reconductoring lines are only included in the model when
+`include_reconductoring` is True.
 
 ## References
 

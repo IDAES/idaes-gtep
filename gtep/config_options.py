@@ -257,8 +257,10 @@ def _add_investment_configs(CONFIG):
             default=False,
             domain=Bool,
             description=(
-                "Allow candidate lines to reconductor existing lines. A candidate's "
-                "reconductored_line (branch.csv) names the existing line it replaces"
+                "Include reconductoring lines (UID ending in '-r') in the model. "
+                "Each reconductoring line's reconductored_line (branch.csv) names "
+                "the existing line it replaces. When False, reconductoring lines "
+                "are left out of the model."
             ),
         ),
     )
