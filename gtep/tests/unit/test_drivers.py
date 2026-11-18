@@ -181,12 +181,13 @@ def test_analysis_driver_runs(gtep_dir):
         run_driver_command(
             [
                 sys.executable,
+                str(analysis_driver),
                 "--results-dir",
                 str(expected_results_dir),
             ],
             cwd=temp_dir,
         )
-
+        
         # Check that the analysis driver created expected outputs.
         assert (expected_results_dir / "analysis_metrics.csv").exists()
         assert (expected_results_dir / "plots" / "piechart_combined_2020.html").exists()
