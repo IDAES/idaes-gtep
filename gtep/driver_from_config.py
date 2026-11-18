@@ -162,7 +162,7 @@ def main(config_path):
         # Investment options
         "storage": False,
         "transmission": False,
-        "advanced_hydro": False,
+        "hydro_advanced": False,
     }
     for key, default_value in model_defaults.items():
         mod_object.config[key] = model_config.get(key, default_value)
