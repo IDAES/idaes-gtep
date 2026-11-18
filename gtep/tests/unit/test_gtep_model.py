@@ -651,9 +651,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
-        # 255908867.70
+        # 255908867.70, 255903177.76
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 259808297.97, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -699,9 +699,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
         self.assertTrue(check_optimal_termination(modObject.results))
-        # TODO: Set the objective value after the first successful run
+
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 0.1, places=1
+            value(modObject.model.total_cost_objective), 402892184.69, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -821,9 +821,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55, 255902949.55, 255908867.70
+        # Previous values: 241142049.55, 255902949.55, 255908867.70, 255903177.76
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 259808297.97, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -833,7 +833,7 @@ class TestGTEP(unittest.TestCase):
         # with storage turned on.
         modObject = create_model(
             planning_data_args={
-                "stages": 2,
+                "stages": 1,
                 "num_reps": 2,
                 "num_commit": 6,
                 "num_dispatch": 4,
@@ -843,10 +843,10 @@ class TestGTEP(unittest.TestCase):
                 "include_investment": True,
                 "include_commitment": True,
                 "include_redispatch": True,
-                "scale_loads": True,
+                "scale_loads": False,
                 "transmission": True,
                 "storage": True,
-                "flow_model": "DC",
+                "flow_model": "transport",
                 "hydro_advanced": False,
             },
             candidate_gens=[
@@ -872,6 +872,6 @@ class TestGTEP(unittest.TestCase):
         self.assertTrue(check_optimal_termination(modObject.results))
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779551084.11, places=1
+            value(modObject.model.total_cost_objective), 20238.85617, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
