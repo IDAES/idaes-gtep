@@ -27,7 +27,7 @@ aborts with a clear `FileNotFoundError`. The script produces:
 
 How to run:
 
-    python driver_analysis.py --data-dir <path/to/input_csv_folder> --results-dir <path/to/json_results_folder>
+    python driver_analysis.py --results-dir <path/to/json_results_folder>
 
 """
 
@@ -79,6 +79,9 @@ def load_all_results(results_dir: Path) -> dict:
         "list_renewable_generators",
         "list_lines",
         "list_storage",
+        "gen_uid_to_type",
+        "gen_uid_to_pmax",
+        "time_mapping",
     ]
 
     data = {}
@@ -98,18 +101,12 @@ def main():
         description="Run only the analysis / post‑processing tools for GTEP."
     )
     parser.add_argument(
-        "--data-dir",
-        required=True,
-        help="Directory that contains the data CSV input files.",
-    )
-    parser.add_argument(
         "--results-dir",
         required=True,
         help="Directory that contains the results JSON files.",
     )
     args = parser.parse_args()
 
-    data_path = Path(args.data_dir).resolve()
     results_path = Path(args.results_dir).resolve()
 
     logger.info("Loading JSON result files from %s", results_path)
@@ -121,7 +118,7 @@ def main():
     rep_days = results["rep_days"]
 
     # Create the solution object.
-    sol_object = ExpansionPlanningSolution(data_path)
+    sol_object = ExpansionPlanningSolution()
 
     # Plot generation‑mix. The options for `plot_type` are:
     # "piechart", "treemap", or "all". The options for `case_json`
@@ -129,12 +126,7 @@ def main():
     plot_type = "all"
     case_json = "combined"
     logger.info("Creating generation‑mix plots (%s, %s)", case_json, plot_type)
-    sol_object.create_plots(
-        case_json,
-        results_path,
-        data_path,
-        plot_type,
-    )
+    sol_object.create_plots(case_json, results_path, plot_type)
 
     # Stackgraph of the representative day(s)
     logger.info("Creating stack‑graph for %d representative days", len(rep_days))

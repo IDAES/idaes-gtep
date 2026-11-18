@@ -40,13 +40,13 @@ post-processing / analysis steps. For this, use the dedicated driver
 `driver_analysis.py` as shown below:
 
    ```bash
-   python driver_analysis.py --data-dir <path/to/input_csv_folder> --results-dir <path/to/json_results_folder>
+   python driver_analysis.py --results-dir <path/to/json_results_folder>
    ```
    
-The driver loads the CSV data, reads the JSON files, creates an
-ExpansionPlanningSolution object, and then runs the same analysis
-methods (plots, tables, CSV exports) that the normal drivers execute
-after a solve. The required JSON files are given in the table below.
+The driver reads the JSON files, creates an ExpansionPlanningSolution
+object, and then runs the same analysis methods (plots, tables, CSV
+exports) that the normal drivers execute after a solve. The required
+JSON files are given in the table below.
 
 | JSON file (key in `output_files`) | Description |
 |---|---|
@@ -70,6 +70,9 @@ after a solve. The required JSON files are given in the table below.
 | `list_renewable_generators.json` | List of renewable generators IDs |
 | `list_lines.json` | List of transmission line IDs |
 | `list_storage.json` | List of storage assets IDs (empty list if storage is disabled) |
+| `gen_uid_to_type.json` | Mapping generator UIDs to their type |
+| `gen_uid_to_pmax.json` | Mapping generator UIDs to their pmax |
+| `years_day_ahead.json` | List of years in renewables day ahead |
 
 
 ## Main Files
