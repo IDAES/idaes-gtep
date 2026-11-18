@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
+from pyomo.environ import check_optimal_termination
 from pyomo.environ import units as u
 from pyomo.environ import TransformationFactory
 from pyomo.util.check_units import (
@@ -762,5 +763,54 @@ class TestGTEP(unittest.TestCase):
         # Previous values: 241142049.55, 255902949.55, 255908867.70
         self.assertAlmostEqual(
             value(modObject.model.total_cost_objective), 255903177.76, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_storage(self):
+        # Test ExpansionPlanningModel with cost data and storage. This
+        # uses the same setup as test_with_cost_data_and_commitment
+        # with storage turned on.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": True,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+        self.assertTrue(check_optimal_termination(modObject.results))
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 779551084.11, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)

@@ -282,15 +282,25 @@ def add_storage_state_disjuncts(b: BlockData):
                 b.dispatchPeriod[disp_per].dispatchPeriodLength, u.hr
             )
         else:
+            # The first dispatch period is linked to the last dispatch
+            # period. As between consecutive periods (see
+            # retainedStorageChargeLevelFromPrev), the retention rate is
+            # applied to the last period's charge level over the last
+            # period's length.
             final_comm_per = r_p.commitmentPeriods.last()
             final_disp_per = r_p.commitmentPeriod[final_comm_per].dispatchPeriods.last()
+            final_disp = r_p.commitmentPeriod[final_comm_per].dispatchPeriod[
+                final_disp_per
+            ]
             return b.dispatchPeriod[disp_per].storageChargeLevel[
                 bat
-            ] == r_p.commitmentPeriod[final_comm_per].dispatchPeriod[
-                final_disp_per
-            ].storageChargeLevel[
+            ] == final_disp.storageChargeLevel[bat] - final_disp.storageChargeLevel[
                 bat
-            ] + (
+            ] * (
+                1 / u.hr - m.storageRetentionRate[bat]
+            ) * u.convert(
+                final_disp.dispatchPeriodLength, u.hr
+            ) + (
                 b.dispatchPeriod[disp_per].storageCharged[bat]
                 * m.storageChargingEfficiency[bat]
                 - b.dispatchPeriod[disp_per].storageDischarged[bat]
