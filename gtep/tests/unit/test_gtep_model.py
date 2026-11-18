@@ -317,7 +317,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": False,
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -372,7 +372,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": False,
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -632,7 +632,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": True,
+                "hydro_advanced": True,
             },
             include_cost_data=True,
         )
@@ -741,7 +741,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "transport",
-                "advanced_hydro": True,
+                "hydro_advanced": True,
             },
             include_cost_data=True,
         )
@@ -785,7 +785,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": True,
                 "flow_model": "DC",
-                "advanced_hydro": False,
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",

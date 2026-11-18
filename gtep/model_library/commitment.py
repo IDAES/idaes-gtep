@@ -65,7 +65,7 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
             return 0
         return b.renewableCapacityExpected[renewableGen] / nameplate
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
         hydro.fix_hydropower_limits(b, commitment_period)
 
     # [TODO: Redesign load scaling and allow nature of
@@ -167,7 +167,7 @@ def add_commitment_constraints(b, comm_per):
                 for gen in m.renewableGenerators
             )
 
-            if m.config["advanced_hydro"]:
+            if m.config["hydro_advanced"]:
                 op_cost_gen_state += sum(
                     m.fixedCost[gen] * b.commitmentPeriodLength * m.hydroCapacity[gen]
                     for gen in m.hydroGenerators

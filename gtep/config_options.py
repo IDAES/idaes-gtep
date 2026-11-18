@@ -228,7 +228,7 @@ def _add_investment_configs(CONFIG):
     )
 
     CONFIG.declare(
-        "advanced_hydro",
+        "hydro_advanced",
         ConfigValue(
             default=False,
             domain=Bool,
@@ -252,7 +252,7 @@ def _add_investment_configs(CONFIG):
     )
 
     CONFIG.declare(
-        "hydro_budget",
+        "hydro_budgeted",
         ConfigValue(
             default=False,
             domain=Bool,

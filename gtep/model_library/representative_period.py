@@ -79,7 +79,7 @@ def add_representative_period_variables(b, rep_per):
         within=pyo.Reals, initialize=0, units=u.USD
     )
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
         hydro.add_representative_hydropower(b, rep_per)
 
 

@@ -74,7 +74,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
         for g in m.hydroGenerators
     }
 
-    if m.config["hydro_budget"]:
+    if m.config["hydro_budgeted"]:
         min_values = {}
         budget_values = {}
         for g in m.hydroGenerators:
@@ -89,7 +89,9 @@ def fix_hydropower_limits(b, commitmentPeriod):
                 value = max_values[g]
             min_values[g] = value
 
-            budget_key = "hydro_budget" if "hydro_budget" in gen_data[g] else "p_max"
+            budget_key = (
+                "hydro_budgeted" if "hydro_budgeted" in gen_data[g] else "p_max"
+            )
             value = _series_value(gen_data[g], budget_key, commitmentPeriod)
             budget_values[g] = value
     else:
@@ -129,7 +131,7 @@ def add_representative_hydropower(b, repPer):
     spill and the constraints would be redundant.
     """
     m = b.model()
-    if not m.config["hydro_budget"]:
+    if not m.config["hydro_budgeted"]:
         return
 
     # Relative tolerance for the feasibility check on budgets vs minimum output.
@@ -189,7 +191,7 @@ def add_representative_hydropower(b, repPer):
             )
             budget_src = (
                 "DAY_AHEAD_hydro_budget.csv"
-                if "hydro_budget" in gen_data[g]
+                if "hydro_budgeted" in gen_data[g]
                 else "p_max (no DAY_AHEAD_hydro_budget.csv column for this unit)"
             )
             raise ValueError(

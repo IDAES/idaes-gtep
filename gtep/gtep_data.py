@@ -750,7 +750,10 @@ class ExpansionPlanningData:
         )
         self.hydro_timeseries_files = {}
 
-        for filename, key in ((min_file, "hydro_p_min"), (budget_file, "hydro_budget")):
+        for filename, key in (
+            (min_file, "hydro_p_min"),
+            (budget_file, "hydro_budgeted"),
+        ):
             path = data_path / filename
             if not path.exists():
                 continue
