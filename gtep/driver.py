@@ -191,8 +191,7 @@ rep_days = [
 ]
 sol_object.create_stackgraph(dir_name, rep_days)
 
-# Calculate analysis metrics from the model data object and saved
-# result JSON files.
+# Calculate analysis metrics using the saved result JSON files.
 outputs, metrics_df = sol_object.create_analysis(
     results_path=dir_name,
     save_csv=True,
