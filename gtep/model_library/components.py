@@ -27,7 +27,7 @@ import gtep.model_library.storage as stor
 logger = logging.getLogger("gtep.model_library.components")
 
 
-def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
+def add_model_sets(m, stages, years, rep_per):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
 
@@ -38,6 +38,10 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # [TODO: make sure time units are both definable and consistent
     # without being forced.]
     m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
+
+    # Add investment years as a Pyomo set. This data is coming from
+    # the model data processing object.
+    m.years = pyo.Set(initialize=years)
 
     m.representativePeriods = pyo.Set(
         initialize=rep_per,
@@ -181,17 +185,13 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     )
 
 
-def add_model_parameters(m, years):
+def add_model_parameters(m):
     """Creates and labels all the parameters in the GTEP model. This
     method ties input data directly to the model.
 
     :param m: Pyomo model object
 
     """
-
-    # Add investment years as a Pyomo set. This data is coming from
-    # the model data processing object.
-    m.years = pyo.Set(initialize=years)
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(
