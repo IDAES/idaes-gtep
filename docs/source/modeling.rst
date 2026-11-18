@@ -330,11 +330,11 @@ by example code).
        `consistent_commitment_downtime`              Logical Constraint 
        `consistent_commitment_start_after_downtime`  Logical Constraint
        `commit_active_gens_only`                     Logical constraint  Generators cannot be committed unless they are operational or just installed
-       `hydroCapacityExpected`                       Parameter           Maximum output of each hydro unit (p_max); only with `advanced_hydro`
-       `hydroMinimumExpected`                        Parameter           Minimum output of each hydro unit: hydro min file (else p_max) with `hydro_budget`,
-                                                                         p_max without; only with `advanced_hydro`
-       `hydroInflow`                                 Parameter           Reservoir inflow of each hydro unit: hydro budget file (else p_max) with `hydro_budget`,
-                                                                         p_max without; only with `advanced_hydro`
+       `hydroCapacityExpected`                       Parameter           Maximum output of each hydro unit (p_max); only with `hydro_advanced`
+       `hydroMinimumExpected`                        Parameter           Minimum output of each hydro unit: hydro min file (else p_max) with `hydro_budgeted`,
+                                                                         p_max without; only with `hydro_advanced`
+       `hydroInflow`                                 Parameter           Reservoir inflow of each hydro unit: hydro budget file (else p_max) with `hydro_budgeted`,
+                                                                         p_max without; only with `hydro_advanced`
        ============================================= =================== =============================================================================
 
  
@@ -363,7 +363,7 @@ by example code).
        `thermalGeneration`              Variable            Thermal generation power during the dispatch stage
        `renewableGeneration`            Variable            Renewable generation power during the dispatch stage
        `renewableCurtailment`           Variable            Amount of curtailed renewable power
-       `hydroGeneration`                Variable            Hydro generation, bounded by `hydroMinimumExpected` and `hydroCapacityExpected`; only with `advanced_hydro`
+       `hydroGeneration`                Variable            Hydro generation, bounded by `hydroMinimumExpected` and `hydroCapacityExpected`; only with `hydro_advanced`
        `spinningReserve`                Variable            
        `quickstartReserve`              Variable
        `powerFlow`                      Variable             Power flow
@@ -396,7 +396,7 @@ by example code).
 Advanced hydropower
 -------------------
 
-When the ``advanced_hydro`` option is ``True``, hydro units
+When the ``hydro_advanced`` option is ``True``, hydro units
 (``Unit Type`` = ``HYDRO``) are removed from the renewable generators
 and modeled in :mod:`gtep.model_library.hydropower_generation`. Two
 options control how they are dispatched:
@@ -405,7 +405,7 @@ options control how they are dispatched:
    :widths: 25 25 50
 
    ====================== ===================== ==================================================================
-   ``advanced_hydro``     ``hydro_budget``      Hydro behavior
+   ``hydro_advanced``     ``hydro_budgeted``      Hydro behavior
    ====================== ===================== ==================================================================
    ``False`` (default)    ``False`` (default)   Hydro units are ordinary renewables (output up to ``p_max``,
                                                 with curtailment).
@@ -416,7 +416,7 @@ options control how they are dispatched:
    ``False``              ``True``              Not allowed; model construction raises an error.
    ====================== ===================== ==================================================================
 
-With ``hydro_budget`` set to ``True``, each hydro unit :math:`h` is
+With ``hydro_budgeted`` set to ``True``, each hydro unit :math:`h` is
 dispatched between a minimum and a maximum in every dispatch period
 :math:`d` of commitment period :math:`c`, and has an energy budget over
 each representative period :math:`r`:
@@ -444,7 +444,7 @@ If the minimum output alone needs more energy than the budget provides,
 model construction stops with an error naming the unit, the
 representative day, and which inputs were defaulted.
 
-.. table:: Table 5: Hydro components in each representative period (``hydro_budget`` only)
+.. table:: Table 5: Hydro components in each representative period (``hydro_budgeted`` only)
    :widths: 20 15 35
 
    ================================ =================== ===================================================================

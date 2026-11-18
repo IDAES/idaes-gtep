@@ -717,14 +717,14 @@ class ExpansionPlanningData:
         - ``DAY_AHEAD_hydro_budget.csv``: inflow to the reservoir expressed
           as average MW of generation-equivalent energy over each period
           (for hourly data, MW and MWh per period are the same number).
-          Stored as ``hydro_budget``.
+          Stored as ``hydro_budgeted``.
 
         The series are aligned to the model's time steps (averaged when the
         files are finer, held when they are coarser) and attached to
         the generators as EGRET time series. The files are not checked
         here; call :meth:`validate_hydro_timeseries` first (load_prescient
         does). They are used only when the
-        model option ``advanced_hydro`` is True. A missing file is skipped;
+        model option ``hydro_advanced`` is True. A missing file is skipped;
         units without a column use their ``p_max`` series for both the
         minimum and the inflow (see model_library/hydropower_generation.py).
 

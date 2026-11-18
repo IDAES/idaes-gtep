@@ -258,7 +258,7 @@ def _add_investment_configs(CONFIG):
             domain=Bool,
             description=(
                 "Include hydro budget modeling; only used when "
-                "`advanced_hydro` and `hydro_budget are both True."
+                "`hydro_advanced` and `hydro_budgeted` are both True."
             ),
         ),
     )

@@ -122,9 +122,9 @@ Two optional files give hydro units a minimum output and an inflow
 (energy) budget. They are read by
 :meth:`load_hydro_timeseries<gtep.gtep_data.ExpansionPlanningData.load_hydro_timeseries>`,
 which ``load_prescient`` calls automatically, and are used only when the
-model options ``advanced_hydro`` and ``hydro_budget`` are both ``True``
+model options ``hydro_advanced`` and ``hydro_budgeted`` are both ``True``
 (see the advanced hydropower section of the modeling page). The files
-are still read and checked when ``hydro_budget`` is ``False``, but the
+are still read and checked when ``hydro_budgeted`` is ``False``, but the
 model ignores them.
 
 .. table:: Table 2: Optional hydro input files
@@ -137,7 +137,7 @@ model ignores them.
                                                        Stored as ``hydro_p_min``.
    ``DAY_AHEAD_hydro_budget.csv`` MW (average)         Inflow to each listed unit's reservoir, as average MW of
                                                        generation-equivalent energy in each period (for hourly data,
-                                                       the same number as MWh per period). Stored as ``hydro_budget``.
+                                                       the same number as MWh per period). Stored as ``hydro_budgeted``.
    ============================== ==================== =================================================================
 
 Both files use the layout of ``DAY_AHEAD_renewables.csv``: the columns
@@ -161,7 +161,7 @@ day), followed by one column per hydro generator ``GEN UID``:
   (averaged when the files are finer, held when they are coarser).
 - A unit without a column uses its ``p_max`` series instead, for the
   minimum, the inflow, or both. With neither file a unit runs at
-  ``p_max``, the same as with ``hydro_budget`` set to ``False``.
+  ``p_max``, the same as with ``hydro_budgeted`` set to ``False``.
 - The files are listed, with their required columns, in
   ``gtep/data/required_data_files.csv``.
 

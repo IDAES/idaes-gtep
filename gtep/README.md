@@ -84,7 +84,7 @@ The available configuration options are described in the table below:
 | `scale_texas_loads` | `Bool` | `False` | Enables Texas-case-specific load scaling logic, when applicable. |
 | `storage` | `Bool` | `False` | Enables storage investment and operation modeling. |
 | `transmission` | `Bool` | `False` | Enables transmission modeling and transmission investment options. |
-| `advanced_hydro` | `Bool` | `False` | Enables advanced hydro modeling features, including daily average hydro requirements. |
+| `hydro_advanced` | `Bool` | `False` | Enables advanced hydro modeling features, including daily average hydro requirements. |
 
 The available options for the `flow_model` configuration are listed
 below:

@@ -126,7 +126,7 @@ def fix_hydropower_limits(b, commitmentPeriod):
 def add_representative_hydropower(b, repPer):
     """Add the hydro energy-budget constraints to a representative-period block.
 
-    Only used when ``hydro_budget`` is True. Without a budget the minimum
+    Only used when ``hydro_budgeted`` is True. Without a budget the minimum
     equals the maximum in every period, so there is nothing to shift or
     spill and the constraints would be redundant.
     """
