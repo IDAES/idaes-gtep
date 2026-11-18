@@ -357,7 +357,7 @@ class ExpansionPlanningData:
 
                 if nameplate_str not in (None, "", "NA"):
                     nameplate = float(nameplate_str)
-                    if nameplate == 0: 
+                    if nameplate == 0:
                         raise ValueError(
                             f"Generator {gen_uid} has a PMax MW of 0. This value must be strictly positive"
                         )
