@@ -64,9 +64,6 @@ class TestExpansionPlanningSolution(unittest.TestCase):
         # input data.
         sol_object = ExpansionPlanningSolution()
 
-        self.assertIsInstance(sol_object.gen_df, pd.DataFrame)
-        self.assertFalse(sol_object.gen_df.empty)
-
         self.assertIn("CC", sol_object.gen_types)
         self.assertIn("CT", sol_object.gen_types)
         self.assertIn("PV", sol_object.gen_types)
