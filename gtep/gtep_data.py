@@ -890,7 +890,16 @@ class ExpansionPlanningData:
         # Check that each required column has populated values for all
         # rows.
         for col in required_columns_no_ramp:
-            missing_mask = is_missing(df[col])
+            if col == "Fuel Price $/MMBTU":
+                # Only validate Fuel Price for thermal generators
+                if "Fuel" in df.columns:
+                    thermal_mask = df["Fuel"].isin(thermal_unit_types)
+                    missing_mask = is_missing(df.loc[thermal_mask, col])
+                else:
+                    missing_mask = pd.Series([False] * len(df))
+            else:
+                missing_mask = is_missing(df[col])
+                missing_mask = is_missing(df[col])
 
             if missing_mask.any():
                 if "GEN UID" in df.columns:
