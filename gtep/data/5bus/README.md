@@ -40,6 +40,7 @@ generation/loads for the 5bus case: `energy_capacity`, `initial_state_of_charge`
 `end_state_of_charge`, `minimum_state_of_charge`, `max_discharge_rate`, `min_discharge_rate`,
 `max_charge_rate`, `min_charge_rate`, `ramp_up_input_60min`,`ramp_down_input_60min`,
 `ramp_up_output_60min`, `ramp_down_output_60min`, and `investment_cost`
+- The retention rates of the existing batteries were set to 95% for testing purposes
 
 ## Branch data modifications
 
