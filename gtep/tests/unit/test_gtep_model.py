@@ -785,7 +785,7 @@ class TestGTEP(unittest.TestCase):
                 "scale_loads": False,
                 "transmission": True,
                 "storage": True,
-                "flow_model": "DC",
+                "flow_model": "transport",
                 "advanced_hydro": False,
             },
             candidate_gens=[
@@ -812,6 +812,6 @@ class TestGTEP(unittest.TestCase):
 
         # Previous successful objective values: 779551084.11
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 20589.98207, places=1
+            value(modObject.model.total_cost_objective), 20238.85617, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
