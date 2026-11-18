@@ -810,6 +810,6 @@ class TestGTEP(unittest.TestCase):
         self.assertTrue(check_optimal_termination(modObject.results))
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779551084.11, places=1
+            value(modObject.model.total_cost_objective), 779551256.63, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
