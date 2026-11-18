@@ -221,550 +221,550 @@ class TestGTEP(unittest.TestCase):
             m_commit.genOn["4_STEAM"].max_spinning_reserve[1].expr,
         )
 
-    # def test_solve_bigm(self):
-    #     # Solve the debug model as is
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 1,
-    #             "num_reps": 1,
-    #             "num_commit": 1,
-    #             "num_dispatch": 1,
-    #             "duration_representative_period": 1,
-    #         },
-    #         prescient_data_args={
-    #             "representative_dates": ["2020-01-28 00:00"],
-    #         },
-    #         include_cost_data=False,
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
-    #     # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 29483643.26
-    #     # 29615787.26, 29628029.26
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 29653650.99, places=1
-    #     )
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_no_investment(self):
-    #     # Solve the debug model with no investment
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 1,
-    #             "num_reps": 1,
-    #             "num_commit": 1,
-    #             "num_dispatch": 1,
-    #             "duration_representative_period": 1,
-    #         },
-    #         prescient_data_args={
-    #             "representative_dates": ["2020-01-28 00:00"],
-    #         },
-    #         config={
-    #             "include_investment": False,
-    #         },
-    #         include_cost_data=False,
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-    #     # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39
-    #     # 31908498.69
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 33109380.55, places=1
-    #     )
-
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_with_cost_data_and_commitment(self):
-    #     # Test ExpansionPlanningModel with cost data
-    #     # This model originated from driver_esr.py
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 2,
-    #             "num_reps": 2,
-    #             "num_commit": 6,
-    #             "num_dispatch": 4,
-    #             "duration_representative_period": 6,
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": True,
-    #             "include_redispatch": True,
-    #             "scale_loads": True,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "DC",
-    #             "advanced_hydro": False,
-    #         },
-    #         candidate_gens=[
-    #             "Natural Gas_CT",
-    #             "Natural Gas_FE",
-    #             "Solar - Utility PV",
-    #             "Land-Based Wind",
-    #         ],
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91,
-    #     # 776765960.70, 779494096.65, 723494956.65, 779494096.65, 779518592.60, 779495688.36
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 809995020.40, places=1
-    #     )
-
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_with_cost_data_and_no_commitment(self):
-
-    #     # This test verifies that the expansion planning model can be
-    #     # built and solved using preprocessed cost data when unit
-    #     # commitment is disabled. The test also checks unit
-    #     # consistency and validates the resulting objective value
-    #     # against an expected benchmark.
-
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 2,
-    #             "num_reps": 2,
-    #             "num_commit": 6,
-    #             "num_dispatch": 4,
-    #             "duration_representative_period": 6,
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": False,
-    #             "include_redispatch": True,
-    #             "scale_loads": True,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "DC",
-    #             "advanced_hydro": False,
-    #         },
-    #         candidate_gens=[
-    #             "Natural Gas_CT",
-    #             "Natural Gas_FE",
-    #             "Solar - Utility PV",
-    #             "Land-Based Wind",
-    #         ],
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96,
-    #     # 923474476.75, 926202612.69, 870203472.69, 723494956.65, 870593510.10
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 809809257.84, places=1
-    #     )
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_with_cost_data_and_weights(self):
-
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 1,
-    #             "num_reps": 12,
-    #             "num_commit": 1,
-    #             "num_dispatch": 1,
-    #             "duration_representative_period": 1,
-    #         },
-    #         prescient_data_args={
-    #             "representative_dates": [
-    #                 "2020-01-01 00:00",
-    #                 "2020-02-01 00:00",
-    #                 "2020-03-01 00:00",
-    #                 "2020-04-01 00:00",
-    #                 "2020-05-01 00:00",
-    #                 "2020-06-01 00:00",
-    #                 "2020-07-01 00:00",
-    #                 "2020-08-01 00:00",
-    #                 "2020-09-01 00:00",
-    #                 "2020-10-01 00:00",
-    #                 "2020-11-01 00:00",
-    #                 "2020-12-01 00:00",
-    #             ],
-    #             "representative_weights": {
-    #                 "2020-01-01 00:00": 31,
-    #                 "2020-02-01 00:00": 28,
-    #                 "2020-03-01 00:00": 31,
-    #                 "2020-04-01 00:00": 30,
-    #                 "2020-05-01 00:00": 31,
-    #                 "2020-06-01 00:00": 30,
-    #                 "2020-07-01 00:00": 31,
-    #                 "2020-08-01 00:00": 31,
-    #                 "2020-09-01 00:00": 30,
-    #                 "2020-10-01 00:00": 31,
-    #                 "2020-11-01 00:00": 30,
-    #                 "2020-12-01 00:00": 31,
-    #             },
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": True,
-    #             "include_redispatch": True,
-    #             "scale_loads": True,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "DC",
-    #         },
-    #         candidate_gens=[
-    #             "Natural Gas_CT",
-    #             "Natural Gas_FE",
-    #             "Solar - Utility PV",
-    #             "Land-Based Wind",
-    #         ],
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
-    #     # 13435364152.91, 13573783610.18, 13435364152.91, 13960195443.17, 14088696127.38
-    #     # 14096928573.71
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 14098177616.52, places=1
-    #     )
-
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_period_structure_from_scalars(self):
-    #     # Test period structure dictionary created using the provided
-    #     # scalars
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 1,
-    #             "num_reps": 2,
-    #             "num_commit": 3,
-    #             "num_dispatch": 4,
-    #             "duration_representative_period": 3,
-    #         },
-    #         include_cost_data=True,
-    #     )
-
-    #     # Assert that all values are as expected
-    #     self.assertEqual(modObject.num_commit[1], 3)
-    #     self.assertEqual(modObject.num_dispatch[2][3], 4)
-    #     self.assertEqual(modObject.duration_representative_period[1], 3)
-    #     self.assertEqual(modObject.duration_commitment[1][2], 1)
-    #     self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
-
-    #     # Test custom period structure dictionary with irregular
-    #     # values.
-    #     period_dict = {
-    #         "number_representative": 2,
-    #         "number_commitment": {1: 2, 2: 3},
-    #         "number_dispatch": {1: {1: 3, 2: 2}, 2: {1: 2, 2: 3, 3: 2}},
-    #         "duration_representative_period": {1: 24, 2: 18},
-    #         "duration_commitment": {1: {1: 12, 2: 12}, 2: {1: 6, 2: 6, 3: 6}},
-    #         "duration_dispatch": {
-    #             1: {1: {1: 360, 2: 180, 3: 180}, 2: {1: 360, 2: 360}},
-    #             2: {
-    #                 1: {1: 180, 2: 180},
-    #                 2: {1: 120, 2: 120, 3: 120},
-    #                 3: {1: 180, 2: 180},
-    #             },
-    #         },
-    #     }
-
-    #     with TempfileManager.new_context() as tempfile:
-    #         temp_dir = Path(tempfile.mkdtemp())
-    #         json_path = temp_dir / "test_custom_period_structure.json"
-    #         with open(json_path, "w") as f:
-    #             json.dump(period_dict, f, indent=2)
-
-    #         # Test that the model correctly reads and assigns the
-    #         # custom period structure values. For this, we instantiate
-    #         # the model using the temp .json file.
-    #         modObject = create_model(
-    #             planning_data_args={
-    #                 "period_structure_json_file": str(json_path),
-    #             },
-    #             include_cost_data=True,
-    #         )
-
-    #         # Assert that we have the correct reading of the structure
-    #         self.assertEqual(modObject.num_reps, 2)
-    #         self.assertEqual(modObject.num_commit[2], 3)
-    #         self.assertEqual(modObject.num_dispatch[2][2], 3)
-    #         self.assertEqual(modObject.duration_commitment[2][2], 6)
-    #         self.assertEqual(modObject.duration_dispatch[2][2][3], 120)
-    #         self.assertEqual(modObject.duration_representative_period[2], 18)
-    #         self.assertEqual(modObject.duration_dispatch[1][1][2], 180)
-    #         self.assertEqual(modObject.duration_commitment[1][2], 12)
-
-    # def test_period_structure_consistency_errors(self):
-
-    #     # Check that a consistency error is raised if
-    #     # commitment/dispatch period durations do not sum to the
-    #     # representative/commitment period duration when loading from
-    #     # a .json file.  The test first creates and writes the .json
-    #     # file, then checks for the error.
-    #     period_dict = {
-    #         "number_representative": 2,
-    #         "number_commitment": {"1": 6, "2": 6},
-    #         "number_dispatch": {
-    #             "1": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
-    #             "2": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
-    #         },
-    #         "duration_representative_period": {"1": 6, "2": 6},
-    #         "duration_commitment": {
-    #             "1": {"1": 1.0, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0, "6": 3.0},
-    #             "2": {"1": 1.0, "2": 1.0, "3": 2.0, "4": 1.0, "5": 1.0, "6": 1.0},
-    #         },
-    #         "duration_dispatch": {
-    #             "1": {
-    #                 "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "2": {"1": 25.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "5": {"1": 15.0, "2": 15.0, "3": 5.0, "4": 15.0},
-    #                 "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #             },
-    #             "2": {
-    #                 "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "2": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "5": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #                 "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
-    #             },
-    #         },
-    #     }
-
-    #     with TempfileManager.new_context() as tempfile:
-    #         temp_dir = Path(tempfile.mkdtemp())
-    #         json_path = temp_dir / "test_consistency_errors_period_structure.json"
-    #         with open(json_path, "w") as f:
-    #             json.dump(period_dict, f, indent=2)
-
-    #         # Create the data object using the temporary period
-    #         # structure file, but do not instantiate the model.
-    #         dataObject, dataProcessingObject = create_data(
-    #             planning_data_args={
-    #                 "period_structure_json_file": str(json_path),
-    #             },
-    #             include_cost_data=True,
-    #         )
-
-    #         # Assert that the sum of commitment durations (20hr) does
-    #         # not match the representative period duration (18hr)
-    #         with self.assertRaises(ValueError) as cm:
-    #             ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
-
-    #         self.assertIn(
-    #             "Period structure consistency check failed:\n\nERROR: Found (2) mismatches for commitment period duration:",
-    #             str(cm.exception),
-    #         )
-
-    # def test_with_cost_data_and_hydro(self):
-    #     # This test verifies that the expansion planning model can be
-    #     # built and solved using preprocessed cost data with advanced
-    #     # hydropower enabled. The test also checks unit consistency
-    #     # and validates the resulting objective value against an
-    #     # expected benchmark.
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 2,
-    #             "num_reps": 2,
-    #             "num_commit": 6,
-    #             "num_dispatch": 4,
-    #             "duration_representative_period": 2,
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": True,
-    #             "include_redispatch": True,
-    #             "scale_loads": True,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "transport",
-    #             "advanced_hydro": True,
-    #         },
-    #         include_cost_data=True,
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
-    #     # 255908867.70
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 255903177.76, places=1
-    #     )
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_Texas123_case(self):
-
-    #     modObject = create_model(
-    #         input_data_path=Texas123_case_path,
-    #         planning_data_args={
-    #             "stages": 1,
-    #             "num_reps": 4,
-    #             "num_commit": 2,
-    #             "num_dispatch": 1,
-    #             "duration_representative_period": 2,
-    #         },
-    #         prescient_data_args={
-    #             "representative_dates": [
-    #                 "2019-01-28 00:00",
-    #                 "2019-04-23 00:00",
-    #                 "2019-07-05 00:00",
-    #                 "2019-10-14 00:00",
-    #             ],
-    #             "representative_weights": {
-    #                 "2019-01-28 00:00": 115,
-    #                 "2019-04-23 00:00": 95,
-    #                 "2019-07-05 00:00": 50,
-    #                 "2019-10-14 00:00": 105,
-    #             },
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": True,
-    #             "include_redispatch": True,
-    #             "scale_loads": False,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "transport",
-    #         },
-    #         candidate_gens=[
-    #             "Natural Gas_CT",
-    #             "Natural Gas_FE",
-    #             "Solar - Utility PV",
-    #             "Land-Based Wind",
-    #         ],
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # Comment out the assertion for the objective value since
-    #     # different values are observed across local, Linux, and
-    #     # Windows GitHub Actions runs. This is tracked in issue #163.
-    #     # This assertion will be uncommented once the observed issue
-    #     # is resolved.
-    #     # self.assertAlmostEqual(
-    #     #     value(modObject.model.total_cost_objective), 20105684865.29, places=1
-    #     # )
-
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
-
-    # def test_Bus5_with_transport_model(self):
-
-    #     modObject = create_model(
-    #         planning_data_args={
-    #             "stages": 2,
-    #             "num_reps": 2,
-    #             "num_commit": 6,
-    #             "num_dispatch": 4,
-    #             "duration_representative_period": 2,
-    #         },
-    #         config={
-    #             "include_investment": True,
-    #             "include_commitment": True,
-    #             "include_redispatch": True,
-    #             "scale_loads": True,
-    #             "transmission": True,
-    #             "storage": False,
-    #             "flow_model": "transport",
-    #             "advanced_hydro": True,
-    #         },
-    #         include_cost_data=True,
-    #     )
-
-    #     # Check for consistent units
-    #     # Note: Need to do this check before applying the GDP transformations
-    #     assert_units_consistent(modObject.model)
-
-    #     opt = SolverFactory("highs")
-    #     if not opt.available():
-    #         raise unittest.SkipTest("Solver not available")
-
-    #     # Apply transformations to logical terms
-    #     TransformationFactory("gdp.bigm").apply_to(modObject.model)
-
-    #     modObject.results = opt.solve(modObject.model)
-
-    #     # Previous values: 241142049.55, 255902949.55, 255908867.70
-    #     self.assertAlmostEqual(
-    #         value(modObject.model.total_cost_objective), 255903177.76, places=1
-    #     )
-    #     assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+    def test_solve_bigm(self):
+        # Solve the debug model as is
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 1,
+                "num_commit": 1,
+                "num_dispatch": 1,
+                "duration_representative_period": 1,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00"],
+            },
+            include_cost_data=False,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
+        # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 29483643.26
+        # 29615787.26, 29628029.26
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 29653650.99, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_no_investment(self):
+        # Solve the debug model with no investment
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 1,
+                "num_commit": 1,
+                "num_dispatch": 1,
+                "duration_representative_period": 1,
+            },
+            prescient_data_args={
+                "representative_dates": ["2020-01-28 00:00"],
+            },
+            config={
+                "include_investment": False,
+            },
+            include_cost_data=False,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        TransformationFactory("gdp.bound_pretransformation").apply_to(modObject.model)
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
+        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39
+        # 31908498.69
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 33109380.55, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_commitment(self):
+        # Test ExpansionPlanningModel with cost data
+        # This model originated from driver_esr.py
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91,
+        # 776765960.70, 779494096.65, 723494956.65, 779494096.65, 779518592.60, 779495688.36
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 809995020.40, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_no_commitment(self):
+
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data when unit
+        # commitment is disabled. The test also checks unit
+        # consistency and validates the resulting objective value
+        # against an expected benchmark.
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": False,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # previous successful objective values: 1524533561.02, 926187704.4, 926194856.96,
+        # 923474476.75, 926202612.69, 870203472.69, 723494956.65, 870593510.10
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 809809257.84, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_weights(self):
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 12,
+                "num_commit": 1,
+                "num_dispatch": 1,
+                "duration_representative_period": 1,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2020-01-01 00:00",
+                    "2020-02-01 00:00",
+                    "2020-03-01 00:00",
+                    "2020-04-01 00:00",
+                    "2020-05-01 00:00",
+                    "2020-06-01 00:00",
+                    "2020-07-01 00:00",
+                    "2020-08-01 00:00",
+                    "2020-09-01 00:00",
+                    "2020-10-01 00:00",
+                    "2020-11-01 00:00",
+                    "2020-12-01 00:00",
+                ],
+                "representative_weights": {
+                    "2020-01-01 00:00": 31,
+                    "2020-02-01 00:00": 28,
+                    "2020-03-01 00:00": 31,
+                    "2020-04-01 00:00": 30,
+                    "2020-05-01 00:00": 31,
+                    "2020-06-01 00:00": 30,
+                    "2020-07-01 00:00": 31,
+                    "2020-08-01 00:00": 31,
+                    "2020-09-01 00:00": 30,
+                    "2020-10-01 00:00": 31,
+                    "2020-11-01 00:00": 30,
+                    "2020-12-01 00:00": 31,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "DC",
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
+        # 13435364152.91, 13573783610.18, 13435364152.91, 13960195443.17, 14088696127.38
+        # 14096928573.71
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 14098177616.52, places=1
+        )
+
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_period_structure_from_scalars(self):
+        # Test period structure dictionary created using the provided
+        # scalars
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 2,
+                "num_commit": 3,
+                "num_dispatch": 4,
+                "duration_representative_period": 3,
+            },
+            include_cost_data=True,
+        )
+
+        # Assert that all values are as expected
+        self.assertEqual(modObject.num_commit[1], 3)
+        self.assertEqual(modObject.num_dispatch[2][3], 4)
+        self.assertEqual(modObject.duration_representative_period[1], 3)
+        self.assertEqual(modObject.duration_commitment[1][2], 1)
+        self.assertEqual(modObject.duration_dispatch[2][3][4], 15)
+
+        # Test custom period structure dictionary with irregular
+        # values.
+        period_dict = {
+            "number_representative": 2,
+            "number_commitment": {1: 2, 2: 3},
+            "number_dispatch": {1: {1: 3, 2: 2}, 2: {1: 2, 2: 3, 3: 2}},
+            "duration_representative_period": {1: 24, 2: 18},
+            "duration_commitment": {1: {1: 12, 2: 12}, 2: {1: 6, 2: 6, 3: 6}},
+            "duration_dispatch": {
+                1: {1: {1: 360, 2: 180, 3: 180}, 2: {1: 360, 2: 360}},
+                2: {
+                    1: {1: 180, 2: 180},
+                    2: {1: 120, 2: 120, 3: 120},
+                    3: {1: 180, 2: 180},
+                },
+            },
+        }
+
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = Path(tempfile.mkdtemp())
+            json_path = temp_dir / "test_custom_period_structure.json"
+            with open(json_path, "w") as f:
+                json.dump(period_dict, f, indent=2)
+
+            # Test that the model correctly reads and assigns the
+            # custom period structure values. For this, we instantiate
+            # the model using the temp .json file.
+            modObject = create_model(
+                planning_data_args={
+                    "period_structure_json_file": str(json_path),
+                },
+                include_cost_data=True,
+            )
+
+            # Assert that we have the correct reading of the structure
+            self.assertEqual(modObject.num_reps, 2)
+            self.assertEqual(modObject.num_commit[2], 3)
+            self.assertEqual(modObject.num_dispatch[2][2], 3)
+            self.assertEqual(modObject.duration_commitment[2][2], 6)
+            self.assertEqual(modObject.duration_dispatch[2][2][3], 120)
+            self.assertEqual(modObject.duration_representative_period[2], 18)
+            self.assertEqual(modObject.duration_dispatch[1][1][2], 180)
+            self.assertEqual(modObject.duration_commitment[1][2], 12)
+
+    def test_period_structure_consistency_errors(self):
+
+        # Check that a consistency error is raised if
+        # commitment/dispatch period durations do not sum to the
+        # representative/commitment period duration when loading from
+        # a .json file.  The test first creates and writes the .json
+        # file, then checks for the error.
+        period_dict = {
+            "number_representative": 2,
+            "number_commitment": {"1": 6, "2": 6},
+            "number_dispatch": {
+                "1": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
+                "2": {"1": 4, "2": 4, "3": 4, "4": 4, "5": 4, "6": 4},
+            },
+            "duration_representative_period": {"1": 6, "2": 6},
+            "duration_commitment": {
+                "1": {"1": 1.0, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0, "6": 3.0},
+                "2": {"1": 1.0, "2": 1.0, "3": 2.0, "4": 1.0, "5": 1.0, "6": 1.0},
+            },
+            "duration_dispatch": {
+                "1": {
+                    "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "2": {"1": 25.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "5": {"1": 15.0, "2": 15.0, "3": 5.0, "4": 15.0},
+                    "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                },
+                "2": {
+                    "1": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "2": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "3": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "4": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "5": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                    "6": {"1": 15.0, "2": 15.0, "3": 15.0, "4": 15.0},
+                },
+            },
+        }
+
+        with TempfileManager.new_context() as tempfile:
+            temp_dir = Path(tempfile.mkdtemp())
+            json_path = temp_dir / "test_consistency_errors_period_structure.json"
+            with open(json_path, "w") as f:
+                json.dump(period_dict, f, indent=2)
+
+            # Create the data object using the temporary period
+            # structure file, but do not instantiate the model.
+            dataObject, dataProcessingObject = create_data(
+                planning_data_args={
+                    "period_structure_json_file": str(json_path),
+                },
+                include_cost_data=True,
+            )
+
+            # Assert that the sum of commitment durations (20hr) does
+            # not match the representative period duration (18hr)
+            with self.assertRaises(ValueError) as cm:
+                ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
+
+            self.assertIn(
+                "Period structure consistency check failed:\n\nERROR: Found (2) mismatches for commitment period duration:",
+                str(cm.exception),
+            )
+
+    def test_with_cost_data_and_hydro(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower enabled. The test also checks unit consistency
+        # and validates the resulting objective value against an
+        # expected benchmark.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 2,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "transport",
+                "advanced_hydro": True,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
+        # 255908867.70
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 255903177.76, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_Texas123_case(self):
+
+        modObject = create_model(
+            input_data_path=Texas123_case_path,
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 4,
+                "num_commit": 2,
+                "num_dispatch": 1,
+                "duration_representative_period": 2,
+            },
+            prescient_data_args={
+                "representative_dates": [
+                    "2019-01-28 00:00",
+                    "2019-04-23 00:00",
+                    "2019-07-05 00:00",
+                    "2019-10-14 00:00",
+                ],
+                "representative_weights": {
+                    "2019-01-28 00:00": 115,
+                    "2019-04-23 00:00": 95,
+                    "2019-07-05 00:00": 50,
+                    "2019-10-14 00:00": 105,
+                },
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "transport",
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Comment out the assertion for the objective value since
+        # different values are observed across local, Linux, and
+        # Windows GitHub Actions runs. This is tracked in issue #163.
+        # This assertion will be uncommented once the observed issue
+        # is resolved.
+        # self.assertAlmostEqual(
+        #     value(modObject.model.total_cost_objective), 20105684865.29, places=1
+        # )
+
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_Bus5_with_transport_model(self):
+
+        modObject = create_model(
+            planning_data_args={
+                "stages": 2,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 2,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "transport",
+                "advanced_hydro": True,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+
+        # Previous values: 241142049.55, 255902949.55, 255908867.70
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 255903177.76, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
     def test_with_cost_data_and_storage(self):
         # Test ExpansionPlanningModel with cost data and storage. This
