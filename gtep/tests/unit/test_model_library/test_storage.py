@@ -133,19 +133,19 @@ class TestObjective(TestCase):
             name="storageInvestmentCost",
             obj_type=pyo.Param,
             units=u.USD / u.MW / u.hr,
-            index=(self.m.storage, self.m.years_set),
+            index=(self.m.storage, self.m.years),
         )
         self.check_helper.add_object(
             name="storageFixedCost",
             obj_type=pyo.Param,
             units=u.USD / u.MW / u.hr,
-            index=(self.m.storage, self.m.years_set),
+            index=(self.m.storage, self.m.years),
         )
         self.check_helper.add_object(
             name="storageVariableCost",
             obj_type=pyo.Param,
             units=u.USD / u.MW / u.hr,
-            index=(self.m.storage, self.m.years_set),
+            index=(self.m.storage, self.m.years),
         )
 
     def _add_storage_state_disjuncts(self):

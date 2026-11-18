@@ -288,7 +288,7 @@ def create_stages(
 
     for investment_stage in m.stages:
         b_inv = m.investmentStage[investment_stage]
-        b_inv.year = m.years[investment_stage - 1]
+        b_inv.year = m.years[investment_stage]
 
         # Declare investment parameters, variables, and status
         # disjuncts for generators and transmission lines and storage,
@@ -427,9 +427,6 @@ def create_stages(
                 )
             # --------------------------------------------------------------
 
-    for investment_stage in m.stages:
-        b_inv = m.investmentStage[investment_stage]
-        b_inv.year = m.years[investment_stage - 1]
         inv.add_investment_constraints(
             m.investmentStage[investment_stage],
             investment_stage,

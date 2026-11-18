@@ -737,7 +737,7 @@ def add_storage_cost_parameters(m):
 
     m.storageInvestmentCost = pyo.Param(
         m.storage,
-        m.years_set,
+        m.years,
         initialize=get_storage_cost_init(m, m.years, "capex", 0),
         mutable=True,
         domain=pyo.NonNegativeReals,
@@ -747,7 +747,7 @@ def add_storage_cost_parameters(m):
 
     m.storageFixedCost = pyo.Param(
         m.storage,
-        m.years_set,
+        m.years,
         initialize=get_storage_cost_init(m, m.years, "fixed_ops_cost", 0),
         mutable=True,
         domain=pyo.NonNegativeReals,
@@ -757,7 +757,7 @@ def add_storage_cost_parameters(m):
 
     m.storageVariableCost = pyo.Param(
         m.storage,
-        m.years_set,
+        m.years,
         initialize=get_storage_cost_init(m, m.years, "var_ops_cost", 0),
         mutable=True,
         domain=pyo.NonNegativeReals,

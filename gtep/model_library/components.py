@@ -189,9 +189,11 @@ def add_model_parameters(m, years):
 
     """
 
-    # Add investment years. This data is coming from the model data
-    # processing object.
-    m.years = years
+    # Add investment years as a Pyomo set. This data is coming from
+    # the model data processing object.
+    m.years = pyo.Set(initialize=years)
+    m.years.display()
+    # quit()
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(
@@ -740,11 +742,9 @@ def add_gen_branch_cost_parameters(m):
 
     """
 
-    m.years_set = pyo.Set(initialize=m.years)
-
     m.branchInvestmentCost = pyo.Param(
         m.lines,
-        m.years_set,
+        m.years,
         initialize=get_branch_cost_init(m, m.years, "capex", 0),
         mutable=True,
         units=u.USD / u.MW,
@@ -753,7 +753,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.branchFixedCost = pyo.Param(
         m.lines,
-        m.years_set,
+        m.years,
         initialize=get_branch_cost_init(m, m.years, "fixed_ops_cost", 0),
         mutable=True,
         units=u.USD / u.MW,
@@ -797,7 +797,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.generatorInvestmentCost = pyo.Param(
         m.generators,
-        m.years_set,
+        m.years,
         initialize=get_generator_cost_init(m, m.years, "capex", 0),
         mutable=True,
         units=u.USD / u.MW,
@@ -806,7 +806,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.generatorFixedCost = pyo.Param(
         m.generators,
-        m.years_set,
+        m.years,
         initialize=get_generator_cost_init(m, m.years, "fixed_ops_cost", 0),
         mutable=True,
         units=u.USD / (u.MW * u.hr),
@@ -815,7 +815,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.generatorVariableCost = pyo.Param(
         m.generators,
-        m.years_set,
+        m.years,
         initialize=get_generator_cost_init(m, m.years, "var_ops_cost", 0),
         mutable=True,
         units=u.USD / (u.MW * u.hr),
@@ -856,7 +856,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
-        m.years_set,
+        m.years,
         initialize=get_generator_cost_init(m, m.years, "fuel_cost", 0),
         mutable=True,
         units=u.USD / (u.MW * u.hr),
@@ -865,7 +865,7 @@ def add_gen_branch_cost_parameters(m):
 
     m.fuelCostReactive = pyo.Param(
         m.thermalGenerators,
-        m.years_set,
+        m.years,
         initialize=get_generator_cost_init(m, m.years, "fuel_cost", 0),
         mutable=True,
         units=u.USD / (u.MVAR * u.hr),

@@ -215,7 +215,7 @@ class TestInvestment(unittest.TestCase):
 
             for investment_stage in self.m.stages:
                 b_inv = self.m.investmentStage[investment_stage]
-                b_inv.year = self.m.years[investment_stage - 1]
+                b_inv.year = self.m.years[investment_stage]
 
                 # call the function
                 add_investment_constraints(self.b, self.investment_stage, b_inv.year)
@@ -291,7 +291,7 @@ class TestInvestment(unittest.TestCase):
 
             for investment_stage in self.m.stages:
                 b_inv = self.m.investmentStage[investment_stage]
-                b_inv.year = self.m.years[investment_stage - 1]
+                b_inv.year = self.m.years[investment_stage]
 
                 # call the function
                 add_investment_constraints(self.b, self.investment_stage, b_inv.year)
@@ -345,7 +345,7 @@ class TestInvestment(unittest.TestCase):
 
             for investment_stage in self.m.stages:
                 b_inv = self.m.investmentStage[investment_stage]
-                b_inv.year = self.m.years[investment_stage - 1]
+                b_inv.year = self.m.years[investment_stage]
 
                 # call the function
                 add_investment_constraints(self.b, self.investment_stage, b_inv.year)
@@ -407,7 +407,7 @@ class TestInvestment(unittest.TestCase):
 
             for investment_stage in self.m.stages:
                 b_inv = self.m.investmentStage[investment_stage]
-                b_inv.year = self.m.years[investment_stage - 1]
+                b_inv.year = self.m.years[investment_stage]
 
                 # call the function
                 add_investment_constraints(self.b, self.investment_stage, b_inv.year)
