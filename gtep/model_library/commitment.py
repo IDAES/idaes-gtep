@@ -61,8 +61,6 @@ def add_commitment_parameters(b, commitment_period, investmentStage):
     )
     def renewableCapacityFactor(b, renewableGen):
         nameplate = m.renewableCapacityNameplate[renewableGen]
-        if pyo.value(nameplate) <= 0:
-            return 0
         return b.renewableCapacityExpected[renewableGen] / nameplate
 
     if m.config["advanced_hydro"]:
