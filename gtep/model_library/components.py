@@ -598,7 +598,7 @@ def add_model_parameters(m, years):
 
 def get_branch_cost_init(m, years, cost_type, default_value=0):
     """Creates branch cost initialization dictionary.
-    
+
     :m:             Pyomo model object
     :years:         List of years to initialize costs for
     :cost_type:     String indicating which cost type to get
@@ -636,13 +636,14 @@ def get_branch_cost_init(m, years, cost_type, default_value=0):
                 for year in years:
                     init_dict[(branch, year)] = capital_cost
         else:
-            
+
             # Use default value if no other value is available.
             for branch in m.lines:
                 for year in years:
                     init_dict[(branch, year)] = default_value
 
     return init_dict
+
 
 def get_generator_cost_init(m, years, cost_type, default_value=0):
     """Create generator cost initialization dictionary.
@@ -708,9 +709,7 @@ def get_generator_cost_init(m, years, cost_type, default_value=0):
         for gen in set_gens:
             for year in years:
                 if cost_type == "fuel_cost":
-                    init_dict[(gen, year)] = (
-                        m.fuelCostperMMBTU[gen] * m.heatRate[gen]
-                    )
+                    init_dict[(gen, year)] = m.fuelCostperMMBTU[gen] * m.heatRate[gen]
                 else:
                     init_dict[(gen, year)] = default_value
 
