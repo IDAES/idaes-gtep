@@ -11,7 +11,7 @@
 # for full copyright and license information.
 #################################################################################
 
-"""Advanced hydropower modeling for the GTEP model (``advanced_hydro=True``).
+"""Advanced hydropower modeling for the GTEP model (``hydro_advanced=True``).
 
 Every hydro unit (``unit_type == "HYDRO"``) is modeled separately from
 the other renewables. With ``hydro_budget=False`` (the default) each unit

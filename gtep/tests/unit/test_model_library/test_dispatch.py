@@ -269,5 +269,5 @@ class TestDispatch(unittest.TestCase):
     def test_with_storage(self):
         self._coordinate_tests(config={"storage": True}, use_9_bus=True)
 
-    def test_with_advanced_hydro(self):
+    def test_with_hydro_advanced(self):
         self._coordinate_tests(config={"hydro_advanced": True})
