@@ -47,12 +47,7 @@ class ExpansionPlanningSolution:
 
     """
 
-    def __init__(self, data_path):
-        self.data_path = data_path
-        self.gen_df = pd.read_csv(f"{data_path}/gen.csv")
-        self.storage_csv_path = os.path.join(data_path, "storage.csv")
-        if os.path.exists(self.storage_csv_path):
-            self.storage_df = pd.read_csv(self.storage_csv_path)
+    def __init__(self):
         self._get_generation_types()
 
     def _get_generation_types(self):
@@ -484,6 +479,68 @@ class ExpansionPlanningSolution:
         ) = [list(getattr(m, n)) for n in names]
         storage = list(m.storage) if hasattr(m, "storage") else []
 
+        # Save mapping for generator uid with type and pmax using
+        # modeling data object `m.md`. This is used in create_plots()
+        # to create the generation mix and stackgraph plots.
+        gen_uid_to_type = {}
+        gen_uid_to_pmax = {}
+
+        for gen_id, gen_data in m.md.data["elements"]["generator"].items():
+            # Get unit type
+            gen_uid_to_type[gen_id] = str(gen_data.get("unit_type")).upper()
+
+            # Get capacity based on generator type
+            gen_type = gen_data.get("generator_type", "").lower()
+            if gen_type == "thermal":
+                # For thermal generators, use p_max
+                p_max_value = gen_data.get("p_max")
+                gen_uid_to_pmax[gen_id] = float(p_max_value)
+            elif gen_type == "renewable":
+                # For renewable generators, use nameplate
+                nameplate_value = gen_data.get("nameplate")
+                gen_uid_to_pmax[gen_id] = float(nameplate_value)
+            else:
+                gen_uid_to_pmax[gen_id] = 0.0
+                logger.warning(
+                    f"Generator {gen_id} (type: {gen_type}) has unexpected pmax"
+                    " values. Setting to 0 for now. "
+                )
+
+        # Save years and stages and create the stage-to-year mapping
+        # (stage 1 = year[0], stage 2 = year[1], etc.) and then save
+        # the time mapping data in a dictionary.
+        years = list(m.years) if hasattr(m, "years") else []
+        stages = list(m.stages) if hasattr(m, "stages") else []
+        stage_year_mapping = (
+            {f"stage_{i+1}": years[i] for i in range(min(len(stages), len(years)))}
+            if years and stages
+            else {}
+        )
+
+        time_mapping_data = {
+            "years": years,
+            "stages": stages,
+            "stage_year_mapping": stage_year_mapping,
+        }
+
+        # Extract years from time keys in system data and save it in a
+        # new dictionary.
+        system_data = m.md.data["system"]
+        time_keys = system_data.get("time_keys", [])
+        years = set()
+        for time_key in time_keys:
+            if "-" in time_key:  # Check if it's a date string
+                year = time_key.split("-")[0]  # Get first part before first dash
+                years.add(year)
+
+        # Convert set to sorted list for JSON serialization
+        years_list = sorted(years)
+        years_data = {
+            "years": years_list,
+            "source": "time_keys from system data",
+            "count": len(years_list),
+        }
+
         # Output file names
         output_files = {
             "renewable_investments": renewable_investments,
@@ -499,6 +556,8 @@ class ExpansionPlanningSolution:
             "discharging": discharging,
             "rep_days": rep_days,
             "rep_days_weights": rep_days_weights,
+            "gen_uid_to_type": gen_uid_to_type,
+            "gen_uid_to_pmax": gen_uid_to_pmax,
             "list_load_buses": load_buses,
             "list_buses": buses,
             "list_generators": generators,
@@ -506,6 +565,8 @@ class ExpansionPlanningSolution:
             "list_renewable_generators": renewable_generators,
             "list_lines": lines,
             "list_storage": storage,  # an empty list if storage is set to False
+            "time_mapping": time_mapping_data,
+            "years_day_ahead": years_data,
         }
 
         if not os.path.exists(folder_name):
@@ -522,9 +583,7 @@ class ExpansionPlanningSolution:
         for name in output_files:
             logger.info(f" - {folder_name}/{name}.json")
 
-    def create_plots(
-        self, case_json, results_path, data_path, plot_type="all", savefig=True
-    ):
+    def create_plots(self, case_json, results_path, plot_type="all", savefig=True):
         """This method creates generation-mix plots from saved
         solution JSON files. These plots visualize the total amount
         of generation capacity available based on investment decisions.
@@ -541,13 +600,20 @@ class ExpansionPlanningSolution:
                           "combined".
         :param results_path: Directory containing saved JSON result
                              files.
-        :param data_path: Directory containing input data files.
         :param plot_type: Plot type to generate. Options are
                           "treemap", "piechart", or "all".
                           Defaults to "all".
         :param savefig:   Whether to write the figure(s) to file
 
         """
+
+        # Read generators IDs mapped to Unit Type and
+        # PMax. Reading from results files.
+        gen_pmax_path = os.path.join(results_path, "gen_uid_to_pmax.json")
+        gen_type_path = os.path.join(results_path, "gen_uid_to_type.json")
+        self.gen_uid_to_type = self.read_json(gen_type_path)
+        self.gen_uid_to_pmax = self.read_json(gen_pmax_path)
+
         if plot_type not in ["treemap", "piechart", "all"]:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. "
@@ -562,7 +628,7 @@ class ExpansionPlanningSolution:
                     f"\nCreated the subdirectory '{plots_dir}' to save the plots."
                 )
 
-        def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
+        def get_gen_arrays(gen_case_json, results_path, gen_types):
             """This function builds generation-mix dictionaries used
             by plotting functions.
 
@@ -575,23 +641,12 @@ class ExpansionPlanningSolution:
                                   "renewables" or "dispatchables".
             :param results_path: Directory containing saved JSON result
                                  files.
-            :param data_path: Directory containing input data files.
             :param gen_types: Mapping of supported unit types to
                                      plot labels and colors.
             :return: Tuple containing gen_mix, gen_mix_arrays,
                      and time_periods.
 
             """
-
-            # Map generators IDs to Unit Type and PMax
-            gen_uid_to_type = {
-                row["GEN UID"]: row["Unit Type"].upper()
-                for _, row in self.gen_df.iterrows()
-            }
-            gen_uid_to_pmax = {
-                row["GEN UID"]: float(row["PMax MW"])
-                for _, row in self.gen_df.iterrows()
-            }
 
             # Read and process saved JSON files for renewables and
             # dispatchables units.
@@ -626,9 +681,9 @@ class ExpansionPlanningSolution:
             gens_keys_to_type = {}
             gens_keys_to_pmax = {}
             for this_key in list(keys_set):
-                if this_key in gen_uid_to_type:
-                    unit_type = gen_uid_to_type.get(this_key)
-                    pmax = gen_uid_to_pmax.get(this_key)
+                if this_key in self.gen_uid_to_type:
+                    unit_type = self.gen_uid_to_type.get(this_key)
+                    pmax = self.gen_uid_to_pmax.get(this_key)
                 else:
                     unit_type = None
                     pmax = 0
@@ -650,12 +705,13 @@ class ExpansionPlanningSolution:
             unique_types = set(gens_keys_to_type.values())
             gen_types_sorted = sorted(unique_types)  # Alphabetical order
 
-            # Get the modeled year(s) (in order of appearance) from
-            # the DAY_AHEAD_renewables.csv time-series.
-            time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-            time_periods = (
-                time_periods_df["Year"].drop_duplicates().astype(str).tolist()
-            )
+            # Get the modeled year(s) from json file with day ahead
+            # information. For this, read the years_day_ahead.json
+            # file and extract the year's list.
+            years_file_path = os.path.join(results_path, "years_day_ahead.json")
+            with open(years_file_path, "r") as f:
+                years_data = json.load(f)
+            time_periods = years_data.get("years", [])
 
             # Build generation mix by time period and generation type
             gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
@@ -820,16 +876,16 @@ class ExpansionPlanningSolution:
             # Create gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in separate plots.
             gen_mix, gen_mix_arrays, time_periods = get_gen_arrays(
-                case_json, results_path, data_path, self.gen_types
+                case_json, results_path, self.gen_types
             )
         else:
             # Combine gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in the same plot.
             gen_mix_ren, gen_mix_arrays_ren, time_periods_ren = get_gen_arrays(
-                "renewables", results_path, data_path, self.gen_types
+                "renewables", results_path, self.gen_types
             )
             gen_mix_disp, gen_mix_arrays_disp, time_periods_disp = get_gen_arrays(
-                "dispatchables", results_path, data_path, self.gen_types
+                "dispatchables", results_path, self.gen_types
             )
 
             # Check that time_periods are the same
@@ -923,17 +979,13 @@ class ExpansionPlanningSolution:
             key: "/" if str(key).endswith("-c") else "" for key in GEN_TYPES
         }
 
-        gen_uid_to_type = {
-            row["GEN UID"]: (
-                row["Unit Type"].upper() + "-c"
-                if row["GEN UID"].endswith("-c")
-                else row["Unit Type"].upper()
-            )
-            for _, row in self.gen_df.iterrows()
+        gen_uid_to_type_with_cand_names = {
+            gen_uid: (gen_type + "-c" if gen_uid.endswith("-c") else gen_type)
+            for gen_uid, gen_type in self.gen_uid_to_type.items()
         }
         missing_unit_types = [
             unit_type
-            for unit_type in gen_uid_to_type.values()
+            for unit_type in gen_uid_to_type_with_cand_names.values()
             if unit_type not in GEN_TYPES
         ]
         if missing_unit_types:
@@ -968,7 +1020,7 @@ class ExpansionPlanningSolution:
 
             gen_name = str(c[-1][0])
             try:
-                _type = gen_uid_to_type[gen_name]
+                _type = gen_uid_to_type_with_cand_names[gen_name]
             except KeyError:
                 raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
             dispatch_dict[_type] += val
