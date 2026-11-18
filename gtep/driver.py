@@ -131,7 +131,7 @@ mod_object.config["scale_texas_loads"] = False
 # Investment options
 mod_object.config["storage"] = False
 mod_object.config["transmission"] = True
-mod_object.config["advanced_hydro"] = False
+mod_object.config["hydro_advanced"] = False
 
 # ---------------------------------------------------------------------
 # Save model configuration

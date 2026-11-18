@@ -70,7 +70,7 @@ scale_texas_loads = false
 # Investment/model component options.
 storage = false
 transmission = true
-advanced_hydro = false
+hydro_advanced = false
 
 [transformations]
 # Apply GDP transformations before solving.

@@ -948,7 +948,7 @@ def add_dispatch_generators_variables(m, b):
         doc="Curtailment of renewable generators",
     )
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
         # TODO make consistent with how this is handled for other
         # renewable gens
         def hydro_generation_limits(b, hydroGen):

@@ -74,7 +74,7 @@ def add_dispatch_variables(b, paramPeriodLength):
         # operational costs variables.
         stor.add_dispatch_storage_variables_and_constraints(b)
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
 
         @b.Expression(m.hydroGenerators, doc="Hydro generators operational cost")
         def hydroGeneratorCost(b, hydroGen):
@@ -125,7 +125,7 @@ def add_dispatch_variables(b, paramPeriodLength):
     def renewableGenerationCostDispatch(b):
         return sum(b.renewableGeneratorCost[gen] for gen in m.renewableGenerators)
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
 
         @b.Expression()
         def hydroGenerationCostDispatch(b):
@@ -160,7 +160,7 @@ def add_dispatch_variables(b, paramPeriodLength):
 
     storage_term = b.storageCostDispatch if m.config["storage"] else 0 * u.USD
     hydro_term = (
-        b.hydroGenerationCostDispatch if m.config["advanced_hydro"] else 0 * u.USD
+        b.hydroGenerationCostDispatch if m.config["hydro_advanced"] else 0 * u.USD
     )
 
     @b.Expression(doc="Total cost for dispatch in $")
@@ -258,7 +258,7 @@ def add_dispatch_constraints(b):
             balance = 0 * u.MW
             balance += sum([b.thermalGeneration[g] for g in m.thermalGenerators])
             balance += sum([b.renewableGeneration[g] for g in m.renewableGenerators])
-            if m.config["advanced_hydro"]:
+            if m.config["hydro_advanced"]:
                 balance += sum([b.hydroGeneration[g] for g in m.hydroGenerators])
             if m.config["storage"]:
                 balance += sum([b.storageDischarged[bt] for bt in m.storage])
@@ -289,7 +289,7 @@ def add_dispatch_constraints(b):
             balance += sum(
                 b.renewableGeneration[g] for g in m.renewableGeneratorsByBus[bus]
             )
-            if m.config["advanced_hydro"]:
+            if m.config["hydro_advanced"]:
                 balance += sum(
                     b.hydroGeneration[g] for g in m.hydroGeneratorsByBus[bus]
                 )

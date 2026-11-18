@@ -24,7 +24,7 @@ def check_CP_flow_balance(td, c: pyo.Constraint):
     """Checks the copper-plate flow balance constraint."""
     expected = [td.b.thermalGeneration[g] for g in td.m.thermalGenerators]
     expected += [td.b.renewableGeneration[g] for g in td.m.renewableGenerators]
-    if td.m.config["advanced_hydro"]:
+    if td.m.config["hydro_advanced"]:
         expected += [td.b.hydroGeneration[g] for g in td.m.hydroGenerators]
     if td.m.config["storage"]:
         expected += [td.b.storageDischarged[bt] for bt in td.m.storage]
@@ -58,7 +58,7 @@ def check_flow_balance(td, c: pyo.Constraint):
             for g in td.m.thermalGenerators
             if td.m.md.data["elements"]["generator"][g]["bus"] == i
         ]
-        if td.m.config["advanced_hydro"]:
+        if td.m.config["hydro_advanced"]:
             expected[i] += [
                 td.b.hydroGeneration[g]
                 for g in td.m.hydroGenerators
@@ -269,5 +269,5 @@ class TestDispatch(unittest.TestCase):
     def test_with_storage(self):
         self._coordinate_tests(config={"storage": True}, use_9_bus=True)
 
-    def test_with_advanced_hydro(self):
-        self._coordinate_tests(config={"advanced_hydro": True})
+    def test_with_hydro_advanced(self):
+        self._coordinate_tests(config={"hydro_advanced": True})

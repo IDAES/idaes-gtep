@@ -228,7 +228,7 @@ def _add_investment_configs(CONFIG):
     )
 
     CONFIG.declare(
-        "advanced_hydro",
+        "hydro_advanced",
         ConfigValue(
             default=False,
             domain=Bool,
@@ -247,6 +247,18 @@ def _add_investment_configs(CONFIG):
             description=(
                 "Fix the initial storage level to the initial_state_of_charge "
                 "from the storage.csv."
+            ),
+        ),
+    )
+
+    CONFIG.declare(
+        "hydro_budgeted",
+        ConfigValue(
+            default=False,
+            domain=Bool,
+            description=(
+                "Include hydro budget modeling; only used when "
+                "`hydro_advanced` and `hydro_budgeted` are both True."
             ),
         ),
     )

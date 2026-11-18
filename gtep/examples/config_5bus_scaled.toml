@@ -38,7 +38,7 @@ scale_texas_loads = true
 transmission = true
 storage = false
 flow_model = "DC"
-advanced_hydro = false
+hydro_advanced = false
 
 [transformations]
 bound_pretransformation = true

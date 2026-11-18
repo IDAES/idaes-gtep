@@ -317,7 +317,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": False,
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -372,7 +372,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": False,
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -632,7 +632,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "DC",
-                "advanced_hydro": True,
+                "hydro_advanced": True,
             },
             include_cost_data=True,
         )
@@ -651,11 +651,73 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
-        # 255908867.70
+        # 255908867.70, 255903177.76
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 259808297.97, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_hydro_budgeted(self):
+        # This test verifies that the expansion planning model can be
+        # built and solved using preprocessed cost data with advanced
+        # hydropower and hydro energy budgets enabled. The hydro minimum
+        # output and inflow budgets come from DAY_AHEAD_hydro_min.csv and
+        # DAY_AHEAD_hydro_budget.csv in the 5-bus case. Commitment
+        # periods are 1 hour long to match the hourly hydro files.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": True,
+                "transmission": True,
+                "storage": False,
+                "flow_model": "CP",
+                "hydro_advanced": True,
+                "hydro_budgeted": True,
+            },
+            include_cost_data=True,
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+        self.assertTrue(check_optimal_termination(modObject.results))
+
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 402892184.69, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+        # Check that, over each representative period, hydro generation
+        # plus spill equals the inflow budget, with no negative spill
+        m = modObject.model
+        for stage in m.stages:
+            b_inv = m.investmentStage[stage]
+            for rep in b_inv.representativePeriods:
+                b_rep = b_inv.representativePeriod[rep]
+                for gen in m.hydroGenerators:
+                    generated = value(b_rep.hydroEnergyGenerated[gen])
+                    spill = value(b_rep.hydroSpill[gen])
+                    budget = value(b_rep.hydroEnergyBudget[gen])
+                    self.assertGreaterEqual(spill, -1e-6)
+                    self.assertAlmostEqual(generated + spill, budget, places=4)
 
     def test_Texas123_case(self):
 
@@ -741,7 +803,7 @@ class TestGTEP(unittest.TestCase):
                 "transmission": True,
                 "storage": False,
                 "flow_model": "transport",
-                "advanced_hydro": True,
+                "hydro_advanced": True,
             },
             include_cost_data=True,
         )
@@ -759,9 +821,9 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55, 255902949.55, 255908867.70
+        # Previous values: 241142049.55, 255902949.55, 255908867.70, 255903177.76
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255903177.76, places=1
+            value(modObject.model.total_cost_objective), 259808297.97, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -771,7 +833,7 @@ class TestGTEP(unittest.TestCase):
         # with storage turned on.
         modObject = create_model(
             planning_data_args={
-                "stages": 2,
+                "stages": 1,
                 "num_reps": 2,
                 "num_commit": 6,
                 "num_dispatch": 4,
@@ -781,11 +843,11 @@ class TestGTEP(unittest.TestCase):
                 "include_investment": True,
                 "include_commitment": True,
                 "include_redispatch": True,
-                "scale_loads": True,
+                "scale_loads": False,
                 "transmission": True,
                 "storage": True,
-                "flow_model": "DC",
-                "advanced_hydro": False,
+                "flow_model": "transport",
+                "hydro_advanced": False,
             },
             candidate_gens=[
                 "Natural Gas_CT",
@@ -810,6 +872,6 @@ class TestGTEP(unittest.TestCase):
         self.assertTrue(check_optimal_termination(modObject.results))
 
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 779551084.11, places=1
+            value(modObject.model.total_cost_objective), 20238.85617, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)

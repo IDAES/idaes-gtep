@@ -106,7 +106,17 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
         m.buses, initialize=lambda m, b: m.generatorsByBus[b] & m.thermalGenerators
     )
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
+        if any(
+            m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
+            and "-c" in gen
+            for gen in m.generators
+        ):
+            logger.warning(
+                "Hydropower generators have at least one candidate generator, but "
+                "`hydro_advanced` is `True` and does not support candidates. "
+                "Candidate hydro generators will be removed from the model"
+            )
 
         m.hydroGenerators = pyo.Set(
             within=m.generators,
@@ -114,6 +124,7 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
                 gen
                 for gen in m.generators
                 if m.md.data["elements"]["generator"][gen]["unit_type"] == "HYDRO"
+                and m.md.data["elements"]["generator"][gen]["in_service"]
             ),
             doc="Hydropower generators; subset of all generators",
         )
@@ -227,7 +238,7 @@ def add_model_parameters(m):
             doc="Minimum reactive output of each thermal generator",
         )
 
-    if m.config["advanced_hydro"]:
+    if m.config["hydro_advanced"]:
         m.hydroCapacity = pyo.Param(
             m.hydroGenerators,
             initialize={
