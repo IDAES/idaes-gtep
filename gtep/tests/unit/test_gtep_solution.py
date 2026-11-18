@@ -22,7 +22,7 @@ from pyomo.common.tempfiles import TempfileManager
 
 from gtep.gtep_solution import ExpansionPlanningSolution
 from gtep.gtep_model import ExpansionPlanningModel
-from gtep.tests.unit.utils_for_testing import create_model, input_data_path
+from gtep.tests.unit.utils_for_testing import create_model
 
 
 def get_solved_model():
@@ -62,7 +62,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
     def test_solution_init_and_generation_types(self):
         # Test that the solution class initializes with the given
         # input data.
-        sol_object = ExpansionPlanningSolution(input_data_path)
+        sol_object = ExpansionPlanningSolution()
 
         self.assertIsInstance(sol_object.gen_df, pd.DataFrame)
         self.assertFalse(sol_object.gen_df.empty)
@@ -91,7 +91,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
             include_cost_data=False,
         )
 
-        sol_object = ExpansionPlanningSolution(input_data_path)
+        sol_object = ExpansionPlanningSolution()
 
         with TempfileManager.new_context() as tempfile:
             temp_dir = Path(tempfile.mkdtemp())
@@ -116,7 +116,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
         # Test that the results of the solved model are written to
         # JSON files.
         mod_object = get_solved_model()
-        sol_object = ExpansionPlanningSolution(input_data_path)
+        sol_object = ExpansionPlanningSolution()
 
         with TempfileManager.new_context() as tempfile:
             temp_dir = Path(tempfile.mkdtemp())
@@ -173,7 +173,7 @@ class TestExpansionPlanningSolution(unittest.TestCase):
     def test_create_analysis_and_csv(self):
         # Test values saved using the create_analysis method.
         solved_mod = get_solved_model()
-        sol_object = ExpansionPlanningSolution(input_data_path)
+        sol_object = ExpansionPlanningSolution()
 
         # Create a temporary results directory and write all JSON
         # result files.
