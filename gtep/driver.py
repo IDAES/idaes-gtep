@@ -43,12 +43,6 @@ case_name = "5bus"
 data_path = base_dir / "data" / case_name
 
 # ---------------------------------------------------------------------
-# Create directory to save results using the GTEP solution class
-
-sol_object = ExpansionPlanningSolution(data_path)
-dir_name = sol_object.create_results_directory(f"results_{case_name}")
-
-# ---------------------------------------------------------------------
 # Create data modeling object
 
 data_object = ExpansionPlanningData(
@@ -134,11 +128,6 @@ mod_object.config["transmission"] = True
 mod_object.config["advanced_hydro"] = False
 
 # ---------------------------------------------------------------------
-# Save model configuration
-
-sol_object.save_model_config_to_csv(mod_object, dir_name)
-
-# ---------------------------------------------------------------------
 # Create model
 
 logger.info("Creating GTEP model.")
@@ -171,8 +160,13 @@ mod_object.results = opt.solve(mod_object.model, tee=tee)
 print(mod_object.results)
 
 # ---------------------------------------------------------------------
-# Save results in JSON files and create plots using the GTEP solution
-# class
+# Create directory to save and plot model configuration values and
+# results using the GTEP solution class.
+
+sol_object = ExpansionPlanningSolution()
+dir_name = sol_object.create_results_directory(f"results_{case_name}")
+
+sol_object.save_model_config_to_csv(mod_object, dir_name)
 
 sol_object.save_results_in_json_files(
     mod_object,
@@ -187,7 +181,7 @@ sol_object.save_results_in_json_files(
 # generates both pie chart and treemap plots.
 plot_type = "all"
 case_json = "combined"
-sol_object.create_plots(case_json, dir_name, data_path, plot_type)
+sol_object.create_plots(case_json, dir_name, plot_type)
 
 
 # Create stackgraph
@@ -196,5 +190,28 @@ rep_days = [
     for rep in mod_object.model.representativeDate
 ]
 sol_object.create_stackgraph(dir_name, rep_days)
+
+# Calculate analysis metrics using the saved result JSON files.
+outputs, metrics_df = sol_object.create_analysis(
+    results_path=dir_name,
+    save_csv=True,
+    csv_path=f"{dir_name}/analysis_metrics.csv",
+    hours_per_period=1.0,
+    cost_units="million",
+)
+
+# Print results for a single selected day and time
+day_info = sol_object.read_day_results(
+    rep_days=[
+        "2020-01-28 00:00",
+        "2020-04-23 00:00",
+        "2020-07-05 00:00",
+        "2020-10-14 00:00",
+    ],
+    target_day="2020-04-23 00:00",
+    target_hour=12,
+    save_csv=True,
+    results_path=dir_name,
+)
 
 logger.info("GTEP run complete.")

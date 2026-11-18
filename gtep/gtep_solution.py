@@ -47,11 +47,7 @@ class ExpansionPlanningSolution:
 
     """
 
-    def __init__(self, data_path):
-        self.gen_df = pd.read_csv(f"{data_path}/gen.csv")
-        self.storage_csv_path = os.path.join(data_path, "storage.csv")
-        if os.path.exists(self.storage_csv_path):
-            self.storage_df = pd.read_csv(self.storage_csv_path)
+    def __init__(self):
         self._get_generation_types()
 
     def _get_generation_types(self):
@@ -83,6 +79,11 @@ class ExpansionPlanningSolution:
         storage = mcolors.to_hex(tab20(15))
         biomass = mcolors.to_hex(tab20(16))
         other = mcolors.to_hex(tab20(0))
+        other_renew = mcolors.to_hex(tab20(17))
+        btm = mcolors.to_hex(tab20(18))
+        imports = mcolors.to_hex(tab20(4))
+        ic = mcolors.to_hex(tab20(6))
+        fuel_cell = mcolors.to_hex(tab20(12))
 
         self.gen_types = {
             "CC": GenerationType("Gas CC", gas_cc),
@@ -102,6 +103,11 @@ class ExpansionPlanningSolution:
             "BATTERY": GenerationType("Storage", storage),
             "PS": GenerationType("Pumped Storage", storage),
             "OTHER": GenerationType("Other", other),
+            "OTHER_RENEW": GenerationType("Other Renewables", other_renew),
+            "IMPORTS": GenerationType("Imports", imports),
+            "BEHIND_THE_METER": GenerationType("BTM", btm),
+            "IC": GenerationType("Internal Combustion", ic),
+            "FUEL_CELL": GenerationType("Fuel Cell", fuel_cell),
         }
         gen_types_candidate = {
             unit
@@ -419,6 +425,11 @@ class ExpansionPlanningSolution:
                 for e in exp:
                     costs[exp[e].name] = pyo.value(exp[e])
 
+        # Save objective value to costs dictionary
+        for obj in m.component_objects(pyo.Objective, descend_into=True):
+            # Scalar objective
+            costs[obj.name] = pyo.value(obj)
+
         # Loads are currently read through Prescient, which maps them
         # to buses and stores them as indexed parameters. If a future
         # workflow loads non-Prescient scalar load parameters, this
@@ -429,6 +440,106 @@ class ExpansionPlanningSolution:
                 if type(param) is IndexedParam:
                     for p in param:
                         loads[param[p].name] = pyo.value(param[p])
+
+        rep_days = []
+        for param in m.component_objects(pyo.Param, descend_into=True):
+            if "Date" in param.name:
+                for p in param:
+                    rep_days.append(pyo.value(param[p]))
+
+        weights = []
+        for param in m.component_objects(pyo.Param, descend_into=True):
+            if "weights" in param.name:
+                for p in param:
+                    weights.append(pyo.value(param[p]))
+
+        rep_days_weights = dict(zip(rep_days, weights))
+
+        # Count assets in model and save a json file with this
+        # information. Here we turn any Pyomo Set (including RangeSet)
+        # into a plain list. The assets saved are: buses, generators,
+        # branches (lines), loads, and storage (the latter only if the
+        # model was built with storage enabled. If not, storage will
+        # be an empty list).
+        names = [
+            "load_buses",
+            "buses",
+            "generators",
+            "thermalGenerators",
+            "renewableGenerators",
+            "lines",
+        ]
+        (
+            load_buses,
+            buses,
+            generators,
+            thermal_generators,
+            renewable_generators,
+            lines,
+        ) = [list(getattr(m, n)) for n in names]
+        storage = list(m.storage) if hasattr(m, "storage") else []
+
+        # Save mapping for generator uid with type and pmax using
+        # modeling data object `m.md`. This is used in create_plots()
+        # to create the generation mix and stackgraph plots.
+        gen_uid_to_type = {}
+        gen_uid_to_pmax = {}
+
+        for gen_id, gen_data in m.md.data["elements"]["generator"].items():
+            # Get unit type
+            gen_uid_to_type[gen_id] = str(gen_data.get("unit_type")).upper()
+
+            # Get capacity based on generator type
+            gen_type = gen_data.get("generator_type", "").lower()
+            if gen_type == "thermal":
+                # For thermal generators, use p_max
+                p_max_value = gen_data.get("p_max")
+                gen_uid_to_pmax[gen_id] = float(p_max_value)
+            elif gen_type == "renewable":
+                # For renewable generators, use nameplate
+                nameplate_value = gen_data.get("nameplate")
+                gen_uid_to_pmax[gen_id] = float(nameplate_value)
+            else:
+                gen_uid_to_pmax[gen_id] = 0.0
+                logger.warning(
+                    f"Generator {gen_id} (type: {gen_type}) has unexpected pmax"
+                    " values. Setting to 0 for now. "
+                )
+
+        # Save years and stages and create the stage-to-year mapping
+        # (stage 1 = year[0], stage 2 = year[1], etc.) and then save
+        # the time mapping data in a dictionary.
+        years = list(m.years) if hasattr(m, "years") else []
+        stages = list(m.stages) if hasattr(m, "stages") else []
+        stage_year_mapping = (
+            {f"stage_{i+1}": years[i] for i in range(min(len(stages), len(years)))}
+            if years and stages
+            else {}
+        )
+
+        time_mapping_data = {
+            "years": years,
+            "stages": stages,
+            "stage_year_mapping": stage_year_mapping,
+        }
+
+        # Extract years from time keys in system data and save it in a
+        # new dictionary.
+        system_data = m.md.data["system"]
+        time_keys = system_data.get("time_keys", [])
+        years = set()
+        for time_key in time_keys:
+            if "-" in time_key:  # Check if it's a date string
+                year = time_key.split("-")[0]  # Get first part before first dash
+                years.add(year)
+
+        # Convert set to sorted list for JSON serialization
+        years_list = sorted(years)
+        years_data = {
+            "years": years_list,
+            "source": "time_keys from system data",
+            "count": len(years_list),
+        }
 
         # Output file names
         output_files = {
@@ -443,6 +554,19 @@ class ExpansionPlanningSolution:
             "reserves": reserves,
             "charging": charging,
             "discharging": discharging,
+            "rep_days": rep_days,
+            "rep_days_weights": rep_days_weights,
+            "list_load_buses": load_buses,
+            "list_buses": buses,
+            "list_generators": generators,
+            "list_thermal_generators": thermal_generators,
+            "list_renewable_generators": renewable_generators,
+            "list_lines": lines,
+            "list_storage": storage,  # an empty list if storage is set to False
+            "gen_uid_to_type": gen_uid_to_type,
+            "gen_uid_to_pmax": gen_uid_to_pmax,
+            "time_mapping": time_mapping_data,
+            "years_day_ahead": years_data,
         }
 
         if not os.path.exists(folder_name):
@@ -459,9 +583,7 @@ class ExpansionPlanningSolution:
         for name in output_files:
             logger.info(f" - {folder_name}/{name}.json")
 
-    def create_plots(
-        self, case_json, results_path, data_path, plot_type="all", savefig=True
-    ):
+    def create_plots(self, case_json, results_path, plot_type="all", savefig=True):
         """This method creates generation-mix plots from saved
         solution JSON files. These plots visualize the total amount
         of generation capacity available based on investment decisions.
@@ -478,13 +600,20 @@ class ExpansionPlanningSolution:
                           "combined".
         :param results_path: Directory containing saved JSON result
                              files.
-        :param data_path: Directory containing input data files.
         :param plot_type: Plot type to generate. Options are
                           "treemap", "piechart", or "all".
                           Defaults to "all".
         :param savefig:   Whether to write the figure(s) to file
 
         """
+
+        # Read generators IDs mapped to Unit Type and
+        # PMax. Reading from results files.
+        gen_pmax_path = os.path.join(results_path, "gen_uid_to_pmax.json")
+        gen_type_path = os.path.join(results_path, "gen_uid_to_type.json")
+        self.gen_uid_to_type = self.read_json(gen_type_path)
+        self.gen_uid_to_pmax = self.read_json(gen_pmax_path)
+
         if plot_type not in ["treemap", "piechart", "all"]:
             raise ValueError(
                 f"Plot type '{plot_type}' is not supported. "
@@ -499,7 +628,7 @@ class ExpansionPlanningSolution:
                     f"\nCreated the subdirectory '{plots_dir}' to save the plots."
                 )
 
-        def get_gen_arrays(gen_case_json, results_path, data_path, gen_types):
+        def get_gen_arrays(gen_case_json, results_path, gen_types):
             """This function builds generation-mix dictionaries used
             by plotting functions.
 
@@ -512,23 +641,12 @@ class ExpansionPlanningSolution:
                                   "renewables" or "dispatchables".
             :param results_path: Directory containing saved JSON result
                                  files.
-            :param data_path: Directory containing input data files.
             :param gen_types: Mapping of supported unit types to
                                      plot labels and colors.
             :return: Tuple containing gen_mix, gen_mix_arrays,
                      and time_periods.
 
             """
-
-            # Map generators IDs to Unit Type and PMax
-            gen_uid_to_type = {
-                row["GEN UID"]: row["Unit Type"].upper()
-                for _, row in self.gen_df.iterrows()
-            }
-            gen_uid_to_pmax = {
-                row["GEN UID"]: float(row["PMax MW"])
-                for _, row in self.gen_df.iterrows()
-            }
 
             # Read and process saved JSON files for renewables and
             # dispatchables units.
@@ -563,9 +681,9 @@ class ExpansionPlanningSolution:
             gens_keys_to_type = {}
             gens_keys_to_pmax = {}
             for this_key in list(keys_set):
-                if this_key in gen_uid_to_type:
-                    unit_type = gen_uid_to_type.get(this_key)
-                    pmax = gen_uid_to_pmax.get(this_key)
+                if this_key in self.gen_uid_to_type:
+                    unit_type = self.gen_uid_to_type.get(this_key)
+                    pmax = self.gen_uid_to_pmax.get(this_key)
                 else:
                     unit_type = None
                     pmax = 0
@@ -587,12 +705,13 @@ class ExpansionPlanningSolution:
             unique_types = set(gens_keys_to_type.values())
             gen_types_sorted = sorted(unique_types)  # Alphabetical order
 
-            # Get the modeled year(s) (in order of appearance) from
-            # the DAY_AHEAD_renewables.csv time-series.
-            time_periods_df = pd.read_csv(f"{data_path}/DAY_AHEAD_renewables.csv")
-            time_periods = (
-                time_periods_df["Year"].drop_duplicates().astype(str).tolist()
-            )
+            # Get the modeled year(s) from json file with day ahead
+            # information. For this, read the years_day_ahead.json
+            # file and extract the year's list.
+            years_file_path = os.path.join(results_path, "years_day_ahead.json")
+            with open(years_file_path, "r") as f:
+                years_data = json.load(f)
+            time_periods = years_data.get("years", [])
 
             # Build generation mix by time period and generation type
             gen_mix = {tp: {gt: 0.0 for gt in gen_types_sorted} for tp in time_periods}
@@ -757,16 +876,16 @@ class ExpansionPlanningSolution:
             # Create gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in separate plots.
             gen_mix, gen_mix_arrays, time_periods = get_gen_arrays(
-                case_json, results_path, data_path, self.gen_types
+                case_json, results_path, self.gen_types
             )
         else:
             # Combine gen_mix dictionary and arrays needed to plot
             # renewables and dispatchables types in the same plot.
             gen_mix_ren, gen_mix_arrays_ren, time_periods_ren = get_gen_arrays(
-                "renewables", results_path, data_path, self.gen_types
+                "renewables", results_path, self.gen_types
             )
             gen_mix_disp, gen_mix_arrays_disp, time_periods_disp = get_gen_arrays(
-                "dispatchables", results_path, data_path, self.gen_types
+                "dispatchables", results_path, self.gen_types
             )
 
             # Check that time_periods are the same
@@ -860,17 +979,13 @@ class ExpansionPlanningSolution:
             key: "/" if str(key).endswith("-c") else "" for key in GEN_TYPES
         }
 
-        gen_uid_to_type = {
-            row["GEN UID"]: (
-                row["Unit Type"].upper() + "-c"
-                if row["GEN UID"].endswith("-c")
-                else row["Unit Type"].upper()
-            )
-            for _, row in self.gen_df.iterrows()
+        gen_uid_to_type_with_cand_names = {
+            gen_uid: (gen_type + "-c" if gen_uid.endswith("-c") else gen_type)
+            for gen_uid, gen_type in self.gen_uid_to_type.items()
         }
         missing_unit_types = [
             unit_type
-            for unit_type in gen_uid_to_type.values()
+            for unit_type in gen_uid_to_type_with_cand_names.values()
             if unit_type not in GEN_TYPES
         ]
         if missing_unit_types:
@@ -905,7 +1020,7 @@ class ExpansionPlanningSolution:
 
             gen_name = str(c[-1][0])
             try:
-                _type = gen_uid_to_type[gen_name]
+                _type = gen_uid_to_type_with_cand_names[gen_name]
             except KeyError:
                 raise RuntimeError(f"Cannot map generator name '{gen_name}' to type")
             dispatch_dict[_type] += val
@@ -1267,4 +1382,602 @@ class ExpansionPlanningSolution:
             plot_path = f"{results_path}/plots/stackgraph_generators.html"
             fig.write_html(f"{plot_path}")
             logger.info(f" -> Saved interactive stackgraph to {plot_path}")
+
+        self.time_periods = time_periods
+        self.loads_trace = loads_trace
+        self.load_shed_trace = load_shed_trace
+        self.generation = generation
+
         return fig
+
+    def create_analysis(
+        self,
+        results_path,
+        save_csv=True,
+        csv_path=None,
+        hours_per_period=1.0,
+        cost_units="million",
+    ):
+        """This method creates a set of analysis metrics from model
+        data and results.
+
+        This method reads system information from the GTEP Pyomo
+        model, model data object, and saved JSON result files to
+        calculate aggregate solution metrics.
+
+        :param results_path: Directory containing saved result JSON files.
+        :param gtep_model: Solved ExpansionPlanningModel object.
+        :param save_csv: If True, save calculated metrics to CSV.
+                         Defaults to True.
+        :param csv_path: Optional output path for the metrics CSV file.
+                         If not provided, defaults to
+                         ``results_path/analysis_metrics.csv``.
+        :param hours_per_period: Duration of each generation time period
+                                 in hours. Defaults to 1.0.
+        :param cost_units: Units used for reporting costs. Options
+                           are "million" or "billion". Defaults to
+                           "million".
+
+
+        :return: Tuple containing the metrics dictionary and metrics
+                 DataFrame.
+
+        """
+
+        metrics_rows = []
+
+        def record_metric(metric, value, units="", category=""):
+            """Record metric."""
+            row = {
+                "metric": metric,
+                "category": category,
+                "value": value,
+                "units": units,
+            }
+
+            metrics_rows.append(row)
+
+        def load_result_json(filename):
+            """This function loads a JSON result file."""
+
+            result_file = os.path.join(results_path, filename)
+
+            if not os.path.exists(result_file):
+                raise FileNotFoundError(f"Could not find {filename} at: {result_file}")
+
+            with open(result_file, "r") as f:
+                return json.load(f)
+
+        def count_buses():
+            """This function returns the number of buses from results
+            .json files.
+
+            """
+
+            total_buses = len(list(load_result_json("list_buses.json")))
+
+            record_metric(
+                metric="buses",
+                value=total_buses,
+                category="parameter_in_model",
+            )
+
+            return {"buses": int(total_buses)}
+
+        def count_load_buses():
+            """This function returns the number of load_buses from results
+            .json files.
+
+            """
+
+            total_load_buses = len(list(load_result_json("list_load_buses.json")))
+
+            record_metric(
+                metric="load_buses",
+                value=total_load_buses,
+                category="parameter_in_model",
+            )
+
+            return {"load_buses": int(total_load_buses)}
+
+        def count_assets(asset_set, metric_names):
+            """This function returns total, existing, and candidate
+            assets from results .json files.
+
+            :param metric_names: Dictionary with keys 'total',
+                                 'existing', 'candidate'
+
+            """
+
+            total_assets = len(list(asset_set))
+            existing_assets = sum(
+                1 for asset in asset_set if not str(asset).endswith("-c")
+            )
+            candidate_assets = sum(
+                1 for asset in asset_set if str(asset).endswith("-c")
+            )
+
+            record_metric(
+                metric=metric_names["total"],
+                value=total_assets,
+                category="parameter_in_model",
+            )
+            record_metric(
+                metric=metric_names["existing"],
+                value=existing_assets,
+                category="parameter_in_model",
+            )
+            record_metric(
+                metric=metric_names["candidate"],
+                value=candidate_assets,
+                category="parameter_in_model",
+            )
+
+            return {
+                metric_names["total"]: int(total_assets),
+                metric_names["existing"]: int(existing_assets),
+                metric_names["candidate"]: int(candidate_assets),
+            }
+
+        def calculate_total_load_gw():
+            """This function reads loads.json and returns total load in
+            GW.
+
+            """
+
+            loads_data = load_result_json("loads.json")
+
+            total_mw = sum(float(value) for value in loads_data.values())
+            total_gw = total_mw / 1000
+
+            record_metric(
+                metric="total_load",
+                value=total_gw,
+                units="GW",
+                category="system_power",
+            )
+
+            return total_gw
+
+        def calculate_total_load_shed_mw():
+            """This function reads load_shed.json and returns total
+            load shed in MW.
+
+            """
+
+            load_shed_data = load_result_json("load_shed.json")
+
+            total_load_shed = sum(float(value) for value in load_shed_data.values())
+
+            record_metric(
+                metric="total_load_shed",
+                value=total_load_shed,
+                units="MW",
+                category="calculated_in_model",
+            )
+
+            return total_load_shed
+
+        def calculate_total_generation_gw():
+            """This function reads generation.json and returns total
+            generation in GW.
+
+            """
+
+            generation_data = load_result_json("generation.json")
+
+            total_mw = sum(float(value) for value in generation_data.values())
+            total_gw = total_mw / 1000
+
+            record_metric(
+                metric="total_generation",
+                value=total_gw,
+                units="GW",
+                category="system_power",
+            )
+
+            return total_gw
+
+        def calculate_total_generation_gwh():
+            """This function reads generation.json and returns total
+            generation in GWh.
+
+            """
+
+            generation_data = load_result_json("generation.json")
+
+            total_mw = sum(float(value) for value in generation_data.values())
+            total_gwh = total_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_generation",
+                value=total_gwh,
+                units="GWh",
+                category="system_energy",
+            )
+
+            return total_gwh
+
+        def calculate_total_curtailment_gwh():
+            """This function reads curtailment.json and returns total
+            curtailment in GWh.
+
+            """
+
+            curtailment_data = load_result_json("curtailment.json")
+
+            total_mw = sum(float(value) for value in curtailment_data.values())
+            total_gwh = total_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_curtailment",
+                value=total_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+
+            return total_gwh
+
+        def calculate_storage_operation_gwh():
+            """This function reads charging.json and discharging.json
+            and returns total storage charging and discharging in GWh.
+
+            """
+
+            charging_data = load_result_json("charging.json")
+            discharging_data = load_result_json("discharging.json")
+
+            total_charging_mw = sum(float(value) for value in charging_data.values())
+            total_discharging_mw = sum(
+                float(value) for value in discharging_data.values()
+            )
+
+            total_charging_gwh = total_charging_mw * hours_per_period / 1000
+            total_discharging_gwh = total_discharging_mw * hours_per_period / 1000
+
+            record_metric(
+                metric="total_storage_charging",
+                value=total_charging_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+            record_metric(
+                metric="total_storage_discharging",
+                value=total_discharging_gwh,
+                units="GWh",
+                category="calculated_in_model",
+            )
+
+            return {
+                "total_storage_charging_gwh": total_charging_gwh,
+                "total_storage_discharging_gwh": total_discharging_gwh,
+            }
+
+        def count_installed_assets(asset_set, metric):
+            """This function returns the number of installed candidate
+            assets from saved investment results.
+
+            """
+
+            installed_assets = set()
+
+            investment_files = [
+                "renewable_investments.json",
+                "dispatchable_investments.json",
+            ]
+
+            for investment_file in investment_files:
+                investment_data = load_result_json(investment_file)
+
+                for asset in asset_set:
+                    asset = str(asset)
+
+                    if not asset.endswith("-c"):
+                        continue
+
+                    for key, value in investment_data.items():
+                        if "Installed" not in key:
+                            continue
+
+                        if not (
+                            key.endswith(f".{asset}")
+                            or key.endswith(f"[{asset}]")
+                            or key.rsplit(".", 1)[-1].strip("'\"") == asset
+                        ):
+                            continue
+
+                        if float(value) >= 0.001:
+                            installed_assets.add(asset)
+
+            count = len(installed_assets)
+
+            record_metric(
+                metric=metric,
+                value=count,
+                category="calculated_in_model",
+            )
+
+            return count
+
+        def calculate_total_costs(cost_units="million"):
+            """Return total objective and major objective components
+            from `costs.json`.
+
+            :param cost_units: Units used for reporting costs. Options
+                               are "million" or "billion". Defaults to
+                               "million".
+            :return: Dictionary with total and component costs.
+
+            """
+            cost_scales = {
+                "million": (1e6, "M$", "million"),
+                "billion": (1e9, "B$", "billion"),
+            }
+
+            if cost_units not in cost_scales:
+                raise ValueError(
+                    f"Unsupported cost_units '{cost_units}'. "
+                    "Choose 'million' or 'billion'."
+                )
+
+            scale_factor, units_label, output_suffix = cost_scales[cost_units]
+
+            # Load the JSON file using the supplied helper
+            costs = load_result_json("costs.json")
+
+            # Keys that appear in the JSON (same ones that appear in
+            # the model).
+            cost_terms = {
+                "total_objective_cost": "total_cost_objective",
+                "total_operating_cost": "operatingCostTotal",
+                "total_expansion_cost": "expansionCostTotal",
+                "total_penalty_cost": "penaltyCostTotal",
+            }
+
+            outputs: Dict[str, float] = {}
+
+            for metric, json_key in cost_terms.items():
+                raw_value = costs.get(json_key)
+                # value = pyo.value(expression, exception=False)
+
+                if raw_value is None:
+                    logger.warning(
+                        "Key `%s` not found in costs.json. Skipping this metric.",
+                        metric,
+                    )
+                    continue
+
+                value = float(raw_value)
+                scaled_value = float(value) / scale_factor
+
+                record_metric(
+                    metric=metric,
+                    value=scaled_value,
+                    units=units_label,
+                    category="cost",
+                )
+
+                outputs[f"{metric}_{output_suffix}"] = scaled_value
+
+            return outputs
+
+        # Calculate analysis metrics from .json files. These metrics
+        # summarize the number of assets, installed candidate assets,
+        # and costs.
+        lines = list(load_result_json("list_lines.json"))
+        generators = list(load_result_json("list_generators.json"))
+        thermal_generators = list(load_result_json("list_thermal_generators.json"))
+        renewable_generators = list(load_result_json("list_renewable_generators.json"))
+        storage = list(load_result_json("list_storage.json"))
+
+        outputs = {}
+        outputs.update(count_buses())
+        outputs.update(count_load_buses())
+        outputs.update(
+            count_assets(
+                lines,
+                metric_names={
+                    "total": "branches",
+                    "existing": "existing_branches",
+                    "candidate": "candidate_branches",
+                },
+            )
+        )
+        outputs.update(
+            count_assets(
+                generators,
+                metric_names={
+                    "total": "generators",
+                    "existing": "existing_generators",
+                    "candidate": "candidate_generators",
+                },
+            )
+        )
+        outputs.update(
+            count_assets(
+                thermal_generators,
+                metric_names={
+                    "total": "thermal_generators",
+                    "existing": "existing_thermal_generators",
+                    "candidate": "candidate_thermal_generators",
+                },
+            )
+        )
+        outputs.update(
+            count_assets(
+                renewable_generators,
+                metric_names={
+                    "total": "renewable_generators",
+                    "existing": "existing_renewable_generators",
+                    "candidate": "candidate_renewable_generators",
+                },
+            )
+        )
+        outputs.update(
+            count_assets(
+                storage,
+                metric_names={
+                    "total": "storage",
+                    "existing": "existing_storage",
+                    "candidate": "candidate_storage",
+                },
+            )
+        )
+
+        outputs["total_load_gw"] = calculate_total_load_gw()
+        outputs["total_load_shed_mw"] = calculate_total_load_shed_mw()
+        outputs["total_generation_gw"] = calculate_total_generation_gw()
+        outputs["total_generation_gwh"] = calculate_total_generation_gwh()
+        outputs["total_curtailment_gwh"] = calculate_total_curtailment_gwh()
+        outputs.update(calculate_storage_operation_gwh())
+        outputs["installed_generators"] = count_installed_assets(
+            generators, "installed_generators"
+        )
+        outputs["installed_branches"] = count_installed_assets(
+            lines, "installed_branches"
+        )
+        outputs.update(calculate_total_costs(cost_units=cost_units))
+
+        metrics_df = pd.DataFrame(metrics_rows)
+
+        if save_csv:
+            if csv_path is None:
+                csv_path = os.path.join(results_path, "analysis_metrics.csv")
+
+            output_path = os.path.abspath(csv_path)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            metrics_df.to_csv(output_path, index=False)
+
+            logger.info(f"\nSaved analysis metrics to: {output_path}")
+
+        return outputs, metrics_df
+
+    def read_day_results(
+        self,
+        rep_days: list,
+        target_day: str,
+        target_hour: int | None = None,
+        save_csv: bool = False,
+        results_path: Path = None,
+    ) -> dict:
+        """This method returns load and generation values for a single
+        representative day and, optionally, a single hour from the
+        computed stackgraph data.
+
+        rep_days : list[str]
+                   List of representative‑day strings exactly as
+                   produced in `create_stackgraph`
+                   (e.g. `["2030-02-01 00:00", …]`).
+        target_day : str
+                     Representative‑day string to inspect (it must
+                     appear in `rep_days`).
+        target_hour : int | None, optional
+                      Hour of the day (0‑23).  If `None` the method
+                      returns the full 24‑hour profile for the day;
+                      otherwise only the requested hour is returned.
+        return dict
+               {
+                "day": <target_day>,
+                "hour": <hour or "all">,
+                "load_mw": <float>,
+                "generation_mw": {
+                    "<gen_type>": <float>,
+                    …
+                    }
+                 }
+
+        """
+
+        # Locate the day index
+        try:
+            day_idx = rep_days.index(target_day)
+        except ValueError as exc:
+            raise ValueError(
+                f"Target day '{target_day}' not found in rep_days."
+            ) from exc
+
+        # Decide which indices we need to read
+        if target_hour == "all":
+            # Return the whole 24‑hour slice
+            hour_range = range(24)
+        else:
+            if not (0 <= target_hour <= 23):
+                raise ValueError("The target_hour must be between 0 and 23.")
+            hour_range = [target_hour]
+
+        # NOTE: Test only for the `time_periods` attribute. The three
+        # main data attributes used in this method (self.time_periods,
+        # self.loads_trace, self.load_shed_trace, and self.generation)
+        # are currently created together in `create stackgraph`. If,
+        # in the future, any of them are defined elsewhere, this check
+        # should be updated.
+        if not hasattr(self, "time_periods"):
+            self.create_stackgraph(results_path, rep_days, savefig=False)
+
+        # Create dictionary to collect results
+        day_results = {
+            "day": target_day,
+            "hour": target_hour,
+            "load_mw": 0.0,
+            "load_shed_mw": 0.0,
+            "generation_mw": {},  # filled per hour below
+        }
+
+        # List of all generation keys we care about from main
+        # gen_types.
+        gen_keys = list(self.gen_types.keys())
+
+        for hour in hour_range:
+            # Global index into the flat `loads_trace` and
+            # `time_periods` list
+            flat_idx = day_idx * 24 + hour
+            tp = self.time_periods[flat_idx]
+
+            # Load
+            load_mw = self.loads_trace[flat_idx]
+
+            # Load shed
+            load_shed_mw = self.load_shed_trace[flat_idx]
+
+            # Sum across hours if we are returning the whole day
+            day_results["load_mw"] += load_mw
+            day_results["load_shed_mw"] += load_shed_mw
+
+            # Generation
+            gen_at_tp = self.generation[tp[0]][tp[1]][tp[2]][tp[3]]
+
+            for gk in gen_keys:
+                value = gen_at_tp.get(gk, 0.0)  # MW
+
+                # Accumulate if we are returning the whole day
+                day_results["generation_mw"].setdefault(gk, 0.0)
+                day_results["generation_mw"][gk] += value
+
+        if save_csv:
+            results_path = os.path.join(
+                results_path, f"day_results_{target_day}_{target_hour}.csv"
+            )
+
+            csv_path = os.path.abspath(results_path)
+            os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+            # Write the CSV
+            with open(csv_path, mode="w", newline="") as f:
+                writer = csv.writer(f)
+
+                writer.writerow(["day", day_results["day"]])
+                writer.writerow(["hour", day_results["hour"]])
+                writer.writerow(["total_load_mw", f"{day_results['load_mw']:.6f}"])
+                writer.writerow(
+                    ["total_load_shed_mw", f"{day_results['load_shed_mw']:.6f}"]
+                )
+                writer.writerow([])  # blank line
+                writer.writerow(["generation_type", "value_mw"])
+
+                for gen_type, val in sorted(day_results["generation_mw"].items()):
+                    writer.writerow([gen_type, f"{val:.6f}"])
+
+            logger.info(f"Day results saved to: {csv_path}")
+
+        return day_results

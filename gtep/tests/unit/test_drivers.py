@@ -13,6 +13,7 @@
 
 import subprocess
 import sys
+import pandas as pd
 from pathlib import Path
 
 import pytest
@@ -142,3 +143,56 @@ def test_config_driver_runs(gtep_dir):
         assert expected_results_dir.exists()
         assert (expected_results_dir / "model_config.csv").exists()
         assert (expected_results_dir / "generation.json").exists()
+
+
+def test_analysis_driver_runs(gtep_dir):
+    """Test that the analysis driver runs successfully on the 5-bus
+    case.
+
+    """
+
+    analysis_driver = gtep_dir / "driver_analysis.py"
+
+    with TempfileManager.new_context() as tempfile:
+
+        # Create temporary working directory.
+        temp_dir = Path(tempfile.mkdtemp())
+
+        # Copy the required input data.
+        shutil.copytree(gtep_dir / "data" / "5bus", temp_dir / "data" / "5bus")
+        shutil.copytree(gtep_dir / "data" / "costs", temp_dir / "data" / "costs")
+
+        # Run the main driver to generate results.
+        explicit_driver = gtep_dir / "driver.py"
+        if explicit_driver.exists():
+            run_driver_command(
+                [sys.executable, str(explicit_driver)],
+                cwd=temp_dir,
+            )
+
+        # Verify that the results directory and results files were
+        # created.
+        expected_results_dir = temp_dir / "results_5bus"
+        assert (
+            expected_results_dir.exists()
+        ), "Main driver did not create results directory"
+
+        # Run the analysis driver.
+        run_driver_command(
+            [
+                sys.executable,
+                str(analysis_driver),
+                "--results-dir",
+                str(expected_results_dir),
+            ],
+            cwd=temp_dir,
+        )
+
+        # Check that the analysis driver created expected outputs.
+        assert (expected_results_dir / "analysis_metrics.csv").exists()
+        assert (expected_results_dir / "plots" / "piechart_combined_2020.html").exists()
+        assert (expected_results_dir / "plots" / "stackgraph_generators.html").exists()
+
+        # Verify the metrics CSV has content
+        metrics_df = pd.read_csv(expected_results_dir / "analysis_metrics.csv")
+        assert not metrics_df.empty, "Analysis metrics CSV is empty"

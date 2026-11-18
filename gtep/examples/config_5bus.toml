@@ -104,3 +104,6 @@ plot_type = "all"
 # Create dispatch stackgraph after solving.
 stackgraph = true
 
+# Calculate analysis metrics
+analysis = true
+

@@ -79,7 +79,7 @@ def main(config_path):
 
     # -------------------------------------------------------------------
     # Create directory to save results using the GTEP solution class.
-    sol_object = ExpansionPlanningSolution(data_path)
+    sol_object = ExpansionPlanningSolution()
 
     results_config = config.get("results", {})
     case_name = Path(data_path).name
@@ -219,7 +219,6 @@ def main(config_path):
         sol_object.create_plots(
             case_json,
             dir_name,
-            data_path,
             plot_type,
         )
 
@@ -230,6 +229,15 @@ def main(config_path):
         ]
 
         sol_object.create_stackgraph(dir_name, rep_days)
+
+    if plot_config.get("analysis", False):
+        sol_object.create_analysis(
+            results_path=dir_name,
+            save_csv=True,
+            csv_path=f"{dir_name}/analysis_metrics.csv",
+            hours_per_period=1.0,
+            cost_units="million",
+        )
 
     logger.info("GTEP run complete.")
 
