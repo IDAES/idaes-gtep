@@ -193,7 +193,10 @@ class ExpansionPlanningModel:
         m.mc = self.cost_data
 
         comps.add_model_sets(
-            m, self.stages, self.years, rep_per=[i for i in range(1, self.num_reps + 1)],
+            m,
+            self.stages,
+            self.years,
+            rep_per=[i for i in range(1, self.num_reps + 1)],
         )
 
         comps.add_model_parameters(m)
