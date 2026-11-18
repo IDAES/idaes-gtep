@@ -253,7 +253,7 @@ def add_model_parameters(m, years):
 
     m.branchLifetime = pyo.Param(
         m.lines,
-        initialize={line: 3 for line in m.lines for line in m.lines},
+        initialize=3,
         mutable=True,
         units=u.year,
         doc="Lifetime of each branch",
@@ -596,6 +596,127 @@ def add_model_parameters(m, years):
     """
 
 
+def get_branch_cost_init(m, years, cost_type, default_value=0):
+    """Creates branch cost initialization dictionary.
+    
+    :m:             Pyomo model object
+    :years:         List of years to initialize costs for
+    :cost_type:     String indicating which cost type to get
+                    ('capex', 'fixed_ops_cost', or 'var_ops_cost')
+    :default_value: Default value to use when cost data isn't
+                    available
+
+    returns: Dictionary with (branch, year) keys and cost values
+
+    """
+
+    init_dict = {}
+
+    if m.mc and hasattr(m.mc, "branch_cost_from_csv_data"):
+
+        # Use cost data from 'branch.csv' file with the style
+        # {cost_type}_{year}.w
+        for index, row in m.mc.branch_cost_from_csv_data.iterrows():
+            branch = row["UID"]
+            if branch in m.lines:
+                for year in years:
+                    # Build the column name based on cost_type and
+                    # year.
+                    column_name = f"{cost_type}_{year}"
+                    init_dict[(branch, year)] = float(row[column_name])
+    else:
+
+        # Use capital/investment cost data from 'branch.csv' file
+        # from column 'capital_cost'.
+        if cost_type == "capex":
+            for branch in m.lines:
+                capital_cost = m.md.data["elements"]["branch"][branch].get(
+                    "capital_cost", default_value
+                )
+                for year in years:
+                    init_dict[(branch, year)] = capital_cost
+        else:
+            
+            # Use default value if no other value is available.
+            for branch in m.lines:
+                for year in years:
+                    init_dict[(branch, year)] = default_value
+
+    return init_dict
+
+def get_generator_cost_init(m, years, cost_type, default_value=0):
+    """Create generator cost initialization dictionary.
+
+    :m:             Pyomo model object
+    :years:         List of years to initialize costs for
+    :cost_type:     String indicating which cost type to get
+                    ('capex', 'fixed_ops_cost', or 'var_ops_cost')
+    :default_value: Default value to use when cost data isn't available
+
+    returns:        Dictionary with (generator, year) keys and cost
+                    values
+
+    """
+
+    init_dict = {}
+
+    if cost_type == "fuel_cost":
+        set_gens = m.thermalGenerators
+    else:
+        set_gens = m.generators
+
+    if m.mc and hasattr(m.mc, "gen_cost_from_csv_data"):
+        # Use cost data from 'gen.csv' with the style
+        # '{cost_type}_{year}`.
+        for index, row in m.mc.gen_cost_from_csv_data.iterrows():
+            gen = row["GEN UID"]
+            if gen in set_gens:
+                for year in years:
+                    column_name = f"{cost_type}_{year}"
+                    init_dict[(gen, year)] = float(row[column_name])
+
+    elif m.mc and hasattr(m.mc, "gen_cost_data"):
+        # Use standardized cost data based on the generator type.
+        cost_df = m.mc.gen_cost_data.copy()
+        cost_df["Unit Type"] = cost_df["Unit Type"].astype(str).str.upper()
+
+        def get_cost_row_by_unit_type(gen):
+            """Gets cost row based on generator type."""
+
+            gen_data = m.md.data["elements"]["generator"][gen]
+            unit_type = str(gen_data.get("unit_type", "")).strip().upper()
+            generator_type = str(gen_data.get("generator_type", "")).strip().lower()
+
+            if generator_type == "renewable":
+                cost_unit_type = "PV"
+            elif generator_type == "thermal":
+                cost_unit_type = "CT"
+            else:
+                cost_unit_type = "CT"
+
+            cost_rows = cost_df[cost_df["Unit Type"] == cost_unit_type]
+            return cost_rows.iloc[0]
+
+        for gen in set_gens:
+            cost_row = get_cost_row_by_unit_type(gen)
+            for year in years:
+                column_name = f"{cost_type}_{year}"
+                init_dict[(gen, year)] = float(cost_row[column_name])
+    else:
+
+        # Use default value when no cost data is available.
+        for gen in set_gens:
+            for year in years:
+                if cost_type == "fuel_cost":
+                    init_dict[(gen, year)] = (
+                        m.fuelCostperMMBTU[gen] * m.heatRate[gen]
+                    )
+                else:
+                    init_dict[(gen, year)] = default_value
+
+    return init_dict
+
+
 def add_gen_branch_cost_parameters(m):
     """Adds cost parameters for transmission lines, generators, and
     thermal generators fuel costs for stage years. The costs
@@ -621,54 +742,6 @@ def add_gen_branch_cost_parameters(m):
     """
 
     m.years_set = pyo.Set(initialize=m.years)
-
-    def get_branch_cost_init(m, years, cost_type, default_value=0):
-        """Creates branch cost initialization dictionary.
-
-        :m:             Pyomo model object
-        :years:         List of years to initialize costs for
-        :cost_type:     String indicating which cost type to get
-                        ('capex', 'fixed_ops_cost', or 'var_ops_cost')
-        :default_value: Default value to use when cost data isn't
-                        available
-
-        returns: Dictionary with (branch, year) keys and cost values
-
-        """
-
-        init_dict = {}
-
-        if m.mc is not None and hasattr(m.mc, "branch_cost_from_csv_data"):
-
-            # Use cost data from 'branch.csv' file with the style
-            # {cost_type}_{year}.w
-            for index, row in m.mc.branch_cost_from_csv_data.iterrows():
-                branch = row["UID"]
-                if branch in m.lines:
-                    for year in years:
-                        # Build the column name based on cost_type and
-                        # year.
-                        column_name = f"{cost_type}_{year}"
-                        init_dict[(branch, year)] = float(row[column_name])
-        else:
-
-            # Use capital/investment cost data from 'branch.csv' file
-            # from column 'capital_cost'.
-            if cost_type == "capex":
-                for branch in m.lines:
-                    capital_cost = m.md.data["elements"]["branch"][branch].get(
-                        "capital_cost", default_value
-                    )
-                    for year in years:
-                        init_dict[(branch, year)] = capital_cost
-            else:
-
-                # Use default value if no other value is available.
-                for branch in m.lines:
-                    for year in years:
-                        init_dict[(branch, year)] = default_value
-
-        return init_dict
 
     m.branchInvestmentCost = pyo.Param(
         m.lines,
@@ -722,77 +795,6 @@ def add_gen_branch_cost_parameters(m):
         units=u.dimensionless,
         doc="Cost of life extension for each branch expressed as a fraction of initial investment cost",
     )
-
-    def get_generator_cost_init(m, years, cost_type, default_value=0):
-        """Create generator cost initialization dictionary.
-
-        :m:             Pyomo model object
-        :years:         List of years to initialize costs for
-        :cost_type:     String indicating which cost type to get
-                        ('capex', 'fixed_ops_cost', or 'var_ops_cost')
-        :default_value: Default value to use when cost data isn't available
-
-        returns:        Dictionary with (generator, year) keys and cost
-        values
-
-        """
-        init_dict = {}
-
-        if cost_type == "fuel_cost":
-            set_gens = m.thermalGenerators
-        else:
-            set_gens = m.generators
-
-        if m.mc is not None and hasattr(m.mc, "gen_cost_from_csv_data"):
-            # Use cost data from 'gen.csv' with the style
-            # '{cost_type}_{year}`.
-            for index, row in m.mc.gen_cost_from_csv_data.iterrows():
-                gen = row["GEN UID"]
-                if gen in set_gens:
-                    for year in years:
-                        column_name = f"{cost_type}_{year}"
-                        init_dict[(gen, year)] = float(row[column_name])
-
-        elif m.mc is not None and hasattr(m.mc, "gen_cost_data"):
-            # Use standardized cost data based on the generator type.
-            cost_df = m.mc.gen_cost_data.copy()
-            cost_df["Unit Type"] = cost_df["Unit Type"].astype(str).str.upper()
-
-            def get_cost_row_by_unit_type(gen):
-                """Gets cost row based on generator type."""
-
-                gen_data = m.md.data["elements"]["generator"][gen]
-                unit_type = str(gen_data.get("unit_type", "")).strip().upper()
-                generator_type = str(gen_data.get("generator_type", "")).strip().lower()
-
-                if generator_type == "renewable":
-                    cost_unit_type = "PV"
-                elif generator_type == "thermal":
-                    cost_unit_type = "CT"
-                else:
-                    cost_unit_type = "CT"
-
-                cost_rows = cost_df[cost_df["Unit Type"] == cost_unit_type]
-                return cost_rows.iloc[0]
-
-            for gen in set_gens:
-                cost_row = get_cost_row_by_unit_type(gen)
-                for year in years:
-                    column_name = f"{cost_type}_{year}"
-                    init_dict[(gen, year)] = float(cost_row[column_name])
-        else:
-
-            # Use default value when no cost data is available.
-            for gen in set_gens:
-                for year in years:
-                    if cost_type == "fuel_cost":
-                        init_dict[(gen, year)] = (
-                            m.fuelCostperMMBTU[gen] * m.heatRate[gen]
-                        )
-                    else:
-                        init_dict[(gen, year)] = default_value
-
-        return init_dict
 
     m.generatorInvestmentCost = pyo.Param(
         m.generators,
