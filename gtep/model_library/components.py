@@ -192,8 +192,6 @@ def add_model_parameters(m, years):
     # Add investment years as a Pyomo set. This data is coming from
     # the model data processing object.
     m.years = pyo.Set(initialize=years)
-    m.years.display()
-    # quit()
 
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(
@@ -696,7 +694,7 @@ def get_generator_cost_init(m, years, cost_type, default_value=0):
 
             cost_rows = cost_df[cost_df["Unit Type"] == cost_unit_type]
             return cost_rows.iloc[0]
-        
+
         for gen in set_gens:
             cost_row = get_cost_row_by_unit_type(gen)
             for year in years:
@@ -819,16 +817,13 @@ def add_gen_branch_cost_parameters(m):
         doc="Variable costs for all generators by year",
     )
 
-    # Fuel costs are calculated from heat rate and fuel price, but can
-    # be overridden by cost data.
+    # Fuel costs are calculated from heat rate and fuel cost in
+    # $/MMBTU. [TODO: Think about changing this so we can depend on
+    # only one fuel cost parameter. ]
     m.fuelCostperMMBTU = pyo.Param(
         m.thermalGenerators,
         initialize={
-            gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"]
-                if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-            )
+            gen: m.md.data["elements"]["generator"][gen]["fuel_cost"]
             for gen in m.thermalGenerators
         },
         mutable=True,
@@ -839,11 +834,7 @@ def add_gen_branch_cost_parameters(m):
     m.heatRate = pyo.Param(
         m.thermalGenerators,
         initialize={
-            gen: (
-                m.md.data["elements"]["generator"][gen]["heat_rate"]
-                if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["heat_rate"]
-            )
+            gen: m.md.data["elements"]["generator"][gen]["heat_rate"]
             for gen in m.thermalGenerators
         },
         mutable=True,
