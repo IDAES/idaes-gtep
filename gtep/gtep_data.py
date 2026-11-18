@@ -357,8 +357,14 @@ class ExpansionPlanningData:
 
                 if nameplate_str not in (None, "", "NA"):
                     nameplate = float(nameplate_str)
+                    if nameplate == 0: 
+                        raise ValueError(
+                            f"Generator {gen_uid} has a PMax MW of 0. This value must be strictly positive"
+                        )
                 else:
-                    nameplate = 0
+                    raise ValueError(
+                        f"Generator {gen_uid} does not have a valid value entered for `PMax MW`"
+                    )
 
                 if gen_uid and heat_rate is not None:
                     heat_rate_dict[gen_uid] = heat_rate
@@ -377,7 +383,9 @@ class ExpansionPlanningData:
                     nameplate_dict[gen]
                 )
             else:
-                self.md.data["elements"]["generator"][gen]["nameplate"] = 0
+                raise ValueError(
+                    f"Generator {gen} was not loaded into GTEP properly. Doublecheck `gen.csv`"
+                )
 
         thermal_heat_rates = [
             self.md.data["elements"]["generator"][gen].get("heat_rate", 0)
