@@ -692,14 +692,12 @@ def get_generator_cost_init(m, years, cost_type, default_value=0):
 
             if generator_type == "renewable":
                 cost_unit_type = "PV"
-            elif generator_type == "thermal":
-                cost_unit_type = "CT"
             else:
                 cost_unit_type = "CT"
 
             cost_rows = cost_df[cost_df["Unit Type"] == cost_unit_type]
             return cost_rows.iloc[0]
-
+        
         for gen in set_gens:
             cost_row = get_cost_row_by_unit_type(gen)
             for year in years:
