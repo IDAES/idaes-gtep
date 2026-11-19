@@ -655,55 +655,6 @@ def add_storage_cost_parameters(m):
 
     """
 
-    def get_storage_cost_init(m, years, cost_type, default_value=0):
-        """Create storage cost initialization dictionary.
-
-        :m:             Pyomo model object
-        :years:         List of years to initialize costs for
-        :cost_type:     String indicating which cost type to get
-                        ('capex', 'fixed_ops_cost', or 'var_ops_cost')
-        :default_value: Default value to use when cost data isn't
-                        available
-
-        returns: Dictionary with (storage, year) keys and cost values
-
-        """
-
-        init_dict = {}
-
-        if m.mc is not None and hasattr(m.mc, "storage_cost_from_csv_data"):
-
-            # Use cost data from storage.csv file with format
-            # `{cost_type}_{year}`.
-            for index, row in m.mc.storage_cost_from_csv_data.iterrows():
-                storage = row["UID"]
-                if storage in m.storage:
-                    for year in years:
-                        # Build the column name based on cost_type and
-                        # year.
-                        column_name = f"{cost_type}_{year}"
-                        init_dict[(storage, year)] = float(row[column_name])
-        else:
-
-            # Use cost data from storage.csv file in column
-            # `investment_cost`.
-            if cost_type == "capex":
-                for storage in m.storage:
-                    capital_cost = m.md.data["elements"]["storage"][storage].get(
-                        "investment_cost", default_value
-                    )
-                    for year in years:
-                        init_dict[(storage, year)] = capital_cost
-            else:
-
-                # Use the default value if no other value is
-                # available.
-                for storage in m.storage:
-                    for year in years:
-                        init_dict[(storage, year)] = default_value
-
-        return init_dict
-
     m.storageLifetime = pyo.Param(
         m.storage,
         initialize={stor: 3 for stor in m.storage},
@@ -738,7 +689,7 @@ def add_storage_cost_parameters(m):
     m.storageInvestmentCost = pyo.Param(
         m.storage,
         m.years,
-        initialize=get_storage_cost_init(m, m.years, "capex", 0),
+        initialize=m.mc.cost_dicts["storage"]["capex"],
         mutable=True,
         domain=pyo.NonNegativeReals,
         units=u.USD / (u.MW * u.hr),
@@ -748,7 +699,7 @@ def add_storage_cost_parameters(m):
     m.storageFixedCost = pyo.Param(
         m.storage,
         m.years,
-        initialize=get_storage_cost_init(m, m.years, "fixed_ops_cost", 0),
+        initialize=m.mc.cost_dicts["storage"]["fixed_ops_cost"],
         mutable=True,
         domain=pyo.NonNegativeReals,
         units=u.USD / (u.MW * u.hr),
@@ -758,7 +709,7 @@ def add_storage_cost_parameters(m):
     m.storageVariableCost = pyo.Param(
         m.storage,
         m.years,
-        initialize=get_storage_cost_init(m, m.years, "var_ops_cost", 0),
+        initialize=m.mc.cost_dicts["storage"]["var_ops_cost"],
         mutable=True,
         domain=pyo.NonNegativeReals,
         units=u.USD / (u.MW * u.hr),

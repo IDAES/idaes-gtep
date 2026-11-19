@@ -51,7 +51,9 @@ dir_name = sol_object.create_results_directory(f"results_{case_name}")
 # ---------------------------------------------------------------------
 # Create data modeling object
 
+years = [2025, 2030]
 data_object = ExpansionPlanningData(
+    years=years,
     stages=2,
     num_reps=4,
     num_commit=6,
@@ -81,31 +83,13 @@ data_object.load_prescient(
 include_cost_data = True
 
 if include_cost_data:
-    bus_data_path = base_dir / "data" / "costs" / "Bus_data_gen_weights_mappings.csv"
-    cost_data_path = (
-        base_dir
-        / "data"
-        / "costs"
-        / "2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-    )
-    ng_cost_path = (
-        base_dir
-        / "data"
-        / "costs"
-        / "Total_Energy_Supply_Disposition_and_Price_Summary.csv"
-    )
-    candidate_gens = [
-        "Natural Gas_CT",
-        "Natural Gas_FE",
-        "Solar - Utility PV",
-    ]
-
     data_processing_object = DataProcessing()
-    data_processing_object.load_gen_data(
-        bus_data_path,
-        cost_data_path,
-        ng_cost_path,
-        candidate_gens,
+    data_processing_object.load_cost_data(
+        years=data_object.years,
+        use_gen_cost=True,
+        use_branch_cost=True,
+        use_storage_cost=True,
+        data_path=data_path,
     )
 else:
     data_processing_object = None
