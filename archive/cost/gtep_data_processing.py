@@ -1,0 +1,656 @@
+#################################################################################
+# The Institute for the Design of Advanced Energy Systems Integrated Platform
+# Framework (IDAES IP) was produced under the DOE Institute for the
+# Design of Advanced Energy Systems (IDAES).
+#
+# Copyright (c) 2018-2026 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory,
+# National Technology & Engineering Solutions of Sandia, LLC, Carnegie Mellon
+# University, West Virginia University Research Corporation, et al.
+# All rights reserved.  Please see the files COPYRIGHT.md and LICENSE.md
+# for full copyright and license information.
+#################################################################################
+
+# Generation and Transmission Expansion Planning
+# IDAES project
+
+# author: Soraya Rawlings and Kyle Skolfield
+import logging
+import pandas as pd
+
+from pathlib import Path
+from os.path import join, dirname, abspath
+from typing import Any
+from warnings import warn
+
+import pyomo.environ as pyo
+from pyomo.environ import units as u
+
+from gtep.config_data import ConfigData
+
+datadir = join(dirname(abspath(str(__file__))), "data")
+logger = logging.getLogger("gtep.gtep_data_processing")
+
+"""
+References
+
+[1] https://atb.nrel.gov/electricity/2024/data 
+[2] https://www.eia.gov/outlooks/aeo/data/browser/#/?id=1-AEO2025&region=0-0&cases=ref2025~hm2025~lm2025~highprice~lowprice~highogs~lowogs~highZTC~lowZTC~nocaa111~alttrnp~aeo2023ref&start=2023&end=2050&f=A&linechart=~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ref2025-d032025a.44-1-AEO2025&map=&ctype=linechart&sid=&sourcekey=0
+
+"""
+
+
+class DataProcessing:
+    """Data processing class for the IDAES GTEP model to read and save
+    cost data. Original data from ref[1].
+    """
+
+    prescient_cols = [
+        "GEN UID",
+        "Bus ID",
+        "Unit Type",
+        "Fuel",
+        "MW Inj",
+        "MVAR Inj",
+        "V Setpoint p.u.",
+        "PMax MW",
+        "PMin MW",
+        "QMax MVAR",
+        "QMin MVAR",
+        "Min Down Time Hr",
+        "Min Up Time Hr",
+        "Ramp Rate MW/Min",
+        "Start Time Cold Hr",
+        "Start Time Warm Hr",
+        "Start Time Hot Hr",
+        "Start Heat Cold MBTU",
+        "Start Heat Warm MBTU",
+        "Start Heat Hot MBTU",
+        "Non Fuel Start Cost $",
+        "Fuel Price $/MMBTU",
+        "Output_pct_0",
+        "Output_pct_1",
+        "Output_pct_2",
+        "Output_pct_3",
+        "Output_pct_4",
+        "HR_avg_0",
+        "HR_incr_1",
+        "HR_incr_2",
+        "HR_incr_3",
+        "HR_incr_4",
+    ]
+
+    cost_var_names = {
+        "capex": "CAPEX ($/kW)",
+        "fixed_ops_cost": "Fixed Operation and Maintenance Expenses ($/kW-yr)",
+        "var_ops_cost": "Variable Operation and Maintenance Expenses ($/MWh)",
+    }
+    heat_rate_var = "Heat Rate  (MMBtu/MWh)"
+
+    def __init__(self):
+
+        # Create an instance of the configuration class that has data
+        # for generators
+        self.config = ConfigData()
+
+    def get_gen_bus_data(self, bus_data_path: Path) -> pd.DataFrame:
+        """
+        :param bus_data_path:   Path to bus data.
+        :type bus_data_path:    pathlib.Path
+        :returns:               DataFrame with generator bus data.
+        """
+        bus_data = pd.read_csv(bus_data_path)
+        bus_data = bus_data[bus_data["Gen bus/ Non-gen bus"] == 1]
+        return bus_data
+
+    def get_buses_by_gen(
+        self,
+        gen_bus_df: pd.DataFrame,
+        gens: list[str],
+    ) -> dict[str, dict]:
+        """
+        :param gen_bus_df:      DataFrame with generator bus data.
+        :param gens:            List of candidate generator types.
+        :type gen_bus_df:       pandas.DataFrame
+        :type gens:             list[str]
+        :returns:               Dict of the form {gen_type: bus_info}, where bus_info
+                                    is itself a dict of the form {bus_name: bus_number}
+        """
+        candidate_gen_by_bus = {}
+        for gen in gens:
+            gen_weight_key = gen + " - Generation Weight"
+            candidate_df = gen_bus_df[
+                gen_bus_df[gen_weight_key] > self.config.gen_data[gen]["gen_weight"]
+            ]
+            candidate_gen_by_bus[gen] = dict(
+                zip(candidate_df["Bus Name"], candidate_df["Bus Number"])
+            )
+        return candidate_gen_by_bus
+
+    def get_clean_gens_dict(self, candidate_gens: list[str]) -> dict[str, str]:
+        """
+        Maps a list of candidate generators to a cleaned set, where
+        "Natural Gas_FE" is substituted for "Natural Gas_CT".
+
+        :param candidate_gens:      List of candidate generator types.
+        :type candidate_gens:       list[str]
+        :returns:                   Dict mapping input generator types to those without "Natural Gas_CT".
+        """
+        result = {
+            gen: gen if "Natural Gas" not in gen else "Natural Gas_FE"
+            for gen in candidate_gens
+        }
+        if "Natural Gas_CT" in candidate_gens:
+            logger.warning(
+                "Natural Gas_CT does not have cost data. We will assume all"
+                " natural gas costs are coming from fossil energy sources"
+                " (Natural Gas_FE)."
+            )
+        return result
+
+    def extract_cost_data(
+        self,
+        cost_data_path: Path,
+        gens: list[str],
+        years: list[int],
+        scenario: str,
+    ) -> dict[str, pd.DataFrame]:
+        """
+        :param cost_data_path:      Path to cost data.
+        :param gens:                Generator types to extract data for. Each element
+                                        must be a sheet in the cost data file.
+        :param years:               Years to extract data for.
+        :param scenario:            Cost scenario.
+        :type cost_data_path:       pathlib.Path
+        :type gens:                 list[str]
+        :type years:                list[int]
+        :type scenario:             str
+        :returns:                   Dict of the form {gen_type: cost_data}, where cost_data
+                                        is a pandas DataFrame.
+        """
+
+        with pd.ExcelFile(cost_data_path) as xls:
+            # check all sheets are available
+            not_a_sheet = [name for name in gens if name not in xls.sheet_names]
+            if not_a_sheet:
+                raise ValueError(
+                    f"All elements of gens must be a sheet in {cost_data_path}."
+                    " The following are not sheets: {not_a_sheet}"
+                )
+
+            cost_data = {gen: pd.read_excel(xls, gen) for gen in gens}
+
+        # check all years available
+        for gen, df in cost_data.items():
+            missing_years = [year for year in years if year not in df.columns]
+            if missing_years:
+                raise ValueError(
+                    f"One or more years ({missing_years}) were not in the {gen}"
+                    " cost dataset. Available columns: {df.columns}"
+                )
+
+        return {
+            gen: df.loc[df["Key3"] == scenario, ["Key1", "Key2"] + years]
+            for gen, df in cost_data.items()
+        }
+
+    def get_gen_cost_data(
+        self,
+        cost_df: pd.DataFrame,
+        gen_bus_df: pd.DataFrame,
+        gen: str,
+    ) -> pd.DataFrame:
+        """
+        Extracts the cost data from gen_cost_df for a given generator type.
+
+        :param cost_df:         Dataframe with cost data.
+        :param gen_bus_df:      Dataframe with bus data.
+        :param gen:             Generator type. Must be a column in `gen_bus_df`.
+        :type cost_df:          pandas.DataFrame
+        :type gen_bus_df:       pandas.DataFrame
+        :type gen:              str
+        :returns:               Dataframe with CapEx data. Has a multi-index of
+                                    ("Key1", "Bus Name"), where "Key1" is the
+                                    costs variable.
+        """
+        # link bus name to specific generation class
+        gen_subset = gen_bus_df[["Bus Name", gen]]
+        gen_cost_df = pd.merge(
+            gen_subset,
+            cost_df,
+            left_on=gen,
+            right_on="Key2",
+        )
+        gen_cost_df = gen_cost_df.set_index(["Key1", "Bus Name"])
+        gen_cost_df = gen_cost_df.drop(columns=["Key2", gen])
+        return gen_cost_df
+
+    def get_ng_costs(self, ng_cost_path: Path) -> pd.DataFrame:
+        """
+        Reads in natural gas costs data, sourced from [2], with the
+        quantity (e.g., Reference case) on the index.
+
+        :param ng_cost_path:    Path to CSV with natural gas costs.
+        :type ng_cost_path:     pathlib.Path
+        :returns:               pandas.DataFrame with natural gas costs
+        """
+        rowfunc = lambda row: ((row > 425 or row < 414) and row != 4)
+        ng_data = pd.read_csv(ng_cost_path, skiprows=rowfunc, header=0, index_col=0)
+        return ng_data
+
+    def build_cost_data_row(
+        self,
+        gen_cost_df: pd.DataFrame,
+        ng_cost_df: pd.DataFrame,
+        ng_cost_quantity: str,
+        years: list[int],
+        bus_id: int,
+        bus_name: str,
+        gen: str,
+    ) -> dict[str, Any]:
+        """
+        Builds a row of cost data and adds it to `gen_cost_data`, in-place. `ng_cost_df` and
+        `ng_cost_quantity` must be provided if `gen` contains the substring `"Natural Gas"`.
+
+        :param gen_cost_df:                 Dataframe with cost data to be extracted.
+        :param ng_cost_df:                  Dataframe with natural gas costs in 2024 USD/MMBtu.
+        :param years:                       Years to include.
+        :param bus_id:                      Bus ID.
+        :param bus_name:                    Bus name.
+        :param gen:                         Generator type.
+        :param ng_cost_quantity:            Natural gas cost quantity to use (e.g., `"Reference case"`).
+        :type gen_cost_df:                  pandas.DataFrame
+        :type ng_cost_df:                   pandas.DataFrame
+        :type years:                        list[int]
+        :type ng_cost_quantity:             str
+        :type bus_id:                       int
+        :type bus_name:                     str
+        :type gen:                          str
+        :returns:                           dict of the form {col_name: value}
+        """
+        config_gen = self.config.gen_data[gen]
+        row = {
+            "GEN UID": config_gen["ids"] + str(bus_id) + "-c",
+            "Bus ID": bus_id,
+            "Unit Type": config_gen["unit_type"],
+            "Fuel": config_gen["fuel_type"],
+            "PMax MW": config_gen["pmax"],
+            "PMin MW": config_gen["pmin"],
+            "Min Up Time Hr": config_gen["minup"],
+            "Min Down Time Hr": config_gen["mindown"],
+        }
+
+        for year in years:
+            for out_col, source_var in self.cost_var_names.items():
+                col = f"{out_col}_{year}"
+                row[col] = float(gen_cost_df.loc[(source_var, bus_name), year])
+            # add natural gas costs
+            row[f"fuel_costs_{year}"] = (
+                ng_cost_df.loc[ng_cost_quantity, str(year)]
+                * float(gen_cost_df.loc[(self.heat_rate_var, bus_name), year])
+                if "Natural Gas" in gen
+                else 0.0
+            )
+
+        return row
+
+    def fill_out_prescient_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Takes an input dataframe with cost data and adds columns required
+        by prescient, if they aren't already in the dataframe.
+
+        :param df:  Cost dataframe
+        :type df:   pandas.DataFrame
+        :returns:   Cost dataframe with all prescient-required columns.
+        """
+        for col in self.prescient_cols:
+            if col not in df.columns:
+                df[col] = pd.NA
+
+        df["V Setpoint p.u."] = pd.to_numeric(
+            df["V Setpoint p.u."], errors="coerce"
+        ).fillna(1)
+        df["Output_pct_0"] = pd.to_numeric(df["Output_pct_0"], errors="coerce").fillna(
+            0.6
+        )
+        df["Output_pct_1"] = pd.to_numeric(df["Output_pct_1"], errors="coerce").fillna(
+            1
+        )
+
+        df.fillna("", inplace=True)
+        return df
+
+    def load_and_check_cost_csv(self, path, prefixes, cost_attr, required=False):
+        """This method loads cost data from case-input CSV files.
+
+        This function is used when cost data is already included in
+        the case input files, such as ``gen.csv``, ``storage.csv``, or
+        ``branch.csv``. It checks that the file contains at least one
+        column for each expected cost-data prefix and stores the
+        loaded dataframe on the requested ``DataProcessing``
+        attribute.
+
+        :param prefixes:        List of required column prefixes.
+                                Each prefix must match at least one
+                                column in the file.
+        :param cost_attr:       Name of the ``DataProcessing`` attribute
+                                where the loaded dataframe should be
+                                stored.
+        :param required:        If True, raise ``FileNotFoundError``
+                                when the file is missing. If False,
+                                skip missing files.
+
+        """
+
+        logger.info("Loading cost data from existing file: %s", path)
+        df = pd.read_csv(path)
+
+        missing_cols = []
+        for prefix in prefixes:
+            if not any(col.startswith(prefix) for col in df.columns):
+                missing_cols.append(f"{prefix}*")
+
+        if missing_cols:
+
+            logger.error(
+                "Cost data from '%s' cannot be loaded because the"
+                "required cost columns are missing: %s. Please set "
+                "`use_cost_from_data_files` to False or add the required "
+                "columns to the corresponding gen.csv, storage.csv, "
+                "or branch.csv file.",
+                path.name,
+                missing_cols,
+            )
+            raise ValueError(
+                f"Missing required candidate cost columns in {path.name}: "
+                f"{missing_cols}"
+            )
+
+        setattr(self, cost_attr, df)
+
+    def extract_wacc_real(self, cost_dir: dict, year: int) -> dict:
+        """Extracts the WACC Real for all generators and a given year.
+
+        WACC (Weighted Average Cost of Capital) represents the cost of
+        financing (equity + debt). WACC "Real" rates are preferred
+        because they exclude inflation, making them consistent with
+        most long-term energy planning models (which typically use
+        real costs). If using nominal costs (including inflation),
+        then use "WACC Nominal" instead of "WACC Real" under
+        wacc_type.
+
+        :cost_dir (dict): Dictionary of generator costs DataFrames.
+        :year (int): Year for which to extract WACC Real.
+
+        returns: (dict) WACC Real values for all generators.
+
+        """
+
+        wacc_dict = {}
+        wacc_type = "WACC Real"
+
+        for gen_name, cost_df in cost_dir.items():
+            wacc_row = cost_df[cost_df["Key2"] == wacc_type]
+
+            if wacc_row.empty:
+                raise ValueError(f"No {wacc_type} found for generator '{gen_name}'.")
+
+            wacc_dict[gen_name] = float(wacc_row[year].iloc[0])
+
+        return wacc_dict
+
+    def load_gen_data(
+        self,
+        bus_data_path: Path = None,
+        cost_data_path: Path = None,
+        ng_cost_path: Path = None,
+        candidate_gens: list[str] = None,
+        years: list[int] = [2025, 2030, 2035],
+        scenario: str = "Moderate",
+        ng_cost_quantity: str = "Reference case",
+        save_csv: bool = False,
+        out_path: Path | None = None,
+        use_cost_from_data_files: bool = False,
+        data_path: Path | None = None,
+    ):
+        """Builds a dataframe containing cost data for generators of
+        specified type from bus data.  Stores the result in
+        `self.gen_cost_data` and optionally writes to a CSV.
+
+        If `use_cost_from_data_files=True`, this method loads cost
+        data directly from `gen.csv`, `storage.csv`, and
+        `branch.csv` in the `data/` directory and skips the cost
+        workbook processing path.
+
+        :param bus_data_path:               Path to bus data.
+        :param cost_data_path:              Path to cost data.
+        :param ng_cost_path:                Path to natural gas cost data.
+        :param candidate_gens:              Generator types to extract cost data for.
+        :param years:                       Years to extract cost data for.
+        :param scenario:                    Cost scenario. Defaults to `"Moderate"`.
+        :param ng_cost_quantity:            Natural gas cost quantity to use. Defaults
+                                            to `"Reference case"`.
+        :param save_csv:                    Whether to save the resulting dataframe to
+                                            csv. Defaults to `False`.
+        :param out_path:                    Directory to save the csv to. Defaults to
+                                           `None`, but must be provided if
+                                            `save_csv=True` is passed.
+        :param use_cost_from_data_files:    Select to use cost data from data file.
+                                            Defaults to False.
+        :param data_path:                   Data directory to read cost-related values.
+
+        :type bus_data_path:                pathlib.Path
+        :type cost_data_path:               pathlib.Path
+        :type ng_cost_path:                 pathlib.Path
+        :type candidate_gens:               list[str]
+        :type years:                        list[int]
+        :type scenario:                     str
+        :type ng_cost_quantity:             str
+        :type save_csv:                     bool
+        :type out_path:                     pathlib.Path | None
+        :type use_cost_from_data_files:     bool
+        :type data_path:                    pathlib.Path
+
+        """
+
+        if save_csv and out_path is None:
+            raise TypeError("With save_csv=True, out_path must be a provided.")
+
+        if use_cost_from_data_files:
+
+            # If `use_cost_from_data_files` is True, load cost data
+            # directly from the case input files instead of rebuilding
+            # it from external cost data.  The function below checks
+            # required cost columns and stores cost data from each
+            # loaded file on the corresponding cost DataProcessing
+            # attribute.
+            if data_path is None:
+                raise ValueError(
+                    "data_path must be provided when " "use_cost_from_data_files=True."
+                )
+
+            data_path = Path(data_path)
+
+            cost_prefixes = ["lifetime_", "capex_", "fixed_ops_cost_", "var_ops_cost_"]
+            self.load_and_check_cost_csv(
+                data_path / "gen.csv",
+                prefixes=["fuel_cost_"] + cost_prefixes,
+                cost_attr="gen_cost_from_csv_data",
+                required=True,
+            )
+            self.load_and_check_cost_csv(
+                data_path / "storage.csv",
+                prefixes=cost_prefixes,
+                cost_attr="storage_cost_from_csv_data",
+                required=False,
+            )
+            self.load_and_check_cost_csv(
+                data_path / "branch.csv",
+                prefixes=cost_prefixes,
+                cost_attr="branch_cost_from_csv_data",
+                required=False,
+            )
+
+        else:
+
+            # If `use_cost_from_data_files` is False, build candidate
+            # generator cost data from the external cost workbook,
+            # natural-gas cost file, and bus mapping file using the
+            # requested candidate generator types.
+            gen_bus_df = self.get_gen_bus_data(bus_data_path)
+
+            # get natural gas data and check we have the matching cost quantity and years
+            ng_cost_df = self.get_ng_costs(ng_cost_path)
+            if ng_cost_quantity not in ng_cost_df.index:
+                raise ValueError(
+                    f"The provided natural gas quantity {ng_cost_quantity} is"
+                    " not in the natural gas cost dataset. Available quantities:"
+                    " {ng_cost_df.index}"
+                )
+
+            missing_years = [
+                year for year in years if str(year) not in ng_cost_df.columns
+            ]
+            if missing_years:
+                raise ValueError(
+                    f"One or more years ({missing_years}) were not in the natural gas"
+                    " cost dataset. Available columns: {ng_cost_df.columns}"
+                )
+
+            # maps set of generator types in gen_bus_df to set of
+            # generator types w/ cost data
+            candidate_gens_dict = self.get_clean_gens_dict(candidate_gens)
+
+            buses_by_gen = self.get_buses_by_gen(
+                gen_bus_df, set(candidate_gens_dict.keys())
+            )
+            self.cost_dict = self.extract_cost_data(
+                cost_data_path, set(candidate_gens_dict.values()), years, scenario
+            )
+
+            # build output dataframe
+            df_rows = []
+            for bus_gen, cost_gen in candidate_gens_dict.items():
+                # NOTE: the current implementation in main has a
+                # possible bug: Natural Gas CT are not included in the
+                # output csv!
+
+                # the following two lines recreate the bug to allow
+                # comparison of remaining outputs
+                # if bus_gen != cost_gen:
+                #     continue
+                gen_cost_df = self.get_gen_cost_data(
+                    self.cost_dict[cost_gen], gen_bus_df, bus_gen
+                )
+                for bus_name, bus in buses_by_gen[bus_gen].items():
+                    df_rows.append(
+                        self.build_cost_data_row(
+                            gen_cost_df=gen_cost_df,
+                            years=years,
+                            bus_id=bus,
+                            bus_name=bus_name,
+                            gen=bus_gen,
+                            ng_cost_df=ng_cost_df,
+                            ng_cost_quantity=ng_cost_quantity,
+                        )
+                    )
+            self.gen_cost_data = self.fill_out_prescient_columns(pd.DataFrame(df_rows))
+
+            # Add converted cost columns using units expected by the GTEP
+            # Pyomo parameters. Original cost columns are preserved.
+            self.convert_cost_columns(years)
+
+            if save_csv:
+                self.gen_cost_data.to_csv(
+                    (out_path / "costs.csv").resolve(), index=False
+                )
+
+    def convert_cost_columns(self, years, lifetime=3):
+        """Convert cost columns to annualized units for GTEP in
+        ``self.gen_cost_data`` to match the units expected by the GTEP
+        model parameters. The converted costs have the following
+        units:
+
+        :years:         List of years to process.
+        :lifetime:      Useful lifetime of the asset in years.
+
+        The final units should be:
+                fixed_ops_cost_<year> = USD / MW hr
+                var_ops_cost_<year> = USD / MW hr
+                capex_<year> = USD / MW
+                fuel_cost_<year> = USD / MW / hr
+
+        """
+
+        inv_factor = pyo.value(
+            pyo.units.convert(
+                1 * u.USD / u.kW,
+                to_units=u.USD / u.MW,
+            )
+        )
+        fixed_factor = pyo.value(
+            pyo.units.convert(
+                1 * u.USD / (u.kW * u.year),
+                to_units=u.USD / (u.MW * u.hr),
+            )
+        )
+
+        for year in years:
+            # Extract WACC Real and lifetime for the year (assuming
+            # lifetime is constant or provided).
+            wacc_real_dict = self.extract_wacc_real(self.cost_dict, year)
+
+            # Create a mapping from generator name to annuity factor
+            annuity_factors = {}
+            for gen_name, wacc in wacc_real_dict.items():
+                annuity_factors[gen_name] = (wacc * (1 + wacc) ** lifetime) / (
+                    (1 + wacc) ** lifetime - 1
+                )
+
+            capex = pd.to_numeric(
+                self.gen_cost_data[f"capex_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            fixed_ops_cost = pd.to_numeric(
+                self.gen_cost_data[f"fixed_ops_cost_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            var_ops_cost = pd.to_numeric(
+                self.gen_cost_data[f"var_ops_cost_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+            fuel_costs = pd.to_numeric(
+                self.gen_cost_data[f"fuel_costs_{year}"],
+                errors="coerce",
+            ).fillna(0.0)
+
+            # Apply generator-specific annuity factors to capex. To do
+            # this, create a mapping from Unit Type to generator name
+            # for WACC lookup. Currently, only two types of generators
+            # are supported to align with the original cost processing
+            # code. NOTE: In GTEP, capex represents the total
+            # annualized capital costs (capex * inv_factor *
+            # annuity_factor).  While the "real" units are $/MW *
+            # year, these are treated as total annual costs without
+            # explicitly including the year unit in the model (i.e.,
+            # they are treated as a scalar cost per year).
+            unit_type_to_gen = {
+                "PV": "Solar - Utility PV",
+                "CT": "Natural Gas_FE",
+            }
+            for unit_type, gen_name in unit_type_to_gen.items():
+                if gen_name in annuity_factors:
+                    # Create mask for rows matching this generator
+                    unit_mask = self.gen_cost_data["Unit Type"] == unit_type
+
+                    # Apply generator-specific annuity factors to
+                    # capex based on Unit Type.
+                    self.gen_cost_data.loc[unit_mask, f"capex_{year}"] = (
+                        capex[unit_mask] * inv_factor * annuity_factors[gen_name]
+                    )
+
+            self.gen_cost_data[f"fixed_ops_cost_{year}"] = fixed_ops_cost * fixed_factor
+            self.gen_cost_data[f"var_ops_cost_{year}"] = var_ops_cost
+            self.gen_cost_data[f"fuel_cost_{year}"] = fuel_costs
+            # Assume fuel cost reactive is the same as fuel cost
+            self.gen_cost_data[f"fuel_cost_reactive_{year}"] = fuel_costs
