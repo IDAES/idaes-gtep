@@ -80,19 +80,14 @@ data_object.load_prescient(
 # ---------------------------------------------------------------------
 # Create cost data processing object
 
-include_cost_data = True
-
-if include_cost_data:
-    data_processing_object = DataProcessing()
-    data_processing_object.load_cost_data(
-        data_object=data_object,
-        use_gen_cost=True,
-        use_branch_cost=True,
-        use_storage_cost=True,
-        data_path=data_path,
-    )
-else:
-    data_processing_object = None
+data_processing_object = DataProcessing()
+data_processing_object.load_cost_data(
+    data_object=data_object,
+    use_gen_cost=True,
+    use_branch_cost=True,
+    use_storage_cost=True,
+    data_path=data_path,
+)
 
 # ---------------------------------------------------------------------
 # Populate and configure GTEP model

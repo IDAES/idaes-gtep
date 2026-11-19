@@ -24,9 +24,9 @@ def create_data(
     input_data_path: Path = input_data_path,
     planning_data_args: dict | None = None,
     prescient_data_args: dict | None = None,
-    # candidate_gens: list[str] | None = None,
-    include_cost_data: bool = True,
-    use_cost_from_data_files: bool = False,
+    use_gen_cost: bool = False,
+    use_branch_cost: bool = False,
+    use_storage_cost: bool = False,
     data_path: Path | None = None,
 ):
     """Create and load the ExpansionPlanningData object and,
@@ -77,6 +77,7 @@ def create_data(
     if include_cost_data:
         data_processing_object = DataProcessing()
         data_processing_object.load_cost_data(
+            data_object=data_object,
             use_gen_cost=use_gen_cost,
             use_branch_cost=use_branch_cost,
             use_storage_cost=use_storage_cost,

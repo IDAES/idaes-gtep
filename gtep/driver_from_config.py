@@ -122,18 +122,16 @@ def main(config_path):
     # -------------------------------------------------------------------
     # Create cost data processing object.
     cost_config = config.get("cost_data", {})
-
-    if cost_config.get("enabled", True):
-        data_processing_object = DataProcessing()
-        data_processing_object.load_cost_data(
-            use_gen_cost=True,
-            use_branch_cost=True,
-            use_storage_cost=True,
-            data_path=data_path,
-        )
-    else:
-        data_processing_object = None
-
+    
+    data_processing_object = DataProcessing()
+    data_processing_object.load_cost_data(
+        data_object=data_object,
+        use_gen_cost=cost_config.get("use_gen_cost", True),
+        use_branch_cost=cost_config.get("use_branch_cost", True),
+        use_storage_cost=cost_config.get("use_storage_cost", True),
+        data_path=data_path,
+    )
+    
     # -------------------------------------------------------------------
     # Populate and create GTEP model.
     mod_object = ExpansionPlanningModel(
