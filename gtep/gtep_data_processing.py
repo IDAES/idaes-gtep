@@ -147,20 +147,22 @@ class DataProcessing:
             "fixed_ops_cost": "fixed_ops_cost_",
             "var_ops_cost": "var_ops_cost_",
         }
-        cost_mapping = {
-            "generator": {**cost_prefix_dict, "fuel_cost": "fuel_cost_"},
-            "branch": cost_prefix_dict.copy(),
-            "storage": cost_prefix_dict.copy(),
-        }
 
-        # Process each asset type.
-        for asset_type, cost_types in cost_mapping.items():
+        # Process each asset type independently
+        for asset_type in ["generator", "branch", "storage"]:
+            cost_mapping = {
+                "generator": {**cost_prefix_dict, "fuel_cost": "fuel_cost_"},
+                "branch": cost_prefix_dict.copy(),
+                "storage": cost_prefix_dict.copy(),
+            }.get(asset_type, {})
 
             # Skip if data isn't available for this component type
             if not hasattr(self, f"{asset_type}_cost_data"):
                 continue
 
             cost_data = getattr(self, f"{asset_type}_cost_data")
+
+            # Set ID column based on asset type
             if asset_type == "generator":
                 id_column = "GEN UID"
             elif asset_type == "branch":
@@ -168,51 +170,39 @@ class DataProcessing:
             elif asset_type == "storage":
                 id_column = "name"
             else:
-                logger.warning("Asset ID not supported.")
+                logger.warning("Asset ID not supported for %s", asset_type)
+                continue
 
             # Initialize the asset cost type dictionary.
             self.cost_dicts[asset_type] = {}
 
             # Process each cost type for this asset.
-            for cost_type, prefix in cost_types.items():
-                print(cost_type)
+            for cost_type, prefix in cost_mapping.items():
                 cost_dict = {}
 
-                # fuel_cost only applies to generators.
-                if cost_type != "fuel_cost":
-                    # Build the cost dictionary for this cost type
-                    for _, row in cost_data.iterrows():
-                        component_id = row[id_column]
-                        for year in self.years:
-                            cost_col = f"{prefix}{year}"
-                            if cost_col in row:
-                                cost_dict[(component_id, year)] = row[cost_col]
+                # fuel_cost only applies to generators
+                if cost_type == "fuel_cost" and asset_type != "generator":
+                    continue
 
+                # Build the cost dictionary for this cost type
+                for _, row in cost_data.iterrows():
+                    component_id = row[id_column]
+                    for year in self.years:
+                        cost_col = f"{prefix}{year}"
+                        if cost_col in row and (
+                            cost_type != "fuel_cost" or not pd.isna(row[cost_col])
+                        ):
+                            cost_dict[(component_id, year)] = row[cost_col]
+
+                # For fuel_cost, only include generators with actual costs
+                if cost_type == "fuel_cost" and asset_type == "generator":
+                    filtered_cost_dict = {}
+                    for (gen_id, year), cost in cost_dict.items():
+                        if not pd.isna(cost):
+                            filtered_cost_dict[(gen_id, year)] = cost
+                    self.cost_dicts[asset_type][cost_type] = filtered_cost_dict
+                else:
                     self.cost_dicts[asset_type][cost_type] = cost_dict
-
-        # Process fuel_cost for generators.
-        cost_dict["fuel_cost"] = {}
-        cost_data = getattr(self, "generator_cost_data")
-        for _, row in cost_data.iterrows():
-            gen_id = row["GEN UID"]
-            gen_fuel_costs = {}
-
-            # Collect all non-null fuel costs for all thermal
-            # generators. Make sure to populate dictionary with fuel
-            # cost data only coming from thermal generators. The
-            # renewable values should be empty in `gen.csv`.
-            for year in self.years:
-                cost_col = f"fuel_cost_{year}"
-                if cost_col in row and not pd.isna(row[cost_col]):
-                    # Only include non-zero fuel costs
-                    gen_fuel_costs[(gen_id, year)] = row[cost_col]
-
-            # Only add to dict if generator has a fuel cost different
-            # to NaN.
-            if gen_fuel_costs:
-                cost_dict["fuel_cost"].update(gen_fuel_costs)
-
-        self.cost_dicts["generator"]["fuel_cost"] = cost_dict["fuel_cost"]
 
         return self.cost_dicts
 
@@ -220,7 +210,6 @@ class DataProcessing:
         self,
         df: pd.DataFrame,
         source_file: str,
-        years: list[int],
     ):
         """Validate years in loaded cost data match the specified
         stage years.
@@ -230,13 +219,12 @@ class DataProcessing:
 
         :df:           DataFrame containing cost data
         :source_file:  Name of the source file being validated
-        :years:        List of expected years to validate against
 
         """
 
         missing_combinations = []
         expected_columns = {
-            f"{prefix}{year}" for prefix in self.cost_prefixes for year in years
+            f"{prefix}{year}" for prefix in self.cost_prefixes for year in self.years
         }
 
         # Check each expected column exists
@@ -268,7 +256,7 @@ class DataProcessing:
 
     def load_cost_data(
         self,
-        years: list[int] = [2025, 2030, 2035],
+        data_object,
         use_gen_cost: bool = False,
         use_branch_cost: bool = False,
         use_storage_cost: bool = False,
@@ -288,7 +276,6 @@ class DataProcessing:
         default to GTEP parameter values.  These flags operate
         independently, that means, any combination may be enabled.
 
-        :param years:            (list[int]) Years to extract cost data for.
         :param use_gen_cost:     (bool) Select to use generator cost data from data file.
                                  Defaults to False.
         :param use_branch_cost:  (bool) Select to use branch cost data from data file.
@@ -298,7 +285,8 @@ class DataProcessing:
         :param data_path:        (pathlib.Path) Data directory to read cost-related values.
 
         """
-        self.years = years
+        self.years = data_object.years
+
         # If any of the `use_{asset_name}_cost` is True, load cost data
         # directly from the case input files instead of rebuilding
         # it from external cost data.  The function below checks
@@ -312,48 +300,113 @@ class DataProcessing:
                     "data_path must be provided when " "use_cost_from_data_files=True."
                 )
 
-            data_path = Path(data_path)
-            self.cost_prefixes = [
-                "lifetime_",
-                "capex_",
-                "fixed_ops_cost_",
-                "var_ops_cost_",
-            ]
+        data_path = Path(data_path)
+        self.cost_prefixes = [
+            "lifetime_",
+            "capex_",
+            "fixed_ops_cost_",
+            "var_ops_cost_",
+        ]
 
-            if use_gen_cost:
-                gen_df = pd.read_csv(data_path / "gen.csv")
-                self.validate_years_in_data(gen_df, "gen.csv", years)
-                self.load_and_check_cost_csv(
-                    data_path / "gen.csv",
-                    prefixes=["fuel_cost_"] + self.cost_prefixes,
-                    cost_attr="generator_cost_data",
-                    required=True,
-                )
+        if use_gen_cost:
+            gen_df = pd.read_csv(data_path / "gen.csv")
+            self.validate_years_in_data(gen_df, "gen.csv")
+            self.load_and_check_cost_csv(
+                data_path / "gen.csv",
+                prefixes=["fuel_cost_"] + self.cost_prefixes,
+                cost_attr="generator_cost_data",
+                required=True,
+            )
+        else:
+            logger.warning(
+                "No generator cost data is added to the cost modeling data object. "
+                "Using default values from data_object. Other cost "
+                "data is available in `data/costs/`(unit conversions to GTEP format may "
+                "be required)."
+            )
 
-            if use_branch_cost:
-                branch_df = pd.read_csv(data_path / "branch.csv")
-                self.validate_years_in_data(branch_df, "branch.csv", years)
-                self.load_and_check_cost_csv(
-                    data_path / "branch.csv",
-                    prefixes=self.cost_prefixes,
-                    cost_attr="branch_cost_data",
-                    required=False,
-                )
+            self.cost_dicts["generator"] = {
+                "capex": {},
+                "fixed_ops_cost": {},
+                "var_ops_cost": {},
+            }
+            # Initialize default values for generators
+            for gen in data_object.md.data["elements"]["generator"]:
+                gen_uid = data_object.md.data["elements"]["generator"][gen]
 
-            if use_storage_cost:
+                for year in self.years:
+                    # Set default investment cost (capex)
+                    self.cost_dicts["generator"]["capex"][(gen, year)] = gen_uid[
+                        "investment_cost"
+                    ]
+                    print(gen_uid["investment_cost"])
+                    # Set default fixed and variable O&M costs
+                    self.cost_dicts["generator"]["fixed_ops_cost"][(gen, year)] = 0
+                    self.cost_dicts["generator"]["var_ops_cost"][(gen, year)] = 0
+
+        if use_branch_cost:
+            branch_df = pd.read_csv(data_path / "branch.csv")
+            self.validate_years_in_data(branch_df, "branch.csv")
+            self.load_and_check_cost_csv(
+                data_path / "branch.csv",
+                prefixes=self.cost_prefixes,
+                cost_attr="branch_cost_data",
+                required=False,
+            )
+        else:
+            logger.warning(
+                "No branch cost data is added to the cost modeling data object. "
+                "Using default values from data_object. "
+            )
+
+            self.cost_dicts["branch"] = {
+                "capex": {},
+                "fixed_ops_cost": {},
+                "var_ops_cost": {},
+            }
+
+            # Initialize default values for branches (all set to 0).
+            for year in self.years:
+                # Assuming you have branch data in data_object,
+                # otherwise use placeholder
+                for branch_uid in data_object.md.data["elements"]["branch"]:
+                    self.cost_dicts["branch"]["capex"][(branch_uid, year)] = 0
+                    self.cost_dicts["branch"]["fixed_ops_cost"][(branch_uid, year)] = 0
+                    self.cost_dicts["branch"]["var_ops_cost"][(branch_uid, year)] = 0
+
+        if use_storage_cost:
+            storage_csv_path = data_path / "storage.csv"
+            if storage_csv_path.exists():
                 storage_df = pd.read_csv(data_path / "storage.csv")
-                self.validate_years_in_data(storage_df, "storage.csv", years)
+                self.validate_years_in_data(storage_df, "storage.csv")
                 self.load_and_check_cost_csv(
                     data_path / "storage.csv",
                     prefixes=self.cost_prefixes,
                     cost_attr="storage_cost_data",
                     required=False,
                 )
+            else:
+                logger.warning(
+                    "Storage cost file not found at %s. Skipping storage cost data.",
+                    storage_csv_path,
+                )
+
         else:
             logger.warning(
-                "No cost data is added to the cost modeling data object: `capex_{year}`, "
-                "`fixed_ops_cost{year}`, `var_ops_cost{year}`, `lifetime_{year}`. "
-                "Cost parameters will default to GTEP model values. Other cost "
-                "data is available in `data/costs/`(unit conversions to GTEP format may "
-                "be required)."
+                "No cost data is added to the cost modeling data object. "
+                "Using default values from data_object."
             )
+
+            # Initialize default values for storage if storage is added
+            if "storage" in data_object.md.data["elements"]:
+                for storage in data_object.md.data["elements"]["storage"]:
+                    storage_uid = data_object.md.data["elements"]["storage"][storage]
+
+                    for year in self.years:
+                        self.cost_dicts["storage"]["capex"][(storage, year)] = (
+                            storage_uid["investment_cost"]
+                        )
+                        self.cost_dicts["storage"]["fixed_ops_cost"][
+                            (storage, year)
+                        ] = 0
+                        self.cost_dicts["storage"]["var_ops_cost"][(storage, year)] = 0
