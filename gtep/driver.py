@@ -85,7 +85,7 @@ include_cost_data = True
 if include_cost_data:
     data_processing_object = DataProcessing()
     data_processing_object.load_cost_data(
-        years=data_object.years,
+        data_object=data_object,
         use_gen_cost=True,
         use_branch_cost=True,
         use_storage_cost=True,
