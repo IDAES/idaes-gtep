@@ -652,10 +652,21 @@ def add_gen_branch_cost_parameters(m):
         doc="Heat rate for each thermal generator",
     )
 
+    # Initialize fuelCost with either cost_dicts data or calculated
+    # from fuelCostperMMBTU and heatRate
+    if "fuel_cost" in m.mc.cost_dicts["generator"]:
+        fuel_cost_init = m.mc.cost_dicts["generator"]["fuel_cost"]
+    else:
+
+        def calculate_fuel_cost(model, gen, year):
+            return model.fuelCostperMMBTU[gen] * model.heatRate[gen]
+
+        fuel_cost_init = calculate_fuel_cost
+
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
         m.years,
-        initialize=m.mc.cost_dicts["generator"]["fuel_cost"],
+        initialize=fuel_cost_init,
         mutable=True,
         units=u.USD / (u.MW * u.hr),
         doc="Cost per unit of fuel at each generator by year",
@@ -664,7 +675,7 @@ def add_gen_branch_cost_parameters(m):
     m.fuelCostReactive = pyo.Param(
         m.thermalGenerators,
         m.years,
-        initialize=m.mc.cost_dicts["generator"]["fuel_cost"],
+        initialize=fuel_cost_init,
         mutable=True,
         units=u.USD / (u.MVAR * u.hr),
         doc="Cost per unit of fuel at each generator (reactive power) by year",
@@ -745,6 +756,8 @@ def add_gen_branch_cost_parameters(m):
     # m.generatorInvestmentCost.display()
     # m.generatorFixedCost.display()
     # m.generatorVariableCost.display()
+    # m.fuelCost.display()
+    # m.fuelCostReactive.display()
     # m.branchInvestmentCost.display()
     # m.branchFixedCost.display()
     # m.branchVariableCost.display()
