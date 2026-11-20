@@ -278,7 +278,6 @@ class TestObjective(TestCase):
                 "fix_init_storage": False,
                 "flow_model": "DC",
             },
-            include_cost_data=False,
         )
         m = modObject.model
 

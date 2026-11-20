@@ -122,7 +122,7 @@ def main(config_path):
     # -------------------------------------------------------------------
     # Create cost data processing object.
     cost_config = config.get("cost_data", {})
-    
+
     data_processing_object = DataProcessing()
     data_processing_object.load_cost_data(
         data_object=data_object,
@@ -131,7 +131,7 @@ def main(config_path):
         use_storage_cost=cost_config.get("use_storage_cost", True),
         data_path=data_path,
     )
-    
+
     # -------------------------------------------------------------------
     # Populate and create GTEP model.
     mod_object = ExpansionPlanningModel(

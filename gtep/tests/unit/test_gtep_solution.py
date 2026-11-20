@@ -42,7 +42,6 @@ def get_solved_model():
         prescient_data_args={
             "representative_dates": ["2020-01-28 00:00"],
         },
-        include_cost_data=False,
     )
 
     TransformationFactory("gdp.bound_pretransformation").apply_to(mod_object.model)
@@ -88,7 +87,6 @@ class TestExpansionPlanningSolution(unittest.TestCase):
                 "num_dispatch": 1,
                 "duration_representative_period": 1,
             },
-            include_cost_data=False,
         )
 
         sol_object = ExpansionPlanningSolution(input_data_path)

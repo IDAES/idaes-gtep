@@ -78,9 +78,9 @@ def create_data(
         use_gen_cost=use_gen_cost,
         use_branch_cost=use_branch_cost,
         use_storage_cost=use_storage_cost,
-        data_path=data_path,
+        data_path=input_data_path,
     )
-    
+
     return data_object, data_processing_object
 
 
@@ -92,7 +92,6 @@ def create_model(
     use_gen_cost: bool = False,
     use_branch_cost: bool = False,
     use_storage_cost: bool = False,
-    data_path: Path | None = None,
 ):
     """
     :param input_data_path:             Path to the input data. Defaults
@@ -124,7 +123,6 @@ def create_model(
         use_gen_cost=use_gen_cost,
         use_branch_cost=use_branch_cost,
         use_storage_cost=use_storage_cost,
-        data_path=input_data_path,
     )
 
     if "storage" in config and config["storage"]:

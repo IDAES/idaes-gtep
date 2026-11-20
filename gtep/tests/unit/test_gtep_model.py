@@ -66,7 +66,6 @@ class TestGTEP(unittest.TestCase):
                 "num_dispatch": 4,
                 "duration_representative_period": 24,
             },
-            include_cost_data=False,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         self.assertIsInstance(modObject.model, ConcreteModel)
@@ -113,7 +112,6 @@ class TestGTEP(unittest.TestCase):
                 "num_dispatch": 12,
                 "duration_representative_period": 12,
             },
-            include_cost_data=False,
         )
         self.assertIsInstance(modObject, ExpansionPlanningModel)
         self.assertIsInstance(modObject.model, ConcreteModel)
@@ -192,7 +190,6 @@ class TestGTEP(unittest.TestCase):
                 "num_dispatch": 2,
                 "duration_representative_period": 2,
             },
-            include_cost_data=False,
         )
         m = modObject.model
 
@@ -204,8 +201,7 @@ class TestGTEP(unittest.TestCase):
         m_rep_period = m_inv.representativePeriod[1]
         m_commit = m_rep_period.commitmentPeriod[1]
         m_disp = m_commit.dispatchPeriod[1]
-        # m.generatorFixedCost.display()
-        # quit()
+
         assert_units_equivalent(m_rep_period.representativePeriodLength, u.h)
         assert_units_equivalent(m_commit.commitmentPeriodLength, u.h)
         assert_units_equivalent(m_disp.dispatchPeriodLength, u.min)
@@ -245,7 +241,6 @@ class TestGTEP(unittest.TestCase):
             prescient_data_args={
                 "representative_dates": ["2020-01-28 00:00"],
             },
-            include_cost_data=False,
         )
 
         # Check for consistent units
@@ -262,9 +257,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous objective values: 28076447.10, 27944715.00,
-        # 27943560.0, 28088689.10, 27943560.0, 28114310.83
+        # 27943560.0, 28088689.10, 27943560.0, 28114310.83, 27943560.0
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 27943560.0, places=1
+            value(modObject.model.total_cost_objective), 27943730.0, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -284,7 +279,6 @@ class TestGTEP(unittest.TestCase):
             config={
                 "include_investment": False,
             },
-            include_cost_data=False,
         )
 
         # Check for consistent units
@@ -329,12 +323,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -351,9 +342,10 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous objective values: 779494096.65, 723494956.65,
-        # 779494096.65, 779490734.95, 770962861.02, 779495688.36
+        # 779494096.65, 779490734.95, 770962861.02, 779495688.36,
+        # 776512859.77
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 776512859.77, places=1
+            value(modObject.model.total_cost_objective), 779489272.80, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -384,12 +376,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -406,9 +395,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous objective values: 723494956.65, 779466381.38,
-        # 779461519.77, 770933645.84, 775960791.77
+        # 779461519.77, 770933645.84, 775960791.77, 776481898.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 776481898.95, places=1
+            value(modObject.model.total_cost_objective), 779456658.15, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -461,12 +450,9 @@ class TestGTEP(unittest.TestCase):
                 "storage": False,
                 "flow_model": "DC",
             },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -483,9 +469,10 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous objective values: 13573783610.18, 13484210206.93,
-        # 13599560631.67, 13492932384.68, 13602265546.78
+        # 13599560631.67, 13492932384.68, 13602265546.78,
+        # 13493887958.01
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 13493887958.01, places=1
+            value(modObject.model.total_cost_objective), 13602265546.78, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -501,7 +488,6 @@ class TestGTEP(unittest.TestCase):
                 "num_dispatch": 4,
                 "duration_representative_period": 3,
             },
-            include_cost_data=True,
         )
 
         # Assert that all values are as expected
@@ -542,7 +528,6 @@ class TestGTEP(unittest.TestCase):
                 planning_data_args={
                     "period_structure_json_file": str(json_path),
                 },
-                include_cost_data=True,
             )
 
             # Assert that we have the correct reading of the structure
@@ -606,7 +591,6 @@ class TestGTEP(unittest.TestCase):
                 planning_data_args={
                     "period_structure_json_file": str(json_path),
                 },
-                include_cost_data=True,
             )
 
             # Assert that the sum of commitment durations (20hr) does
@@ -615,7 +599,8 @@ class TestGTEP(unittest.TestCase):
                 ExpansionPlanningModel(data=dataObject, cost_data=dataProcessingObject)
 
             self.assertIn(
-                "Period structure consistency check failed:\n\nERROR: Found (2) mismatches for commitment period duration:",
+                "Period structure consistency check failed:\n\nERROR: Found "
+                "(2) mismatches for commitment period duration:",
                 str(cm.exception),
             )
 
@@ -643,7 +628,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": True,
             },
-            include_cost_data=True,
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -660,9 +647,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous objective values: 255902949.54, 241142049.55,
-        # 255902949.55, 255902380.68, 255903177.76
+        # 255902949.55, 255902380.68, 255903177.76, 255902630.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902630.95, places=1
+            value(modObject.model.total_cost_objective), 255923478.54, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -700,12 +687,9 @@ class TestGTEP(unittest.TestCase):
                 "storage": False,
                 "flow_model": "DC",
             },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
+            use_gen_cost=False,
+            use_branch_cost=False,
+            use_storage_cost=False,
         )
 
         # Check for consistent units
@@ -752,6 +736,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "transport",
                 "advanced_hydro": True,
             },
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -767,9 +754,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55, 255902949.55, 255902380.68
+        # Previous values: 241142049.55, 255902949.55, 255902380.68,
+        # 255902630.95
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902630.95, places=1
+            value(modObject.model.total_cost_objective), 255923478.54, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -810,9 +798,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
-            include_cost_data=True,
-            use_cost_from_data_files=True,
-            data_path=Bus5_case_path,
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -873,7 +861,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
-            include_cost_data=True,
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -890,9 +880,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # Previous values: 241142049.55, 255902949.55, 255908867.70,
-        # 255903177.76, 3577603.86
+        # 255903177.76, 3577603.86, 3650853.17
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 3650853.17, places=1
+            value(modObject.model.total_cost_objective), 4889372.42, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -918,12 +908,9 @@ class TestGTEP(unittest.TestCase):
                 "flow_model": "DC",
                 "advanced_hydro": False,
             },
-            candidate_gens=[
-                "Natural Gas_CT",
-                "Natural Gas_FE",
-                "Solar - Utility PV",
-                "Land-Based Wind",
-            ],
+            use_gen_cost=True,
+            use_branch_cost=True,
+            use_storage_cost=True,
         )
 
         # Check for consistent units
@@ -940,7 +927,8 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
         self.assertTrue(check_optimal_termination(modObject.results))
 
+        # Previous objective values: 776568255.51
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 776568255.51, places=1
+            value(modObject.model.total_cost_objective), 779544668.55, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)

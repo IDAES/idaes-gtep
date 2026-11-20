@@ -339,7 +339,7 @@ class DataProcessing:
                     self.cost_dicts["generator"]["capex"][(gen, year)] = gen_uid[
                         "investment_cost"
                     ]
-                    print(gen_uid["investment_cost"])
+
                     # Set default fixed and variable O&M costs
                     self.cost_dicts["generator"]["fixed_ops_cost"][(gen, year)] = 0
                     self.cost_dicts["generator"]["var_ops_cost"][(gen, year)] = 0
