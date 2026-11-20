@@ -15,6 +15,7 @@
 # IDAES project
 
 # author: Soraya Rawlings and Kyle Skolfield
+
 import logging
 import pandas as pd
 
@@ -297,7 +298,8 @@ class DataProcessing:
         if use_gen_cost or use_branch_cost or use_storage_cost:
             if data_path is None:
                 raise ValueError(
-                    "data_path must be provided when " "use_cost_from_data_files=True."
+                    "data_path must be provided when any of the "
+                    "use_{asset_type}_cost is True."
                 )
 
         data_path = Path(data_path)
@@ -365,14 +367,19 @@ class DataProcessing:
                 "var_ops_cost": {},
             }
 
-            # Initialize default values for branches (all set to 0).
-            for year in self.years:
-                # Assuming you have branch data in data_object,
-                # otherwise use placeholder
-                for branch_uid in data_object.md.data["elements"]["branch"]:
-                    self.cost_dicts["branch"]["capex"][(branch_uid, year)] = 0
-                    self.cost_dicts["branch"]["fixed_ops_cost"][(branch_uid, year)] = 0
-                    self.cost_dicts["branch"]["var_ops_cost"][(branch_uid, year)] = 0
+            # Initialize default values for branchs
+            for branch in data_object.md.data["elements"]["branch"]:
+                branch_uid = data_object.md.data["elements"]["branch"][branch]
+
+                for year in self.years:
+                    # Set default investment cost (capex)
+                    self.cost_dicts["branch"]["capex"][(branch, year)] = branch_uid[
+                        "investment_cost"
+                    ]
+
+                    # Set default fixed and variable O&M costs
+                    self.cost_dicts["branch"]["fixed_ops_cost"][(branch, year)] = 0
+                    self.cost_dicts["branch"]["var_ops_cost"][(branch, year)] = 0
 
         if use_storage_cost:
             storage_csv_path = data_path / "storage.csv"

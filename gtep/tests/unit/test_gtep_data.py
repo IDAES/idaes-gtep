@@ -287,7 +287,8 @@ class TestExpansionPlanningData(unittest.TestCase):
         for branch in testObject.md.data["elements"]["branch"].values():
             self.assertEqual(branch["loss_rate"], 0)
             self.assertEqual(branch["distance"], 1)
-            self.assertEqual(branch["capital_cost"], 10000000)
+            self.assertEqual(branch["investment_cost"], 10000000)
+            self.assertEqual(branch["lifetime"], 3)
 
         # Check system
         system = testObject.md.data["system"]

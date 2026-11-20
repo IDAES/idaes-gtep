@@ -657,11 +657,10 @@ def add_gen_branch_cost_parameters(m):
     if "fuel_cost" in m.mc.cost_dicts["generator"]:
         fuel_cost_init = m.mc.cost_dicts["generator"]["fuel_cost"]
     else:
-
-        def calculate_fuel_cost(model, gen, year):
-            return model.fuelCostperMMBTU[gen] * model.heatRate[gen]
-
-        fuel_cost_init = calculate_fuel_cost
+        fuel_cost_init = {}
+        for gen in m.thermalGenerators:
+            for year in m.years:
+                fuel_cost_init[(gen, year)] = m.fuelCostperMMBTU[gen] * m.heatRate[gen]
 
     m.fuelCost = pyo.Param(
         m.thermalGenerators,
@@ -713,7 +712,7 @@ def add_gen_branch_cost_parameters(m):
     m.branchVariableCost = pyo.Param(
         m.lines,
         m.years,
-        initialize=3,
+        initialize=m.mc.cost_dicts["branch"]["var_ops_cost"],
         mutable=True,
         units=u.USD / u.MW,
         doc="Variable cost for each branch by year",
@@ -721,7 +720,9 @@ def add_gen_branch_cost_parameters(m):
 
     m.branchLifetime = pyo.Param(
         m.lines,
-        initialize=3,
+        initialize={
+            line: m.md.data["elements"]["branch"][line]["lifetime"] for line in m.lines
+        },
         mutable=True,
         units=u.year,
         doc="Lifetime of each branch",

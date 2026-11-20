@@ -659,8 +659,9 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
                     self.md.data["elements"]["branch"][branch]["distance"] = 1
                     self.md.data["elements"]["branch"][branch][
-                        "capital_cost"
+                        "investment_cost"
                     ] = 10000000
+                    self.md.data["elements"]["branch"][branch]["lifetime"] = 3
 
         if "system" in self.md.data.keys():
             self.md.data["system"]["min_operating_reserve"] = 0.1
