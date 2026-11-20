@@ -41,8 +41,6 @@ def create_data(
                           ExpansionPlanningData.
     :prescient_data_args: Keyword arguments passed to
                           load_prescient.
-    :include_cost_data:   Whether to build and return a DataProcessing
-                          object.
     :use_gen_costs:       Select to use generator cost from input data file.
                           Defaults to False.
     :use_branch_costs:    Select to use branch cost from input data file.
@@ -74,18 +72,15 @@ def create_data(
     data_object = ExpansionPlanningData(**planning_data_args)
     data_object.load_prescient(input_data_path, **prescient_data_args)
 
-    if include_cost_data:
-        data_processing_object = DataProcessing()
-        data_processing_object.load_cost_data(
-            data_object=data_object,
-            use_gen_cost=use_gen_cost,
-            use_branch_cost=use_branch_cost,
-            use_storage_cost=use_storage_cost,
-            data_path=data_path,
-        )
-    else:
-        data_processing_object = None
-
+    data_processing_object = DataProcessing()
+    data_processing_object.load_cost_data(
+        data_object=data_object,
+        use_gen_cost=use_gen_cost,
+        use_branch_cost=use_branch_cost,
+        use_storage_cost=use_storage_cost,
+        data_path=data_path,
+    )
+    
     return data_object, data_processing_object
 
 
@@ -94,7 +89,6 @@ def create_model(
     planning_data_args: dict | None = None,
     prescient_data_args: dict | None = None,
     config: dict | None = None,
-    include_cost_data: bool = True,
     use_gen_cost: bool = False,
     use_branch_cost: bool = False,
     use_storage_cost: bool = False,
@@ -110,10 +104,6 @@ def create_model(
                                         `load_prescient`. Defaults to `{}`
     :param config:                      Dictionary of model config options.
                                         Defaults to `{}`
-    :param include_cost_data:           Whether to build a `DataProcessing`
-                                        object and pass to the `ExpansionPlanningModel`
-                                        constructor. If `False`, `candidate_gens`
-                                        is ignored. Defaults to `True`
     :param use_gen_cost:                Select to use gen cost data from data file.
                                         Defaults to False.
     :param use_branch_cost:             Select to use branch cost data from data file.
@@ -131,11 +121,10 @@ def create_model(
         input_data_path=input_data_path,
         planning_data_args=planning_data_args,
         prescient_data_args=prescient_data_args,
-        include_cost_data=include_cost_data,
         use_gen_cost=use_gen_cost,
         use_branch_cost=use_branch_cost,
         use_storage_cost=use_storage_cost,
-        data_path=data_path,
+        data_path=input_data_path,
     )
 
     if "storage" in config and config["storage"]:
