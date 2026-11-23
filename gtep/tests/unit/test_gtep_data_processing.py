@@ -8,6 +8,10 @@ from pyomo.common.tempfiles import TempfileManager
 from gtep.gtep_data_processing import DataProcessing
 
 
+curr_dir = Path(__file__).resolve().parent
+Bus5_case_path = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
+
+
 class TestGTEPDataProcessing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -72,7 +76,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
             if asset_type == "generator":
                 # Path to the real CSV file
-                csv_path = Path("data/5bus/gen.csv")
+                csv_path = Path(f"{Bus5_case_path}/gen.csv")
                 prefixes = [
                     "lifetime_",
                     "capex_",
@@ -81,10 +85,10 @@ class TestGTEPDataProcessing(unittest.TestCase):
                     "fuel_cost_",
                 ]
             elif asset_type == "branch":
-                csv_path = Path("data/5bus/branch.csv")
+                csv_path = Path(f"{Bus5_case_path}/branch.csv")
                 prefixes = ["lifetime_", "capex_", "fixed_ops_cost_", "var_ops_cost_"]
             else:
-                csv_path = Path("data/5bus/storage.csv")
+                csv_path = Path(f"{Bus5_case_path}/storage.csv")
                 prefixes = ["lifetime_", "capex_", "fixed_ops_cost_", "var_ops_cost_"]
 
             # Call the method directly
