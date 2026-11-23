@@ -192,10 +192,15 @@ class ExpansionPlanningData:
         for branch in self.md.data["elements"]["branch"]:
             if "-c" in branch:  # key/Branch UID
                 self.md.data["elements"]["branch"][branch]["in_service"] = False
+                self.md.data["elements"]["branch"][branch]["candidate"] = True
+            else:
+                self.md.data["elements"]["branch"][branch]["candidate"] = False
 
         for stor in self.md.data["elements"]["storage"]:
             if "-c" in stor:  # key/Branch UID
                 self.md.data["elements"]["storage"][stor]["in_service"] = False
+
+        self.load_branch_csv(data_path)
 
         # Get the timestamps in the loaded day-ahead data. Default
         # representative_dates are selected from this list to ensure
@@ -690,6 +695,38 @@ class ExpansionPlanningData:
                 f"Warning: The file '{storage_path}' does not exist. Skipping loading storage data."
             )
             self.md.data["elements"]["storage"] = {}
+
+    def load_branch_csv(self, data_path):
+        """This method imports branch data.
+
+        :param data_path: filepath for branch data csv file
+        """
+        data_path = Path(data_path)
+
+        branch_path = data_path / "branch.csv"
+        branch_df = pd.read_csv(branch_path)
+
+        branch_data = {}
+        if "Static Line" not in branch_df.columns:
+            branch_df["Static Line"] = 0
+
+        for _, row in branch_df.iterrows():
+            name = row["UID"]
+
+            value = row["Static Line"]
+
+            if pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                static_line = False
+            elif value in (0, 1):  # Accepts numeric 0/1
+                static_line = bool(value)
+            else:
+                raise ValueError(f"Invalid Static Line value for {name}: {value!r}")
+
+            static_status = (
+                static_line and self.md.data["elements"]["branch"][name]["in_service"]
+            )
+
+            self.md.data["elements"]["branch"][name]["static"] = static_status
 
     def texas_case_study_updates(self, data_path):
         """Imports generator data for texas case study.
