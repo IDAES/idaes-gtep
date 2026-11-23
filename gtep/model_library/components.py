@@ -671,6 +671,9 @@ def add_gen_branch_cost_parameters(m):
         doc="Cost per unit of fuel at each generator by year",
     )
 
+    # Currently, fuelCostReactive are initialized with same values as
+    # fuelCost (real power). This should be updated with distinct
+    # reactive power cost data, when available.
     m.fuelCostReactive = pyo.Param(
         m.thermalGenerators,
         m.years,
