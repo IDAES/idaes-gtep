@@ -723,8 +723,7 @@ class ExpansionPlanningData:
                 raise ValueError(f"Invalid Static Line value for {name}: {value!r}")
 
             static_status = (
-                static_line
-                and self.md.data["elements"]["branch"][name]["in_service"]
+                static_line and self.md.data["elements"]["branch"][name]["in_service"]
             )
 
             self.md.data["elements"]["branch"][name]["static"] = static_status
