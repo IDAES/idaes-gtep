@@ -16,48 +16,8 @@ class TestGTEPDataProcessing(unittest.TestCase):
     def setUpClass(cls):
         cls.data_processing = DataProcessing()
         cls.temp_dir = Path(tempfile.mkdtemp())
-        # Set default years for testing
         cls.data_processing.years = [2025, 2030]
-
-        # Create a sample data object structure that would be used in
-        # the actual class.
-        cls.data_object = type(
-            "DataObject",
-            (),
-            {
-                "years": [2025, 2030],
-                "md": type(
-                    "MD",
-                    (),
-                    {
-                        "data": {
-                            "elements": {
-                                "generator": {
-                                    "gen1": {"investment_cost": 1000, "fuel_cost": 50},
-                                    "gen2": {"investment_cost": 1500, "fuel_cost": 75},
-                                },
-                                "branch": {"branch1": {"investment_cost": 500}},
-                                "storage": {"storage1": {"investment_cost": 2000}},
-                            }
-                        }
-                    },
-                )(),
-            },
-        )()
-
-    @classmethod
-    def tearDownClass(cls):
-        # Clean up temporary directory
-        shutil.rmtree(cls.temp_dir)
-
-    def setUp(self):
-        # Create a temporary directory for each test
-        self.test_dir = Path(tempfile.mkdtemp())
-
-    def tearDown(self):
-        # Clean up test directory
-        shutil.rmtree(self.test_dir)
-
+        
     def test_data_processing_init(self):
         """
         Check we are initializing properly.
@@ -71,7 +31,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
     def test_load_and_check_cost_csv_valid_file(self):
         """Test loading and validation of cost data from CSV file."""
 
-        for asset_type in ["generator", "branch"]:
+        for asset_type in ["generator", "branch", "storage"]:
 
             if asset_type == "generator":
                 # Path to the real CSV file
@@ -152,19 +112,19 @@ class TestGTEPDataProcessing(unittest.TestCase):
             ],
             0,
         )
-        # self.assertEqual(
-        #     self.data_processing.cost_dicts["storage"]["lifetime"][("battery_1a", 2025)],
-        #     3
-        # )
-        # self.assertEqual(
-        #     self.data_processing.cost_dicts["storage"]["capex"][("battery_1a", 2025)],
-        #     14.91
-        # )
-        # self.assertEqual(
-        #     self.data_processing.cost_dicts["storage"]["fixed_ops_cost"][("battery_1a", 2025)],
-        #     0
-        # )
-        # self.assertEqual(
-        #     self.data_processing.cost_dicts["storage"]["var_ops_cost"][("battery_1a", 2025)],
-        #     0
-        # )
+        self.assertEqual(
+            self.data_processing.cost_dicts["storage"]["lifetime"][("battery_1a", 2025)],
+            3
+        )
+        self.assertEqual(
+            self.data_processing.cost_dicts["storage"]["capex"][("battery_1a", 2025)],
+            14.91
+        )
+        self.assertEqual(
+            self.data_processing.cost_dicts["storage"]["fixed_ops_cost"][("battery_1a", 2025)],
+            0
+        )
+        self.assertEqual(
+            self.data_processing.cost_dicts["storage"]["var_ops_cost"][("battery_1a", 2025)],
+            0
+        )
