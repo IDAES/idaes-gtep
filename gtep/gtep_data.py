@@ -687,8 +687,17 @@ class ExpansionPlanningData:
         for _, row in branch_df.iterrows():
             name = row["UID"]
 
+            value = row["Static Line"]
+
+            if pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                static_line = False
+            elif value in (0, 1):  # Accepts numeric 0/1
+                static_line = bool(value)
+            else:
+                raise ValueError(f"Invalid Static Line value for {name}: {value!r}")
+
             static_status = (
-                bool(row["Static Line"])
+                static_line
                 and self.md.data["elements"]["branch"][name]["in_service"]
             )
 

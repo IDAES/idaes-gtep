@@ -373,12 +373,12 @@ def _add_static_transmission_constraints(m, b, static_lines):
 
     elif flow_model == "ACP":
         # Define voltage magnitude variables for from and to buses
-        b.static_voltage_from = pyo.Var(static_lines, bounds=(0, 2))
-        b.static_voltage_to = pyo.Var(static_lines, bounds=(0, 2))
+        b.static_voltage_from = pyo.Var(static_lines, bounds=(0, 2), doc="From-bus voltage magnitude")
+        b.static_voltage_to = pyo.Var(static_lines, bounds=(0, 2), doc="To-bus voltage magniutde")
 
         # Define active and reactive power flow variables
-        b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
-        b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
+        b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000), doc="Active power flow")
+        b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000), doc="Reactive power flow")
 
         @b.Constraint(
             static_lines, doc="ACP active power-flow constraints for static lines"
@@ -414,14 +414,14 @@ def _add_static_transmission_constraints(m, b, static_lines):
 
     elif flow_model == "ACR":
         # Define rectangular voltage variables for from and to buses
-        b.static_real_voltage_from = pyo.Var(static_lines, bounds=(0, 2))
-        b.static_real_voltage_to = pyo.Var(static_lines, bounds=(-2, 2))
-        b.static_imag_voltage_from = pyo.Var(static_lines, bounds=(0, 2))
-        b.static_imag_voltage_to = pyo.Var(static_lines, bounds=(-2, 2))
+        b.static_real_voltage_from = pyo.Var(static_lines, bounds=(0, 2), doc="From-bus real voltage")
+        b.static_real_voltage_to = pyo.Var(static_lines, bounds=(-2, 2), doc="To-bus real voltage")
+        b.static_imag_voltage_from = pyo.Var(static_lines, bounds=(0, 2), doc="From-bus imaginary voltage")
+        b.static_imag_voltage_to = pyo.Var(static_lines, bounds=(-2, 2), doc="To-bus imaginary voltage")
 
         # Define active and reactive power flow variables
-        b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
-        b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000))
+        b.static_P_flow = pyo.Var(static_lines, bounds=(-1000, 1000), doc="Active power flow")
+        b.static_Q_flow = pyo.Var(static_lines, bounds=(-1000, 1000), doc="Reactive poewr flow")
 
         @b.Constraint(
             static_lines, doc="ACR active power-flow constraints for static lines"
@@ -502,12 +502,12 @@ def add_transmission_state_disjuncts(m, b, i_p):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
             # Define voltage magnitude variables for from and to buses
-            disj.voltage_from = pyo.Var(bounds=(0, 2))
-            disj.voltage_to = pyo.Var(bounds=(0, 2))
+            disj.voltage_from = pyo.Var(bounds=(0, 2), doc="From-bus voltage magnitude")
+            disj.voltage_to = pyo.Var(bounds=(0, 2), doc="To-bus voltage magnitude")
 
             # Define active and reactive power flow variables
-            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
-            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000), doc="Active power flow")
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000), doc="Reactive power flow")
 
             @disj.Constraint()
             def ac_power_flow_p(disj):
@@ -537,14 +537,14 @@ def add_transmission_state_disjuncts(m, b, i_p):
             fb, tb, G, B, phase_shift = _branch_ac_data(m, branch)
 
             # Define rectangular voltage variables for from and to buses
-            disj.real_voltage_from = pyo.Var(bounds=(0, 2))
-            disj.real_voltage_to = pyo.Var(bounds=(-2, 2))
-            disj.imag_voltage_from = pyo.Var(bounds=(0, 2))
-            disj.imag_voltage_to = pyo.Var(bounds=(-2, 2))
+            disj.real_voltage_from = pyo.Var(bounds=(0, 2), doc="From-bus real voltage")
+            disj.real_voltage_to = pyo.Var(bounds=(-2, 2), doc="To-bus real voltage")
+            disj.imag_voltage_from = pyo.Var(bounds=(0, 2), doc="From-bus imaginary voltage")
+            disj.imag_voltage_to = pyo.Var(bounds=(-2, 2), doc="To-bus imaginary voltage")
 
             # Define active and reactive power flow variables
-            disj.P_flow = pyo.Var(bounds=(-1000, 1000))
-            disj.Q_flow = pyo.Var(bounds=(-1000, 1000))
+            disj.P_flow = pyo.Var(bounds=(-1000, 1000), doc="Active power flow")
+            disj.Q_flow = pyo.Var(bounds=(-1000, 1000), doc="Reactive power flow")
 
             @disj.Constraint()
             def ac_power_flow_p(disj):
