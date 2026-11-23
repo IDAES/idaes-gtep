@@ -329,21 +329,7 @@ def add_model_parameters(m):
     m.renewableCapacityNameplate = pyo.Param(
         m.renewableGenerators,
         initialize={
-            renewableGen: (
-                m.md.data["elements"]["generator"][renewableGen]["p_max"]
-                if type(m.md.data["elements"]["generator"][renewableGen]["p_max"])
-                == float
-                else max(
-                    [
-                        max(
-                            m.data_list[i].data["elements"]["generator"][renewableGen][
-                                "p_max"
-                            ]["values"]
-                        )
-                        for i in range(len(m.data_list))
-                    ]
-                )
-            )
+            renewableGen: m.md.data["elements"]["generator"][renewableGen]["nameplate"]
             for renewableGen in m.renewableGenerators
         },
         # mutable is set to False because it is used to set the

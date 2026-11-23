@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pyomo.common.unittest as unittest
 from pyomo.environ import ConcreteModel, SolverFactory, value, LogicalConstraint
+from pyomo.environ import check_optimal_termination
 from pyomo.environ import units as u
 from pyomo.environ import TransformationFactory
 from pyomo.util.check_units import (
@@ -251,9 +252,9 @@ class TestGTEP(unittest.TestCase):
 
         # previous successful objective values: 9207.95, 6078.86, 531860.15, 531883.43, 7977055.4,
         # 7977055.4, 7977150.30, 6986122.88, 7118266.88, 27944303.09, 28076447.10, 27944303.10, 29483643.26
-        # 29615787.26
+        # 29615787.26, 29628029.26
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 29628029.26, places=1
+            value(modObject.model.total_cost_objective), 29653650.99, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -290,9 +291,10 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 531860.15, 531883.43, 7977055.4, 7977055.4,
-        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95
+        # 7977150.30, 6986122.88, 7977169.84, 27944303.09, 31908490.95, 31908561.39
+        # 31908498.69
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 33109372.80, places=1
+            value(modObject.model.total_cost_objective), 33109380.55, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -340,9 +342,9 @@ class TestGTEP(unittest.TestCase):
         modObject.results = opt.solve(modObject.model)
 
         # previous successful objective values: 1524581869.89, 779334165.7, 779344643.1, 779486340.91,
-        # 776765960.70, 779494096.65, 723494956.65, 764004202.69
+        # 776765960.70, 779494096.65, 723494956.65, 779494096.65, 779518592.60, 779495688.36
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 809993428.69, places=1
+            value(modObject.model.total_cost_objective), 809995020.40, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -473,8 +475,9 @@ class TestGTEP(unittest.TestCase):
 
         # Previous values: 8584301655.08, 3545283964.22, 3359204716.88, 3487926967.61,
         # 13435364152.91, 13573783610.18, 13435364152.91, 13960195443.17, 14088696127.38
+        # 14096928573.71
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 14096928573.71, places=1
+            value(modObject.model.total_cost_objective), 14098177616.52, places=1
         )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
@@ -648,9 +651,10 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55
+        # Previous values: 779418083.72, 767038945.08, 767708848.64, 255902949.54, 241142049.55, 255902949.55
+        # 255908867.70
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902949.55, places=1
+            value(modObject.model.total_cost_objective), 255903177.76, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
@@ -756,8 +760,58 @@ class TestGTEP(unittest.TestCase):
 
         modObject.results = opt.solve(modObject.model)
 
-        # Previous values: 241142049.55
+        # Previous values: 241142049.55, 255902949.55, 255908867.70
         self.assertAlmostEqual(
-            value(modObject.model.total_cost_objective), 255902949.55, places=1
+            value(modObject.model.total_cost_objective), 255903177.76, places=1
+        )
+        assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
+
+    def test_with_cost_data_and_storage(self):
+        # Test ExpansionPlanningModel with cost data and storage. This
+        # uses the same setup as test_with_cost_data_and_commitment
+        # with storage turned on.
+        modObject = create_model(
+            planning_data_args={
+                "stages": 1,
+                "num_reps": 2,
+                "num_commit": 6,
+                "num_dispatch": 4,
+                "duration_representative_period": 6,
+            },
+            config={
+                "include_investment": True,
+                "include_commitment": True,
+                "include_redispatch": True,
+                "scale_loads": False,
+                "transmission": True,
+                "storage": True,
+                "flow_model": "transport",
+                "advanced_hydro": False,
+            },
+            candidate_gens=[
+                "Natural Gas_CT",
+                "Natural Gas_FE",
+                "Solar - Utility PV",
+                "Land-Based Wind",
+            ],
+        )
+
+        # Check for consistent units
+        # Note: Need to do this check before applying the GDP transformations
+        assert_units_consistent(modObject.model)
+
+        opt = SolverFactory("highs")
+        if not opt.available():
+            raise unittest.SkipTest("Solver not available")
+
+        # Apply transformations to logical terms
+        TransformationFactory("gdp.bigm").apply_to(modObject.model)
+
+        modObject.results = opt.solve(modObject.model)
+        self.assertTrue(check_optimal_termination(modObject.results))
+
+        # Previous successful objective values: 779551084.11
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 20238.85617, places=1
         )
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
