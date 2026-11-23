@@ -302,7 +302,9 @@ class DataProcessing:
                     "use_{asset_type}_cost is True."
                 )
 
-        data_path = Path(data_path)
+            # Only convert to Path if we need it
+            data_path = Path(data_path)
+
         self.cost_prefixes = [
             "lifetime_",
             "capex_",
