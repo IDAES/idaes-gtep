@@ -95,9 +95,13 @@ def _branch_dc_data(m, branch):
 
     if branch_data["branch_type"] == "transformer":
         reactance *= branch_data["transformer_tap_ratio"]
-        shift = branch_data["transformer_phase_shift"]
+        shift = math.radians(branch_data["transformer_phase_shift"])
     else:
         shift = 0
+
+    # Reactance is per unit on the system base (as in EGRET); flows are in
+    # MW, so scale by baseMVA: P[MW] = baseMVA * dtheta / x[p.u.].
+    reactance = reactance / m.md.data["system"]["baseMVA"]
 
     return fb, tb, reactance, shift
 
