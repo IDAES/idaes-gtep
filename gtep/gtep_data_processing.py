@@ -367,7 +367,7 @@ class DataProcessing:
                 "var_ops_cost": {},
             }
 
-            # Initialize default values for branchs
+            # Initialize default values for branches
             for branch in data_object.md.data["elements"]["branch"]:
                 branch_uid = data_object.md.data["elements"]["branch"][branch]
 
