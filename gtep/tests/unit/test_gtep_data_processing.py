@@ -7,7 +7,6 @@ import pyomo.common.unittest as unittest
 from pyomo.common.tempfiles import TempfileManager
 from gtep.gtep_data_processing import DataProcessing
 
-
 curr_dir = Path(__file__).resolve().parent
 Bus5_case_path = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
