@@ -380,8 +380,8 @@ class ExpansionPlanningSolution:
                 elif "Reserve" in var.name:
                     if pyo.value(var[index]) >= value_threshold:
                         reserves[var.name + "." + str(index)] = pyo.value(var[index])
-                elif "Flow" in var.name:
-                    if pyo.value(var[index]) >= value_threshold:
+                elif "powerFlow" in var.name:
+                    if abs(pyo.value(var[index])) >= value_threshold:
                         power_flow[var.name + "." + str(index)] = pyo.value(var[index])
                 elif "Generation" in var.name:
                     if pyo.value(var[index]) >= value_threshold:
