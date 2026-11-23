@@ -717,9 +717,9 @@ class TestGTEP(unittest.TestCase):
         # Windows GitHub Actions runs. This is tracked in issue #163.
         # This assertion will be uncommented once the observed issue
         # is resolved.
-        # self.assertAlmostEqual(
-        #     value(modObject.model.total_cost_objective), 20105684865.29, places=1
-        # )
+        self.assertAlmostEqual(
+            value(modObject.model.total_cost_objective), 20381952046.94, places=1
+        )
 
         assert_units_equivalent(modObject.model.total_cost_objective.expr, u.USD)
 
