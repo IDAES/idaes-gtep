@@ -123,21 +123,14 @@ def main(config_path):
     # Create cost data processing object.
     cost_config = config.get("cost_data", {})
 
-    if cost_config.get("enabled", True):
-        bus_data_path = cost_config["bus_data_path"]
-        cost_data_path = cost_config["cost_data_path"]
-        ng_cost_path = cost_config["ng_cost_path"]
-        candidate_gens = cost_config["candidate_gens"]
-
-        data_processing_object = DataProcessing()
-        data_processing_object.load_gen_data(
-            bus_data_path,
-            cost_data_path,
-            ng_cost_path,
-            candidate_gens,
-        )
-    else:
-        data_processing_object = None
+    data_processing_object = DataProcessing()
+    data_processing_object.load_cost_data(
+        data_object=data_object,
+        use_gen_cost=cost_config.get("use_gen_cost", True),
+        use_branch_cost=cost_config.get("use_branch_cost", True),
+        use_storage_cost=cost_config.get("use_storage_cost", True),
+        data_path=data_path,
+    )
 
     # -------------------------------------------------------------------
     # Populate and create GTEP model.

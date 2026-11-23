@@ -213,18 +213,41 @@ class TestInvestment(unittest.TestCase):
             ) as mock_comm,
         ):
 
-            # call the function
-            add_investment_constraints(self.b, self.investment_stage)
+            for investment_stage in self.m.stages:
+                b_inv = self.m.investmentStage[investment_stage]
+                b_inv.year = self.m.years[investment_stage]
 
-            # check the functions that are always called were called properly
-            mock_gens.assert_called_once_with(self.m, self.b, self.investment_stage)
-            mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # call the function
+                add_investment_constraints(self.b, self.investment_stage, b_inv.year)
 
-            # Check that transmission constraints are added
-            mock_transm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # check the functions that are always called were called properly
+                mock_gens.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
+                mock_comm.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                )
 
-            # Check that storage constraints are added
-            mock_stor.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # Check that transmission constraints are added
+                mock_transm.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
+
+                # Check that storage constraints are added
+                mock_stor.assert_any_call(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")
@@ -266,18 +289,24 @@ class TestInvestment(unittest.TestCase):
             ) as mock_comm,
         ):
 
-            # call the function
-            add_investment_constraints(self.b, self.investment_stage)
+            for investment_stage in self.m.stages:
+                b_inv = self.m.investmentStage[investment_stage]
+                b_inv.year = self.m.years[investment_stage]
 
-            # check the functions that are always called were called properly
-            mock_gens.assert_called_once_with(self.m, self.b, self.investment_stage)
-            mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # call the function
+                add_investment_constraints(self.b, self.investment_stage, b_inv.year)
 
-            # Check that transmission constraints are not added
-            mock_transm.assert_not_called()
+                # check the functions that are always called were called properly
+                mock_gens.assert_called_once_with(
+                    self.m, self.b, self.investment_stage, b_inv.year
+                )
+                mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
 
-            # Check that storage constraints are not added
-            mock_stor.assert_not_called()
+                # Check that transmission constraints are not added
+                mock_transm.assert_not_called()
+
+                # Check that storage constraints are not added
+                mock_stor.assert_not_called()
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")
@@ -314,18 +343,32 @@ class TestInvestment(unittest.TestCase):
             ) as mock_comm,
         ):
 
-            # call the function
-            add_investment_constraints(self.b, self.investment_stage)
+            for investment_stage in self.m.stages:
+                b_inv = self.m.investmentStage[investment_stage]
+                b_inv.year = self.m.years[investment_stage]
 
-            # check the functions that are always called were called properly
-            mock_gens.assert_called_once_with(self.m, self.b, self.investment_stage)
-            mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # call the function
+                add_investment_constraints(self.b, self.investment_stage, b_inv.year)
 
-            # Check that transmission constraints are added
-            mock_transm.assert_not_called()
+                # check the functions that are always called were called properly
+                mock_gens.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
+                mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
 
-            # Check that storage constraints are added
-            mock_stor.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # Check that transmission constraints are added
+                mock_transm.assert_not_called()
+
+                # Check that storage constraints are added
+                mock_stor.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")
@@ -362,18 +405,36 @@ class TestInvestment(unittest.TestCase):
             ) as mock_comm,
         ):
 
-            # call the function
-            add_investment_constraints(self.b, self.investment_stage)
+            for investment_stage in self.m.stages:
+                b_inv = self.m.investmentStage[investment_stage]
+                b_inv.year = self.m.years[investment_stage]
 
-            # check the functions that are always called were called properly
-            mock_gens.assert_called_once_with(self.m, self.b, self.investment_stage)
-            mock_comm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # call the function
+                add_investment_constraints(self.b, self.investment_stage, b_inv.year)
 
-            # Check that transmission constraints are added
-            mock_transm.assert_called_once_with(self.m, self.b, self.investment_stage)
+                # check the functions that are always called were called properly
+                mock_gens.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
+                mock_comm.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                )
 
-            # Check that storage constraints are added
-            mock_stor.assert_not_called()
+                # Check that transmission constraints are added
+                mock_transm.assert_called_once_with(
+                    self.m,
+                    self.b,
+                    self.investment_stage,
+                    b_inv.year,
+                )
+
+                # Check that storage constraints are added
+                mock_stor.assert_not_called()
 
             # check expression and constraint creation
             assert hasattr(self.b, "investment_cost")

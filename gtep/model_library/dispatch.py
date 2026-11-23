@@ -24,7 +24,7 @@ import gtep.model_library.storage as stor
 import gtep.model_library.transmission as transm
 
 
-def add_dispatch_variables(b, paramPeriodLength):
+def add_dispatch_variables(b, paramPeriodLength, year):
     """This method adds dispatch-associated variables to
     dispatch period block.
 
@@ -56,7 +56,7 @@ def add_dispatch_variables(b, paramPeriodLength):
         return (
             b.thermalGeneration[gen]
             * u.convert(paramPeriodLength, to_units=u.hr)
-            * (m.varCost[gen] + m.fuelCost[gen])
+            * (m.generatorVariableCost[gen, year] + m.fuelCost[gen, year])
         )
 
     @b.Expression(m.renewableGenerators, doc="Cost per renewable generator in $")
@@ -66,7 +66,7 @@ def add_dispatch_variables(b, paramPeriodLength):
         return (
             b.renewableGeneration[gen]
             * u.convert(paramPeriodLength, to_units=u.hr)
-            * m.varCost[gen]
+            * m.generatorVariableCost[gen, year]
         )
 
     if m.config["storage"]:
@@ -82,7 +82,7 @@ def add_dispatch_variables(b, paramPeriodLength):
             return (
                 b.hydroGeneration[hydroGen]
                 * u.convert(paramPeriodLength, to_units=u.hr)
-                * m.varCost[hydroGen]
+                * m.generatorVariableCost[hydroGen, year]
             )
 
     if m.config["flow_model"] == "ACR" or m.config["flow_model"] == "ACP":
@@ -92,7 +92,7 @@ def add_dispatch_variables(b, paramPeriodLength):
             return (
                 b.thermalReactiveGeneration[gen]
                 * u.convert(paramPeriodLength, to_units=u.hr)
-                * m.fuelCostReactive[gen]
+                * m.fuelCostReactive[gen, year]
             )
 
     b.loadShed = pyo.Var(
@@ -141,7 +141,7 @@ def add_dispatch_variables(b, paramPeriodLength):
             return (
                 b.thermalReactiveGeneration[gen]
                 * u.convert(paramPeriodLength, to_units=u.hr)
-                * m.fuelCostReactive[gen]
+                * m.fuelCostReactive[gen, year]
             )
 
         @b.Expression(doc=total_reactive_cost_doc)

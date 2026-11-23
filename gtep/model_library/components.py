@@ -27,7 +27,7 @@ import gtep.model_library.storage as stor
 logger = logging.getLogger("gtep.model_library.components")
 
 
-def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
+def add_model_sets(m, stages, years, rep_per):
     """
     Creates Pyomo Sets necessary (convenient) for solving the GTEP model.
 
@@ -38,6 +38,10 @@ def add_model_sets(m, stages, rep_per=["a", "b"], com_per=2, dis_per=2):
     # [TODO: make sure time units are both definable and consistent
     # without being forced.]
     m.stages = pyo.RangeSet(stages, doc="Set of planning periods")
+
+    # Add investment years as a Pyomo set. This data is coming from
+    # the model data processing object.
+    m.years = pyo.Set(initialize=years)
 
     m.representativePeriods = pyo.Set(
         initialize=rep_per,
@@ -189,10 +193,6 @@ def add_model_parameters(m):
 
     """
 
-    # Add investment years. [TODO: Make sure this value comes from a
-    # configuration arg and not hardcoded values.]
-    m.years = [2025, 2030, 2035]
-
     # Add power-related parameters
     m.thermalCapacity = pyo.Param(
         m.thermalGenerators,
@@ -239,17 +239,6 @@ def add_model_parameters(m):
             units=u.MW,
             doc="Maximum output of each hydropower generator",
         )
-
-    m.lifetimes = pyo.Param(
-        m.generators,
-        initialize={
-            gen: m.md.data["elements"]["generator"][gen]["lifetime"]
-            for gen in m.generators
-        },
-        mutable=True,
-        units=u.year,
-        doc="Lifetime of each generator",
-    )
 
     m.thermalMin = pyo.Param(
         m.thermalGenerators,
@@ -366,46 +355,6 @@ def add_model_parameters(m):
         doc="Distance between terminal buses for each transmission line",
     )
 
-    # Initialize investment costs in each new transmission
-    # line. Currently selected the value of 0 to ensure investments
-    # will be selected, if needed.
-    m.branchInvestmentCost = pyo.Param(
-        m.lines,
-        initialize={
-            branch: (m.md.data["elements"]["branch"][branch].get("capital_cost") or 0)
-            for branch in m.lines
-        },
-        mutable=True,
-        units=u.USD / u.MW,
-        doc="Investment cost for each new branch",
-    )
-
-    # [JSC TODO: Add branch capital multiplier to input data.]
-    m.branchCapitalMultiplier = pyo.Param(
-        m.lines,
-        initialize={
-            branch: (
-                m.md.data["elements"]["branch"][branch].get("capital_multiplier") or 1
-            )
-            for branch in m.lines
-        },
-        mutable=True,
-        units=u.dimensionless,
-    )
-
-    m.branchExtensionMultiplier = pyo.Param(
-        m.lines,
-        initialize={
-            branch: (
-                m.md.data["elements"]["branch"][branch].get("extension_multiplier") or 1
-            )
-            for branch in m.lines
-        },
-        mutable=True,
-        units=u.dimensionless,
-        doc="Cost of life extension for each generator expressed as a fraction of initial investment cost",
-    )
-
     # [TODO: These should go into each stage. Check where these values
     # should come from.]
     m.peakLoad = pyo.Param(m.stages, default=0, units=u.MW)
@@ -441,57 +390,6 @@ def add_model_parameters(m):
         m.stages, default=1, mutable=True, units=u.dimensionless
     )
     m.deficitPenalty = pyo.Param(m.stages, default=1, units=u.USD / u.MW)
-
-    # Calculate fuel costs for thermal generators using fuel price and
-    # heat rate. Define the MMBTU unit explicitly because it is not
-    # included in Pyomo units by default.
-    m.fuelCostperMMBTU = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            gen: (
-                m.md.data["elements"]["generator"][gen]["fuel_cost"]
-                if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["p_cost"]["values"][1]
-            )
-            for gen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.USD / u.MMBTU,
-        doc="Fuel cost per MMBTU at each generator",
-    )
-    m.heatRate = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            gen: (
-                m.md.data["elements"]["generator"][gen]["heat_rate"]
-                if "RTS-GMLC" in m.md.data["system"]["name"]
-                else m.md.data["elements"]["generator"][gen]["heat_rate"]
-            )
-            for gen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.MMBTU / (u.MW * u.hr),
-        doc="Heat rate for each thermal generator",
-    )
-    m.fuelCost = pyo.Param(
-        m.thermalGenerators,
-        initialize={
-            gen: m.fuelCostperMMBTU[gen] * m.heatRate[gen]
-            for gen in m.thermalGenerators
-        },
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Cost per unit of fuel at each generator",
-    )
-
-    # [WIP: Setting to be the same as real fuel cost for now]
-    m.fuelCostReactive = pyo.Param(
-        m.generators,
-        initialize={gen: m.fuelCost[gen] for gen in m.thermalGenerators},
-        mutable=True,
-        units=u.USD / (u.MVAR * u.hr),
-        doc="Cost per unit of fuel at each generator (reactive power)",
-    )
 
     m.emissionsFactor = pyo.Param(
         m.generators,
@@ -551,16 +449,6 @@ def add_model_parameters(m):
         mutable=True,
         units=u.dimensionless,
         doc="Cost of life retirement for each generator expressed as a fraction of initial investment cost",
-    )
-
-    # Initialize generator investment costs to 0 and re-defined them
-    # during investment stage using data from preprocessing.
-    m.generatorInvestmentCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / u.MW,
-        doc="Investment cost for all generators",
     )
 
     m.minOperatingReserve = pyo.Param(
@@ -636,23 +524,6 @@ def add_model_parameters(m):
         == region
     }
 
-    # Initialize fixed and variable costs and update values during
-    # investment stage.
-    m.fixedCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Fixed operating costs",
-    )
-    m.varCost = pyo.Param(
-        m.generators,
-        initialize={gen: 1 for gen in m.generators},
-        mutable=True,
-        units=u.USD / (u.MW * u.hr),
-        doc="Variable costs",
-    )
-
     # Initialize curtailment and load shed costs as parameters and
     # re-calculate them during the investment stage.
     m.curtailmentCost = pyo.Param(
@@ -667,6 +538,8 @@ def add_model_parameters(m):
         mutable=True,
     )
 
+    # Add cost parameters
+    add_gen_branch_cost_parameters(m)
     if m.config["storage"] == True:
         stor.add_storage_params(m)
 
@@ -703,105 +576,193 @@ def add_model_parameters(m):
     """
 
 
-def repopulate_cost_parameters(m, year):
-    """This method saves lists with all relevant costs (fixed and
-    variable operating costs, fuel costs, and investment costs) for
-    thermal and renewable generators. Refer to gtep_data_processing
-    script for more details about the preprocessing of this data.
+def add_gen_branch_cost_parameters(m):
+    """Adds cost parameters for transmission lines, generators, and
+    thermal generators fuel costs for stage years. The costs
+    parameters support multi-year planning with year-indexed values.
 
-    Assumes all thermal generators use CT costs and all renewable
-    generators use PV costs when technology-specific data are
-    unavailable. By default, current cost data cover 2025, 2030, and
-    2035.
+    The cost data source depends on configuration values:
+
+        - If include_cost_data=True and
+          use_cost_from_data_files=False, it adds costs from
+          pre-converted spreadsheet data from m.mc.gen_cost_data.
+
+        - If include_cost_data=True and use_cost_from_data_files=True,
+          it adds {cost_type}_{year} data from input data files
+          'gen.csv' and 'branch.csv' files.
+
+    The required units for relevant costs are:
+        fixed_ops_cost_<year>     : USD/MWh
+        var_ops_cost_<year>       : USD/MWh
+        capex_<year>              : USD/MW
+        fuel_cost_<year>          : USD/MWh
+        fuel_reactive_cost_<year> : USD/MWh
 
     """
 
-    logger.info(
-        "Assigning NG CT cost values to all thermal generators "
-        "and solar PV cost values to all renewable generators."
+    m.generatorInvestmentCost = pyo.Param(
+        m.generators,
+        m.years,
+        initialize=m.mc.cost_dicts["generator"]["capex"],
+        mutable=True,
+        units=u.USD / u.MW,
+        doc="Investment cost for all generators by year",
     )
 
-    gen_thermal_type = "CT"
-    gen_renewable_type = "PV"
+    m.generatorFixedCost = pyo.Param(
+        m.generators,
+        m.years,
+        initialize=m.mc.cost_dicts["generator"]["fixed_ops_cost"],
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Fixed operating costs for all generators by year",
+    )
 
-    m.genThermalInvCost = []
-    m.genThermalFuelCost = []
-    m.genThermalFixOpCost = []
-    m.genThermalVarOpCost = []
-    m.genRenewableInvCost = []
-    m.genRenewableFuelCost = []
-    m.genRenewableFixOpCost = []
-    m.genRenewableVarOpCost = []
+    m.generatorVariableCost = pyo.Param(
+        m.generators,
+        m.years,
+        initialize=m.mc.cost_dicts["generator"]["var_ops_cost"],
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Variable costs for all generators by year",
+    )
 
-    if m.mc is not None:
-        for index, row in m.mc.gen_data_target.iterrows():
-            if row["Unit Type"].startswith(gen_thermal_type):
-                m.genThermalInvCost.append(row[f"capex_{year}"])  # in $/kW
-                m.genThermalFixOpCost.append(row[f"fixed_ops_{year}"])  # in $/kW-yr
-                m.genThermalVarOpCost.append(row[f"var_ops_{year}"])  # $/MWh
-                m.genThermalFuelCost.append(row[f"fuel_costs_{year}"])
+    # Fuel costs are calculated from heat rate and fuel cost in
+    # $/MMBTU. [TODO: Think about changing this so we can depend on
+    # only one fuel cost parameter. ]
+    m.fuelCostperMMBTU = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: m.md.data["elements"]["generator"][gen]["fuel_cost"]
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.USD / u.MMBTU,
+        doc="Fuel cost per MMBTU at each generator",
+    )
 
-            elif row["Unit Type"].startswith(gen_renewable_type):
-                m.genRenewableInvCost.append(row[f"capex_{year}"])  # in $/kW
-                m.genRenewableFixOpCost.append(row[f"fixed_ops_{year}"])  # in $/kW-yr
-                m.genRenewableVarOpCost.append(row[f"var_ops_{year}"])  # $/MWh
-                m.genRenewableFuelCost.append(row[f"fuel_costs_{year}"])
+    m.heatRate = pyo.Param(
+        m.thermalGenerators,
+        initialize={
+            gen: m.md.data["elements"]["generator"][gen]["heat_rate"]
+            for gen in m.thermalGenerators
+        },
+        mutable=True,
+        units=u.MMBTU / (u.MW * u.hr),
+        doc="Heat rate for each thermal generator",
+    )
 
-            else:
-                continue
+    # Initialize fuelCost with either cost_dicts data or calculated
+    # from fuelCostperMMBTU and heatRate
+    if "fuel_cost" in m.mc.cost_dicts["generator"]:
+        fuel_cost_init = m.mc.cost_dicts["generator"]["fuel_cost"]
     else:
-        # TODO: Check what the default costs should be
-        logger.warning(
-            "Cost data was not provided in m.mc instance (check DataProcessing for more details). "
-            "Setting costs parameters to random values for now."
-        )
-        m.genThermalInvCost.append(1)  # in $/kW
-        m.genThermalFixOpCost.append(1)  # in $/kW-yr
-        m.genThermalVarOpCost.append(1)  # $/MWh
-        m.genThermalFuelCost.append(1)
-        m.genRenewableInvCost.append(1)  # in $/kW
-        m.genRenewableFixOpCost.append(1)  # in $/kW-yr
-        m.genRenewableVarOpCost.append(1)  # $/MWh
-        m.genRenewableFuelCost.append(1)
+        fuel_cost_init = {}
+        for gen in m.thermalGenerators:
+            for year in m.years:
+                fuel_cost_init[(gen, year)] = m.fuelCostperMMBTU[gen] * m.heatRate[gen]
 
-    # Update data for investment, fixed and variable, and fuel costs
-    # previously defined since they depend on the investment
-    # year. Also, convert the units to be consistent.
-    units_fixed_cost = u.USD / (u.kW * u.year)
-    units_var_cost = u.USD / (u.MW * u.hr)
-    units_inv_cost = u.USD / u.kW
-    units_fuel_cost = u.USD / (u.MW * u.hr)
-    units_reactive_fuel_cost = u.USD / (u.MVAR * u.hr)
-    for gen in m.generators:
-        if m.md.data["elements"]["generator"][gen]["generator_type"] == "thermal":
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genThermalFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
+    m.fuelCost = pyo.Param(
+        m.thermalGenerators,
+        m.years,
+        initialize=fuel_cost_init,
+        mutable=True,
+        units=u.USD / (u.MW * u.hr),
+        doc="Cost per unit of fuel at each generator by year",
+    )
+
+    # Currently, fuelCostReactive are initialized with same values as
+    # fuelCost (real power). This should be updated with distinct
+    # reactive power cost data, when available.
+    m.fuelCostReactive = pyo.Param(
+        m.thermalGenerators,
+        m.years,
+        initialize=fuel_cost_init,
+        mutable=True,
+        units=u.USD / (u.MVAR * u.hr),
+        doc="Cost per unit of fuel at each generator (reactive power) by year",
+    )
+
+    m.generatorLifetime = pyo.Param(
+        m.generators,
+        initialize={
+            gen: m.md.data["elements"]["generator"][gen]["lifetime"]
+            for gen in m.generators
+        },
+        mutable=True,
+        units=u.year,
+        doc="Lifetime of each generator",
+    )
+
+    m.branchInvestmentCost = pyo.Param(
+        m.lines,
+        m.years,
+        initialize=m.mc.cost_dicts["branch"]["capex"],
+        mutable=True,
+        units=u.USD / u.MW,
+        doc="Investment cost for each branch by year",
+    )
+
+    m.branchFixedCost = pyo.Param(
+        m.lines,
+        m.years,
+        initialize=m.mc.cost_dicts["branch"]["fixed_ops_cost"],
+        mutable=True,
+        units=u.USD / u.MW,
+        doc="Fixed cost for each branch by year",
+    )
+
+    m.branchVariableCost = pyo.Param(
+        m.lines,
+        m.years,
+        initialize=m.mc.cost_dicts["branch"]["var_ops_cost"],
+        mutable=True,
+        units=u.USD / u.MW,
+        doc="Variable cost for each branch by year",
+    )
+
+    m.branchLifetime = pyo.Param(
+        m.lines,
+        initialize={
+            line: m.md.data["elements"]["branch"][line]["lifetime"] for line in m.lines
+        },
+        mutable=True,
+        units=u.year,
+        doc="Lifetime of each branch",
+    )
+
+    # Branch multipliers remain constant across years
+    m.branchCapitalMultiplier = pyo.Param(
+        m.lines,
+        initialize={
+            branch: (
+                m.md.data["elements"]["branch"][branch].get("capital_multiplier") or 1
             )
-            m.varCost[gen] = m.genThermalVarOpCost[0] * units_var_cost
+            for branch in m.lines
+        },
+        mutable=True,
+        units=u.dimensionless,
+    )
 
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genThermalInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
+    m.branchExtensionMultiplier = pyo.Param(
+        m.lines,
+        initialize={
+            branch: (
+                m.md.data["elements"]["branch"][branch].get("extension_multiplier") or 1
             )
+            for branch in m.lines
+        },
+        mutable=True,
+        units=u.dimensionless,
+        doc="Cost of life extension for each branch expressed as a fraction of initial investment cost",
+    )
 
-            # Add fuel costs from preprocessed data. Consider this
-            # cost is for Natural Gas generators, not coal.
-            m.fuelCost[gen] = m.genThermalFuelCost[0] * units_fuel_cost
-            m.fuelCostReactive[gen] = m.genThermalFuelCost[0] * units_reactive_fuel_cost
-        else:
-            # For renewable
-            m.fixedCost[gen] = pyo.units.convert(
-                m.genRenewableFixOpCost[0] * units_fixed_cost,
-                to_units=u.USD / (u.MW * u.hr),
-            )
-            m.varCost[gen] = m.genRenewableVarOpCost[0] * units_var_cost
-
-            m.generatorInvestmentCost[gen] = pyo.units.convert(
-                m.genRenewableInvCost[0] * units_inv_cost, to_units=u.USD / u.MW
-            )
-
-    # Final (converted) units are:
-    # fixed cost = $/MWh
-    # var cost = $/MWh
-    # inv cost = $/Mw
-    # fuel cost = $/MWh
+    # m.generatorInvestmentCost.display()
+    # m.generatorFixedCost.display()
+    # m.generatorVariableCost.display()
+    # m.fuelCost.display()
+    # m.fuelCostReactive.display()
+    # m.branchInvestmentCost.display()
+    # m.branchFixedCost.display()
+    # m.branchVariableCost.display()
+    # quit()

@@ -34,6 +34,7 @@ class ExpansionPlanningData:
 
     def __init__(
         self,
+        years=[2025, 2030, 2035],
         stages=2,
         num_reps=4,
         num_commit=24,
@@ -44,6 +45,7 @@ class ExpansionPlanningData:
     ):
         """Initialize generation & expansion planning data object.
 
+        :param: years: list of years
         :param: stages: integer number of investment periods
         :param: num_reps: integer number of representative periods per investment period
         :param: num_commit: integer number of commitment periods per representative period
@@ -57,6 +59,8 @@ class ExpansionPlanningData:
                 if provided. Default is None.
 
         """
+
+        self.years = years
         self.stages = stages
         self.num_reps = num_reps
         self.num_commit = num_commit
@@ -655,8 +659,9 @@ class ExpansionPlanningData:
                     self.md.data["elements"]["branch"][branch]["loss_rate"] = 0
                     self.md.data["elements"]["branch"][branch]["distance"] = 1
                     self.md.data["elements"]["branch"][branch][
-                        "capital_cost"
+                        "investment_cost"
                     ] = 10000000
+                    self.md.data["elements"]["branch"][branch]["lifetime"] = 3
 
         if "system" in self.md.data.keys():
             self.md.data["system"]["min_operating_reserve"] = 0.1
@@ -841,11 +846,18 @@ class ExpansionPlanningData:
                 f"Required data-file specification not found: {requirements_file}"
             )
 
-        required_columns = self.get_required_columns_from_file(
-            requirements_file,
-            target_file,
-        )
-
+        # Strip parentheses and any text within them from required
+        # column names.  This ensures column matching is not affected
+        # by optional notes or clarifications in parentheses (example,
+        # "Fuel Price $/MMBTU (**see notes)" becomes "Fuel Price
+        # $/MMBTU").
+        required_columns = [
+            col.split("(")[0].strip()
+            for col in self.get_required_columns_from_file(
+                requirements_file,
+                target_file,
+            )
+        ]
         df = pd.read_csv(data_file)
 
         ramp_col = "Ramp Rate MW/Min"
@@ -886,7 +898,16 @@ class ExpansionPlanningData:
         # Check that each required column has populated values for all
         # rows.
         for col in required_columns_no_ramp:
-            missing_mask = is_missing(df[col])
+
+            # Only validate fuel-related costs for thermal
+            # generators. These are not required by renewable
+            # generators.
+            if col == "Fuel Price $/MMBTU" or col == "Non Fuel Start Cost $":
+                # Create a mask identifying thermal generators
+                thermal_mask = df["Fuel"].isin(thermal_unit_types)
+                missing_mask = is_missing(df.loc[thermal_mask, col])
+            else:
+                missing_mask = is_missing(df[col])
 
             if missing_mask.any():
                 if "GEN UID" in df.columns:

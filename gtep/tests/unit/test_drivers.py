@@ -69,7 +69,6 @@ def test_explicit_driver_runs(gtep_dir):
         # Copy input data because Windows symlink creation requires
         # additional privileges.
         shutil.copytree(gtep_dir / "data" / "5bus", temp_dir / "data" / "5bus")
-        shutil.copytree(gtep_dir / "data" / "costs", temp_dir / "data" / "costs")
 
         # Run the explicit driver as a separate Python process from the
         # temporary directory. Any results directories created by the
@@ -115,10 +114,6 @@ def test_config_driver_runs(gtep_dir):
         shutil.copytree(
             gtep_dir / "data" / "5bus",
             temp_gtep_dir / "data" / "5bus",
-        )
-        shutil.copytree(
-            gtep_dir / "data" / "costs",
-            temp_gtep_dir / "data" / "costs",
         )
         shutil.copy(
             gtep_dir / "data" / "required_data_files.csv",

@@ -46,15 +46,9 @@ duration_representative_period = 6
 [cost_data]
 # When set to true, load cost data, otherwise skip cost-data
 # preprocessing.
-enabled = true
-bus_data_path = "../gtep/data/costs/Bus_data_gen_weights_mappings.csv"
-cost_data_path = "../gtep/data/costs/2022_v3_Annual_Technology_Baseline_Workbook_Mid-year_update_2-15-2023_Clean.xlsx"
-ng_cost_path = "../gtep/data/costs/Total_Energy_Supply_Disposition_and_Price_Summary.csv"
-candidate_gens = [
-    "Natural Gas_CT",
-    "Natural Gas_FE",
-    "Solar - Utility PV",
-]
+use_gen_cost = true
+use_branch_cost = true
+use_storage_cost = true
 
 [model]
 # Core model options.
