@@ -18,7 +18,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.data_processing = DataProcessing()
-        self.years = [2025, 2030]
+        self.data_processing.years = [2025, 2030]
 
     def test_data_processing_init(self):
         """Check we are initializing properly."""
@@ -144,7 +144,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
         # Create the data_object using ExpansionPlanningData class.
         data_object = ExpansionPlanningData(
-            years=self.years,
+            years=[2025, 2030],
             stages=2,
             num_reps=1,
             num_commit=1,
@@ -183,7 +183,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
             # the cost dicts.
             asset_name = data_object.md.data["elements"][asset_type]
             for gen_name in asset_name:
-                for year in self.years:
+                for year in [2025, 2030]:
                     self.assertIn((gen_name, year), cost_dicts[asset_type][f"capex"])
                     self.assertIn(
                         (gen_name, year), cost_dicts[asset_type][f"fixed_ops_cost"]
@@ -298,7 +298,7 @@ class TestGTEPDataProcessing(unittest.TestCase):
 
         # Create a real data_object
         data_object = ExpansionPlanningData(
-            years=self.years,
+            years=[2025, 2030],
             stages=2,
             num_reps=1,
             num_commit=1,
