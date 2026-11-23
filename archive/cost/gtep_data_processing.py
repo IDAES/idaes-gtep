@@ -369,7 +369,7 @@ class DataProcessing:
         setattr(self, cost_attr, df)
 
     def extract_wacc_real(self, cost_dir: dict, year: int) -> dict:
-        """Extracts the WACC Real for all generators and a given year.
+        """Extracts the Real WACC Real for all generators and a given year.
 
         WACC (Weighted Average Cost of Capital) represents the cost of
         financing (equity + debt). WACC "Real" rates are preferred
