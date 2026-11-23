@@ -13,6 +13,7 @@ from gtep.gtep_data_processing import DataProcessing
 curr_dir = Path(__file__).resolve().parent
 Bus5_case_path = (curr_dir / ".." / ".." / "data" / "5bus").resolve()
 
+
 class TestGTEPDataProcessing(unittest.TestCase):
     @classmethod
     def setUpClass(self):
@@ -187,7 +188,9 @@ class TestGTEPDataProcessing(unittest.TestCase):
                     self.assertIn(
                         (gen_name, year), cost_dicts[asset_type][f"fixed_ops_cost"]
                     )
-                    self.assertIn((gen_name, year), cost_dicts[asset_type][f"var_ops_cost"])
+                    self.assertIn(
+                        (gen_name, year), cost_dicts[asset_type][f"var_ops_cost"]
+                    )
 
         # Verify fuel_cost is only in generator (not in branch or
         # storage).
