@@ -385,10 +385,18 @@ def add_investment_storage_constraints(m, b, investment_stage):
 
     # Fix "in-service" batteries initial investment state based on input
     for stor in m.storage:
-        in_service = m.md.data["elements"]["storage"][stor]["in_service"]
 
         if investment_stage == m.stages.first():
-            b.storOperational[stor].indicator_var.fix(in_service)
+            if m.md.data["elements"]["storage"][stor]["in_service"]:
+                b.storOperational[stor].indicator_var.fix(True)
+            else:
+                b.storOperational[stor].indicator_var.fix(False)
+                b.storExtended[stor].indicator_var.fix(False)
+
+            # Candidates should not be retired in the first stage
+            # because they do not exist yet
+            if str(stor).endswith("-c"):
+                b.storRetired[stor].indicator_var.fix(False)
 
     @b.Expression(doc="Storage investment costs in $")
     def storage_investment_cost(b):
