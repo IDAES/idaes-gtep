@@ -181,11 +181,11 @@ class ExpansionPlanningModel:
             m.md = m.data_list[0]
             m.data = self.data
         else:
-            # If self.data is an Egret model data object,
-            # representative periods will just copy it unchanged
-            m.data_list = None
-            m.md = scale_ModelData_to_pu(self.data)
-            m.formulation = self.formulation
+            raise RunTimeError(
+                "Representative data not built correctly. This should not happen "
+                "and will cause errors later. Please double check inputs and ensure"
+                "you are passing valid representative dates and weights"
+            )
 
         # Add cost_data from the DataProcessing class. [TODO: Think
         # about how to do some scaling in this data.]
