@@ -380,7 +380,7 @@ def add_model_parameters(m):
             for branch in m.lines
         },
         domain=pyo.Reals,
-        doc="Reactance for each transmission line (ohms)",
+        doc="Reactance for each transmission line (p.u. with base MVA of 100)",
     )
 
     m.spinningReserveFraction = pyo.Param(
